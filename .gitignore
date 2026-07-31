@@ -1,0 +1,52 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.pyright/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node and frontend
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Tests and generated reports
+playwright-report/
+test-results/
+evals/reports/*
+!evals/reports/README.md
+
+# Runtime and infrastructure state
+*.log
+*.pid
+*.pid.lock
+.data/
+tmp/
+
+# Large model and tool artifacts
+*.gguf
+*.onnx
+*.safetensors
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
