@@ -1,0 +1,13 @@
+[project]
+name = "industry-intelligence-platform"
+version = "0.1.0"
+description = "A multimodal industry intelligence workspace."
+readme = "README.md"
+requires-python = "==3.13.14"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["apps/backend"]

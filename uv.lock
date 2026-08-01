@@ -1,0 +1,19 @@
+version = 1
+revision = 3
+requires-python = "==3.13.14"
+
+[manifest]
+members = [
+    "industry-intelligence-platform",
+    "industry-platform-backend",
+]
+
+[[package]]
+name = "industry-intelligence-platform"
+version = "0.1.0"
+source = { virtual = "." }
+
+[[package]]
+name = "industry-platform-backend"
+version = "0.1.0"
+source = { editable = "apps/backend" }
