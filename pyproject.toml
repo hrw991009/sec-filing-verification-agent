@@ -11,3 +11,61 @@ package = false
 
 [tool.uv.workspace]
 members = ["apps/backend"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0,<3.0.0",
+    "pytest>=9.1.1,<10.0.0",
+    "ruff>=0.16.1,<0.17.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["apps/backend/src"]
+
+[tool.ruff.lint]
+select = [
+  "ASYNC",
+  "B",
+  "DTZ",
+  "E",
+  "F",
+  "I",
+  "PT",
+  "RUF",
+  "S",
+  "SIM",
+  "T20",
+  "UP",
+]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"apps/backend/tests/**/*.py" = ["S101"]
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.13"
+files = [
+  "apps/backend/src",
+  "apps/backend/tests",
+]
+strict = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+
+[tool.pytest.ini_options]
+addopts = [
+  "--import-mode=importlib",
+  "--strict-config",
+  "--strict-markers",
+  "-ra",
+]
+testpaths = ["apps/backend/tests"]
+xfail_strict = true
+filterwarnings = ["error"]
