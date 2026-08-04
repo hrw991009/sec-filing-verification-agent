@@ -1,0 +1,64 @@
+# 参考仓凭据暴露审计
+
+> 审计日期：2026-08-03
+>
+> 状态：需要项目所有者处置
+>
+> 安全规则：本文只记录文件、规则、提交与处置状态，不记录任何 Secret 原文
+
+## 1. 为什么必须做这项审计
+
+删除当前文件中的密钥，不会删除 Git 历史里的旧副本；旧值只要仍然有效，就可能被重新利用。因此 D1-09 的完成条件不是“新仓没有密钥”这一项，而是：新仓当前树和完整历史无泄漏，两个参考仓的候选全部完成真假判断，所有真实或无法确认的旧凭据均已在 Provider 侧吊销/轮换，并留下不含密钥的证据。
+
+本次扫描全部使用 `--redact`，没有把候选值写入本项目文档、日志或回复。扫描是只读的，没有修改两个参考仓。
+
+## 2. 扫描结果
+
+| 扫描对象 | 范围 | 结果 | 结论 |
+|---|---|---|---|
+| 新项目 | 当前目录，约 20.92 MB | 0 个发现 | 通过 |
+| 新项目 | 6 个 Git commits、`--all` | 0 个发现 | 通过 |
+| R1 `D:\my_work_project` | 33 个 Git commits、`--all` | 2 个候选 | 未通过，必须处置 |
+| R1 `D:\my_work_project` | 当前目录，约 683.74 MB | 87 个候选 | 未通过；包含真实项目候选和 `.venv` 第三方测试夹具噪声，必须分类 |
+| R2 `D:\industry_information_assistant\industry_information_assistant` | 原生 Git 扫描 | 被历史中的 `__MACOSX/.../._test_doc.pdf` 中断 | 不能写“通过” |
+| R2 同上 | 排除异常 AppleDouble 文件后的完整 patch stream | 2 个候选 | 未通过，必须处置 |
+| R2 同上 | 当前目录，约 6.65 MB | 2 个候选 | 未通过，必须处置 |
+
+## 3. 需要人工确认和轮换的候选
+
+| ID | 参考仓位置 | 规则/现象 | 当前判断 | 必须完成的动作 | 状态 |
+|---|---|---|---|---|---|
+| SEC-R1-01 | `backend/service/core/retrieval2.py:9`，历史 commit `57919cc6fab0d44f69ba782d9f943b031500d49b` | `generic-api-key`，源码硬编码 | 高风险真实候选 | 确认 Provider；立即吊销/轮换；新项目不得复制；记录 Provider 侧处置证据编号 | open |
+| SEC-R1-02 | `backend/.env` | KAFU、LLM、Embedding、DocMind 等 Access Key/Secret 候选 | 高风险本地凭据集合 | 逐项核对 Provider；真实或不确定值全部吊销/轮换；安全迁移到未提交的 Secret 配置 | open |
+| SEC-R1-03 | `frontend/.env:2` | `VITE_*` Token 候选 | 高风险；前端变量会进入浏览器构建 | 立即吊销/轮换；以后只由服务端 Adapter 使用 Secret | open |
+| SEC-R1-04 | `docs/chat_api.md:121`，历史 commit `cb621cb0e117d406a30c71bcf674ba94e19527fe` | curl Bearer 示例 | 真伪未知 | 在签发系统核对；无法证明是无效示例时按泄漏吊销 | open |
+| SEC-R2-01 | `backend/app/service/config.py:22` | SERPER key 的源码默认值 | 高风险真实候选 | 吊销/轮换；删除源码 fallback，只允许服务端环境/Secret 注入 | open |
+| SEC-R2-02 | `backend/app/service/dr_g.py:30` | DASHSCOPE key 的源码默认值 | 高风险真实候选 | 吊销/轮换；删除源码 fallback，只允许服务端环境/Secret 注入 | open |
+
+R1 当前目录其余大量发现位于 `backend/.venv/Lib/site-packages/...` 的密码学测试向量、示例 key 或缓存文件，通常不是项目凭据，但必须在上述真实项目路径处置后再分类。只有逐条证明为第三方测试夹具，才可以用路径规则排除；不能先全局忽略 `generic-api-key` 或 `private-key` 规则来制造绿色结果。
+
+## 4. 项目所有者的处置记录
+
+项目所有者应在 Provider 控制台完成动作后，只填写不敏感证据。不要粘贴旧值、新值、Cookie、完整 Access Key ID 或控制台含密钥截图。
+
+| 候选 ID | Provider/账号范围 | 处置动作 | 完成时间（UTC） | 不敏感证据编号或工单 | 复核人 | 状态 |
+|---|---|---|---|---|---|---|
+| SEC-R1-01 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | open |
+| SEC-R1-02 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | open |
+| SEC-R1-03 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | open |
+| SEC-R1-04 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | open |
+| SEC-R2-01 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | open |
+| SEC-R2-02 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | open |
+
+## 5. D1-09 解除条件
+
+D1-09 只能从 `thin_slice` 改为 `complete`，当且仅当：
+
+1. 上述 6 个候选全部标为 `rotated`、`revoked` 或有证据证明为从未有效的测试值；
+2. 所有真实/不确定值已在 Provider 侧失效，而不只是从文件中删除；
+3. 参考仓的项目文件与 Git 历史重新执行脱敏扫描，剩余发现均有逐项 allowlist 理由；
+4. R2 使用能绕过异常 AppleDouble 文件但覆盖其余完整历史的扫描再次执行；
+5. 新项目当前树、完整历史、CI、前端构建产物和日志仍为 0 个有效凭据；
+6. 复核人确认文档没有保存任何 Secret 原文。
+
+在这些条件完成前，Day 1 的安全前置门禁仍未通过，不能开始复制或适配参考仓中的 Provider 代码。

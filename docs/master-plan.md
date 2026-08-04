@@ -2,19 +2,21 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`1.0.0`
+> 版本：`1.3.0`
 >
 > 制定日期：`2026-07-23`
 >
-> 状态：执行基线，等待用户确认项目名称后仅修改路径与品牌名
+> 修订日期：`2026-08-03`
 >
-> 暂定新项目目录：`D:\industry_intelligence_platform`
+> 状态：执行基线
+>
+> 项目目录：`D:\industry_intelligence_platform`
 >
 > 参考项目：`D:\my_work_project`、`D:\industry_information_assistant\industry_information_assistant`
 
 ## 0. 本文档的权威性与使用方法
 
-这不是一次性的聊天建议，而是新项目第一阶段的执行基线。新项目创建后，应在第一次提交中把本文档复制为 `docs/master-plan.md`，并长期纳入版本控制。
+这不是一次性的聊天建议，而是新项目 Day 1～Day 7 的执行基线。新项目创建后，应在第一次提交中把本文档复制为 `docs/master-plan.md`，并长期纳入版本控制。
 
 以后每次继续开发，人与 AI 都必须先做四件事：
 
@@ -43,11 +45,13 @@
 
 七天按每天 8～10 小时设计。目标是产出 `v0.1.0-learning-foundation`：
 
-- 真正跑通身份与工作空间、流式聊天、会话管理、多知识库、异步文档入库、混合 RAG、图片/表格证据、结构化引用、记忆 MVP、工具平台、安全 Text2SQL、Deep Research MVP、CI、评测和本地部署。
-- 新闻、政策、招投标、股票、Web 搜索和定时采集拥有正式的数据模型、Provider 契约、错误语义和 UI 状态；至少接通一个合规的真实外部来源，其他未配置来源必须明确显示 `PROVIDER_NOT_CONFIGURED`。
-- 所有最终要实现的能力都有稳定模块位置和后续验收项，但不把空页面、硬编码演示数据或 Mock 响应算作“已完成”。
+- 真正跑通身份与工作空间、流式聊天、会话管理、多知识库、异步文档入库、混合 RAG、图片/表格证据、结构化引用、用户可控记忆、工具平台、安全 Text2SQL、边界明确的 Deep Research、CI、评测和本地部署。
+- Web 搜索以及新闻、政策、招投标、股票和定时采集拥有正式数据模型、Provider 契约、错误语义和 UI 状态；Web 搜索与四个行业域分别完成至少一个合规真实来源样例，额外未配置 Adapter 必须明确显示 `PROVIDER_NOT_CONFIGURED`。
+- 能力矩阵从两个参考项目映射出的全部目标能力都有稳定模块位置和当周验收项，但不把空页面、硬编码演示数据或 Mock 响应算作“已完成”。
 
-七天不可能高质量地把两套项目的全部能力做成生产级产品。七天后继续按第 15 节的迭代路线补齐所有数据源、复杂格式、企业权限和高可用能力。若每天只能投入 3～4 小时，应把计划中的每个“日”扩展为两个自然日。
+七天必须高质量完成能力矩阵从两个参考项目映射出的全部目标能力，并达到每项目标预先冻结的七天验收深度；但七天版本不宣称已经覆盖所有数据源、文件格式、负载规模和企业运行条件，也不宣称达到生产级成熟度。
+
+冻结范围描述七天产品的覆盖广度，不是降低实现质量的许可。`thin_slice`、`contract_only`、`blocked` 和 `planned` 只用于记录开发过程；到 Day 7，能力矩阵的每一目标行都必须在其预先冻结的范围内达到 `complete`。声明范围内必须使用真实链路、正式模型、权限、失败恢复、测试和文档。生产级成熟度不属于本计划。若每天只能投入 3～4 小时，应把计划中的每个“日”扩展为两个自然日。
 
 任何一天的门禁没有通过，就顺延；不得通过删测试、放宽权限、伪造数据或跳过迁移来赶进度。
 
@@ -55,20 +59,20 @@
 
 | 能力 | 借鉴方向 | 新项目处理 | 七天目标 |
 |---|---|---|---|
-| PDF 版面、OCR、图片、表格 | `my_work_project` | 解析器端口 + 多模态资产模型 | PDF 真闭环；复杂 OCR 适配器续作 |
+| PDF 版面、OCR、图片、表格 | `my_work_project` | 解析器端口 + 多模态资产模型 | 数字文本 PDF、扫描 OCR PDF、含图片和复杂表格 PDF 分别真实闭环 |
 | PostgreSQL + Milvus + Elasticsearch + MinIO | `my_work_project` | 保留，但重做一致性和安全边界 | 真闭环 |
 | Dense + BM25 + RRF | `my_work_project` | 保留，并增加 rerank、评测、租户过滤 | 真闭环 |
 | 召回图片交给视觉模型 | `my_work_project` | 保留，并统一为 Evidence | 至少一例真闭环 |
 | Alembic | `my_work_project` | 从第一天强制使用 | 完成 |
 | 用户、登录、角色、工作空间 | 参考项目 | 重构为严格租户隔离 | 完成 |
 | 会话、附件、多知识库 | 参考项目 | 与统一文件、知识模型整合 | 完成 |
-| 长期记忆 | 参考项目 | 用户可见、可编辑、可删除、默认不滥存 | MVP |
+| 长期记忆 | 参考项目 | 用户可见、可编辑、可删除、默认不滥存 | 七天冻结范围内真实闭环 |
 | Web 搜索 | 参考项目 | Provider 端口 + 来源证据 + SSRF 防护 | 一个真实适配器 |
-| 新闻、政策、招投标、股票 | 参考项目 | 公共来源基表 + 各领域明细表 | 契约、页面和一条真实样例 |
-| 数据库浏览、Text2SQL | 参考项目 | 只读账号、AST 校验、预算和审计 | 安全薄切片 |
-| Deep Research 多 Agent | 参考项目 | 一个真实状态图，去除名义编排和双轨逻辑 | MVP |
+| 新闻、政策、招投标、股票 | 参考项目 | 公共来源基表 + 各领域明细表 | 各域契约、页面和至少一条真实来源样例 |
+| 数据库浏览、Text2SQL | 参考项目 | 只读账号、AST 校验、预算和审计 | 一个安全样例库真实闭环 |
+| Deep Research 多 Agent | 参考项目 | 一个真实状态图，去除名义编排和双轨逻辑 | 一个有边界的真实状态图闭环 |
 | SSE、取消、Checkpoint、恢复 | 参考项目 | 版本化事件、持久状态、幂等副作用 | 完成基本闭环 |
-| 报告、图表、知识图谱 | 参考项目 | Evidence/Claim 图 + 受校验 ECharts | 报告和图表薄切片 |
+| 报告、图表、知识图谱 | 参考项目 | Evidence/Claim 图 + 受校验 ECharts | 报告、图表和基础证据图真实闭环 |
 | 测试、评测、CI、安全、可观测 | 两项目均不足 | 新项目从第一天建设 | 基础门禁完成 |
 
 法律和安全边界：
@@ -81,24 +85,25 @@
 
 ### 3.1 总体形态
 
-采用“模块化单体 + 独立 Celery Worker + Celery Beat Scheduler”，第一阶段不拆微服务：
+采用“模块化单体 + 独立 Celery Worker + Celery Beat Scheduler”，七天版本不拆微服务：
 
 ```text
 React Web
    │ REST / fetch-SSE
    ▼
-FastAPI API ── PostgreSQL（唯一业务事实源）
-   │          Redis（队列、限流、短期流事件）
+FastAPI API ── PostgreSQL（唯一业务事实源；写业务资源、Job、Outbox）
+              Redis（队列、限流、短期流事件）
    │          MinIO（私有二进制资产）
    │          Milvus（可重建向量索引）
    │          Elasticsearch（可重建 BM25 索引）
-   ▼
-Celery Worker ─ 文档解析 / Embedding / 索引 / LLM / Research / 采集 / 评测
-   ▲
-Celery Beat ── 定时创建采集、对账、清理和评测任务
+              ▲
+Celery Beat ──┘ 调用同一 Application Service，幂等写 ScheduleOccurrence / Run / Job / Outbox
+              │
+Outbox Dispatcher ── PostgreSQL Outbox 至少一次发布 ──► Redis ──► Celery Worker
+                                                                文档解析 / Embedding / 索引 / LLM / Research / 采集 / 评测
 ```
 
-理由：OCR、索引、模型和研究任务不能占住 Web 请求；PostgreSQL 保持唯一可信状态，Redis/Milvus/ES 都是可恢复的执行或派生层。Celery 的任务必须幂等，业务 Job 状态以 PostgreSQL 为准，不以 Celery result backend 为准。
+理由：OCR、索引、模型和研究任务不能占住 Web 请求；PostgreSQL 保持唯一可信状态，Redis/Milvus/ES 都是可恢复的执行或派生层。Celery 的任务必须幂等，业务 Job 状态以 PostgreSQL 为准，不以 Celery result backend 为准。Beat 不得直接把任务塞进 Redis，避免调度事实尚未持久化就因进程或 Broker 故障而丢失。
 
 ### 3.2 技术栈
 
@@ -108,7 +113,7 @@ Celery Beat ── 定时创建采集、对账、清理和评测任务
 | Python 管理 | `uv`，提交 `uv.lock`，生产安装使用 frozen lock |
 | Web 包管理 | `pnpm` workspace，提交 `pnpm-lock.yaml`，CI 使用 frozen lock |
 | 后端 | FastAPI、Pydantic v2、SQLAlchemy 2 async、psycopg 3、Alembic |
-| 异步任务 | Celery 5、Redis、Celery Beat；状态与业务结果落 PostgreSQL |
+| 异步任务 | Celery 5、Redis、Celery Beat、独立 Outbox Dispatcher；触发事实、状态与业务结果落 PostgreSQL |
 | 前端 | React 19、TypeScript strict、Vite、React Router、TanStack Query |
 | UI 状态 | Zustand 只保存短期 UI 状态，绝不复制服务端业务数据 |
 | UI/可视化 | Ant Design、ECharts |
@@ -133,10 +138,10 @@ Celery Beat ── 定时创建采集、对账、清理和评测任务
 4. Provider SDK 只能出现在 `adapters/`，领域模块不得直接依赖某家模型、搜索或存储 SDK。
 5. 长任务只返回 `202 + job/run id + events_url`，不在请求内同步 OCR、Embedding、索引或 Deep Research。
 6. 文档、网页、SQL 结果和模型输出一律是不可信输入，不能提升系统权限或改变工具白名单。
-7. 对外副作用、重试和恢复必须幂等；跨存储失败使用 Outbox、阶段状态、补偿与对账，不假装数据库 rollback 能回滚所有系统。
+7. 对外副作用、重试和恢复必须幂等；跨存储失败使用 Job/Outbox、lease/fencing、未启动/过期对账、阶段状态与补偿，不假装 Broker 接受消息或数据库回滚能保证所有系统完成。
 8. 不保存模型原始 chain-of-thought，只保存面向用户的结论、证据和简短 reasoning summary。
 9. 正式功能不能在失败时静默回退到 Mock 成功；未配置必须返回明确错误。
-10. 不允许 `exec`/`eval` 模型生成代码。未来确需代码执行时必须使用无网络、非 root、只读文件系统且有资源限制的一次性沙箱。
+10. 七天版本不允许 `exec`/`eval` 模型生成代码，也不建立任何绕过该边界的临时执行入口。
 
 ## 4. 目标 Monorepo 与模块边界
 
@@ -165,7 +170,7 @@ industry-intelligence-platform/
 │  │  │  ├─ ports/                # llm/parser/embed/vector/lexical/object/web/data
 │  │  │  ├─ adapters/             # 具体供应商实现
 │  │  │  ├─ workflows/            # research graph 等
-│  │  │  └─ workers/              # Celery app/tasks/beat
+│  │  │  └─ workers/              # Celery app/tasks/beat、dispatcher/reconciler 入口
 │  │  ├─ migrations/
 │  │  └─ tests/
 │  └─ web/
@@ -226,10 +231,11 @@ evaluation → 只读观察 conversation / retrieval / research
 - `users`：email、password_hash、status、last_login_at。
 - `workspaces`：name、created_by。
 - `workspace_members`：workspace_id、user_id、role；角色至少 owner/admin/member/viewer。
-- `refresh_sessions`：refresh_token_hash、expires_at、revoked_at、device、rotation_family。
+- `user_industry_preferences`：user_id、industry_id；只决定默认产品上下文，不代替 Workspace 权限。
+- `refresh_sessions`：refresh_token_hash、idle/absolute expires_at、used_at、revoked_at、device、rotation_family、replaced_by、csrf_token_hash。
 - `audit_logs`：actor、action、resource_type/id、trace_id、sanitized_metadata。
 
-Access Token 短期有效并只存在前端内存；Refresh Token 使用轮换的 opaque token，哈希后存库，通过 `HttpOnly + Secure + SameSite` Cookie 传递。禁止把供应商 Token 或共享 Bearer Secret 放进 `VITE_*` 或 LocalStorage。
+Access Token 使用 ADR 0006 冻结的 Ed25519/EdDSA JWT，10 分钟有效且只存在前端内存；Refresh Token 使用轮换的 opaque token，摘要后存库，通过 `__Host-iip_refresh; HttpOnly; Secure; SameSite=Strict; Path=/` Cookie 传递。Refresh/Logout 验证精确 Origin 和绑定 Session 的 CSRF token。禁止把供应商 Token 或共享 Bearer Secret 放进 `VITE_*` 或 LocalStorage。
 
 ### 5.2 文件、知识库与入库
 
@@ -241,13 +247,14 @@ Access Token 短期有效并只存在前端内存；Refresh Token 使用轮换�
 - `assets`：version_id、type(image/table/page)、file_id、page、bbox、caption、extracted_text。
 - `chunk_asset_links`：chunk_id、asset_id、relation。
 - `search_index_records`：chunk_id、index_kind、external_id、index_version、status、last_error。
-- `jobs`、`job_events`、`outbox_events`：任务状态、阶段、尝试次数、事件和可靠投递。
+- `schedules`、`schedule_occurrences`：cron、IANA timezone、next_due_at、misfire policy、到期时刻、补跑范围和 `(schedule_id, scheduled_for)` 唯一约束。
+- `jobs`、`job_events`、`outbox_events`：任务状态、阶段、投递/启动时间、尝试次数、lease、fencing token、heartbeat、事件、published 未 started 对账和可靠重投。
 
 不保存公开 MinIO URL，只保存 object key；读取前再次校验 workspace 权限并生成 5～15 分钟签名 URL。
 
 ### 5.3 会话、消息与统一证据
 
-- `chat_sessions`：workspace_id、user_id、title、mode、status。
+- `chat_sessions`：workspace_id、user_id、title、default_mode、industry_id、status。
 - `session_knowledge_bases`：session_id、kb_id。
 - `turns`：session_id、client_request_id、status。
 - `messages`：turn_id、role、status、content、model、token_usage、latency。
@@ -329,7 +336,7 @@ Access Token 短期有效并只存在前端内存；Refresh Token 使用轮换�
 
 - `sequence` 在一个 stream 内严格递增，一个 stream 只能有一个终态。
 - 前端按 `(stream_id, sequence)` 去重，忽略未知事件类型以保持向前兼容。
-- 支持 `Last-Event-ID` 断线续传，每 15 秒心跳；浏览器使用 `fetch` 读取流，以支持 Authorization 和 AbortController。
+- 每个业务事件固定使用 `id: <stream 内 sequence>`、`event: <type>`、`data: <versioned JSON envelope>`；支持 `Last-Event-ID` 断线续传，每 15 秒用不推进游标的 comment 心跳；浏览器使用 `fetch` 读取流，以支持 Authorization 和 AbortController。
 - Token delta 可放 Redis Streams 并设置 TTL；最终消息、引用、终态和关键进度必须进 PostgreSQL。
 
 主要事件：
@@ -363,9 +370,9 @@ uploaded → queued → validating → parsing → extracting_assets
 4. Dispatcher 投递 Celery；重复投递由 Job ID 和阶段幂等键消除。
 5. Milvus/ES 使用确定性 ID `chunk_id:index_version`；两个索引成功后文档才进入 `ready`。
 6. 删除先标记 `deleting`，Worker 清理两个索引和对象，最后标记 `deleted`。
-7. 定时 reconciliation 比较 PostgreSQL 与外部存储，修复遗漏并报告孤儿。
+7. 定时对账（reconciliation）比较 PostgreSQL 与外部存储，修复遗漏并报告孤儿。
 
-检索结果从 Milvus/ES 返回后，必须回 PostgreSQL hydrate，再检查 workspace、active version 和 document status；不能只信索引中的权限字段。
+检索结果从 Milvus/ES 返回后，必须回 PostgreSQL 重新加载，再检查 workspace、active version 和 document status；不能只信索引中的权限字段。
 
 ### 6.4 RAG 基线
 
@@ -376,7 +383,7 @@ uploaded → queued → validating → parsing → extracting_assets
 → RRF 融合
 → Rerank
 → 去重与多样性控制
-→ PostgreSQL hydrate
+→ PostgreSQL 重新加载并授权
 → 关联图片/表格 Evidence
 → 上下文预算
 → LLM/VLM
@@ -402,7 +409,8 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 - 使用 sqlglot 解析完整 AST；仅允许安全 SELECT/CTE，检查 CTE 内部节点，禁止多语句、DML、DDL、COPY、CALL。
 - 强制只读事务、statement timeout、最大返回行、最大扫描预算和审计。
 - 图表只接受 Pydantic/JSON Schema 验证过的 ECharts 配置。
-- Web 抓取在 DNS 解析后及每次跳转后阻止环回、私网、链路本地、保留地址；限制协议、响应大小、类型、跳转和超时。
+- Web 抓取只允许 HTTP(S) 与明确端口，拒绝 URL userinfo；规范化 hostname 后校验全部 A/AAAA，拒绝环回、私网、链路本地、保留、metadata 和内部地址。选择并固定已验证公网 IP，在发送任何 HTTP 字节前确认 socket peer，同时保留原 hostname 做 Host、TLS SNI 和证书校验；HTTP Client 做不到就拒绝请求，不能事后检查。
+- 每次 3xx 都作为新请求重复协议/DNS/IP/连接前 peer 校验，不跨来源转发凭据；禁用环境代理继承，限制跳转、并发、连接/首字节/总超时、响应及解压后大小和 Content-Type。抓取 Worker 另有网络层 egress deny，阻止私网、link-local 与云 metadata；该第二道防线不能替代应用校验。
 
 ## 7. 每日固定学习方式
 
@@ -416,7 +424,7 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 
 学习不是照抄代码。每个关键模块应先由学习者说清楚输入、输出、状态、失败与安全边界，再编码；AI 可以解释、结对和审查，但不能用大段不可理解代码跳过学习。
 
-任何功能只有同时具有迁移、权限与输入校验、正常/空/失败 UI、测试、日志/错误码、文档和真实用户路径，才可标记为完成。
+面向用户的业务能力只有通过适用的迁移、权限与输入校验、正常/空/失败/恢复 UI、测试、日志/错误码、文档和真实用户路径，才可标记为完成；工程、文档和治理目标必须用等价的开发者/运维旅程与自动化证据验收，并按第 16 节记录不适用项，不能为了标记完成而伪造数据库或 UI。
 
 ## 8. Day 1：需求冻结、工程地基、身份与工作空间
 
@@ -435,21 +443,23 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 4. Compose 先启动 PostgreSQL、Redis、MinIO；Milvus/ES/观测栈使用 profile，但当天验证它们能启动并有 healthcheck。中间件只绑定本机。
 5. 实现 `/health/live` 和 `/health/ready`；ready 必须真实检查 PostgreSQL、Redis，不能固定成功。
 6. 建立 Pydantic Settings、`.env.example`、开发/测试/生产边界；必需变量缺失时 fail fast，日志遮蔽 Token、密码、Cookie。
-7. 完成注册、登录、`me`、Refresh 轮换、Logout；注册时创建默认 Workspace 与 owner membership。
-8. 前端完成登录/注册、Auth Guard、基础导航、统一 API Client 和 OpenAPI 类型生成。
+7. 完成注册、登录、`me`、修改密码、Refresh 轮换、Logout；改密验证当前密码并在同一事务撤销全部旧 Session；注册时创建默认 Workspace 与 owner membership，按 ADR 0006 落实四角色动作矩阵、自提权禁止和最后一个 owner 保护。
+8. 前端完成登录/注册、用户资料、修改密码、Auth Guard、基础导航、统一 API Client 和 OpenAPI 类型生成。
 9. 建立 CI 快速通道：格式、lint、类型、单测、迁移 fresh upgrade、前端 build、Gitleaks、依赖扫描。
+10. 建立可测试的异步底座：API/Beat 事务写 Job + Outbox、独立 Dispatcher、Redis AOF、late ACK/worker-lost 配置、Job lease/heartbeat/fencing，以及“已发布但未 started”和 hard timeout 的独立对账重投。
 
 ### 测试
 
-- 注册、重复邮箱、错误密码、过期/伪造 Token、Refresh 重放、Logout。
-- 未登录和用户 A 访问用户 B Workspace 的负向测试。
+- 注册、重复邮箱、错误密码、过期/伪造 Token、Refresh/CSRF 同步轮换、首次响应丢失后重发同一 successor、grace 内外重放、same-site Cookie 与 Logout；修改密码后旧密码及全部旧 Access/Refresh Session 立即失效，失败/并发不产生部分状态。
+- 未登录和用户 A 访问用户 B Workspace 的负向测试；owner/admin/member/viewer 动作矩阵、自提权、admin 越权和并发移除最后 owner 测试。
 - 全新空库执行 `alembic upgrade head`；禁止用 `create_all` 建表。
-- Playwright 完成“注册 → 登录 → 进入首页”。
+- Playwright 完成“注册 → 登录 → 进入首页 → 修改密码 → 旧会话失败 → 新密码重新登录 → Logout”。
 - `/ready` 在数据库或 Redis 关闭时失败，`/live` 仍按进程状态响应。
+- Dispatcher 发布前后崩溃、Redis 接受后丢消息、Broker 断线、重复 Worker、soft/hard timeout 和过期 lease 都能被对账恢复，并只产生一个业务结果。
 
 ### 当日产物
 
-`docs/product-scope.md`、`docs/architecture.md`、6 份 ADR、`.env.example`、第一版 OpenAPI、CI、可启动的 Web/API/Worker/基础设施、`learning-log/day-1.md`。
+`docs/product-scope.md`、`docs/architecture.md`、6 份 ADR、`docs/security/credential-exposure-audit.md`、`.env.example`、第一版 OpenAPI、CI、可启动的 Web/API/Outbox Dispatcher/Worker/Beat/基础设施、`learning-log/day-1.md`。
 
 ### 验收门禁
 
@@ -474,10 +484,11 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 1. 定义 `LLMProvider`：`stream_chat`、`complete`、`embed`，统一模型名、超时、重试、Token/费用元数据。
 2. 实现确定性 Fake Provider（只用于测试）和一个服务端 OpenAI-compatible Adapter。
 3. 实现会话创建/列表/详情/重命名/删除、消息分页、停止生成、重试生成、自动标题。
-4. 用户消息、Turn、Generation、Job、Outbox 先在一个事务落库；Worker 再生成并写 Redis Stream/最终消息。
-5. 固定并验证 `generation.*` SSE 协议，支持 sequence 去重、Last-Event-ID、心跳、取消和唯一终态。
-6. 模型失败时保存用户消息、已生成部分内容、失败码和可重试状态。
-7. 前端完成会话侧栏、消息区、输入、流式输出、停止、重试、重命名和删除；Markdown 安全渲染。
+4. 每个 Turn 显式保存 `none/web/local/both` 搜索模式、当前行业、一个或多个知识库与附件；附件复用统一 FileObject 生命周期。
+5. 用户消息、Turn、Generation、Job、Outbox 先在一个事务落库；Worker 再生成并写 Redis Stream/最终消息。
+6. 固定并验证 `generation.*` SSE 协议，支持 sequence 去重、Last-Event-ID、心跳、snapshot 恢复、取消和唯一终态。
+7. 模型失败时保存用户消息、已生成部分内容、Citation、失败码和可重试状态。
+8. 前端完成会话侧栏、消息区、模式/知识库选择、附件、流式输出、停止、重试、重命名和删除；Markdown 安全渲染。
 
 ### 测试
 
@@ -503,7 +514,7 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 ### 学习主题
 
 - Presigned upload、MIME/magic bytes、SHA-256、对象存储权限。
-- 任务幂等、Outbox、最终一致性、补偿与 reconciliation。
+- 任务幂等、Outbox、最终一致性、补偿与对账。
 - PDF 页、标题、Chunk、bbox、图片、表格、版本化解析。
 
 ### 实现任务
@@ -512,7 +523,7 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 2. 实现私有 MinIO 上传：文件名净化、扩展名 + Content-Type + magic bytes、大小/页数/解压后大小限制、SHA-256、短期签名。
 3. 上传完成后立即返回 Job ID；解析、资产抽取、Chunk 和索引全部进入 Worker。
 4. 实现第 6.3 节状态机，每阶段保存 idempotency key、attempt、错误码、时间戳和进度。
-5. 定义 `DocumentParser.parse() -> ParsedDocument`。第一周真实支持 PDF、TXT、Markdown；Office、扫描 OCR、DeepDoc 作为正式 Adapter 续作。
+5. 定义 `DocumentParser.parse() -> ParsedDocument`。七天目标真实支持 PDF、TXT、Markdown，并用数字 PDF、至少一份扫描 PDF 和至少一份含图片/复杂表格 PDF 验证 OCR 与多模态闭环；解析实现必须位于正式 Adapter 后方。
 6. Chunk 保存文档版本、页码、标题路径、token、bbox、parser/chunker 版本与图片/表格关联。初始 500～800 tokens、80～120 overlap，仅作为评测起点。
 7. Milvus/ES 外部 ID 使用确定性 ID；实现 retry、cancel、reindex、异步 delete 与对账命令骨架。
 8. 前端显示上传、阶段、失败原因、重试、文档页、Chunk、图片和表格预览。
@@ -549,11 +560,11 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 ### 实现任务
 
 1. 实现 Milvus Dense、Elasticsearch BM25、RRF、可插拔 Reranker，并提供检索调试输出。
-2. 每次检索强制过滤 workspace、选中 KB、ready 文档和 active index version；结果回 PG 二次授权/hydrate。
+2. 每次检索强制过滤 workspace、选中 KB、ready 文档和 active index version；结果回 PG 重新加载并二次授权。
 3. RAG 会话可选一个或多个知识库，生成结构化 Citation；点击引用打开真实页码、bbox、片段、图片或表格。
 4. 文档内容被清楚包裹为不可信上下文，不得改变系统提示或调用未授权工具。
 5. 实现证据门控：证据不足则拒答；生成后校验每个引用存在，不得伪造来源。
-6. 选一份含图/表 PDF，将召回资产传给 VLM，完成至少一条图片或表格问答。
+6. 选一份同时含图片和复杂表格的 PDF，将召回资产传给 VLM，分别完成至少一条图片问答和一条表格问答。
 7. 建 20 条黄金题：12 条可回答、4 条无答案、2 条表格、2 条图片；到 Day 7 扩到 50 条。
 8. 自动比较 Dense、BM25、RRF、RRF+Reranker，输出 JSON 与 Markdown 报告。
 
@@ -572,7 +583,7 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 
 - 小型黄金集 Recall@5 ≥ 0.80，MRR@10 记录基线。
 - Citation 可解析率 100%，跨 Workspace 召回 0，无答案正确拒答率 ≥ 0.90。
-- 至少一个图片/表格问题真实闭环；参数调整有实验报告而非凭感觉。
+- 至少一个图片问题和一个表格问题分别完成真实闭环；参数调整有实验报告而非凭感觉。
 
 ### 复盘题
 
@@ -591,22 +602,22 @@ scope → plan → parallel_retrieve(knowledge/web/industry/sql)
 1. 建统一 `ToolRegistry`：name、description、input/output schema、required_permission、timeout、budget、execute。
 2. Tool Run 记录脱敏输入/输出摘要、状态、耗时、错误、来源、调用者、trace。
 3. 注册 `knowledge_search`、`web_search`、`news_search`、`policy_search`、`bidding_search`、`stock_quote`、`database_schema`、`text_to_sql`、`render_chart`。
-4. 当天真实接通 knowledge search、一个合规 Web/资讯 Provider、安全 Text2SQL；没有凭据的 Provider 明确返回未配置。
+4. 当天真实接通 knowledge search、一个合规 Web Search Adapter，以及新闻、政策、招投标和股票各至少一个合规真实来源样例；额外没有凭据的 Adapter 明确返回未配置。
 5. 实现第 6.6 节 SQL 防线；建立一个内置只读行业样例库，完成自然语言 → SQL → 表格 → 受校验图表。
 6. 建 `source_items + 领域明细表`，所有外部内容记录来源、原链接、发布时间、采集时间、内容哈希和许可证/使用约束。
-7. Celery Beat 建定时采集骨架：游标、幂等 external ID、内容哈希去重、指数退避、last success、dead-letter。
-8. 前端完成资讯、政策、招投标、股票、数据库页面和 Tool 审计页；每项显示 `available/configuration_required/planned`，禁止假数据冒充可用。
+7. Celery Beat 建持久定时采集：Schedule 保存 IANA timezone/cron/next_due_at/misfire policy，Occurrence 以 `(schedule_id, scheduled_for)` 唯一；Beat 用数据库时间和行锁找出全部到期项，幂等调用同一 Application Service，在 PostgreSQL 事务中创建 Occurrence、Collection Run、Job 和 Outbox，再由 Dispatcher 发布。默认补跑窗口 24 小时、最多 100 次，超限进入可见 `misfire_blocked`；同时实现 cursor、幂等 external ID、内容哈希去重、指数退避、last success 和 dead-letter。
+8. 前端完成行业搜索/切换、资讯分类/统计/分页、政策来源、招投标类型/地区/分页、聊天股票卡片、手动/定时采集状态、数据库完整旅程和 Tool 审计页；额外 Adapter 显示 `available/configuration_required`，禁止假数据冒充可用。
 
 ### 测试
 
 - 工具输入/输出 Schema、权限、超时、预算、重试、审计和模型越权请求。
-- SSRF 拒绝 localhost、私网/保留 IP、非 HTTP(S)、恶意跳转、DNS rebinding、超大响应。
+- SSRF 拒绝 localhost、私网/保留/metadata、异常端口与 userinfo；验证固定公网 IP、原 hostname 的 Host/SNI/证书、发送字节前 peer、逐跳重验、环境代理禁用、DNS rebinding、网络 egress deny、超大/压缩响应和超时。
 - Text2SQL 拒绝 INSERT/UPDATE/DELETE/DROP/COPY/CALL、多语句、危险 CTE，验证 timeout、行数和 allowlist。
-- 外部数据重复采集不重复入库，来源链接可访问/可解释。
+- 外部数据重复采集不重复入库，来源链接可访问/可解释；多 Beat、停机补跑、超限 misfire、时区/DST 和 Redis 故障均不静默漏任务。
 
 ### 当日产物
 
-Tool Registry/审计页、安全 Text2SQL + 图表样例、外部 Provider 契约、一个真实采集源、`docs/tool-security.md`、`docs/data-source-contract.md`、`learning-log/day-5.md`。
+Tool Registry/审计页、安全 Text2SQL + 图表样例、外部 Provider 契约、一个合规真实 Web Search Adapter，以及新闻/政策/招投标/股票四类各至少一个真实来源样例及来源证据，`docs/tool-security.md`、`docs/data-source-contract.md`、`learning-log/day-5.md`。
 
 ### 验收门禁
 
@@ -628,13 +639,13 @@ SELECT 仍有哪些风险？Tool 与 Service 的边界是什么？模型如何�
 
 ### 实现任务
 
-1. 实现记忆创建、搜索、确认、编辑、停用、删除和用户开关；敏感或低置信内容不能自动永久保存。
+1. 实现“会话保存为候选记忆 → 用户确认/编辑 → 保存”的旅程，以及搜索、停用、删除和用户开关；敏感或低置信内容不能自动永久保存。
 2. 回答前检索相关记忆，并在可见调试信息中说明使用了哪些记忆；删除后不得再次使用。
 3. 用 LangGraph 实现第 6.5 节一个正式 typed graph，不能定义图后又绕开图手工执行。
 4. Research 每步保存输入/输出摘要、Evidence、Token、费用、耗时和 checkpoint；不保存原始思维链。
 5. 支持 SSE 时间线、最大步骤/并发/Token/费用/时长、协作式取消、Worker 中断后恢复、最多 N 次 revise。
 6. 研究报告的每个关键 Claim 关联 Evidence；从 Claim/Evidence 生成基础关系图和 ECharts 展示。
-7. 前端完成 Research 创建、过程时间线、来源、审批/继续、取消、恢复、报告和图谱视图。
+7. 前端完成 Research 创建、搜索结果/来源、证据图、图表、报告四类详情、过程时间线、Checkpoint 列表/删除、审批/继续、取消和刷新后完整恢复。
 8. 有外部副作用或高成本操作时用 interrupt 请求人工确认；恢复后不得重复副作用。
 
 ### 测试
@@ -646,7 +657,7 @@ SELECT 仍有哪些风险？Tool 与 Service 的边界是什么？模型如何�
 
 ### 当日产物
 
-可恢复 Deep Research MVP、长期记忆 MVP、研究时间线/报告/基础证据图、`docs/research-state-machine.md`、`docs/memory-policy.md`、`learning-log/day-6.md`。
+冻结范围内完整、可恢复的 Deep Research 与用户可控记忆、研究时间线/报告/基础证据图、`docs/research-state-machine.md`、`docs/memory-policy.md`、`learning-log/day-6.md`。
 
 ### 验收门禁
 
@@ -667,21 +678,21 @@ SELECT 仍有哪些风险？Tool 与 Service 的边界是什么？模型如何�
 
 ### 实现任务
 
-1. 完成首页、聊天、知识库、记忆、Research、新闻、政策、招投标、股票、数据库、设置路由；未完成项显示真实 readiness 状态。
+1. 完成首页、聊天、知识库、记忆、Research、新闻、政策、招投标、股票、数据库、设置路由；矩阵全部目标具有真实用户结果，额外未配置 Adapter 显示真实 readiness。
 2. 统一 loading/empty/error/forbidden/retry/cancelled/partial UI；SSE Hook 支持 abort、重连和 sequence 去重。
 3. 完成单元、组件、真实依赖集成、OpenAPI/SSE contract、Playwright 和 RAG 回归；PR 不调用真实付费 API。
-4. CI 执行 format、lint、typecheck、测试、前端 build、fresh migration、OpenAPI diff、Gitleaks、Semgrep、依赖/镜像扫描。
+4. CI 执行 format、lint、typecheck、测试、前端 build、fresh migration、OpenAPI diff、Gitleaks、Semgrep、依赖/镜像扫描，并核对第三方许可证、NOTICE、来源归属和修改记录。
 5. 加 JSON 日志、request_id/trace_id/job_id/run_id、OpenTelemetry；记录 API/Worker/检索/LLM 链路和 Token/费用，但不记录 Secret、完整 Prompt、全文文档、原图或 Cookie。
-6. 安全收口：精确 CORS、Rate Limit、上传限制、私有对象、短签名 URL、SSRF、Markdown 消毒、审计、非 root 容器、安全头。
-7. 生产式 Compose 包含 API/Web/Worker/Beat/反代/数据服务、healthcheck、restart、卷、资源限制、优雅关闭和 Alembic 迁移步骤。
+6. 安全收口：精确 CORS/Origin、same-site Cookie、Rate Limit、上传限制、私有对象、短签名 URL、SSRF 连接前校验与网络 egress deny、Markdown 消毒、审计、非 root 容器、安全头。
+7. 七天完整 Compose 包含 API/Web/Outbox Dispatcher/Worker/Beat/反代/数据服务、healthcheck、restart、卷、资源限制、优雅关闭和 Alembic 迁移步骤。
 8. 做 LLM 失效、Worker 重启、ES/MinIO 失效、重复任务、迁移失败演练；完成 PG/MinIO 备份恢复及从 PG 重建 Milvus/ES 的说明和至少一次演练。
-9. 扩充到至少 50 条评测题，输出检索、引用、忠实度、拒答、延迟、费用报告；生成 feature matrix 和 backlog。
+9. 扩充到至少 50 条评测题，输出检索、引用、忠实度、拒答、延迟、费用报告；完成 feature matrix 的逐项证据和 `N/A` 复核。
 
 ### 完整用户路径验收
 
 ```text
 注册 → 登录 → 创建知识库 → 上传 PDF → 观察异步解析
-→ 选择知识库提问 → 获得带页码/图片/表格引用的回答
+→ 选择知识库分别完成图片题与表格题 → 获得带页码、图片与表格引用的回答
 → 调用安全 Text2SQL 并看图表 → 管理记忆
 → 发起 Research → 中断并恢复 → 查看带引用报告和证据图
 ```
@@ -696,43 +707,50 @@ SELECT 仍有哪些风险？Tool 与 Service 的边界是什么？模型如何�
 
 ### 当日产物
 
-`README.md`、`docs/runbook.md`、`docs/security-model.md`、`docs/evaluation-report.md`、`docs/feature-matrix.md`、`docs/backlog.md`、演示录屏/截图、`learning-log/day-7.md` 和 `v0.1.0-learning-foundation` 标签。
+`README.md`、`docs/runbook.md`、`docs/security-model.md`、`docs/evaluation-report.md`、`docs/feature-matrix.md`、演示录屏/截图、`learning-log/day-7.md` 和 `v0.1.0-learning-foundation` 标签。
 
 ### 复盘题
 
-哪些能力是真可用、哪些是薄切片、哪些只是契约？故障会留下哪些孤儿？什么指标证明系统真的变好？下个迭代应由什么数据决定？
+哪些能力是真可用、哪些是薄切片、哪些只是契约？故障会留下哪些孤儿？什么指标证明系统真的变好？七天目标是否全部达到预先冻结的验收深度？
 
-## 15. 七天后实现“两项目全部能力”的固定续作路线
+## 15. 七天目标能力完整性审计
 
-七天结束不是功能清单结束。`docs/feature-matrix.md` 必须用以下状态：`complete`、`thin_slice`、`contract_only`、`blocked`、`planned`，禁止只写模糊百分比。
+七天计划结束前，`docs/feature-matrix.md` 必须逐项映射两个参考项目形成的全部目标能力，并使用 `complete`、`thin_slice`、`contract_only`、`blocked`、`planned` 五种事实状态，禁止只写模糊百分比。
 
-### 迭代 A：外部行业情报
+这些状态描述当前实现进度，不代表质量等级。Day 7 验收时：
 
-- 分别接入合规的新闻、政策、招投标、股票 Provider；完成授权、配额、游标、补采、去重、来源快照和质量监控。
-- 建公司/行业实体归一、订阅、告警、趋势指标和行业看板。
-- 每个数据源都通过 contract test；禁止把一个 Provider 的私有字段泄漏进领域层。
+- 每项目标必须达到主计划预先冻结的七天深度，并在功能矩阵中标为 `complete`；
+- 代表性 PDF、一个真实 Adapter 或一个安全样例等边界必须写入“冻结范围”，它们限制广度，但该范围内的能力必须完整通过 Definition of Done；
+- 任一矩阵目标仍为 `thin_slice`、`contract_only`、`blocked` 或 `planned`，七天计划即未完成；
+- 不得在临近验收时通过缩小定义、删除测试或改名为“以后优化”改变目标深度。
 
-### 迭代 B：文档智能
+### 15.1 必须覆盖的目标能力组
 
-- DOCX、PPTX、XLSX、HTML、图片、批量导入、扫描 PDF OCR、复杂表格、版面模型。
-- 在许可证允许的前提下实现 DeepDoc Adapter；比较解析准确率、页码/bbox 和表格/图片命中率。
-- 文档版本、重新解析、索引滚动升级和批量 reconciliation。
+| 目标能力组 | 七天实现日 | 冻结的七天验收深度 |
+|---|---|---|
+| 身份、角色、Workspace 与租户隔离 | Day 1 | 注册、登录、修改密码、Refresh 轮换、Logout、默认 Workspace、membership 和跨租户负向测试真实闭环 |
+| 会话、附件与多知识库 | Day 2～3 | 会话管理、分页、自动标题、none/web/local/both、附件、流式生成、停止、重试、刷新恢复和知识库选择真实闭环 |
+| 文档、图片、表格与异步入库 | Day 3 | PDF/TXT/Markdown 正式 Adapter；分别验证数字文本 PDF、扫描 OCR PDF、另一份同时含图片和复杂表格的 PDF；可观察、取消、重试、删除、重建和对账 |
+| Dense + BM25 + RRF、多模态 Evidence 与 Citation | Day 4 | Workspace 过滤、PG 二次授权、Rerank、拒答、可解析引用，以及至少一例图片问答和一例表格问答分别真实闭环 |
+| Tool Registry、Web/行业情报与定时采集 | Day 5 | 所有工具具有正式契约、权限、预算、审计和 UI；Web 与新闻/政策/招投标/股票各至少一个合规真实来源样例，额外未配置 Adapter 明确报错 |
+| 数据库浏览、安全 Text2SQL 与受校验图表 | Day 5 | 一个只读行业样例库完成自然语言到 SQL、表格和安全 ECharts 的真实闭环，高危 SQL 拒绝 100% |
+| 用户可控记忆 | Day 6 | 创建、检索、确认、编辑、停用、删除、用户开关和删除后不再召回的完整冻结范围闭环 |
+| Deep Research、报告与证据图 | Day 6 | 一个正式 typed graph，具备 Evidence、Checkpoint、中断、恢复、取消、预算、报告和基础关系图真实闭环 |
+| CI、评测、安全、可观测与本地部署 | Day 1～7 | 主计划规定的门禁、50 条评测题、故障演练、备份恢复、可回退构建和完整用户路径全部通过 |
 
-### 迭代 C：分析与 Research 质量
+### 15.2 双向审计方法
 
-- 多数据库 Text2SQL、语义层、指标口径、结果缓存和更严格成本预算。
-- 更强的 Claim 核验、来源冲突处理、报告模板、导出和知识图谱。
-- 若确需 Python 分析，新增独立一次性沙箱执行器；绝不在 API/Worker 进程内 `exec`。
+1. 从两个参考项目出发，为矩阵中的每项目标能力记录参考来源、等价用户结果、实现日、代码模块、数据所有权、测试和验收证据。
+2. 从新项目出发，确认每项职责只有一条正式业务链路，没有第二套入口、重复模型、临时旁路或静默 Mock。
+3. 对每个仍为 `thin_slice` 或 `contract_only` 的项确认缺口并顺延门禁，不能为了通过 Day 7 临时降级范围。
+4. 运行完整用户路径、fresh migration、OpenAPI/SSE contract、权限负向测试、RAG 回归、故障演练、密钥与依赖扫描。
+5. 审计结果、证据链接、限制和实际状态写入 `docs/feature-matrix.md`；发现缺口立即顺延对应门禁。
 
-### 迭代 D：企业与生产工程
-
-- 细粒度 RBAC/ABAC、配额、审计导出、数据保留、隐私请求和可选 PostgreSQL RLS。
-- 告警、容量规划、压力/故障测试、备份、灾难恢复、高可用和滚动发布。
-- Nightly 全量 RAG/Agent 评测、人工抽检、反馈闭环和成本优化。
+生产级成熟度不属于本次七天能力审计，本计划不展开其他阶段。
 
 ## 16. 全局 Definition of Done
 
-任何功能只有满足以下全部条件，才能从 `thin_slice/planned` 改为 `complete`：
+任何七天目标从过程状态改为 `complete` 前，都必须逐条评审下列 Definition of Done 的适用性：凡适用项必须全部通过；标记 `N/A` 必须写明与该目标无关的具体理由和复核人，不能用来逃避实现。面向用户的业务能力不得把真实用户旅程、服务端权限、正常/失败/恢复测试或安全检查标为 `N/A`；工程、文档和治理目标可以用等价的开发者/运维旅程与自动化校验替代，只有确实不改变数据库、HTTP/SSE 或运行时行为时，才可把对应 migration、契约或遥测项记为 `N/A`。`thin_slice` 和 `contract_only` 不是质量豁免，也不能作为 Day 7 的最终状态：
 
 - 存在真实用户旅程，不是孤立接口或空页面。
 - 正常、边界、失败、权限和恢复测试齐全。
@@ -740,6 +758,7 @@ SELECT 仍有哪些风险？Tool 与 Service 的边界是什么？模型如何�
 - 有结构化日志、指标、Trace 和稳定错误码。
 - 有数据所有权、删除、补偿、备份/恢复策略。
 - 完成威胁与隐私检查，日志/前端没有 Secret 或敏感原文泄漏。
+- 审核第三方源码、素材、模型、数据源和依赖的许可证与使用条款；需要时保留 NOTICE、归属和修改说明，许可证不明或不兼容时不得引入。
 - RAG/Agent/性能相关功能进入可重复评测基线。
 - README/Runbook 写清启动、限制、故障和回滚。
 - 清除调试输出、硬编码、静默 Mock、临时旁路和重复正式链路。
@@ -786,4 +805,7 @@ SELECT 仍有哪些风险？Tool 与 Service 的边界是什么？模型如何�
 
 | 版本 | 日期 | 变化 | 决策人 |
 |---|---|---|---|
-| 1.0.0 | 2026-07-23 | 首版：冻结产品边界、架构、七天学习/实现/测试门禁与后续全功能路线 | 待用户确认 |
+| 1.0.0 | 2026-07-23 | 首版：冻结产品边界、架构与七天学习/实现/测试门禁 | 待用户确认 |
+| 1.1.0 | 2026-08-03 | 明确七天内高质量完成能力矩阵全部目标，冻结范围只限制广度；第 15 节改为七天完整性审计，生产级成熟度不在本计划展开 | 用户 |
+| 1.2.0 | 2026-08-03 | 补齐双向目标审计、DoD 适用性与许可证门禁；冻结 Beat→Outbox 可靠调度、SSE wire contract、SSRF 连接前校验和三类 PDF 独立验收 | 用户授权的质量完善 |
+| 1.3.0 | 2026-08-03 | 冻结 Refresh/CSRF 同 successor 响应恢复、改密撤销全部 Session、四角色动作矩阵；补齐 Job lease/fencing/AOF/未启动对账、持久 Schedule 停机补跑与 D1-12 可靠异步底座 | 用户授权的安全与可靠性完善 |
