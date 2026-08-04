@@ -15,8 +15,10 @@ members = ["apps/backend"]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1,<0.29.0",
     "mypy>=2.3.0,<3.0.0",
     "pytest>=9.1.1,<10.0.0",
+    "pytest-asyncio>=1.4.0,<2.0.0",
     "ruff>=0.16.1,<0.17.0",
 ]
 
@@ -51,6 +53,7 @@ line-ending = "lf"
 
 [tool.mypy]
 python_version = "3.13"
+plugins = ["pydantic.mypy"]
 files = [
   "apps/backend/src",
   "apps/backend/tests",
@@ -59,6 +62,11 @@ strict = true
 warn_unreachable = true
 show_error_codes = true
 pretty = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 addopts = [
