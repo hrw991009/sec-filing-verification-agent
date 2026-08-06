@@ -58,6 +58,60 @@ jobs:
       - name: Build Python package
         run: uv build --package industry-platform-backend
 
+  fresh-postgresql-migration:
+    name: Fresh PostgreSQL migration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENVIRONMENT: test
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: migration_ci
+      POSTGRES_USER: migration_ci
+      POSTGRES_PASSWORD: migration-ci-password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: migration-ci-unused
+      MIGRATION_SMOKE_REQUIRED: "1"
+    services:
+      postgres:
+        image: postgres:16.14-bookworm
+        env:
+          POSTGRES_DB: migration_ci
+          POSTGRES_USER: migration_ci
+          POSTGRES_PASSWORD: migration-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U migration_ci -d migration_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install pinned Python
+        run: uv python install
+
+      - name: Sync locked Python workspace
+        run: uv sync --locked --all-packages
+
+      - name: Exercise the complete migration history
+        run: >-
+          uv run --locked --all-packages pytest
+          -m migration_smoke
+          apps/backend/tests/integration/test_migration_smoke.py
+
   web-quality:
     name: Web quality
     runs-on: ubuntu-24.04
