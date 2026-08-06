@@ -75,6 +75,9 @@ addopts = [
   "--strict-markers",
   "-ra",
 ]
+markers = [
+  "migration_smoke: runs the full Alembic history against disposable PostgreSQL",
+]
 testpaths = ["apps/backend/tests"]
 xfail_strict = true
 filterwarnings = ["error"]
