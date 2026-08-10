@@ -4,7 +4,12 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import URL, DateTime, MetaData, Uuid, func, text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from industry_platform.core.config import Settings
@@ -16,6 +21,8 @@ NAMING_CONVENTION: dict[str, str] = {
     "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
+
+type AsyncSessionFactory = async_sessionmaker[AsyncSession]
 
 
 class Base(DeclarativeBase):
@@ -70,6 +77,18 @@ def create_database_engine(settings: Settings) -> AsyncEngine:
     return create_async_engine(
         build_database_url(settings),
         pool_pre_ping=True,
+    )
+
+
+def create_database_session_factory(
+    engine: AsyncEngine,
+) -> AsyncSessionFactory:
+    """Create request/task-scoped sessions from the process-wide engine."""
+
+    return async_sessionmaker(
+        bind=engine,
+        autoflush=False,
+        expire_on_commit=False,
     )
 
 

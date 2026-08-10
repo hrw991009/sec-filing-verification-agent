@@ -16,6 +16,12 @@ VALID_ENVIRONMENT = {
     "REDIS_PORT": "16379",
     "REDIS_PASSWORD": "placeholder",
     "HEALTH_CHECK_TIMEOUT_SECONDS": "1.0",
+    "ARGON2_MEMORY_COST_KIB": "65536",
+    "ARGON2_TIME_COST": "3",
+    "ARGON2_PARALLELISM": "1",
+    "ARGON2_SALT_LENGTH": "16",
+    "ARGON2_HASH_LENGTH": "32",
+    "ARGON2_MAX_CONCURRENCY": "2",
 }
 
 
@@ -37,6 +43,12 @@ def test_settings_load_and_convert_environment_values(
     assert settings.postgres_port == 15432
     assert settings.redis_port == 16379
     assert settings.health_check_timeout_seconds == 1.0
+    assert settings.argon2_memory_cost_kib == 65_536
+    assert settings.argon2_time_cost == 3
+    assert settings.argon2_parallelism == 1
+    assert settings.argon2_salt_length == 16
+    assert settings.argon2_hash_length == 32
+    assert settings.argon2_max_concurrency == 2
 
 
 def test_settings_hide_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -66,6 +78,12 @@ def test_settings_reject_missing_required_value(
         ("POSTGRES_PORT", "70000"),
         ("REDIS_PORT", "0"),
         ("HEALTH_CHECK_TIMEOUT_SECONDS", "0"),
+        ("ARGON2_MEMORY_COST_KIB", "65535"),
+        ("ARGON2_TIME_COST", "2"),
+        ("ARGON2_PARALLELISM", "0"),
+        ("ARGON2_SALT_LENGTH", "15"),
+        ("ARGON2_HASH_LENGTH", "31"),
+        ("ARGON2_MAX_CONCURRENCY", "0"),
     ],
 )
 def test_settings_reject_invalid_values(
@@ -77,4 +95,15 @@ def test_settings_reject_invalid_values(
     monkeypatch.setenv(variable_name, invalid_value)
 
     with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_settings_reject_argon2_process_memory_overcommit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("ARGON2_MEMORY_COST_KIB", "1048576")
+    monkeypatch.setenv("ARGON2_MAX_CONCURRENCY", "2")
+
+    with pytest.raises(ValidationError, match="Argon2 process memory budget"):
         Settings(_env_file=None)

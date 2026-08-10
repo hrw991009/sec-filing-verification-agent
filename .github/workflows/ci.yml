@@ -59,7 +59,7 @@ jobs:
         run: uv build --package industry-platform-backend
 
   fresh-postgresql-migration:
-    name: Fresh PostgreSQL migration
+    name: PostgreSQL integration
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -72,7 +72,7 @@ jobs:
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: "6379"
       REDIS_PASSWORD: migration-ci-unused
-      MIGRATION_SMOKE_REQUIRED: "1"
+      POSTGRES_TESTS_REQUIRED: "1"
     services:
       postgres:
         image: postgres:16.14-bookworm
@@ -106,11 +106,10 @@ jobs:
       - name: Sync locked Python workspace
         run: uv sync --locked --all-packages
 
-      - name: Exercise the complete migration history
+      - name: Exercise migrations and registration against PostgreSQL
         run: >-
           uv run --locked --all-packages pytest
-          -m migration_smoke
-          apps/backend/tests/integration/test_migration_smoke.py
+          apps/backend/tests/integration
 
   web-quality:
     name: Web quality

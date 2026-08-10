@@ -11,7 +11,10 @@ from industry_platform.model_registry import metadata as target_metadata
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Alembic can run inside pytest or another long-lived application process.
+    # Preserve loggers that are not declared in alembic.ini instead of silently
+    # disabling them for the rest of that process.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 def load_migration_settings() -> Settings:

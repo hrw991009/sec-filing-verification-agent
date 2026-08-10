@@ -5,6 +5,9 @@ description = "Backend application for Industry Intelligence Platform."
 requires-python = "==3.13.14"
 dependencies = [
     "alembic>=1.19.0,<2.0.0",
+    "anyio>=4.14.2,<5.0.0",
+    "argon2-cffi>=25.1.0,<26.0.0",
+    "email-validator>=2.3.0,<3.0.0",
     "fastapi>=0.141.1,<0.142.0",
     "psycopg[binary]>=3.3.4,<4.0.0",
     "pydantic>=2.13.4,<3.0.0",

@@ -1,17 +1,22 @@
 """FastAPI application entry point."""
 
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from fastapi import FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import JSONResponse
 
 from industry_platform.core.config import Settings, get_settings
 from industry_platform.core.database import (
     check_database_connection,
     create_database_engine,
+    create_database_session_factory,
 )
 from industry_platform.core.health import (
     LivenessResponse,
@@ -20,13 +25,31 @@ from industry_platform.core.health import (
     ReadinessStatus,
     assess_readiness,
 )
+from industry_platform.core.http import (
+    SafeUnhandledExceptionMiddleware,
+    TraceIdMiddleware,
+    get_trace_id,
+    http_exception_handler,
+    problem_response,
+    request_validation_exception_handler,
+)
 from industry_platform.core.redis_client import (
     check_redis_connection,
     create_redis_client,
 )
+from industry_platform.modules.identity.domain import (
+    EmailAlreadyRegisteredError,
+    InvalidEmailAddressError,
+    RegistrationPersistenceError,
+)
+from industry_platform.modules.identity.passwords import PasswordPolicyError
+from industry_platform.modules.identity.resources import create_identity_resources
+from industry_platform.modules.identity.router import router as identity_router
 
 type DatabaseHealthCheck = Callable[[AsyncEngine], Awaitable[None]]
 type RedisHealthCheck = Callable[[Redis], Awaitable[None]]
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,19 +82,26 @@ def create_app(
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         active_settings = settings if settings is not None else get_settings()
         database_engine = create_database_engine(active_settings)
-        redis_client = create_redis_client(active_settings)
-
-        application.state.resources = ApplicationResources(
-            settings=active_settings,
-            database_engine=database_engine,
-            redis_client=redis_client,
-        )
+        redis_client: Redis | None = None
 
         try:
+            database_session_factory = create_database_session_factory(database_engine)
+            redis_client = create_redis_client(active_settings)
+            application.state.resources = ApplicationResources(
+                settings=active_settings,
+                database_engine=database_engine,
+                redis_client=redis_client,
+            )
+            application.state.identity_resources = create_identity_resources(
+                active_settings,
+                database_session_factory,
+            )
+
             yield
         finally:
             try:
-                await redis_client.aclose()
+                if redis_client is not None:
+                    await redis_client.aclose()
             finally:
                 await database_engine.dispose()
 
@@ -80,6 +110,86 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    application.add_middleware(TraceIdMiddleware)
+    application.add_middleware(SafeUnhandledExceptionMiddleware)
+    application.include_router(identity_router, prefix="/api/v1")
+
+    @application.exception_handler(StarletteHTTPException)
+    async def handle_http_exception(
+        request: Request,
+        error: StarletteHTTPException,
+    ) -> JSONResponse:
+        return await http_exception_handler(request, error)
+
+    @application.exception_handler(RequestValidationError)
+    async def handle_request_validation(
+        request: Request,
+        error: RequestValidationError,
+    ) -> JSONResponse:
+        return await request_validation_exception_handler(request, error)
+
+    @application.exception_handler(EmailAlreadyRegisteredError)
+    async def handle_duplicate_email(
+        request: Request,
+        _error: EmailAlreadyRegisteredError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Email already registered",
+            code="EMAIL_ALREADY_REGISTERED",
+            detail="An account with this email already exists.",
+            problem_type="urn:iip:problem:email-already-registered",
+        )
+
+    @application.exception_handler(InvalidEmailAddressError)
+    async def handle_invalid_email(
+        request: Request,
+        _error: InvalidEmailAddressError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Request validation failed",
+            code="REQUEST_VALIDATION_FAILED",
+            detail="One or more request fields are invalid.",
+            problem_type="urn:iip:problem:request-validation-failed",
+        )
+
+    @application.exception_handler(PasswordPolicyError)
+    async def handle_invalid_password(
+        request: Request,
+        _error: PasswordPolicyError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Request validation failed",
+            code="REQUEST_VALIDATION_FAILED",
+            detail="One or more request fields are invalid.",
+            problem_type="urn:iip:problem:request-validation-failed",
+        )
+
+    @application.exception_handler(RegistrationPersistenceError)
+    async def handle_registration_persistence_failure(
+        request: Request,
+        error: RegistrationPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Registration persistence failure trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Registration unavailable",
+            code="REGISTRATION_UNAVAILABLE",
+            detail="Registration is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:registration-unavailable",
+        )
 
     @application.get(
         "/health/live",

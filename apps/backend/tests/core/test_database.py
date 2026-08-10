@@ -1,5 +1,6 @@
 """Tests for shared SQLAlchemy database infrastructure."""
 
+import pytest
 from sqlalchemy import Column, Integer, MetaData, String, Table, UniqueConstraint
 
 from industry_platform.core.config import Settings
@@ -7,6 +8,8 @@ from industry_platform.core.database import (
     NAMING_CONVENTION,
     Base,
     build_database_url,
+    create_database_engine,
+    create_database_session_factory,
 )
 
 
@@ -44,3 +47,19 @@ def test_base_uses_stable_constraint_names() -> None:
     assert Base.metadata.naming_convention == NAMING_CONVENTION
     assert probe_table.primary_key.name == "pk_naming_probe"
     assert unique_constraint.name == "uq_naming_probe_slug"
+
+
+@pytest.mark.asyncio
+async def test_session_factory_uses_explicit_transaction_safe_defaults(
+    test_settings: Settings,
+) -> None:
+    engine = create_database_engine(test_settings)
+
+    try:
+        session_factory = create_database_session_factory(engine)
+
+        assert session_factory.kw["bind"] is engine
+        assert session_factory.kw["autoflush"] is False
+        assert session_factory.kw["expire_on_commit"] is False
+    finally:
+        await engine.dispose()
