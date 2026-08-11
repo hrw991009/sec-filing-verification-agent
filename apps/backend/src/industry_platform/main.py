@@ -38,9 +38,16 @@ from industry_platform.core.redis_client import (
     create_redis_client,
 )
 from industry_platform.modules.identity.domain import (
+    AccessTokenGenerationError,
+    AuthenticationPersistenceError,
     EmailAlreadyRegisteredError,
+    InvalidCredentialsError,
     InvalidEmailAddressError,
+    LoginRateLimitExceededError,
+    LoginRateLimitUnavailableError,
+    LoginSessionPersistenceError,
     RegistrationPersistenceError,
+    SessionTokenGenerationError,
 )
 from industry_platform.modules.identity.passwords import PasswordPolicyError
 from industry_platform.modules.identity.resources import create_identity_resources
@@ -87,15 +94,18 @@ def create_app(
         try:
             database_session_factory = create_database_session_factory(database_engine)
             redis_client = create_redis_client(active_settings)
+            identity_resources = await create_identity_resources(
+                active_settings,
+                database_session_factory,
+                redis_client,
+            )
+
             application.state.resources = ApplicationResources(
                 settings=active_settings,
                 database_engine=database_engine,
                 redis_client=redis_client,
             )
-            application.state.identity_resources = create_identity_resources(
-                active_settings,
-                database_session_factory,
-            )
+            application.state.identity_resources = identity_resources
 
             yield
         finally:
@@ -189,6 +199,70 @@ def create_app(
             code="REGISTRATION_UNAVAILABLE",
             detail="Registration is temporarily unavailable. Please try again.",
             problem_type="urn:iip:problem:registration-unavailable",
+        )
+
+    @application.exception_handler(InvalidCredentialsError)
+    async def handle_invalid_credentials(
+        request: Request,
+        _error: InvalidCredentialsError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            title="Invalid credentials",
+            code="INVALID_CREDENTIALS",
+            detail="The email or password is incorrect.",
+            problem_type="urn:iip:problem:invalid-credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    @application.exception_handler(LoginRateLimitExceededError)
+    async def handle_login_rate_limit(
+        request: Request,
+        error: LoginRateLimitExceededError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            title="Too many login attempts",
+            code="LOGIN_RATE_LIMITED",
+            detail="Too many login attempts. Please try again later.",
+            problem_type="urn:iip:problem:login-rate-limited",
+            headers={"Retry-After": str(error.retry_after_seconds)},
+        )
+
+    @application.exception_handler(LoginRateLimitUnavailableError)
+    @application.exception_handler(AuthenticationPersistenceError)
+    @application.exception_handler(LoginSessionPersistenceError)
+    @application.exception_handler(SessionTokenGenerationError)
+    @application.exception_handler(AccessTokenGenerationError)
+    async def handle_login_unavailable(
+        request: Request,
+        error: LoginRateLimitUnavailableError
+        | AuthenticationPersistenceError
+        | LoginSessionPersistenceError
+        | SessionTokenGenerationError
+        | AccessTokenGenerationError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        sqlstate = (
+            error.sqlstate
+            if isinstance(error, AuthenticationPersistenceError | LoginSessionPersistenceError)
+            else None
+        )
+        logger.error(
+            "Login unavailable trace_id=%s failure_type=%s sqlstate=%s",
+            trace_id,
+            type(error).__name__,
+            sqlstate or "not-applicable",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Login unavailable",
+            code="LOGIN_UNAVAILABLE",
+            detail="Login is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:login-unavailable",
         )
 
     @application.get(

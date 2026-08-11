@@ -1,14 +1,30 @@
 """Technology-independent values and failures used by identity workflows."""
 
 from dataclasses import dataclass, field
-from typing import Literal, NewType
+from datetime import datetime, timedelta
+from typing import Literal, NewType, Self
 from uuid import UUID
 
 from pydantic import SecretStr
 
 NormalizedEmail = NewType("NormalizedEmail", str)
 PasswordHash = NewType("PasswordHash", str)
+RefreshTokenHash = NewType("RefreshTokenHash", bytes)
+CsrfTokenHash = NewType("CsrfTokenHash", bytes)
+DeviceTokenHash = NewType("DeviceTokenHash", bytes)
+RefreshRecoveryEnvelope = NewType("RefreshRecoveryEnvelope", bytes)
 TraceId = NewType("TraceId", str)
+type AccountStatus = Literal["active", "disabled", "deleting", "deleted"]
+
+
+def _is_utc_timestamp(value: datetime) -> bool:
+    """Return whether a timestamp is timezone-aware and normalized to UTC."""
+
+    return (
+        value.tzinfo is not None
+        and value.utcoffset() is not None
+        and value.utcoffset() == timedelta(0)
+    )
 
 
 class EmailAlreadyRegisteredError(RuntimeError):
@@ -17,6 +33,121 @@ class EmailAlreadyRegisteredError(RuntimeError):
 
 class InvalidEmailAddressError(ValueError):
     """Raised when an application caller supplies an invalid email address."""
+
+
+class InvalidCredentialsError(RuntimeError):
+    """Reject login without revealing which credential was incorrect."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid email or password")
+
+
+class LoginRateLimitConfigurationError(ValueError):
+    """Reject an unsafe limiter configuration without exposing key material."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid login rate limit configuration")
+
+
+class LoginRateLimitExceededError(RuntimeError):
+    """Tell HTTP delivery when one generic login retry may be attempted."""
+
+    def __init__(self, *, retry_after_seconds: int) -> None:
+        super().__init__("Login rate limit exceeded")
+        self.retry_after_seconds = retry_after_seconds
+
+
+class LoginRateLimitUnavailableError(RuntimeError):
+    """Fail closed when the shared limiter cannot make a safe decision."""
+
+    def __init__(self) -> None:
+        super().__init__("Login rate limiter unavailable")
+
+
+class InvalidAccessTokenError(ValueError):
+    """Reject an untrusted Access Token without echoing any part of it."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid access token")
+
+
+class AccessTokenConfigurationError(ValueError):
+    """Reject an unsafe local signing or verification key configuration."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid access token configuration")
+
+
+class AccessTokenGenerationError(RuntimeError):
+    """Report signing failure without exposing keys, claims, or partial output."""
+
+    def __init__(self) -> None:
+        super().__init__("Access token generation failed")
+
+
+class InvalidSessionTokenError(ValueError):
+    """Reject malformed browser token input without echoing it."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid session token")
+
+
+class InvalidSessionTokenKeyError(ValueError):
+    """Reject unsafe HMAC key configuration without echoing key material."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid session token HMAC key configuration")
+
+
+class SessionTokenGenerationError(RuntimeError):
+    """Report random-source failure without exposing partial token material."""
+
+    def __init__(self) -> None:
+        super().__init__("Session token generation failed")
+
+
+class BrowserRequestSecurityConfigurationError(ValueError):
+    """Reject an unusable trusted-origin policy without echoing its input."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid browser request security configuration")
+
+
+class InvalidBrowserSessionRequestError(RuntimeError):
+    """Reject Origin or CSRF proof without revealing which check failed."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid browser session request")
+
+
+class RefreshRecoveryConfigurationError(ValueError):
+    """Reject an unsafe successor-recovery encryption configuration."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid refresh recovery configuration")
+
+
+class RefreshRecoveryError(RuntimeError):
+    """Reject unsafe recovery data without exposing tokens or key material."""
+
+    def __init__(self) -> None:
+        super().__init__("Refresh recovery failed")
+
+
+class AuthenticationPersistenceError(RuntimeError):
+    """Carry a safe credential-read failure classification beyond an adapter."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Authentication persistence failed")
+        self.sqlstate = sqlstate
+
+
+class LoginSessionPersistenceError(RuntimeError):
+    """Carry a safe login-transaction failure classification beyond an adapter."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Login session persistence failed")
+        self.sqlstate = sqlstate
 
 
 class RegistrationPersistenceError(RuntimeError):
@@ -34,6 +165,286 @@ class RegisterUserCommand:
     email: str
     password: SecretStr = field(repr=False)
     trace_id: TraceId
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticateCredentialsCommand:
+    """Untrusted credentials supplied to the authentication use case."""
+
+    email: str = field(repr=False)
+    password: SecretStr = field(repr=False)
+    trace_id: TraceId
+
+
+@dataclass(frozen=True, slots=True)
+class StoredCredentials:
+    """Minimal persistence snapshot required to verify one account."""
+
+    user_id: UUID
+    email: NormalizedEmail
+    password_hash: PasswordHash = field(repr=False)
+    status: AccountStatus
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedCredentials:
+    """Internal proof passed to the later session-creation transaction."""
+
+    user_id: UUID
+    email: NormalizedEmail
+    expected_password_hash: PasswordHash = field(repr=False)
+    password_rehash_required: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AccessToken:
+    """Short-lived signed credential that delivery code may reveal once."""
+
+    _value: SecretStr = field(repr=False)
+
+    @classmethod
+    def from_transport(cls, raw_value: str) -> Self:
+        """Wrap an encoded JWT without putting it into normal object output."""
+
+        return cls(SecretStr(raw_value))
+
+    def reveal_for_transport(self) -> str:
+        """Reveal the compact JWT only at an HTTP or verification boundary."""
+
+        return self._value.get_secret_value()
+
+
+@dataclass(frozen=True, slots=True)
+class IssueAccessTokenCommand:
+    """Trusted identifiers and time used to create one short-lived JWT."""
+
+    user_id: UUID
+    session_id: UUID
+    issued_at: datetime
+
+    def __post_init__(self) -> None:
+        """Require an unambiguous UTC issuance time."""
+
+        if self.user_id.int == 0 or self.session_id.int == 0:
+            raise ValueError("Access token identifiers must not be nil UUIDs")
+
+        if not _is_utc_timestamp(self.issued_at):
+            raise ValueError("Access token issuance time must use timezone-aware UTC")
+
+
+@dataclass(frozen=True, slots=True)
+class AccessTokenClaims:
+    """Verified internal meaning of the fixed Access Token claim set."""
+
+    user_id: UUID
+    session_id: UUID
+    jwt_id: UUID
+    issued_at: datetime
+    not_before: datetime
+    expires_at: datetime
+
+    def __post_init__(self) -> None:
+        """Reject ambiguous timestamps or internally inconsistent validity windows."""
+
+        if self.user_id.int == 0 or self.session_id.int == 0 or self.jwt_id.int == 0:
+            raise ValueError("Access token claim identifiers must not be nil UUIDs")
+
+        timestamps = (self.issued_at, self.not_before, self.expires_at)
+
+        if any(not _is_utc_timestamp(timestamp) for timestamp in timestamps):
+            raise ValueError("Access token claim timestamps must use timezone-aware UTC")
+
+        if self.issued_at != self.not_before or self.expires_at <= self.issued_at:
+            raise ValueError("Access token validity window is inconsistent")
+
+
+@dataclass(frozen=True, slots=True)
+class IssuedAccessToken:
+    """Signed transport value paired with the exact claims used to create it."""
+
+    token: AccessToken = field(repr=False)
+    claims: AccessTokenClaims
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshToken:
+    """Opaque browser credential accepted only by the refresh-token path."""
+
+    _value: SecretStr = field(repr=False)
+
+    @classmethod
+    def from_transport(cls, raw_value: str) -> Self:
+        """Wrap untrusted HTTP input without logging or validating it yet."""
+
+        return cls(SecretStr(raw_value))
+
+    def reveal_for_transport(self) -> str:
+        """Reveal plaintext only when setting a Cookie or calculating its digest."""
+
+        return self._value.get_secret_value()
+
+
+@dataclass(frozen=True, slots=True)
+class CsrfToken:
+    """Opaque browser value accepted only by the CSRF-token path."""
+
+    _value: SecretStr = field(repr=False)
+
+    @classmethod
+    def from_transport(cls, raw_value: str) -> Self:
+        """Wrap untrusted HTTP input without logging or validating it yet."""
+
+        return cls(SecretStr(raw_value))
+
+    def reveal_for_transport(self) -> str:
+        """Reveal plaintext only when setting a Cookie or calculating its digest."""
+
+        return self._value.get_secret_value()
+
+
+@dataclass(frozen=True, slots=True)
+class DeviceToken:
+    """Opaque browser credential accepted only by the device-token path."""
+
+    _value: SecretStr = field(repr=False)
+
+    @classmethod
+    def from_transport(cls, raw_value: str) -> Self:
+        """Wrap untrusted HTTP input without logging or validating it yet."""
+
+        return cls(SecretStr(raw_value))
+
+    def reveal_for_transport(self) -> str:
+        """Reveal plaintext only when setting a Cookie or calculating its digest."""
+
+        return self._value.get_secret_value()
+
+
+@dataclass(frozen=True, slots=True)
+class IssuedLoginSessionTokens:
+    """Three browser tokens paired with the only values persistence may receive."""
+
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_token: CsrfToken = field(repr=False)
+    device_token: DeviceToken = field(repr=False)
+    refresh_token_hash: RefreshTokenHash = field(repr=False)
+    csrf_token_hash: CsrfTokenHash = field(repr=False)
+    device_token_hash: DeviceTokenHash = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshSuccessorTokens:
+    """The two rotating browser values recoverable after a lost response."""
+
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_token: CsrfToken = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshRecoveryContext:
+    """Stable identifiers cryptographically bound to one successor response."""
+
+    predecessor_session_id: UUID
+    successor_session_id: UUID
+    rotation_family_id: UUID
+    user_id: UUID
+    device_token_hash: DeviceTokenHash = field(repr=False)
+
+    def __post_init__(self) -> None:
+        identifiers = (
+            self.predecessor_session_id,
+            self.successor_session_id,
+            self.rotation_family_id,
+            self.user_id,
+        )
+
+        if any(identifier.int == 0 for identifier in identifiers):
+            raise ValueError("Refresh recovery identifiers must not be nil UUIDs")
+
+        if len(self.device_token_hash) != 32:
+            raise ValueError("Refresh recovery device hash must contain exactly 32 bytes")
+
+
+@dataclass(frozen=True, slots=True)
+class CreateLoginSessionCommand:
+    """Persistence-safe inputs required to atomically establish a login session."""
+
+    user_id: UUID
+    expected_password_hash: PasswordHash = field(repr=False)
+    refresh_token_hash: RefreshTokenHash = field(repr=False)
+    csrf_token_hash: CsrfTokenHash = field(repr=False)
+    device_token_hash: DeviceTokenHash = field(repr=False)
+    issued_at: datetime
+    idle_expires_at: datetime
+    absolute_expires_at: datetime
+    trace_id: TraceId
+    replacement_password_hash: PasswordHash | None = field(
+        default=None,
+        repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        """Reject malformed hashes and ambiguous or unsafe expiration windows."""
+
+        digests = (
+            self.refresh_token_hash,
+            self.csrf_token_hash,
+            self.device_token_hash,
+        )
+
+        if any(len(digest) != 32 for digest in digests):
+            raise ValueError("Login session token hashes must contain exactly 32 bytes")
+
+        timestamps = (
+            self.issued_at,
+            self.idle_expires_at,
+            self.absolute_expires_at,
+        )
+
+        if any(
+            timestamp.tzinfo is None or timestamp.utcoffset() is None for timestamp in timestamps
+        ):
+            raise ValueError("Login session timestamps must be timezone-aware")
+
+        if any(timestamp.utcoffset() != timedelta(0) for timestamp in timestamps):
+            raise ValueError("Login session timestamps must use UTC")
+
+        if not self.issued_at < self.idle_expires_at <= self.absolute_expires_at:
+            raise ValueError("Login session expiration order is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class LoginSessionRecord:
+    """Identifiers and expiration boundaries committed for one login."""
+
+    user_id: UUID
+    rotation_family_id: UUID
+    session_id: UUID
+    issued_at: datetime
+    idle_expires_at: datetime
+    absolute_expires_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class EstablishedLoginSession:
+    """Committed session metadata plus plaintext values needed by HTTP delivery."""
+
+    email: NormalizedEmail = field(repr=False)
+    session: LoginSessionRecord
+    access_token: AccessToken = field(repr=False)
+    access_token_expires_at: datetime
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_token: CsrfToken = field(repr=False)
+    device_token: DeviceToken = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """Require one usable UTC Access Token window for the committed session."""
+
+        if not _is_utc_timestamp(self.access_token_expires_at):
+            raise ValueError("Access token expiration must use timezone-aware UTC")
+
+        if self.access_token_expires_at <= self.session.issued_at:
+            raise ValueError("Access token must expire after session issuance")
 
 
 @dataclass(frozen=True, slots=True)

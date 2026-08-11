@@ -4,7 +4,7 @@ import logging
 from collections.abc import Mapping
 from uuid import uuid4
 
-from fastapi import Request, status
+from fastapi import Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict
 from starlette.datastructures import MutableHeaders
@@ -15,6 +15,8 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 TRACE_ID_HEADER = "X-Trace-ID"
 TRACE_ID_STATE_KEY = "trace_id"
+CACHE_CONTROL_HEADER = "Cache-Control"
+PRAGMA_HEADER = "Pragma"
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,13 @@ def get_trace_id(request: Request) -> str:
     return _trace_id_from_scope(request.scope)
 
 
+def set_no_store_headers(response: Response) -> None:
+    """Prevent browsers and intermediaries from caching authentication data."""
+
+    response.headers[CACHE_CONTROL_HEADER] = "no-store"
+    response.headers[PRAGMA_HEADER] = "no-cache"
+
+
 def problem_response(
     *,
     trace_id: str,
@@ -72,10 +81,12 @@ def problem_response(
         "retry-after",
         "www-authenticate",
     }
-    safe_headers = {
+    safe_headers: dict[str, str] = {
         name: value for name, value in (headers or {}).items() if name.lower() in forwarded_headers
     }
     safe_headers[TRACE_ID_HEADER] = trace_id
+    safe_headers[CACHE_CONTROL_HEADER] = "no-store"
+    safe_headers[PRAGMA_HEADER] = "no-cache"
 
     problem = ProblemDetails(
         type=problem_type,
