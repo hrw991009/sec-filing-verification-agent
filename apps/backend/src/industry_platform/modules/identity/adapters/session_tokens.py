@@ -16,6 +16,7 @@ from industry_platform.modules.identity.domain import (
     InvalidSessionTokenError,
     InvalidSessionTokenKeyError,
     IssuedLoginSessionTokens,
+    IssuedRefreshSuccessorTokens,
     RefreshToken,
     RefreshTokenHash,
     SessionTokenGenerationError,
@@ -61,16 +62,10 @@ class HmacSessionTokenService:
     def issue(self) -> IssuedLoginSessionTokens:
         """Create three distinct 256-bit tokens before exposing any result."""
 
-        raw_values = (
-            self._new_random_value(),
-            self._new_random_value(),
-            self._new_random_value(),
-        )
-
-        if len(set(raw_values)) != len(raw_values):
-            raise SessionTokenGenerationError
-
-        refresh_raw, csrf_raw, device_raw = raw_values
+        raw_values = self._new_distinct_values(3)
+        refresh_raw = raw_values[0]
+        csrf_raw = raw_values[1]
+        device_raw = raw_values[2]
         refresh_token = RefreshToken.from_transport(self._encode(refresh_raw))
         csrf_token = CsrfToken.from_transport(self._encode(csrf_raw))
         device_token = DeviceToken.from_transport(self._encode(device_raw))
@@ -87,6 +82,26 @@ class HmacSessionTokenService:
             ),
             device_token_hash=DeviceTokenHash(
                 self._digest(self._device_hmac_key, _DEVICE_TOKEN_DOMAIN, device_raw)
+            ),
+        )
+
+    def issue_refresh_successor(self) -> IssuedRefreshSuccessorTokens:
+        """Rotate Refresh and CSRF values without replacing the device token."""
+
+        raw_values = self._new_distinct_values(2)
+        refresh_raw = raw_values[0]
+        csrf_raw = raw_values[1]
+        refresh_token = RefreshToken.from_transport(self._encode(refresh_raw))
+        csrf_token = CsrfToken.from_transport(self._encode(csrf_raw))
+
+        return IssuedRefreshSuccessorTokens(
+            refresh_token=refresh_token,
+            csrf_token=csrf_token,
+            refresh_token_hash=RefreshTokenHash(
+                self._digest(self._refresh_hmac_key, _REFRESH_TOKEN_DOMAIN, refresh_raw)
+            ),
+            csrf_token_hash=CsrfTokenHash(
+                self._digest(self._csrf_hmac_key, _CSRF_TOKEN_DOMAIN, csrf_raw)
             ),
         )
 
@@ -133,6 +148,13 @@ class HmacSessionTokenService:
             raise SessionTokenGenerationError
 
         return raw_value
+
+    def _new_distinct_values(self, count: int) -> tuple[bytes, ...]:
+        raw_values = tuple(self._new_random_value() for _ in range(count))
+        if len(set(raw_values)) != len(raw_values):
+            raise SessionTokenGenerationError
+
+        return raw_values
 
     @staticmethod
     def _encode(raw_value: bytes) -> str:

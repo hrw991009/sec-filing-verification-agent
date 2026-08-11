@@ -15,6 +15,10 @@ DeviceTokenHash = NewType("DeviceTokenHash", bytes)
 RefreshRecoveryEnvelope = NewType("RefreshRecoveryEnvelope", bytes)
 TraceId = NewType("TraceId", str)
 type AccountStatus = Literal["active", "disabled", "deleting", "deleted"]
+type RefreshRevocationReason = Literal[
+    "account_unavailable",
+    "refresh_replay_detected",
+]
 
 
 def _is_utc_timestamp(value: datetime) -> bool:
@@ -132,6 +136,21 @@ class RefreshRecoveryError(RuntimeError):
 
     def __init__(self) -> None:
         super().__init__("Refresh recovery failed")
+
+
+class InvalidRefreshSessionError(RuntimeError):
+    """Reject every invalid refresh attempt without revealing its failed check."""
+
+    def __init__(self) -> None:
+        super().__init__("Refresh session rejected")
+
+
+class RefreshSessionPersistenceError(RuntimeError):
+    """Carry a safe refresh-transaction failure classification beyond an adapter."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Refresh session persistence failed")
+        self.sqlstate = sqlstate
 
 
 class AuthenticationPersistenceError(RuntimeError):
@@ -333,6 +352,16 @@ class IssuedLoginSessionTokens:
 
 
 @dataclass(frozen=True, slots=True)
+class IssuedRefreshSuccessorTokens:
+    """New Refresh and CSRF values issued together while the device stays stable."""
+
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_token: CsrfToken = field(repr=False)
+    refresh_token_hash: RefreshTokenHash = field(repr=False)
+    csrf_token_hash: CsrfTokenHash = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class RefreshSuccessorTokens:
     """The two rotating browser values recoverable after a lost response."""
 
@@ -363,6 +392,208 @@ class RefreshRecoveryContext:
 
         if len(self.device_token_hash) != 32:
             raise ValueError("Refresh recovery device hash must contain exactly 32 bytes")
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshSessionCommand:
+    """Untrusted browser values required for one refresh attempt."""
+
+    origin: str = field(repr=False)
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_cookie_value: str = field(repr=False)
+    csrf_header_value: str = field(repr=False)
+    device_token: DeviceToken = field(repr=False)
+    trace_id: TraceId
+
+
+@dataclass(frozen=True, slots=True)
+class LockedRefreshSessionState:
+    """Technology-independent snapshot of one refresh row held under a DB lock."""
+
+    user_id: UUID
+    rotation_family_id: UUID
+    session_id: UUID
+    previous_session_id: UUID | None
+    replaced_by_session_id: UUID | None
+    refresh_token_hash: RefreshTokenHash = field(repr=False)
+    csrf_token_hash: CsrfTokenHash = field(repr=False)
+    device_token_hash: DeviceTokenHash = field(repr=False)
+    idle_expires_at: datetime
+    absolute_expires_at: datetime
+    used_at: datetime | None
+    revoked_at: datetime | None
+    recovery_envelope: RefreshRecoveryEnvelope | None = field(repr=False)
+    recovery_expires_at: datetime | None
+
+    def __post_init__(self) -> None:
+        identifiers = (
+            self.user_id,
+            self.rotation_family_id,
+            self.session_id,
+        )
+        digests = (
+            self.refresh_token_hash,
+            self.csrf_token_hash,
+            self.device_token_hash,
+        )
+        timestamps = (
+            self.idle_expires_at,
+            self.absolute_expires_at,
+            self.used_at,
+            self.revoked_at,
+            self.recovery_expires_at,
+        )
+
+        if any(identifier.int == 0 for identifier in identifiers):
+            raise ValueError("Locked refresh identifiers must not be nil UUIDs")
+        if any(len(digest) != 32 for digest in digests):
+            raise ValueError("Locked refresh token hashes must contain exactly 32 bytes")
+        if any(
+            timestamp is not None and not _is_utc_timestamp(timestamp) for timestamp in timestamps
+        ):
+            raise ValueError("Locked refresh timestamps must use timezone-aware UTC")
+        if self.idle_expires_at > self.absolute_expires_at:
+            raise ValueError("Locked refresh expiration order is invalid")
+        if (self.used_at is None) != (self.replaced_by_session_id is None):
+            raise ValueError("Locked refresh rotation state is inconsistent")
+        if (self.recovery_envelope is None) != (self.recovery_expires_at is None):
+            raise ValueError("Locked refresh recovery state is inconsistent")
+
+
+@dataclass(frozen=True, slots=True)
+class LockedRefreshRotation:
+    """User, family, presented row, and current row locked in one order."""
+
+    user_status: AccountStatus
+    family_id: UUID
+    family_current_session_id: UUID
+    family_absolute_expires_at: datetime
+    family_revoked_at: datetime | None
+    checked_at: datetime
+    presented: LockedRefreshSessionState
+    current: LockedRefreshSessionState
+
+    def __post_init__(self) -> None:
+        timestamps = (
+            self.family_absolute_expires_at,
+            self.family_revoked_at,
+            self.checked_at,
+        )
+
+        if self.family_id.int == 0 or self.family_current_session_id.int == 0:
+            raise ValueError("Locked refresh family identifiers must not be nil UUIDs")
+        if any(
+            timestamp is not None and not _is_utc_timestamp(timestamp) for timestamp in timestamps
+        ):
+            raise ValueError("Locked refresh family timestamps must use timezone-aware UTC")
+        if self.presented.rotation_family_id != self.family_id:
+            raise ValueError("Presented refresh session belongs to another family")
+        if self.current.rotation_family_id != self.family_id:
+            raise ValueError("Current refresh session belongs to another family")
+        if self.current.session_id != self.family_current_session_id:
+            raise ValueError("Locked refresh current pointer is inconsistent")
+        if self.presented.user_id != self.current.user_id:
+            raise ValueError("Locked refresh sessions belong to different users")
+
+
+@dataclass(frozen=True, slots=True)
+class PersistRefreshSuccessorCommand:
+    """Persistence-safe values for one first-use refresh rotation."""
+
+    user_id: UUID
+    rotation_family_id: UUID
+    predecessor_session_id: UUID
+    successor_session_id: UUID
+    refresh_token_hash: RefreshTokenHash = field(repr=False)
+    csrf_token_hash: CsrfTokenHash = field(repr=False)
+    device_token_hash: DeviceTokenHash = field(repr=False)
+    issued_at: datetime
+    idle_expires_at: datetime
+    absolute_expires_at: datetime
+    recovery_envelope: RefreshRecoveryEnvelope = field(repr=False)
+    recovery_expires_at: datetime
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        identifiers = (
+            self.user_id,
+            self.rotation_family_id,
+            self.predecessor_session_id,
+            self.successor_session_id,
+        )
+        digests = (
+            self.refresh_token_hash,
+            self.csrf_token_hash,
+            self.device_token_hash,
+        )
+        timestamps = (
+            self.issued_at,
+            self.idle_expires_at,
+            self.absolute_expires_at,
+            self.recovery_expires_at,
+        )
+
+        if any(identifier.int == 0 for identifier in identifiers):
+            raise ValueError("Refresh successor identifiers must not be nil UUIDs")
+        if self.predecessor_session_id == self.successor_session_id:
+            raise ValueError("Refresh successor must differ from its predecessor")
+        if any(len(digest) != 32 for digest in digests):
+            raise ValueError("Refresh successor token hashes must contain exactly 32 bytes")
+        if any(not _is_utc_timestamp(timestamp) for timestamp in timestamps):
+            raise ValueError("Refresh successor timestamps must use timezone-aware UTC")
+        if not self.issued_at < self.idle_expires_at <= self.absolute_expires_at:
+            raise ValueError("Refresh successor expiration order is invalid")
+        if not self.issued_at < self.recovery_expires_at <= self.absolute_expires_at:
+            raise ValueError("Refresh recovery expiration order is invalid")
+        if not self.recovery_envelope:
+            raise ValueError("Refresh recovery envelope must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class RevokeRefreshFamilyCommand:
+    """Sanitized instruction that must commit before refresh rejection escapes."""
+
+    user_id: UUID
+    rotation_family_id: UUID
+    detected_session_id: UUID
+    revoked_at: datetime
+    reason: RefreshRevocationReason
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        identifiers = (
+            self.user_id,
+            self.rotation_family_id,
+            self.detected_session_id,
+        )
+        if any(identifier.int == 0 for identifier in identifiers):
+            raise ValueError("Refresh revocation identifiers must not be nil UUIDs")
+        if not _is_utc_timestamp(self.revoked_at):
+            raise ValueError("Refresh revocation timestamp must use timezone-aware UTC")
+
+
+@dataclass(frozen=True, slots=True)
+class RecordRefreshRecoveryCommand:
+    """Sanitized audit instruction for a successful lost-response recovery."""
+
+    user_id: UUID
+    rotation_family_id: UUID
+    session_id: UUID
+    recovered_at: datetime
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        if any(
+            identifier.int == 0
+            for identifier in (
+                self.user_id,
+                self.rotation_family_id,
+                self.session_id,
+            )
+        ):
+            raise ValueError("Refresh recovery audit identifiers must not be nil UUIDs")
+        if not _is_utc_timestamp(self.recovered_at):
+            raise ValueError("Refresh recovery audit timestamp must use timezone-aware UTC")
 
 
 @dataclass(frozen=True, slots=True)
@@ -445,6 +676,24 @@ class EstablishedLoginSession:
 
         if self.access_token_expires_at <= self.session.issued_at:
             raise ValueError("Access token must expire after session issuance")
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshedSession:
+    """Committed rotation result containing only values required by delivery."""
+
+    session: LoginSessionRecord
+    access_token: AccessToken = field(repr=False)
+    access_token_expires_at: datetime
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_token: CsrfToken = field(repr=False)
+    recovered: bool
+
+    def __post_init__(self) -> None:
+        if not _is_utc_timestamp(self.access_token_expires_at):
+            raise ValueError("Access token expiration must use timezone-aware UTC")
+        if self.access_token_expires_at <= self.session.issued_at:
+            raise ValueError("Access token must expire after refresh issuance")
 
 
 @dataclass(frozen=True, slots=True)

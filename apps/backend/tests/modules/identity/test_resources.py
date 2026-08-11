@@ -24,6 +24,7 @@ from industry_platform.modules.identity.domain import IssueAccessTokenCommand
 from industry_platform.modules.identity.resources import create_identity_resources
 from industry_platform.modules.identity.service import (
     LoginSessionService,
+    RefreshSessionService,
     RegistrationService,
 )
 
@@ -57,6 +58,7 @@ async def test_identity_resources_wire_the_complete_login_runtime(
 
         assert isinstance(resources.registration_service, RegistrationService)
         assert isinstance(resources.login_service, LoginSessionService)
+        assert isinstance(resources.refresh_service, RefreshSessionService)
         assert isinstance(resources.session_token_service, HmacSessionTokenService)
         assert isinstance(resources.access_token_codec, Ed25519AccessTokenCodec)
         assert isinstance(resources.login_rate_limiter, RedisLoginAttemptRateLimiter)

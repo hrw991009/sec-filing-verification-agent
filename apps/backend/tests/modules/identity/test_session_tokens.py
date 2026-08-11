@@ -114,6 +114,26 @@ def test_issue_uses_three_256_bit_blocks_and_matches_fixed_hmac_vectors() -> Non
     assert service.digest_device(issued.device_token) == issued.device_token_hash
 
 
+def test_refresh_successor_rotates_only_refresh_and_csrf_values() -> None:
+    raw_values = (b"\x07" * 32, b"\x08" * 32)
+    random_bytes = RecordingRandomBytes(*raw_values)
+    service = token_service(random_bytes=random_bytes)
+
+    issued = service.issue_refresh_successor()
+
+    refresh_value = issued.refresh_token.reveal_for_transport()
+    csrf_value = issued.csrf_token.reveal_for_transport()
+    assert random_bytes.requests == [SESSION_TOKEN_BYTES] * 2
+    assert refresh_value != csrf_value
+    assert decode_token(refresh_value) == raw_values[0]
+    assert decode_token(csrf_value) == raw_values[1]
+    assert service.digest_refresh(issued.refresh_token) == issued.refresh_token_hash
+    assert service.digest_csrf(issued.csrf_token) == issued.csrf_token_hash
+    assert not hasattr(issued, "device_token")
+    assert refresh_value not in repr(issued)
+    assert csrf_value not in repr(issued)
+
+
 def test_changing_only_the_refresh_key_changes_only_the_refresh_digest() -> None:
     issued = token_service(
         random_bytes=RecordingRandomBytes(
@@ -212,6 +232,11 @@ def test_generation_rejects_short_or_duplicate_random_results() -> None:
 
     with pytest.raises(SessionTokenGenerationError):
         token_service(random_bytes=duplicate_source).issue()
+
+    with pytest.raises(SessionTokenGenerationError):
+        token_service(
+            random_bytes=RecordingRandomBytes(*([b"y" * 32] * 2))
+        ).issue_refresh_successor()
 
 
 def test_generation_sanitizes_random_source_exceptions() -> None:

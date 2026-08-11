@@ -12,8 +12,14 @@ from industry_platform.modules.identity.adapters.access_tokens import (
     Ed25519AccessTokenCodec,
 )
 from industry_platform.modules.identity.adapters.argon2 import Argon2idPasswordHasher
+from industry_platform.modules.identity.adapters.browser_requests import (
+    ExactBrowserSessionRequestGuard,
+)
 from industry_platform.modules.identity.adapters.login_rate_limits import (
     RedisLoginAttemptRateLimiter,
+)
+from industry_platform.modules.identity.adapters.refresh_recovery import (
+    AesGcmRefreshRecoveryCodec,
 )
 from industry_platform.modules.identity.adapters.session_tokens import (
     HmacSessionTokenService,
@@ -21,6 +27,7 @@ from industry_platform.modules.identity.adapters.session_tokens import (
 from industry_platform.modules.identity.adapters.sqlalchemy import (
     SqlAlchemyCredentialReader,
     SqlAlchemyLoginSessionTransactionFactory,
+    SqlAlchemyRefreshSessionTransactionFactory,
     SqlAlchemyRegistrationTransactionFactory,
 )
 from industry_platform.modules.identity.ports import (
@@ -28,11 +35,13 @@ from industry_platform.modules.identity.ports import (
     LoginAttemptRateLimiter,
     LoginSessionTokenService,
     LoginSessionUseCase,
+    RefreshSessionUseCase,
     RegistrationUseCase,
 )
 from industry_platform.modules.identity.service import (
     CredentialAuthenticationService,
     LoginSessionService,
+    RefreshSessionService,
     RegistrationService,
 )
 
@@ -43,6 +52,7 @@ class IdentityResources:
 
     registration_service: RegistrationUseCase
     login_service: LoginSessionUseCase
+    refresh_service: RefreshSessionUseCase
     session_token_service: LoginSessionTokenService
     access_token_codec: AccessTokenCodec
     login_rate_limiter: LoginAttemptRateLimiter
@@ -84,6 +94,13 @@ async def create_identity_resources(
         account_max_attempts=settings.login_rate_limit_account_max_attempts,
         account_window_seconds=settings.login_rate_limit_account_window_seconds,
     )
+    browser_request_guard = ExactBrowserSessionRequestGuard(
+        trusted_origins=settings.browser_trusted_origins,
+        token_service=session_token_service,
+    )
+    recovery_codec = AesGcmRefreshRecoveryCodec(
+        settings.refresh_recovery_aead_key,
+    )
 
     return IdentityResources(
         registration_service=RegistrationService(
@@ -96,6 +113,13 @@ async def create_identity_resources(
             session_token_service=session_token_service,
             access_token_codec=access_token_codec,
             transaction_factory=SqlAlchemyLoginSessionTransactionFactory(session_factory),
+        ),
+        refresh_service=RefreshSessionService(
+            session_token_service=session_token_service,
+            access_token_codec=access_token_codec,
+            browser_request_guard=browser_request_guard,
+            recovery_codec=recovery_codec,
+            transaction_factory=SqlAlchemyRefreshSessionTransactionFactory(session_factory),
         ),
         session_token_service=session_token_service,
         access_token_codec=access_token_codec,
