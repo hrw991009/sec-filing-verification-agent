@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`1.6.0`
+> 版本：`1.7.0`
 >
 > 制定日期：`2026-07-23`
 >
@@ -49,7 +49,7 @@
 - 85%：完整 Agent 核心栈——Runtime/Harness、Tool Use、Short/Long-term Memory、Context Engineering、Knowledge/RAG、Deep Research、durable execution 与 Eval。
 - 15%：身份、租户、任务队列、存储、CI 和必要安全门禁。
 
-这 85% 不是再按“主次能力”切割，而是沿依赖顺序学习同一个系统：Day 2 建 Runtime，Day 3 建 Tool/Harness，Day 4 建 Memory 与 durable Research，Day 5 建可被 Agent 使用的私有知识，Day 6 才在这些前提上学习 Hybrid RAG 与多模态 Context。RAG 排得较后是因为它依赖文件入库、Evidence、检索基线和评测数据，不代表它比 Runtime、Tool 或 Memory 次要。
+这 85% 不是再按“主次能力”切割，而是沿依赖顺序学习同一个系统：Day 2 建 Runtime 与基础 Harness，Day 3 建 Tool loop，Day 4 建 Memory、Evidence 与 Research L3，Day 5 建私有知识与 durable Research L4，Day 6 建 Hybrid RAG、多模态 Context 与 Research L5。RAG 排得较后是因为它依赖文件入库、Evidence、检索基线和评测数据，不代表它比 Runtime、Tool 或 Memory 次要。
 
 七天结束时，学习者必须能用自己的话并用运行证据回答：
 
@@ -70,9 +70,11 @@
 
 身份与 Workspace、Job/Outbox、私有文件、Provider 端口、CI 等仍是必要底座，但它们服务于 Agent 主线，不再占据同等学习篇幅。通用安全细节继续以 ADR、`docs/security-model.md`、`docs/tool-security.md` 和自动化门禁为权威来源；主计划只保留会直接改变 Agent 行为的边界。
 
-冻结范围描述七天内要深入学习的内容。Agent 核心能力必须使用正式数据、真实 Runtime、可恢复状态和可重复评测，不得用页面、Mock 成功或名义上的“多 Agent”冒充完成。外围行业 Adapter 和企业级运维能力允许保持诚实的 `thin_slice` 或 `contract_only`，只要不会伪装成可用，也不阻断 Agent 主线。
+冻结范围描述七天内要深入学习的内容。Agent 核心能力必须使用正式数据、真实 Runtime、可恢复状态和可重复评测，不得用页面、Mock 成功或名义上的“多 Agent”冒充完成。外围行业 Adapter 和企业级运维只实现能力矩阵预先冻结的代表性真实切片与 readiness，不在执行中继续扩张；这些目标仍须完成各自的简化冻结范围，不能用 `thin_slice` 或 `contract_only` 冒充 Day 7 验收通过。
 
 若每天只能投入 3～4 小时，应把一个“日”扩展为两个自然日。任何 Agent 门禁未通过就顺延；不得通过删除场景、放宽预算、绕过 Harness、伪造工具结果或只看最终答案来赶进度。
+
+Day 1 的执行门禁以新仓工程链路和新仓 Secret 边界为准，D1-01～D1-08、D1-10～D1-12 已通过并允许进入 Agent 主线。D1-09 中参考仓历史凭据的 Provider 侧吊销/轮换属于独立外部治理尾项，不否定已经完成的 Day 1 工程结果，但在全部处置和复扫前仍阻断 Day 7 发布标签。
 
 ## 2. 从参考项目中提炼 Agent 能力栈
 
@@ -284,7 +286,7 @@ evaluation → agent_harness；只读观察 Runtime / conversation / retrieval /
 - `message_attachments`、`message_feedback`。
 - `agent_runs`：run_type、thread/session、status、current_phase、runtime/harness version、budget snapshot、stop_reason、trace_id。
 - `agent_steps`：run_id、sequence、kind(model/tool/approval/checkpoint/final)、status、input/output summary、usage、latency、error_code。
-- `agent_events`：run_id、sequence、event_type、schema_version、payload、occurred_at；作为 SSE/recovery 的 append-only 业务事件源。
+- `agent_events`：run_id、sequence、event_type、schema_version、payload、occurred_at；作为持久业务事件与恢复事实源。Token delta 可以只进入带 TTL 的短期流，但关键进度、快照、引用和终态必须持久化。
 - `tool_calls`：step_id、tool/schema version、sanitized_arguments_hash、approval、status、result/evidence refs；不保存 Secret。
 - `agent_checkpoints`：run_id、revision、state_schema_version、state_json、resume metadata。
 - `run_artifacts`：run_id、kind(report/table/chart/file/evidence_set)、object/resource reference、content hash、version；普通 final message 不重复写成 Artifact。
@@ -295,14 +297,17 @@ evaluation → agent_harness；只读观察 Runtime / conversation / retrieval /
 
 ### 5.2 Runtime 状态、记忆、研究与评测
 
-- `memories`：user_id、scope、kind、content、source_message_id、confidence、status、expires_at。
+- `thread_memory_states`：thread_id、summary、message_refs、compaction_revision、freshness、schema_version；承载 Short-term Memory 投影，不替代 Run Checkpoint。
+- `memories`：user_id、scope、kind、current_revision_id、confidence、status、expires_at；作为可查询的 Long-term Memory 当前投影。
+- `memory_revisions`：memory_id、version、content、provenance/source_ref、write_reason、policy_decision、editor、validity/status；保留修改、冲突、停用和删除的可审计历史。
+- `context_manifests`：run_id、step_id、source_kind/id/version、included、decision_reason、token_count、budget_snapshot；记录哪些 Memory、Knowledge、Observation/Evidence 和 Artifact 实际进入 Context。
 - `research_runs`：agent_run_id、query、research brief、phase、coverage target、max_iterations、cancel_requested_at。
 - `research_plans`：run_id、revision、questions、dependencies、status；计划变化显式版本化。
 - `research_reports`：run_id、version、markdown、quality_score。
 - `research_claims`：statement、confidence、verification_status。
 - `claim_evidence`：claim_id、evidence_id、support_type。
 - `graph_nodes`、`graph_edges`：从 claim/evidence/company/topic 派生，第一周仍存在 PostgreSQL，不引入 Neo4j。
-- `evaluation_cases`：dataset/version、input、expected behavior、available tools、budget、deterministic fixture refs。
+- `evaluation_cases`：dataset/version、input、expected behavior、available tools/toolset version、budget、deterministic fixture refs。
 - `evaluation_results`：case/run/runtime/harness/model/prompt version、trajectory/output/evidence/recovery score、usage、cost、latency。
 
 下列概念必须在数据和代码中分开：
@@ -335,7 +340,7 @@ evaluation → agent_harness；只读观察 Runtime / conversation / retrieval /
 - `file_objects`：bucket、object_key、original_name、mime_type、size、sha256、status。
 - `knowledge_bases`、`documents`、`document_versions`：检索配置、当前版本、parser/chunker version 和状态。
 - `chunks`、`assets`、`chunk_asset_links`：页码、标题、内容哈希、bbox、图片/表格关联。
-- `search_index_records`：可重建索引中的确定性外部 ID、版本、状态和错误。
+- `search_index_records`：可重建索引中的确定性外部 ID、vector/lexical index version、Embedding Provider/model/dimension/normalization、状态和错误。
 - `jobs`、`job_events`、`outbox_events`：后台任务、lease/fencing、事件与可靠投递。
 - `schedules`、`schedule_occurrences`：数据库时间、时区、misfire 和幂等 occurrence。
 
@@ -462,8 +467,9 @@ AgentRuntime.run(command) -> AsyncIterator[AgentEvent]
 ContextCompiler.compile(run, step) -> ModelInput
 ToolRegistry.resolve(name, runtime_context) -> TypedTool
 ToolExecutor.execute(call, runtime_context) -> ToolResult
-ApprovalPolicy.evaluate(call) -> allow | deny | interrupt
-CheckpointStore.save/load(run_id, revision)
+ApprovalPolicy.evaluate(call, policy_context) -> allow | deny | interrupt
+CheckpointStore.save(run_id, expected_revision, state) -> Checkpoint
+CheckpointStore.load(run_id, revision | latest) -> Checkpoint
 TrajectoryRecorder.record(event)
 ```
 
@@ -489,7 +495,7 @@ clarify_scope → write_research_brief → plan → research_loop
 
 `ResearchState` 至少包含 schema version、run/scope、plan/current node、pending actions、Evidence/Claim/Artifact refs、预算使用量、step/revise 计数、审批状态、取消标记、stop reason 与脱敏错误摘要。节点成功后保存 Checkpoint。外部副作用遵循“持久化意图/幂等键 → 执行 → 持久化结果”；resume 先检查已有结果。Human-in-the-loop 只用于预算扩展、高成本或不可逆操作、策略规定的冲突，不在普通节点堆形式化审批。
 
-七天映射为：Day 2 完成 L0；Day 3 完成 L1–L2 和 Tool/Harness v1；Day 4 完成可治理 Short/Long-term Memory 与 L3–L5；Day 5 建 Agent Knowledge 与 Dense baseline；Day 6 在不改变 Runtime 的前提下完成 Hybrid/Multimodal RAG；Day 7 用统一轨迹与 Context Eval 决定是否做一个 L6 对照实验。
+七天映射为：Day 2 完成 L0 与 Runtime/Harness v0；Day 3 完成 L1–L2 和 Tool/Harness v1；Day 4 完成可治理 Short/Long-term Memory、Evidence/Claim 与 L3；Day 5 完成 Agent Knowledge、Dense baseline 与 durable L4；Day 6 完成 Hybrid/Multimodal RAG、Context Engine 与 L5；Day 7 用统一轨迹与 Context Eval 决定是否做一个 L6 对照实验。
 
 ### 6.5 Harness 内的工具边界
 
@@ -549,7 +555,7 @@ RAG 安排在 Day 6 是依赖顺序：它需要 Day 3 的 Tool/Observation、Day
 
 1. 45～60 分钟：用自己的话解释当天 Runtime/Harness 概念，并写一个可证伪假设，例如“加入 plan 会提升多源覆盖，但增加步骤与成本”。
 2. 30～45 分钟：先写 Harness scenario，冻结输入、可用工具、预算、预期终止原因和评分规则。
-3. 3～4 小时：只增加一个 Runtime/Harness 能力或一个真实 Agent Tool，不同时重写多个层。
+3. 3～4 小时：围绕当天唯一主能力推进一个可验收纵向切片；契约、测试与学习型可视化可以协同实现，但不得在同一切片中重写多个执行语义层。
 4. 60～90 分钟：查看完整 Trace，做正常、失败、取消、预算耗尽、恢复和重复副作用测试。
 5. 60 分钟：运行确定性规则与小型数据集，比较结果、轨迹、Evidence、Token、费用和延迟；LLM-as-judge 只能作为补充。
 6. 30 分钟：记录“保留/回退/继续实验”的结论，更新 feature matrix、ADR 和 `learning-log/day-N.md`。
@@ -558,95 +564,104 @@ RAG 安排在 Day 6 是依赖顺序：它需要 Day 3 的 Tool/Observation、Day
 
 每天至少保存三类证据：一条成功 Trace、一条失败或恢复 Trace、一份可比较 Eval 报告。只展示最终答案、UI 动画或一次偶然成功不能标记完成。
 
-## 8. Day 1：Agent-ready 工程地基与运行契约
+Scenario/Eval 数据集按 Day 2 ≥5、Day 3 ≥10、Day 4 ≥20、Day 5 ≥30、Day 6 ≥40、Day 7 ≥50 逐日累计；Day 7 只补齐和冻结发布基线，不从零重做评测。复杂前端可由独立前端实现工作流依据 typed contract 并行交付，其编码工时不计入学习者的核心概念时段；但页面能力、交互状态和真实数据链路仍属于正式交付，学习者必须能借助 Workbench 解释状态、事件、provenance、恢复和评分，不能用 Mock 可视化代替理解。
 
-迁移说明：若现有仓库已完成身份、Workspace、Job/Outbox 和 CI，不重写这些底座；只补齐本节的 Agent 契约、Fake/Harness scenario 与分层文档，然后重新验证门禁。
+## 8. Day 1：需求冻结、工程地基、身份与工作空间
 
 ### 学习主题
 
-- 模型调用、Agent loop、Runtime、Harness、Workflow 与 Worker Runtime 的区别。
-- Run、Step、Event、State、Checkpoint、Trace、Artifact 的生命周期。
-- Provider Port、Tool Port、确定性 Fake、场景驱动开发和版本化契约。
-- FastAPI/SQLAlchemy/Celery/React 的最小基础；身份与 Workspace 只作为可信 Runtime Context 来源。
+- HTTP、REST、SSE；FastAPI 依赖注入；SQLAlchemy Session 生命周期。
+- React 服务端状态与本地 UI 状态；Docker Compose；Alembic。
+- Access/Refresh Token、Argon2id、Cookie、安全密钥和租户隔离。
+- 模块化单体、端口/适配器、ADR、Git 小步提交。
 
 ### 实现任务
 
-1. 冻结第 3 节术语与分层，写 ADR：Provider-neutral、Runtime/Harness 边界、LangGraph 仅用于 Research、PostgreSQL 事实源。
-2. 建立第 4 节仓库、lockfile、严格类型、迁移、测试与最小 CI；Compose 默认只启动 PG/Redis/MinIO，其余使用 profile。
-3. 定义版本化 `AgentRun`、`AgentStep`、`AgentEvent`、`RunArtifact` 与 `RunBudget` 领域契约；先不实现自主循环。
-4. 定义 `ModelProvider`、`TrajectoryRecorder`、`CheckpointStore` 和 `AgentRuntime` Port；供应商 SDK 只能在 Adapter。
-5. 建立 Harness scenario 格式：input、runtime/harness/model/prompt version、allowed tools、budget、expected stop reason、scorers。
-6. 实现确定性 Fake Model/Fake Tool 和最小 Harness CLI，使同一场景两次运行得到相同 Event 骨架；明确这只是边界可重复，不宣称真实模型确定。
-7. 完成后续 Agent 所需的身份/Workspace、OpenAPI Client、私有配置和最小 Web shell；复杂会话安全细节按 ADR 实现和测试，不作为当天教学主线。
-8. 建立 Job/Outbox、Worker lease/fencing 与事件底座，使长 Agent Run 可以后台执行；当天只证明一次可靠投递、取消和崩溃恢复。
-9. 把 Trace ID、Run ID、Step sequence 和稳定错误码贯穿 API/Worker；日志默认不记录 Secret、完整 Prompt、全文材料或原始思维链。
-10. 写 `docs/agent-runtime.md` 与第一条 Scenario，画出 Application Service、Agent Runtime、Harness、LangGraph、Celery 的依赖方向。
-
-本节引入的 Runtime/Harness 分层会改变 ADR 0005 的依据与 Research 图。进入 Day 2 前必须同步该 ADR：保持“LangGraph 仅用于 Research”，并明确节点角色不等于独立 Agent、并行检索不等于多 Agent、普通回答和 Research 共用 Runtime。
+1. 创建全新仓库，不把两个旧项目复制进来；把本文档复制为 `docs/master-plan.md`。
+2. 创建第 4 节目录、`uv`/`pnpm` lock、严格类型检查、Ruff、mypy/pyright、ESLint、Prettier、pytest、Vitest、Playwright。
+3. 写第一批 ADR：模块化单体、PostgreSQL 事实源、统一 Evidence、Celery + Redis、LangGraph 只用于 Research、鉴权方案。
+4. Compose 先启动 PostgreSQL、Redis、MinIO；Milvus/ES/观测栈使用 profile，但当天验证它们能启动并有 healthcheck。中间件只绑定本机。
+5. 实现 `/health/live` 和 `/health/ready`；ready 必须真实检查 PostgreSQL、Redis，不能固定成功。
+6. 建立 Pydantic Settings、`.env.example`、开发/测试/生产边界；必需变量缺失时 fail fast，日志遮蔽 Token、密码、Cookie。
+7. 完成注册、登录、`me`、修改密码、Refresh 轮换、Logout；改密验证当前密码并在同一事务撤销全部旧 Session；注册时创建默认 Workspace 与 owner membership，按 ADR 0006 落实四角色动作矩阵、自提权禁止和最后一个 owner 保护。
+8. 前端完成登录/注册、用户资料、修改密码、Auth Guard、基础导航、统一 API Client 和 OpenAPI 类型生成。
+9. 建立 CI 快速通道：格式、lint、类型、单测、迁移 fresh upgrade、前端 build、Gitleaks、依赖扫描。
+10. 建立可测试的异步底座：API/Beat 事务写 Job + Outbox、独立 Dispatcher、Redis AOF、late ACK/worker-lost 配置、Job lease/heartbeat/fencing，以及“已发布但未 started”和 hard timeout 的独立对账重投。
 
 ### 测试
 
-- Agent 领域不变量：sequence、唯一终态、预算非负、typed state/version 与 Artifact 引用。
-- 同一 Scenario 使用两个 Runtime 入口是禁止项；生产与 Harness 必须调用同一个入口。
-- Fake Model 正常、格式错误、超时、取消；Trace 中能解释每一步且无 Secret/原始 chain-of-thought。
-- 后台 Run 在重复消息、Worker 终止和过期 lease 下只有一个正式结果；Checkpoint 与 Trace 不混用。
-- 身份/Workspace 的关键正常与跨租户负向测试、fresh migration、API/Web smoke 和 secret scan 作为基础门禁通过。
+- 注册、重复邮箱、错误密码、过期/伪造 Token、Refresh/CSRF 同步轮换、首次响应丢失后重发同一 successor、grace 内外重放、same-site Cookie 与 Logout；修改密码后旧密码及全部旧 Access/Refresh Session 立即失效，失败/并发不产生部分状态。
+- 未登录和用户 A 访问用户 B Workspace 的负向测试；owner/admin/member/viewer 动作矩阵、自提权、admin 越权和并发移除最后 owner 测试。
+- 全新空库执行 `alembic upgrade head`；禁止用 `create_all` 建表。
+- Playwright 完成“注册 → 登录 → 进入首页 → 修改密码 → 旧会话失败 → 新密码重新登录 → Logout”。
+- `/ready` 在数据库或 Redis 关闭时失败，`/live` 仍按进程状态响应。
+- Dispatcher 发布前后崩溃、Redis 接受后丢消息、Broker 断线、重复 Worker、soft/hard timeout 和过期 lease 都能被对账恢复，并只产生一个业务结果。
 
 ### 当日产物
 
-`docs/agent-runtime.md`、Agent 架构 ADR、第一版 Run/Step/Event 契约、Harness scenario schema、Fake Model/Tool、Trace snapshot、基础 Web/API/Worker/CI、`learning-log/day-1.md`。既有产品范围、安全审计和运维文档继续维护，但不是本日主要学习产物。
+`docs/product-scope.md`、`docs/architecture.md`、6 份 ADR、`docs/security/credential-exposure-audit.md`、`.env.example`、第一版 OpenAPI、CI、可启动的 Web/API/Outbox Dispatcher/Worker/Beat/基础设施、`learning-log/day-1.md`。
 
 ### 验收门禁
 
-- 固定 Scenario 两次运行产生相同事件类型/顺序和 final artifact，Trace 可读且不泄密。
-- Runtime 与 Harness 没有第二套 Agent loop，Celery task 只调用正式 Application/Runtime 入口。
-- 新 clone 能启动基础依赖并通过迁移、身份/Workspace smoke、核心检查和 Secret 扫描。
-- 无法解释 Run/Step/Checkpoint/Trace 差异时不得进入 Day 2。
+- 新 clone 按 README 能启动；仓库、历史和前端构建产物没有有效密钥。
+- 身份 E2E 和跨 Workspace 负向测试通过。
+- 数据库只由 Alembic 创建；依赖版本进入 lockfile。
+- 门禁失败时不得进入 Day 2。
 
 ### 复盘题
 
-为什么 Agent Runtime 不是 Celery Worker？Harness 为什么不能另写一套 loop？Checkpoint、Trace 和 Memory 分别回答什么问题？Fake 的确定性边界在哪里？
+为什么每张业务表都要 `workspace_id`？为什么 Refresh Token 不应放 LocalStorage？为什么 Milvus 不是事实源？今天有没有为了赶进度加入特殊分支？
 
-## 9. Day 2：Agent Runtime v0——流式 Run 与直接回答
+## 9. Day 2：Agent Runtime v0、基础 Harness 与流式直接回答
 
 ### 学习主题
 
-- 一次模型调用如何成为正式 Run，而不是 Router 里的 SDK 调用。
-- LLM Context 与 Runtime Context；结构化输出、流式 Step、usage、stop reason。
-- SSE 重连、取消、背压、部分结果与 Run/Message/Artifact 的关系。
+- 模型调用、Agent loop、Runtime、Harness、Workflow 与 Worker Runtime 的职责边界。
+- Run、Step、Event、State、Checkpoint、Trace、final output 与 Artifact 的生命周期。
+- Provider-neutral Port、确定性 Fake、Scenario/EvalCase 与版本化执行契约。
+- LLM Context 与 Runtime Context；结构化输出、usage、stop reason 与流式恢复。
 
 ### 实现任务
 
-1. 完成 `ModelProvider.stream/complete` 与 OpenAI-compatible Adapter；统一模型、usage、费用、超时和 Provider error，不把 Provider retry 伪装成 Runtime retry。
-2. 实现 L0 `DirectAnswerProfile`：一次无工具模型调用复用 Runtime 的 Run/Model Step/Event/stop reason 信封，但明确它只是 baseline model run，尚不具备动态 Agent loop。
-3. 实现 `ContextCompiler` v0：system instructions、用户问题、会话摘要、可信 Runtime Context 分层；记录 context manifest 与版本，不保存供应商 Secret。
-4. 实现结构化最终输出和流式 delta；模型格式不合法时进入明确失败/修复策略，不用字符串猜测状态。
-5. 固定 `agent.*` SSE：sequence、Last-Event-ID、心跳、snapshot、取消、唯一终态；断线只恢复输出，不重新执行已提交的模型 Step。
-6. 会话、Turn、AgentRun、final Message/可选 Artifact 与 Job/Outbox 原子关联；模型失败保留用户输入、已提交 Evidence/Artifact 和可解释错误。
-7. Harness 增加流式 record/replay、Provider timeout/限流/半截响应、客户端断线和取消故障注入。
-8. 前端完成最小会话旅程、流式输出、停止/重试、Run 状态与 Trace 开发视图；Tool、Memory、Knowledge/RAG 仍属核心能力，按依赖顺序在 Day 3～6 逐步接入。
+1. 冻结 Provider-neutral、Runtime/Harness 与 Application Service/Celery/LangGraph 的依赖方向，更新 Agent 架构 ADR 和 ADR 0005；Day 1 的身份/Workspace 提供可信 Runtime Context，Job/Outbox/Celery 只承载执行。
+2. 定义版本化 `AgentRun`、`AgentStep`、`AgentEvent`、`RunState`、`RunArtifact` 与 `RunBudget`；冻结 sequence、唯一终态、stop reason、预算、引用和 optimistic revision 不变量。
+3. 定义 `ModelProvider`、`TrajectoryRecorder`、`CheckpointStore`、`ToolExecutor` 与 `AgentRuntime` Port；实现通用 Checkpoint envelope、schema version、optimistic revision/CAS 和不兼容版本拒绝，Day 5 再完成 LangGraph state 映射、interrupt/resume 与真实恢复。
+4. 冻结 `Scenario/EvalCase v1`：输入、runtime/harness/model/prompt/context version、available tools/toolset version（L0 可为空）、budget、expected stop reason、scorers、trace/artifact refs 与人工备注；建立 Fake Model 和最小 Harness CLI，生产与 Harness 调用同一 Runtime。
+5. 实现 OpenAI-compatible `ModelProvider.stream/complete` Adapter 与 L0 `DirectAnswerProfile`；统一 usage、费用、超时和 Provider error，明确一次无工具模型调用只是 baseline model run。
+6. 实现 `ContextCompiler v0`：system instructions、用户问题、会话摘要和可信 Runtime Context 分层；持久化 context manifest 与版本，不保存 Provider Secret。
+7. 实现结构化 final output 和 `agent.*` SSE：sequence、Last-Event-ID、心跳、snapshot、取消、背压与唯一终态；断线只恢复已提交 Event，不重复当前 Model Step。
+8. 将 Conversation/Turn、AgentRun、final Message/可选 Artifact 与 Day 1 的 Job/Outbox 建立正式关联；当天证明原子创建、可靠投递、取消和失败后用户输入不丢，不提前承诺 graph resume。
+9. 贯通 Trace ID、Run ID、Step sequence、Context manifest、usage 与稳定错误码；建立可复用的 Agent Learning Workbench，展示 Run/Step 时间线、Context 组成、Token/费用和 stop reason。
+10. Harness 覆盖正常、格式错误、timeout、限流、半截响应、客户端断线和取消；形成首批不少于 5 个版本化 Scenario、record/replay 样例和 Trace snapshot。
+
+Day 2 的支撑产品切片同步完成会话新建/列表/详情/消息分页/重命名/删除/自动标题、附件上传/状态/关联/删除和安全 Markdown。文本附件通过统一 File/Parser Port 做有界真实提取，图片执行 MIME/magic bytes、尺寸与 metadata 校验并形成受控的模型输入引用；不支持、伪类型、超限或解析失败必须显式失败，Day 5 复用并扩展同一 Parser/File 链路。每个 Turn 持久化 `none/web/local/both`、行业与 KB 选择；Day 2 正式启用 `none`，`web` 在 Day 3、`local/both` 在 Day 5 接入相应 Tool profile，未就绪模式必须返回稳定 readiness 错误，不能用 Mock 结果冒充可用。复杂聊天页面由独立前端实现工作流按 OpenAPI/SSE 契约并行交付。
 
 ### 测试
 
-- L0 固定题的 Event/Trace 与结构化 final 快照；只有生成报告/表格/文件等额外交付物时才创建 Artifact。
-- 断开、重连、重复事件、取消、Provider timeout/限流/半截响应都产生稳定 stop reason。
+- Run/Step/Event/State/Budget 不变量、唯一终态、revision 和 Artifact 引用；Checkpoint envelope/CAS、版本兼容与职责边界。
+- 固定 Scenario 两次执行的 Event 类型/顺序一致；Fake 只证明边界可重复，不冒充真实模型确定。
+- L0 结构化 final、Provider 格式错误/timeout/429/半截响应、取消和稳定 stop reason。
+- SSE 非法/重复/缺口/超前游标、断开重连、慢客户端与“不重复 Model Step”。
 - Context Compiler 不把 Runtime 依赖、Secret 或其他 Workspace 内容放入 LLM Context。
-- 同一 Run 重连不重复模型调用；新 retry 创建可关联的新 attempt/Run，而非篡改历史。
-- 会话刷新/删除与最小浏览器旅程通过。
+- 会话、Run、Message、Job/Outbox 原子性以及刷新、删除和最小浏览器旅程。
+- 会话 CRUD/分页/自动标题；真实文本/图片 fixture、附件越权/伪类型/超限/解析失败/删除与刷新恢复；四种模式快照/readiness，以及 Markdown XSS/恶意链接。
+- Workbench 只读取正式 Event/Trace，不建立 Mock 展示链路，也不展示原始 chain-of-thought。
 
 ### 当日产物
 
-Agent Runtime v0、DirectAnswerProfile、Context Compiler v0、统一 SSE/Trace、流式故障 Scenario、普通聊天薄 UI、`learning-log/day-2.md`。
+Agent Runtime v0、`Scenario/EvalCase v1`、Fake Model、Harness CLI、DirectAnswerProfile、Context Compiler v0、Checkpoint 基础契约、统一 SSE/Trace、完整会话/附件/Markdown 支撑切片、Run/Context Learning Workbench、≥5 条版本化 Scenario 及代表性 Trace snapshot、`docs/agent-runtime.md`、Agent 架构 ADR、`learning-log/day-2.md`。
 
 ### 验收门禁
 
-- “新建会话 → 创建 Run → 流式回答 → 停止/重试 → 刷新恢复”全部经过同一 Runtime。
-- Trace 能解释 Context 版本、Model Step、usage、stop reason 和 final output/可选 Artifact；断线不重复执行。
-- Harness 能重现至少三种 Provider 故障，且 UI/事件不把失败伪装成成功。
+- “新建会话 → 创建 Run → 流式回答 → 停止/重试 → 刷新恢复”全部经过同一 Runtime，Harness 没有第二套 loop。
+- 固定 Scenario 的 Event 骨架和 final output 可重复，至少三类 Provider 故障不会被伪装成成功。
+- Trace 能解释 Context version、Model Step、usage、stop reason 和 final output/可选 Artifact；断线不重复执行。
+- 会话、消息、附件和模式快照在刷新/失败后仍完整；尚未接通的 `web/local/both` 明确失败，不出现假搜索结果。
+- 无法解释 Runtime、Harness、Worker、Checkpoint 与 Trace 的职责差异时，不得进入 Day 3。
 
 ### 复盘题
 
-为什么 L0 复用 Runtime 信封却还不是 Agent loop？Runtime Context 为什么不能原样送入模型？流中断后哪些事实可恢复、哪些只能重新尝试？
+为什么 Agent Runtime 不是 Celery Worker？为什么 L0 复用 Runtime 信封却还不是 Agent loop？Runtime Context 为什么不能原样送入模型？Checkpoint、Trace 与 Memory 分别回答什么问题？
 
 ## 10. Day 3：Agent Harness v1——有界 Tool Use 与真实能力
 
@@ -654,32 +669,36 @@ Agent Runtime v0、DirectAnswerProfile、Context Compiler v0、统一 SSE/Trace�
 
 - Function Calling、Action/Observation、Tool Registry/Executor、Plan–Act–Observe。
 - Harness profile、Tool/Skill、预算、deadline、审批、Artifact workspace 与轨迹评分。
+- `ToolExecutor` 作为 Runtime Port 与 Harness/Tool Adapter 实现之间的依赖反转。
 - 真实 Web/行业查询和 Text2SQL 如何成为 typed capability，而不是模型特权。
 
 ### 实现任务
 
-1. 建立 `ToolRegistry` 与 `ToolExecutor`：name/version、description、typed input/output、capability、scope、timeout、cost class、side-effect class、approval policy。
+1. 建立 `ToolDefinition`、`ToolCall`、`ToolResult/Observation`、`ToolRegistry` 与 `ToolExecutor` Adapter：name/version、typed input/output、capability、scope、timeout、cost class、side-effect class、approval policy；冻结 `ApprovalRequest/Decision` 和副作用幂等键契约。Day 3 只执行基于可信 `policy_context` 的静态 allow/deny，并以 `approval_required` Event/stop reason 结束；持久 interrupt/resume 留到 Day 5。
 2. Runtime 实现 L1 单工具与 L2 有界循环；每轮只接受结构化 action，执行前验证，Observation 归一化后再注入下一次模型 Context。
 3. 冻结所有停止条件：final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error、no_progress；禁止无限自省。
-4. Harness 增加 Tool fake、参数 matcher、timeout/error/duplicate result 注入、trajectory scorer，并输出“为什么调用/为什么停止”的报告。
+4. Harness 增加 Fake Tool、参数 matcher、timeout/error/duplicate result 注入和 trajectory scorer；Scenario 数据集累计不少于 10 条，并输出“为什么调用/为什么停止”的报告。
 5. 真实接通一个 Web Search/行业来源工具和一个 Text2SQL 链路；知识检索先保留 Tool 契约，Day 5/6 再接真实私有数据。
 6. Text2SQL 由工具内部完成 schema discovery、只读 AST 校验、预算、表格 Artifact 和受校验 Chart Artifact；模型不能拿到数据库连接或执行任意 SQL。
-7. 外部结果统一转为带来源、时间、locator、content hash 的 Observation；只有 Day 4 的 Evidence Normalizer 才能将其提升为 Evidence。
+7. 外部结果统一转为带来源、时间、locator、content hash 的 Observation/EvidenceCandidate；只有 Day 4 的 Evidence Normalizer 才能将其提升为 Evidence。
 8. Tool/Skill 的差异写入文档：Tool 是一次 typed capability；Skill 是由 instructions、可用 Tools、Context 策略和输出契约组成的 Harness 配置，不是隐式任意代码。
 9. 实现 `ContextCompiler` v1，把 Tool Observation 按来源、长度和预算安全地注入下一步模型输入；不把工具原始大响应无界拼接进 Context。
-10. 行业页面和定时采集只实现代表性真实薄切片；前端优先完成 Run Trace/Tool Inspector，Provider 未配置明确返回 readiness，不为凑页面伪造数据。
+10. 扩展 Agent Learning Workbench 的 Tool Inspector，展示 Action、参数验证、Observation、预算、拒绝原因与 Artifact；保留行业资讯/政策/招投标/行情、数据库浏览、表格和图表等完整前端交互，所有页面复用正式 Tool/Event 数据与 Day 1 的 Schedule/Job 基线。
+
+通用 SSRF、上传、网络 egress 与页面安全继续由专项合同和全局 Definition of Done 验收；当天学习重点是模型无法绕过 capability、WorkspaceScope、Schema、预算与审批。
 
 ### 测试
 
-- Tool 选择、Schema、scope、deadline、budget、approval 与参数越权；拒绝后模型不能换名字绕过。
+- Tool 选择、Schema、scope、deadline、budget、approval 与参数越权；Approval 决策和幂等键契约可确定验证，拒绝后模型不能换名字绕过。
 - L2 正常完成、无进展、工具超时/失败、预算耗尽、取消和重复 Observation；每条都有稳定 stop reason。
 - Text2SQL 破坏性语句拒绝，Web 工具的 SSRF/响应限制由专项合同测试覆盖；主线测试聚焦 Agent 无法绕过工具边界。
 - Harness 场景比较 L0、L1、L2 的完成率、步骤、工具正确率、成本和延迟。
 - 真实来源有 Evidence-ready 元数据；未配置 Provider 失败而非 Mock 成功。
+- Tool Inspector 与复杂业务页面只消费正式 Tool/Event/Artifact，刷新后仍能解释一次调用为何执行、拒绝或停止。
 
 ### 当日产物
 
-Agent Harness v1、Tool Registry/Executor、L1/L2 Runtime、Tool Inspector、一个真实 Web/行业 Tool、Text2SQL + 表格/图表 Artifact、trajectory report、`docs/agent-harness.md`、`learning-log/day-3.md`。
+Agent Harness v1、Tool Registry/Executor、L1/L2 Runtime、Tool Inspector、行业/数据库/图表页面、一个真实 Web/行业 Tool、Text2SQL + 表格/图表 Artifact、≥10 条累计 Scenario、trajectory report、`docs/agent-harness.md`、`learning-log/day-3.md`。
 
 ### 验收门禁
 
@@ -692,100 +711,106 @@ Agent Harness v1、Tool Registry/Executor、L1/L2 Runtime、Tool Inspector、一
 
 Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 为什么还不是 Evidence？什么时候继续循环，什么时候应停止？
 
-## 11. Day 4：Agent Memory、Evidence 与可恢复 Deep Research
+## 11. Day 4：Agent Memory、Evidence 与 Deep Research L3
 
 ### 学习主题
 
 - Short-term/Long-term Memory 的写入、召回、更新、反馈、遗忘与评测，以及它们与 Context、State、Checkpoint、Knowledge 的边界。
 - Evidence Ledger、Claim–Evidence、coverage、矛盾与不确定性。
-- Durable workflow、typed state、Checkpoint、Interrupt/Resume、幂等副作用。
-- Planner/Retriever/Analyst/Writer/Verifier 是节点职责还是独立 Agent；何时复杂度有净收益。
-- Trace、Eval、Approval、Guardrail、Memory 与 Context 的区别。
+- Research brief、typed state 与 Planner/Retriever/Analyst/Writer 节点职责；节点不自动等于独立 Agent。
+- Memory Scorer、Evidence Scorer、Trace、Eval 与 Context manifest 的区别。
 
 ### 实现任务
 
-1. 在固定场景上保存 L0/L2 的 Run、Observation、Context manifest、任务结果、Token、费用和延迟，作为 Memory/Research 增量的共同基线。
-2. 实现 Long-term Memory 写入闭环：explicit/candidate → provenance/scope/confidence → policy/用户确认或编辑 → create/update/merge/reject；不得默认永久保存全部聊天。
-3. 实现 Memory 召回与治理：按目标、scope、时效、冲突和预算检索，记录实际注入清单；支持反馈、停用、修改和删除，并建立 precision/utility/污染/删除残留 Scorer。
-4. 实现问题澄清与 research brief；原始问题、确认范围、排除项和完成标准显式保存，不能让 Planner 静默改题。
-5. 实现 L3 Evidence Ledger：Observation 经授权、规范化、去重和 locator 校验后成为 Evidence；Claim 标注 support/refute/uncertain。
-6. 复用 Day 3 Runtime/Harness，在 LangGraph 内实现唯一正式 typed Research graph；节点调用 Runtime/Domain Port，不直接调用 Provider SDK 或复制 tool loop。
-7. 实现 L4：版本化 Checkpoint、取消、deadline/budget、interrupt/approval、resume 和副作用幂等；Worker 终止不丢正式状态。
-8. 实现 L5：按 Claim 支持度、引用、覆盖、矛盾和未决问题核验，bounded revise 后输出 complete/partial/uncertain Report。
-9. Harness/UI 同时呈现 Memory manifest 与 Plan、Action、Observation、Evidence、Claim、Checkpoint、Approval、stop reason；增加 Memory 冲突/删除、节点故障、重复 resume、审批和预算场景。
-10. 写一次 L6 实验假设：只有哪些可测瓶颈与收益证据出现时，Day 7 才值得实验 specialist agents/handoff；此时不提前承诺采用。
+1. 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、任务结果、Token、费用和延迟；Scenario 数据集累计不少于 20 条，当天不重新制作基线。
+2. 定义 `ShortTermMemoryState`：Thread 消息引用、摘要、compaction revision、freshness 和注入 manifest；短期记忆可以参与 Context，但不能未经决策提升为长期记忆，也不冒充 Checkpoint。
+3. 实现 Long-term Memory 写入闭环：explicit/candidate → provenance/scope/confidence → policy/用户确认或编辑 → create/update/merge/reject；不得默认永久保存全部聊天。
+4. 实现 Memory 召回与治理：按目标、scope、时效、冲突、敏感度和预算检索；记录实际注入，支持 feedback、停用、修改、过期和删除。
+5. 建立独立 Memory Scorer：write accuracy、retrieval precision/utility、污染率、冲突处理、Token 成本和 deletion residual；用户修改/删除后的下一 Run 必须立即生效。
+6. 实现问题澄清与 `ResearchBrief`：原始问题、确认范围、排除项、完成标准和预算显式保存，不能让 Planner 静默改题。
+7. 实现 L3 Evidence Ledger：Observation/EvidenceCandidate 经授权、规范化、去重和 locator 校验后成为 Evidence；Claim 标注 support/refute/uncertain、coverage 与 conflict，并冻结 Day 6 Verifier 将消费的 typed input 与规则评分口径。
+8. 复用 Day 3 Runtime/Harness，在 LangGraph 内实现唯一正式 typed Research L3 graph；节点调用 Runtime/Domain Port，不直接调用 Provider SDK、不复制 tool loop，当天只形成带 Evidence/Claim 的可解释草稿。
+9. Harness 增加 Memory 候选/冲突/删除、Research scope、Evidence 缺失/矛盾和预算场景；Memory Scorer 与 Research Scorer 分开报告，也计算 Memory 对研究质量和 Context 成本的影响。
+10. 扩展 Agent Learning Workbench：完整展示 Memory 候选、确认、召回、冲突、修改、停用、删除和实际注入；同时展示 Plan–Action–Observation–Evidence–Claim 图、coverage 与不确定项。
 
 ### 测试
 
-- L0 → L2 → L5 同题对照；规则 Scorer 与人工抽样能解释质量、成本和延迟变化。
+- L0 → L2 → L3 同题对照；规则 Scorer 与人工抽样能解释质量、成本和延迟变化。
 - Short-term 与 Long-term Memory 不混写；候选写入、用户修正、冲突、无关召回、跨 Thread 使用和删除残留均有固定场景。
 - Memory 的 provenance、scope、实际 Context 注入和反馈可追踪；删除后下一 Run 不再引用，错误 Memory 不得静默覆盖新事实。
-- 每个关键 Claim 有真实 Evidence 或明确 uncertain；Verifier 不能只评价文风。
-- 任一主要节点终止 Worker 后从最后 Checkpoint 恢复；重复 resume 不重复 Tool Call/副作用。
-- budget、cancel、approval allow/deny/timeout、最大 revise 和 partial report 均有固定 Scenario。
-- Harness/LangGraph/Runtime 只有一条正式执行链；跨 Workspace Run/Checkpoint/Memory 不可读。
+- 每个关键 Claim 有真实 Evidence 或明确 uncertain；Evidence/Research Scorer 必须评价支持度、coverage 与 conflict，不能只评价文风。
+- Research brief 不静默改题；Evidence/Claim 的 locator、support/refute/uncertain、coverage 和 conflict 可确定性验证。
+- Harness/LangGraph/Runtime 只有一条正式执行链；跨 Workspace Run/Memory/Evidence 不可读。
 - Memory Scorer 与 Research Scorer 分开报告，也能评估 Memory 对 Research 质量、Token 和污染率的影响。
+- Memory 与 Evidence–Claim 可视化读取正式 manifest/Event，修改或删除后界面和下一 Run 同步变化。
 
 ### 当日产物
 
-可治理的 Short/Long-term Memory 闭环、Memory Eval、L3–L5 Deep Research、Evidence/Claim Ledger、版本化 Checkpoint、HITL、研究时间线/报告/证据图、演进对照报告、`docs/memory-policy.md`、`docs/research-state-machine.md`、`learning-log/day-4.md`。
+可治理的 Short/Long-term Memory 闭环、Memory Eval、ResearchBrief、Deep Research L3、Evidence/Claim Ledger、Memory/Context manifest 面板、研究时间线与 Evidence–Claim 图、L0/L2/L3 对照报告、`docs/memory-policy.md`、`docs/research-state-machine.md`、`learning-log/day-4.md`。
 
 ### 验收门禁
 
-- 一个问题可依次展示 L0、L2、L5 的结果、Trace 与指标，而非直接展示“多 Agent”。
+- 一个问题可依次展示 L0、L2、L3 的结果、Trace 与指标，而非直接展示“多 Agent”。
 - Memory 的写入原因、来源、scope、实际注入、用户修改/删除都可追踪；删除后后续 Run 不再引用。
-- Tool surface 与策略来自 Harness profile，Tool Call 由 Runtime 校验并经 ToolExecutor 执行；所有关键 Claim 关联 Evidence，stop reason/未确定项可解释。
-- 强制中断后恢复、跨刷新审批、重复 resume、取消和预算全部真实生效且无重复副作用。
-- 多 Agent 不是门禁；如采用，必须提供相对单图基线的显著净收益证据。
+- Tool surface 与策略来自 Harness profile，Tool Call 由 Runtime 校验并经 ToolExecutor 执行；所有关键 Claim 关联 Evidence，scope、coverage 与未确定项可解释。
+- Memory 与 Evidence 学习界面能回答“什么被写入、为何召回、什么进入 Context、哪些 Claim 由哪些来源支持”。
+- Durable Checkpoint、HITL、Verifier 与 bounded revise 属于 Day 5/6 后续成熟度，不得用当天的普通状态持久化冒充完成。
 
 ### 复盘题
 
-为什么多个节点不等于多个 Agent？Observation 如何成为 Evidence？Checkpoint 能恢复什么、不能恢复什么？Verifier 的可判定标准是什么？
+为什么多个节点不等于多个 Agent？Short-term Memory、Long-term Memory、State 与 Context 有何区别？Observation 如何成为 Evidence？为什么 L3 还不是完整可恢复研究？
 
-## 12. Day 5：Agent 知识工具——私有文件与可恢复入库
+## 12. Day 5：Agent Knowledge 与 Durable Research L4
 
 ### 学习主题
 
 - 知识库作为 Context Source 与 typed Tool，而不是独立于 Agent 的另一套回答系统。
 - Document/Version/Chunk/Asset/Evidence 的可追溯关系；解析与检索配置版本。
 - 长入库任务的 stage/checkpoint/idempotency，以及 Agent 面对 not-ready/partial/failed 知识的语义。
+- Agent Checkpoint 与入库 stage checkpoint 的共同原则和不同状态语义；Interrupt/Resume、HITL 与幂等副作用。
 
 ### 实现任务
 
-1. 完成知识库/文档最小管理和私有上传；文件校验、短签名 URL 与租户权限复用专项基础设施，不把它们扩成当天主课。
-2. 上传完成立即创建 Job；解析、资产抽取、Chunk、Embedding/索引在 Worker 分阶段执行，每阶段可观察、幂等、重试/取消。
-3. 定义版本化 `DocumentParser -> ParsedDocument`，用数字 PDF、扫描 PDF、含图片/表格 PDF、TXT/Markdown 的代表性 fixture 验证正式 Adapter。
-4. Chunk/Asset 保留文档版本、页码、标题、bbox、content hash、parser/chunker version，使 ToolResult 可转为可解析 Evidence。
-5. 先实现最小 Dense Top-K baseline，再实现 `knowledge_search` Tool 与 `KnowledgeContextSource`；只返回 ready/active 版本和 Evidence-ready locator，Runtime/Harness 不感知向量客户端。BM25/RRF/rerank 留到 Day 6 做可比较增量。
-6. 为 Knowledge Tool 定义 not_ready、no_result、partial_index、dependency_failed、permission_denied 的稳定 Observation，不将空结果自动解释成“文档没有相关信息”。
-7. 把知识库加入 Research Harness profile：同一 Day 4 graph 不改节点/loop，只增加 Tool/Context 配置即可使用私有知识。
-8. Harness 增加入库中断、重复 Job、解析失败、索引不可用、旧版本和删除后查询 Scenario；记录 Agent 的工具选择与错误解释是否正确。
-9. 前端展示上传阶段、失败/重试、文档页/Chunk/Asset，并在 Run Trace 中显示使用的文档版本与 Evidence。
-10. 对一个研究题比较“无私有知识”与“加入私有知识”两次 Run，记录新增 Claim 支持、无关召回、Token、费用和延迟。
+1. 完成多知识库、文档管理和私有上传；保留完整创建/编辑/删除、上传校验、短签名 URL 与 Workspace 权限交互，通用文件安全由专项合同验收，不占当天 Agent 学习主线。
+2. 上传完成立即创建 Job；解析、OCR/资产抽取、Chunk、Embedding、vector indexing、lexical indexing 和跨存储删除在 Worker 分阶段执行，每阶段可观察、幂等、重试/取消并可由 Reconciler 修复。Day 5 完成两类索引写入才进入 ready，但 Harness 当天只建立 Dense 查询基线；BM25 查询、RRF 与 rerank 在 Day 6 启用。
+3. 定义版本化 `DocumentParser -> ParsedDocument`，用数字 PDF、扫描 PDF、含图片/复杂表格 PDF、TXT/Markdown 的代表性 fixture 验证正式 Adapter。
+4. Document/Version/Chunk/Asset 保留页码、标题、bbox、content hash、parser/chunker/index version，使 ToolResult 可转为可解析 Evidence，并支持旧版本追溯与 active version 切换。
+5. 定义版本化 `EmbeddingProvider` Port/Adapter 与 Fake/contract test，固定 provider/model、dimension、normalization、batch/timeout 和稳定错误；在此基础上实现最小 Dense Top-K baseline、`knowledge_search` Tool 与 `KnowledgeContextSource`。只返回 ready/active 版本和 Evidence-ready locator，Runtime/Harness 不感知 Embedding、Milvus 或对象存储客户端。
+6. 定义 not_ready、no_result、partial_index、dependency_failed、permission_denied 的稳定 Observation；把知识 Tool 加入 Research Harness profile，不修改 Day 4 的 Runtime/Tool loop。
+7. 复用 Day 2 的 Checkpoint envelope/CAS，将 LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，实现 L4 interrupt/resume token、取消和版本映射；Agent Checkpoint 与入库 stage checkpoint 分开建模。
+8. 复用 Day 3 的 Approval/幂等契约，实现持久 `ApprovalRequest/Decision`、副作用账本、allow/deny/timeout、审计和恢复；Worker 终止或重复 resume 不重复 Tool Call、知识写入或其他副作用。
+9. Harness 场景累计不少于 30 条，覆盖入库中断/重复 Job/解析失败/索引不可用/旧版本/删除后查询，以及一次 Research 节点 hard stop、重复 resume、allow/deny 和预算；组合取消竞态与跨刷新/Worker 重启回归在 Day 7 补齐。
+10. 扩展 Agent Learning Workbench：保留完整知识库、文档、页面、Chunk、图片和表格界面；增加入库阶段、版本/locator、Agent 引用关系，以及 Checkpoint/HITL 时间线、状态差异和恢复入口。
 
 ### 测试
 
 - 代表性正常/损坏/超限文件与 Parser fixture；更完整上传安全矩阵保留在专项测试。
 - Worker 各主要阶段故障、重启、重复投递、取消；不产生重复 Chunk/索引/Artifact。
 - Knowledge Tool 的 workspace/version/status 过滤、Evidence locator 与 dependency failure。
+- Embedding Provider 的维度/归一化/批处理/超时/版本契约，以及同输入在确定 Fake 下的可重复索引记录。
 - Research 不改 Runtime/graph 即可消费新 Tool；知识未就绪或无结果时不伪造 Evidence。
 - 文档删除/新版本后，旧 Evidence 可追溯但不会被新 Run 当作 active Context。
+- Research 主要节点 hard stop 后从最后成功 Checkpoint 恢复；重复 resume、allow/deny/timeout 和取消不重复副作用。
+- LangGraph state 与 Checkpoint schema/version 映射不兼容时明确拒绝或迁移，不使用 Trace 或入库 stage 状态冒充 Agent Checkpoint。
+- 知识/Checkpoint 学习界面刷新后仍能解释文档版本、Agent 使用的 locator、暂停原因、审批结果和恢复位置。
 
 ### 当日产物
 
-可观察的入库流水线、Knowledge Tool/Context Source、版本化 Evidence locator、私有知识对照 Eval、`docs/ingestion-state-machine.md`、Parser fixture、`learning-log/day-5.md`。
+完整知识库/文档界面、可观察入库流水线、Knowledge Tool/Context Source、Dense baseline、版本化 Evidence locator、Deep Research L4、Checkpoint/HITL 时间线、≥30 条累计 Scenario、私有知识与恢复对照 Eval、`docs/ingestion-state-machine.md`、Checkpoint 契约、Parser fixture、`learning-log/day-5.md`。
 
 ### 验收门禁
 
 - 代表性文档进入 ready，Research 通过同一 Harness/Runtime 检索并引用真实页码/Chunk/Asset。
 - 上传不等待解析，Worker 强制中断后恢复或安全重试，失败状态对 Agent 与用户都可解释。
 - 对照报告证明加入私有知识带来的 Evidence/质量变化；不能只证明“向量库返回了结果”。
+- Research 强制中断后可从版本化 Checkpoint 恢复；allow/deny、重复 resume、取消和预算真实生效，重复副作用数为 0；跨刷新与 Worker 重启的组合验收在 Day 7 完成。
+- Workbench 能沿“文档版本 → Chunk/Asset → Evidence locator → Research Step/Checkpoint”导航，而不是只展示状态标签。
 
 ### 复盘题
 
-知识库是 Tool、Context Source 还是 Memory？为什么 Runtime 不应知道 Milvus？Agent 如何区分 no result、not ready 和 dependency failed？
+知识库是 Tool、Context Source 还是 Memory？Agent Checkpoint 与入库 stage checkpoint 为什么不能共用一个状态模型？为什么 Runtime 不应知道 Milvus？Agent 如何区分 no result、not ready 和 dependency failed？
 
-## 13. Day 6：Agent Context Engine——Hybrid RAG 与多模态 Evidence
+## 13. Day 6：Agent Context Engine、Hybrid RAG 与 Research L5
 
 ### 学习主题
 
@@ -793,19 +818,20 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 - Memory、Tool Observation 与 RAG Evidence 的所有权、时效、冲突和 Context 预算协调。
 - Dense/BM25/RRF/rerank、Evidence budget、引用与正确拒答。
 - 文本、表格、图片如何成为统一 Evidence/Artifact，并参与 Research Eval。
+- Verifier 的可判定标准、bounded revise 与 complete/partial/uncertain 报告语义。
 
 ### 实现任务
 
-1. 实现 Dense、BM25、RRF 与可插拔 reranker；每层输出稳定的 Retrieval Trace，不把调试分数混入用户答案。
+1. 复用 Day 5 的 Dense baseline，新增 BM25、RRF 与可插拔 reranker，并统一各层 Retrieval Trace；不建立第二套 Dense 链路，也不把调试分数混入用户答案。
 2. 实现 `ContextCompiler` v2：合并 system/instructions、会话摘要、Memory、Tool Observation、Evidence 与 Artifact refs，按来源/多样性/Token 预算裁剪。
 3. 检索强制过滤 Workspace、KB、ready/active version，结果回 PG 二次加载；这些是 Tool/Context Source 内部职责，不散落在 Prompt。
 4. 实现 Query rewrite/分解的可对照策略；原始用户目标始终保留，改写结果和收益进入 Trace/Eval。
 5. 实现 Evidence gate：支持度不足或冲突未解决时拒答/标 uncertain；Citation 必须指向真实 Evidence locator，生成后做结构校验。
 6. 将图片/表格 Asset 作为多模态 Evidence 输入 VLM；Context manifest 记录使用的 Asset 版本和预算，不把整个文档无界塞入模型。
-7. 建至少 20 条 Agent/RAG 数据集：可回答、无答案、表格、图片、多源冲突；每例同时评分 retrieval、evidence、final 与 trajectory。
-8. Harness 自动比较 no-context、Memory-only、Dense、Hybrid、Memory+Hybrid，以及 Direct Answer/Research profile，分别报告 Memory 和 RAG 的边际收益与相互污染。
-9. 把 Day 3 的 Web/industry/sql 与 Day 5 的 knowledge 组合进受预算控制的 Harness profile；Runtime 与 graph 保持不变，Day 6 只替换 Context/Tool 检索策略。
-10. 记录一次策略回退：如果更复杂检索或改写没有净收益，保留较简单版本，并在报告中解释。
+7. 实现 L5 Verifier：按 Claim 支持度、引用可解析性、coverage、conflict 和未决问题评分；`verify → bounded revise → finalize` 受 revise/budget/deadline 限制，输出 complete/partial/uncertain Report。
+8. 从 Day 4/5 数据集累积并补齐不少于 40 条 Agent Scenario，其中冻结至少 20 条 RAG 子集：可回答、无答案、表格、图片和多源冲突；分别评分 retrieval、evidence、final、trajectory 与 runtime recovery。
+9. Harness 完成 RAG 专项对照：no-context、Memory-only、Dense、Hybrid、Memory+Hybrid，以及 Direct Answer/Research profile；把 Day 3 的 Web/industry/sql 与 Day 5 knowledge 组合进受预算控制的 profile，冻结结果供 Day 7 聚合，Runtime 与 graph 保持不变。
+10. 扩展 Agent Learning Workbench：完整展示 query rewrite、Dense/BM25 排名、RRF/rerank、过滤/裁剪原因、Memory 冲突、Context manifest、Evidence→Claim→Citation 链，以及 Verifier/revise/report 时间线；无净收益的复杂策略必须可视化回退。
 
 ### 测试
 
@@ -815,10 +841,12 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 - no answer、冲突、图片、表格和 Tool failure 场景；固定数据/配置/冻结响应使回归可解释。
 - Memory 与 RAG 事实冲突、过期 Memory、新文档覆盖旧事实和 Context budget 竞争；输出必须保留来源并显式处理不确定性。
 - 比较报告同时呈现 Recall/MRR、引用支持度、任务完成率、Token/费用/延迟，不能只优化单一检索分数。
+- Verifier 对 support/refute/uncertain、coverage、conflict 和最大 revise 的判定可重复；partial/uncertain 不能被 UI 或 finalizer 伪装成 complete。
+- Retrieval/Context/Research 可视化使用同一 Trace/manifest，能从最终 Claim 反查检索候选、裁剪决定、Evidence 与 Citation。
 
 ### 当日产物
 
-Context Compiler v2、端到端多模态 Evidence、统一 Agent Memory/RAG 数据集、Memory/RAG 消融与策略对照报告、检索/Context Trace 面板、`docs/retrieval-design.md`、`learning-log/day-6.md`。
+Context Compiler v2、Hybrid Retrieval、端到端多模态 Evidence、Deep Research L5、Verifier/bounded revise、complete/partial/uncertain Report、≥40 条累计 Agent Scenario、统一 Memory/RAG 数据集、Memory/RAG 消融与策略对照报告、完整检索/Context/Citation/Report Workbench、`docs/retrieval-design.md`、`learning-log/day-6.md`。
 
 ### 验收门禁
 
@@ -826,10 +854,11 @@ Context Compiler v2、端到端多模态 Evidence、统一 Agent Memory/RAG 数�
 - 无答案正确拒答率 ≥ 0.90；至少一条图片和一条表格任务形成真实 Evidence→Claim→Artifact 闭环。
 - Research 接入 RAG 后相对 Day 4 基线的质量、成本和延迟变化有报告；参数选择来自实验而非感觉。
 - 报告能分别回答 Memory、Dense、Hybrid 和组合 Context 是否改善任务；RAG 虽在 Day 6 学习，仍按 P0 Agent 核心能力验收。
+- L5 相对 L3/L4 的 Claim 支持、覆盖、矛盾处理和报告质量有可测净收益；若无收益则回退，不因流程更复杂而强行保留。
 
 ### 复盘题
 
-Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信谁、如何保留 provenance？错误来自召回、Context 编译、推理还是引用？
+Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信谁、如何保留 provenance？错误来自召回、Context 编译、推理、Verifier 还是引用？bounded revise 为什么不能无限继续？
 
 ## 14. Day 7：Agent Eval、演进决策与完整交付
 
@@ -838,19 +867,20 @@ Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信
 - Offline/online Eval、trajectory grading、数据集版本与基线比较。
 - Agent 故障模型、恢复正确性、HITL、成本/延迟/质量权衡。
 - Runtime/Harness/Prompt/Model/Tool 版本如何进入 Trace、回归与发布门禁。
+- 学习型可视化如何从正式 Event/Trace/Manifest 解释 Agent，而不是成为第二套事实源。
 
 ### 实现任务
 
-1. 冻结 Agent Eval schema：case/dataset、runtime/harness/model/prompt/tool/context version、budget、trace、artifact、scores 与人工备注。
-2. 扩充到至少 50 个场景，覆盖直接回答、工具选择、Memory 写入/召回/冲突/遗忘、Text2SQL、Research、私有知识、RAG、多模态、审批、取消、恢复和故障。
-3. 建组合 Scorer：任务完成、Tool 选择/参数、Memory precision/utility/污染/删除残留、Evidence 支持、引用解析、stop reason、恢复/副作用、Token/费用/延迟；LLM judge 仅作辅助。
-4. 做消融/演进对照：L0/L2/L5；无 Memory/Memory；无 RAG/Dense/Hybrid/Memory+Hybrid；单图/可选多 Agent；报告质量收益是否值得复杂度与成本。
-5. 完成 record/replay 与 fault suite：Provider timeout/限流、Tool failure、Worker hard stop、重复 resume、Checkpoint schema 不兼容、依赖不可用和取消竞态。
-6. 完成 HITL 全链路：高成本/副作用 Tool 暂停，刷新/Worker 重启后仍可 approve/deny；审批事实和结果进入 Trace。
-7. 统一 Web 的 Run timeline、Tool/Evidence/Claim/Artifact、partial/uncertain、retry/resume UI；外围页面只保证真实 readiness，不追求数量。
-8. 用 OpenTelemetry/结构化日志串起 request/job/run/step/tool/evidence；做 Token、费用、延迟、错误和恢复成功率面板。
-9. CI 运行确定性 Harness 快速集与离线回归；付费/慢模型评测作为受控任务。保留 format、type、migration、contract、secret scan 和关键 E2E，不把发布治理扩成当天主角。
-10. 完成一键本地演示和 Runbook，生成 Agent evolution/evaluation 报告；根据证据明确冻结或回退 Runtime/Harness 策略。
+1. 将 Day 2 的 `Scenario/EvalCase v1` 定稿为 release schema，冻结 case/dataset、runtime/harness/model/prompt/tool/context version、budget、trace、artifact、scores、人工备注和向后兼容策略。
+2. 从逐日 Scenario 补齐到至少 50 条，覆盖直接回答、工具选择、Memory 写入/召回/冲突/遗忘、Text2SQL、Research L3/L4/L5、私有知识、RAG、多模态、审批、取消、恢复和故障。
+3. 组合 Day 3～6 的 Scorer：任务完成、Tool 选择/参数、Memory precision/utility/污染/删除残留、Evidence 支持、引用解析、stop reason、恢复/副作用、Token/费用/延迟；LLM judge 仅作辅助。
+4. 聚合逐日演进结果：L0/L2/L3/L4/L5、无 Memory/Memory，以及 Day 6 已冻结的无 RAG/Dense/Hybrid/Memory+Hybrid；只补跑版本发生变化的配置。根据净收益决定是否进入后续 L6 specialist/handoff 实验；如有余量，仅做 time-boxed 对照，否则明确冻结为单图。
+5. 在逐日 fault scenarios 上补齐 release fault suite：Provider timeout/限流、Tool failure、Worker hard stop、重复 resume、Checkpoint schema 不兼容、跨模块依赖不可用和取消竞态。
+6. 完成 HITL 发布验收：高成本/副作用 Tool 暂停，浏览器刷新、Worker 重启后仍可 approve/deny/timeout；重复 decision 幂等，审批事实与结果进入 Trace。
+7. 统一 Agent Learning Workbench：Run/Context、Tool、Memory、Evidence/Claim、Knowledge locator、Checkpoint/HITL、Retrieval/Citation 与 Report 面板保持完整交互、关联导航和真实刷新恢复；复杂前端由正式契约驱动，不减少学习内容。
+8. 用 OpenTelemetry/结构化日志串起 request/job/run/step/tool/evidence；聚合已有 Trace，完成 Token、费用、延迟、错误、Context 裁剪和恢复成功率面板，不在当天另建重叠观测栈。
+9. CI 运行确定性 Harness 快速集与离线回归；付费/慢模型评测作为受控任务。保留 format、type、migration、contract、secret scan 和关键 E2E；通用安全复用全局 DoD，当天重点验证 Tool scope/approval、Context/Secret 隔离和零跨租户泄露。
+10. 完成一键本地演示、Runbook 和 Agent evolution/evaluation 报告，更新并冻结 Runtime/Harness/Memory/Research/RAG 文档与策略回退决定。
 
 ### 完整用户路径验收
 
@@ -859,7 +889,8 @@ Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信
 → Agent 调用 Web/Text2SQL/私有知识工具 → 形成 Evidence/Claim
 → 高成本步骤请求审批 → 中断 Worker → 从 Checkpoint 恢复
 → 生成带页码/网页/表格/图片引用的 Report Artifact
-→ 在 Harness 中查看完整 Trace，并与 L0/L2 基线比较质量、费用和延迟
+→ 在 Workbench 中反查 Context/Tool/Memory/Evidence/Checkpoint/Retrieval
+→ 在 Harness 中比较 L0/L2/L3/L4/L5 与 Memory/RAG 对照的质量、费用和延迟
 ```
 
 ### 最低质量门禁
@@ -872,7 +903,7 @@ Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信
 
 ### 当日产物
 
-`README.md`、`docs/agent-runtime.md`、`docs/agent-harness.md`、`docs/research-evolution-report.md`、`docs/agent-evaluation-report.md`、Harness 数据集/报告、Runbook、演示证据、`learning-log/day-7.md` 和 `v0.1.0-agent-learning-foundation` 标签。
+完整 Agent Learning Workbench、release Eval schema、≥50 条 Harness 数据集、组合 Scorer/fault suite、`README.md`、更新定稿的 `docs/agent-runtime.md` 与 `docs/agent-harness.md`、`docs/research-evolution-report.md`、`docs/agent-evaluation-report.md`、Runbook、演示证据、`learning-log/day-7.md` 和 `v0.1.0-agent-learning-foundation` 标签。
 
 ### 复盘题
 
@@ -880,12 +911,12 @@ Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信
 
 ## 15. Agent-first 能力与证据审计
 
-`docs/feature-matrix.md` 继续记录全部产品能力，并使用 `complete`、`thin_slice`、`contract_only`、`blocked`、`planned` 等事实状态。但七天是否完成，首先由 Agent 主线证据决定，而不是由页面数量或外围 Adapter 数量决定。
+`docs/feature-matrix.md` 继续记录全部产品能力，并使用 `complete`、`implemented_pending_verification`、`thin_slice`、`contract_only`、`blocked`、`planned` 等事实状态。Day 7 时所有冻结目标都必须达到 `complete`；执行优先级首先由 Agent 主线证据决定，而不是由页面数量或外围 Adapter 数量决定。
 
 Day 7 采用两级门禁：
 
 - **核心 Agent 能力**：Runtime、Harness、Tool Use、Short/Long-term Memory、Context Engineering、Knowledge/RAG、Research、Recovery/HITL 和 Eval 必须在冻结范围内达到 `complete`。
-- **支撑产品能力**：身份/Workspace、Job/Outbox、会话、文件和最小 Web 旅程必须足以真实承载核心 Run；行业长尾 Adapter、企业级运维与非核心页面允许保持诚实 `thin_slice/contract_only`，但不得伪装成可用。
+- **支撑产品能力**：身份/Workspace、Job/Outbox、会话、文件和 Web 旅程必须足以真实承载核心 Run；行业长尾 Adapter、企业级运维与非核心页面按能力矩阵的代表性冻结范围完成，不扩张为额外学习主线。
 
 任何核心项只有最终答案、Mock、截图或一次手工成功而没有 Trace、失败/恢复场景和 Eval 报告，均视为未完成。
 
@@ -893,16 +924,17 @@ Day 7 采用两级门禁：
 
 | 优先级 | 能力组 | 实现日 | 必须提交的证据 |
 |---|---|---|---|
-| P0 | Agent Runtime | Day 1～3 | 同一正式入口、typed state、Run/Step/Event、明确 stop reason、预算与可读 Trace |
-| P0 | Agent Harness | Day 1～3 | Scenario、Fake/Replay、Fault injection、Tool/Context/Approval 组合和报告 CLI |
+| P0 | Agent Runtime | Day 2～3 | 同一正式入口、typed state、Run/Step/Event、明确 stop reason、预算与可读 Trace |
+| P0 | Agent Harness | Day 2～3 | Scenario、Fake/Replay、Fault injection、Tool/Context/Approval 组合、报告 CLI 与同一 Runtime |
 | P0 | Tool-using Agent | Day 3 | L1/L2 轨迹、正确 Tool/参数、预算终止、Web/Text2SQL 真实 Artifact、越权拒绝 |
 | P0 | Agent Memory | Day 4 | Short/Long-term Memory 分层；写入、召回、冲突、反馈、治理与 Eval；删除后 Context 残留为 0 |
-| P0 | Deep Research | Day 4 | L0/L2/L5 对照、Evidence/Claim、typed graph、bounded revise、带引用 Report |
-| P0 | Durable/HITL | Day 4、Day 7 | Worker 中断恢复、重复 resume 零副作用、跨刷新 approval、取消/预算耗尽 |
+| P0 | Deep Research | Day 4～6 | L3 Evidence graph、L4 durable state、L5 verifier/bounded revise，以及 L0/L2/L3/L4/L5 对照 |
+| P0 | Durable/HITL | Day 5、Day 7 | Worker 中断恢复、重复 resume 零副作用、跨刷新 approval、取消/预算耗尽 |
 | P0 | Agent Knowledge/RAG | Day 5～6 | 同一 Runtime 无改造接入私有知识、Hybrid Retrieval 与多模态 Evidence；Context manifest、引用、拒答和策略对照报告 |
 | P0 | Agent Evaluation | Day 2～7 | ≥50 场景；trajectory/result/evidence/runtime 四层指标；版本与回归基线 |
+| P0 | Agent Learning Workbench | Day 2～7 | Run/Context、Tool、Memory、Evidence/Claim、Knowledge、Checkpoint/HITL、Retrieval/Citation 与 Report 均由正式 Event/Trace/Manifest 驱动 |
 | P1 | 身份、Workspace、Job/Outbox、会话、文件 | Day 1～5 | 核心 Run 所需真实链路、跨租户负向、迁移、后台执行和最小 E2E |
-| P2 | 行业长尾 Adapter、外围页面、企业运维 | Day 3～7 | 至少代表性真实薄切片；其余准确标记 readiness/状态，不阻断 P0 学习主线 |
+| P2 | 行业长尾 Adapter、非 Agent 外围页面、企业运维 | Day 3～7 | 完成矩阵冻结的代表性真实切片、readiness 与失败语义；范围外能力不扩张，也不占用 P0 学习工时 |
 
 ### 15.2 双向审计方法
 
@@ -910,13 +942,31 @@ Day 7 采用两级门禁：
 2. 从每个 Run 反查 runtime/harness/model/prompt/tool/context version、Event、Trace、Checkpoint、Evidence、final output 与可选 Artifact。
 3. 对每个复杂度增量比较前一层基线；没有净收益就回退，不把“更像 Agent”当作收益。
 4. 运行完整 Research 旅程、fresh migration、API/SSE contract、跨租户负向、fault suite、Agent/RAG 回归和 secret scan。
-5. 在 feature matrix 中分别记录 P0 门禁与 P1/P2 支撑状态；外围未完成项可顺延，但不得改变 P0 结果的真实性。
+5. 在 feature matrix 中分别记录 P0 门禁与 P1/P2 支撑状态；P1/P2 按简化后的冻结范围验收，范围外扩展不阻断 P0，但任何矩阵内未完成项都不能冒充 `complete`。
 
 生产级成熟度不属于本次七天能力审计，本计划不展开其他阶段。
 
-## 16. Agent Definition of Done
+## 16. 全局 Definition of Done
 
-Agent 核心能力标为 `complete` 前必须同时满足：
+任何七天目标从过程状态改为 `complete` 前，都必须逐条评审下列 Definition of Done 的适用性：凡适用项必须全部通过；标记 `N/A` 必须写明与该目标无关的具体理由和复核人，不能用来逃避实现。面向用户的业务能力不得把真实用户旅程、服务端权限、正常/失败/恢复测试或安全检查标为 `N/A`；工程、文档和治理目标可以用等价的开发者/运维旅程与自动化校验替代，只有确实不改变数据库、HTTP/SSE 或运行时行为时，才可把对应 migration、契约或遥测项记为 `N/A`。`thin_slice` 和 `contract_only` 不是质量豁免：
+
+- 存在真实用户旅程，不是孤立接口或空页面。
+- 正常、边界、失败、权限和恢复测试齐全。
+- 有 Alembic migration、OpenAPI/SSE 契约和兼容策略。
+- 有结构化日志、指标、Trace 和稳定错误码。
+- 有数据所有权、删除、补偿、备份/恢复策略。
+- 完成威胁与隐私检查，日志/前端没有 Secret 或敏感原文泄漏。
+- 审核第三方源码、素材、模型、数据源和依赖的许可证与使用条款；需要时保留 NOTICE、归属和修改说明，许可证不明或不兼容时不得引入。
+- RAG/Agent/性能相关功能进入可重复评测基线。
+- README/Runbook 写清启动、限制、故障和回滚。
+- 清除调试输出、硬编码、静默 Mock、临时旁路和重复正式链路。
+- 在干净环境或 staging 完成演示。
+
+测试结构建议：60% 领域单元测试、25% 组件/集成测试、10% 契约测试、5% 关键 E2E；RAG/Agent evaluation 作为独立门禁。Flaky test 必须修复，不能长期靠 rerun 掩盖。
+
+### 16.1 Agent 能力追加 Definition of Done
+
+从 Day 2 开始，Agent 核心能力除满足全局 Definition of Done 外，还必须同时满足：
 
 - 生产与测试 Harness 调用同一 Runtime/Workflow，不存在图外或 Router 直连 Provider 的旁路。
 - State、Event、Tool input/output、Artifact 和 Checkpoint 有版本化 typed contract；Run 有唯一终态和 stop reason。
@@ -929,9 +979,30 @@ Agent 核心能力标为 `complete` 前必须同时满足：
 - 真实用户可看到进度、partial/uncertain、审批、取消/恢复和 Artifact；错误不会被伪装成成功。
 - 支撑层通过迁移、权限、契约、基础可观测和关键 E2E；README 说明启动、限制和回退。
 
-测试比例不作为目标本身。优先级是：领域/策略不变量 → Runtime/Tool/Memory/Knowledge-RAG 集成 → Harness 回归 → 少量关键 E2E。Flaky 场景必须定位到数据、并发或模型边界，不能长期靠 rerun 掩盖。
+Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 → Runtime/Tool/Memory/Knowledge-RAG 集成 → Harness 回归 → 少量关键 E2E。Flaky 场景必须定位到数据、并发或模型边界，不能长期靠 rerun 掩盖。
 
-## 17. Agent 防偏航与最小底线
+## 17. 防偏航与明确禁止项
+
+- Day 1 门禁未过，不进入 Day 2 Agent 主线；当前日门禁未过，不进入下一日。
+- 此处 Day 1 执行门禁指新仓工程与新仓 Secret 边界；参考仓历史凭据处置 D1-09 是 Day 7 发布标签的独立阻断项，不允许被忽略或伪装关闭。
+- 禁止建立 `backend/app`、`backend/service` 两套入口，禁止 v1/v2/v3 多条正式链路并存。
+- 禁止 `Base.metadata.create_all()`、手工 ALTER 或启动时自动改表。
+- 禁止源码、`.env`、前端 `VITE_*`、日志、测试快照中出现真实服务端密钥。
+- 禁止带凭据时使用 `allow_origins=["*"]`，禁止公开 MinIO Bucket。
+- 禁止无 workspace scope 的 SQL、向量和关键词检索。
+- 禁止请求内同步 OCR/索引/Research，禁止进程内 dict 保存任务、取消或研究状态。
+- 禁止无限上传读入内存，禁止把外部 URL 抓取当作普通可信请求。
+- 禁止未消毒 Markdown/HTML 和 `dangerouslySetInnerHTML`。
+- 禁止执行模型生成代码、保存原始思维链、让模型自行扩大工具权限或预算。
+- 禁止 1000 行万能 Service/Page，禁止在业务模块散落 Provider SDK。
+- 禁止提交模型权重、运行日志、PID、缓存、工具二进制，以及含敏感原文或未经审阅的大体积原始生成物；允许提交经审阅、去敏且可复现的评测摘要和基线报告。
+- 禁止只在前端“删除”资源，禁止硬编码 localhost API，禁止长期公开对象 URL。
+- 禁止用硬编码/Mock 数据把未完成的资讯、股票、政策或招投标页面伪装成可用。
+- 七天内不引入 Kubernetes、微服务、Neo4j 或多套重叠的可观测平台。
+
+若本机资源不足以同时运行 Milvus、ES 和观测栈，使用 Compose profiles 分时启动，但不得改变目标架构或用低质量实现冒充最终方案。若没有外部/付费 Provider，测试使用 Fake Adapter，正式接口必须返回未配置错误。若解析器兼容性阻塞，先通过 Parser Port 交付基础 PDF Adapter，再单独解决许可和依赖，不能把解析逻辑耦合进业务 Service。
+
+### 17.1 Agent 专项防偏航规则
 
 - 禁止普通聊天、Research、Harness 各写一套 model/tool loop；所有正式执行必须经过同一 Runtime。
 - 禁止把 Celery、LangGraph、Session、Context window、Memory、Checkpoint、Trace 混为同一层。
@@ -976,3 +1047,4 @@ Agent 核心能力标为 `complete` 前必须同时满足：
 | 1.4.0 | 2026-08-12 | 仅调整 Day 3～Day 6 的执行顺序：工具/行业/Text2SQL、记忆/Deep Research、知识库/入库、混合 RAG/多模态引用；技术范围、任务、测试和门禁保持不变 | 用户 |
 | 1.5.0 | 2026-08-12 | 将七天计划重构为 Agent-first：补充统一 Runtime/Harness、Context/State/Memory/Checkpoint/Trace 边界、L0～L6 Deep Research 演进和轨迹评测；保留必要工程底座，压缩非 Harness 安全与外围平台篇幅 | 用户 |
 | 1.6.0 | 2026-08-12 | 明确 Tool、Short/Long-term Memory、Knowledge/RAG 均属于 P0 Agent 核心栈；增加 Memory 契约与 Eval、Memory/RAG 消融门禁，并说明 RAG 仅因依赖顺序安排在 Day 6，不降低优先级 | 用户 |
+| 1.7.0 | 2026-08-12 | 按能力依赖与每日学习负担均衡 Day 2～Day 7：Runtime/Harness v0 → Tool loop → Memory/Evidence/L3 → Knowledge/Durable L4 → Hybrid RAG/L5 → 综合 Eval；Scenario、Scorer、Fault 与 Agent Learning Workbench 逐日累积，保留完整前端交互并简化重复的非 Agent 安全与运维学习内容 | 用户 |

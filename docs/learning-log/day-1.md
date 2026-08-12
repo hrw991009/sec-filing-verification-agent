@@ -2,20 +2,22 @@
 
 > 更新日期：2026-08-12
 >
-> 当前结论：Day 1 正式实现已写入，最终统一门禁和干净 CI 尚待执行，因此不能把实现存在等同于 `complete`。
+> 计划基线：`docs/master-plan.md` 1.7.0
+>
+> 当前结论：Day 1 正式实现、全量本地门禁和提交 `2c4e6e9` 的干净 CI 已通过；D1-02～D1-08、D1-10～D1-12 已复核为 `complete`。D1-09 的参考仓外部凭据处置仍为独立尾项。
 
 ## 1. 工程与验证
 
 Ruff、mypy 和 pytest 解决不同问题：Ruff 负责格式、导入与静态规则，mypy 检查类型关系，pytest 执行行为断言。`uv.lock` 与 `pnpm-lock.yaml` 固定解析结果；`uv sync --locked` 和 `pnpm install --frozen-lockfile` 会在项目声明与锁文件漂移时失败，避免安装过程悄悄改依赖。
 
-早期失败探针已经证明质量门能够阻断错误：Ruff 阻断无结构 `print`，mypy 阻断错误返回类型，pytest 阻断失败断言，ESLint 阻断不允许的 `console`，Vitest 发现可访问性结构回归，Playwright 在失败时生成报告和 Trace。历史 [CI 30797166192](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/30797166192) 证明当时提交的工程基线可在干净 Ubuntu 环境复现，但不覆盖 2026-08-12 当前工作树的新实现。
+早期失败探针已经证明质量门能够阻断错误：Ruff 阻断无结构 `print`，mypy 阻断错误返回类型，pytest 阻断失败断言，ESLint 阻断不允许的 `console`，Vitest 发现可访问性结构回归，Playwright 在失败时生成报告和 Trace。历史 [CI 30797166192](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/30797166192) 证明了早期工程基线；当前提交 `2c4e6e9` 又通过了 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339)，覆盖 PostgreSQL/Redis、迁移、身份与 Workspace、Job/Outbox、API 契约、Web 和真实浏览器旅程。
 
 本轮必须牢记：
 
-- “测试文件已经写好”不等于“测试已经通过”；
-- 小范围测试通过不等于 PostgreSQL/Redis 全量集成、真实浏览器旅程和干净 CI 通过；
+- “测试文件已经写好”不等于“测试已经通过”，本轮只有在全量本地门禁和干净 CI 均成功后才更新状态；
+- 小范围测试通过不等于 PostgreSQL/Redis 全量集成、真实浏览器旅程和干净 CI 通过，本轮已经补齐这些证据；
 - `gitleaks dir` 检查当前树，`gitleaks git --log-opts='--all'` 检查完整历史，二者不能互相替代；
-- 只有实际执行适用门禁后，`implemented_pending_verification` 才能复核为 `complete`。
+- 只有实际执行适用门禁后，`implemented_pending_verification` 才能复核为 `complete`；本轮 D1-02～D1-08、D1-10～D1-12 已完成该复核。
 
 ## 2. 身份与浏览器安全
 
@@ -48,9 +50,9 @@ FastAPI OpenAPI 是唯一 API schema 来源，`packages/api-contract/openapi.jso
 ## 6. 当前事实状态
 
 - D1-01 保留已有可复现工程基线的 `complete` 证据；
-- D1-02～D1-08、D1-10～D1-12 的正式实现已经写入，但本轮最终 formatter、全量本地验证和新 CI 尚未执行，状态为 `implemented_pending_verification`；
+- D1-02～D1-08、D1-10～D1-12 的正式实现、formatter、全量本地验证和新 CI 已通过，状态为 `complete`；
 - D1-09 仍为 `thin_slice`：参考仓 6 组凭据候选全部保持 `open`，只有 Provider 侧吊销/轮换、非敏感证据记录和复扫完成后才能关闭；
-- Day 2～Day 6 的聊天、知识库、RAG、行业工具、记忆与 Research 不属于当前已实现范围。
+- Day 2～Day 7 尚未实现，后续严格按 `docs/master-plan.md` 1.7.0 的依赖顺序推进：Day 2 Agent Runtime/Harness v0，Day 3 Tool loop，Day 4 Memory/Evidence 与 Research L3，Day 5 Agent Knowledge 与 Durable Research L4，Day 6 Hybrid RAG 与 Research L5，Day 7 综合 Agent Eval 与 Learning Workbench。
 
 统一安装、密钥生成、Compose、Alembic、运行入口、OpenAPI 和验证命令见根 [README](../../README.md)。
 
@@ -61,4 +63,4 @@ FastAPI OpenAPI 是唯一 API schema 来源，`packages/api-contract/openapi.jso
 3. 为什么最后 owner 保护与 Refresh rotation 都必须考虑数据库并发？
 4. 为什么 Outbox published 不等于 Job 已经 started？
 5. 为什么 Beat、Dispatcher、Worker 和 Reconciler 必须复用同一套 Job/Application Service？
-6. 为什么 6 组参考仓凭据未处置时，代码全绿也不能宣布 Day 1 整体完成？
+6. 为什么 6 组参考仓凭据未处置不否定已完成的 Day 1 新仓工程门禁，却仍不能关闭 D1-09 或创建 Day 7 发布标签？

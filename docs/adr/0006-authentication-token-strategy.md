@@ -4,7 +4,9 @@
 >
 > 日期：2026-08-03
 >
-> 依据：`docs/master-plan.md` 第 3.3、5.1、8、14、17 节
+> 修订日期：2026-08-12
+>
+> 依据：`docs/master-plan.md` v1.7.0 第 3.3、5.2～5.3、6.4～6.5、8～10、14、16～17 节
 
 ## 背景
 
@@ -81,6 +83,15 @@
 | 修改 Workspace 安全设置或删除 Workspace | 允许 | 拒绝 | 拒绝 | 拒绝 |
 
 用户不能修改自己的角色来提权。任何操作都不能移除或降级最后一个 owner；所有权转移必须在一个行锁事务中先确认另一名有效 owner，再完成角色变化。两个并发“移除最后 owner”请求最多一个可以成功，且成功后仍必须至少保留一名 owner。admin 不能修改 owner/admin，也不能通过邀请流程指定高权限角色。成员增删、角色变化、所有权转移和 Workspace 删除都写入脱敏审计日志。
+
+### Agent Runtime 与 LLM Context 边界
+
+1. 身份层完成 Token、Session、用户状态和当前 membership 校验后，只向可信 Runtime Context 提供服务端构造的 `principal`、`WorkspaceScope` 和 `capability`；它们是授权与执行对象，不是 Prompt 内容。
+2. `principal`、`WorkspaceScope` 和 `capability` 不得由客户端、模型输出或 Tool 参数自行声明、替换或扩大。Runtime 和 ToolExecutor 必须使用可信 Runtime Context 重新校验实际作用域，不能把模型选择的 workspace、role 或 capability 当作授权事实。
+3. Access/Refresh Token、CSRF/device Cookie、密码、Session recovery envelope、签名私钥、HMAC/AEAD 密钥、Provider Secret 以及数据库 Session、Repository、连接池、客户端实例等内部对象均不得进入 LLM Context。
+4. Context Compiler 只能把完成授权后的任务内容、允许的 Memory、Observation、Evidence、Artifact 引用和必要的非敏感显示信息写入 LLM Context；不得直接序列化 Runtime Context，也不得通过 Prompt、Tool Observation、Trace snapshot 或 Artifact 泄漏认证材料和内部对象。
+5. Trace 与 context manifest 可以记录脱敏的 principal/workspace 引用、capability 名称、策略版本和授权结果，以解释一次执行为何允许或拒绝；不得记录 Token、Cookie、Secret、完整认证 Header 或可重放凭据。
+6. Background Job、Celery Worker、LangGraph resume 和 Harness replay 必须重新装载或验证可信 Runtime Context。Checkpoint、Event、Scenario 和模型输出都不能代替当前身份、membership 与 capability 授权。
 
 ### 配置与日志
 
