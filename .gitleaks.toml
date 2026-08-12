@@ -1,0 +1,8 @@
+title = "Industry Intelligence Platform Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Ignore the uv-managed virtual environment"
+paths = ['''^\.venv/''']

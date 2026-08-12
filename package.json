@@ -1,0 +1,42 @@
+{
+  "name": "industry-intelligence-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A multimodal industry intelligence workspace.",
+  "scripts": {
+    "api:check": "pnpm run api:generate && git ls-files --error-unmatch packages/api-contract/openapi.json packages/api-contract/src/schema.d.ts && git diff --exit-code -- packages/api-contract/openapi.json packages/api-contract/src/schema.d.ts",
+    "api:generate": "pnpm run api:openapi && pnpm exec prettier --write packages/api-contract/openapi.json && pnpm --filter @industry-platform/api-contract run generate",
+    "api:openapi": "uv run --locked --package industry-platform-backend python -m industry_platform.openapi --output packages/api-contract/openapi.json",
+    "build": "pnpm --recursive --if-present run build",
+    "dev:web": "pnpm --filter @industry-platform/web run dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "preview:web": "pnpm --filter @industry-platform/web run preview",
+    "test": "pnpm --recursive --if-present run test",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "typecheck": "pnpm --recursive --if-present run typecheck && tsc --project tsconfig.json"
+  },
+  "packageManager": "pnpm@10.10.0",
+  "engines": {
+    "node": "24.16.0",
+    "pnpm": "10.10.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.13.3",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-playwright": "2.11.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "globals": "17.8.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.2",
+    "typescript-eslint": "8.65.0"
+  }
+}

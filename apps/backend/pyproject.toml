@@ -1,0 +1,37 @@
+[project]
+name = "industry-platform-backend"
+version = "0.1.0"
+description = "Backend application for Industry Intelligence Platform."
+requires-python = "==3.13.14"
+dependencies = [
+    "alembic>=1.19.0,<2.0.0",
+    "anyio>=4.14.2,<5.0.0",
+    "argon2-cffi>=25.1.0,<26.0.0",
+    "celery[redis]>=5.6.3,<6.0.0",
+    "croniter>=6.2.4,<7.0.0",
+    "cryptography>=50.0.0,<51.0.0",
+    "email-validator>=2.3.0,<3.0.0",
+    "fastapi>=0.141.1,<0.142.0",
+    "psycopg[binary]>=3.3.4,<4.0.0",
+    "pydantic>=2.13.4,<3.0.0",
+    "pydantic-settings>=2.14.2,<3.0.0",
+    "pyjwt>=2.13.0,<3.0.0",
+    "redis>=6.4.0,<6.5.0",
+    "sqlalchemy[asyncio]>=2.0.51,<3.0.0",
+    "uvicorn[standard]>=0.52.1,<0.53.0",
+]
+
+[project.scripts]
+industry-platform-api = "industry_platform.server:main"
+industry-platform-celery-beat = "industry_platform.workers.beat:main"
+industry-platform-celery-worker = "industry_platform.workers.celery_app:main"
+industry-platform-outbox-dispatcher = "industry_platform.workers.dispatcher:main"
+industry-platform-job-reconciler = "industry_platform.workers.reconciler:main"
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "industry_platform"
+module-root = "src"

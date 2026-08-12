@@ -1,0 +1,19 @@
+# Markdown documents are maintained as human-authored records.
+**/*.md
+
+# Python code is formatted by Ruff.
+apps/backend/
+
+# Generated files and local state.
+.venv/
+**/coverage/
+**/dist/
+**/node_modules/
+**/playwright-report/
+**/test-results/
+packages/api-contract/src/schema.d.ts
+tmp/
+
+# Lockfiles are owned by their package managers.
+pnpm-lock.yaml
+uv.lock
