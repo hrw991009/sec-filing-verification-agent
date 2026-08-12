@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-03
+> 更新日期：2026-08-12
 >
 > 权威来源：`docs/master-plan.md`
 
@@ -490,11 +490,11 @@ Message Citation 将 Message 与 Evidence 连接，并记录顺序和对应 Clai
 
 `/search/hybrid` 的授权调试响应必须分别提供 Dense、BM25、RRF 和 Rerank 的原始名次、分数、过滤原因、最终去重结果、命中的资产以及实际送入 VLM 的图片数量。调试数据仍受 Workspace 权限保护，不能返回其他租户候选或全文敏感内容。
 
-Day 4 建立 20 条黄金题：12 条可回答、4 条无答案、2 条表格、2 条图片；Day 7 扩展到至少 50 条。每个数据集版本固定文档版本、parser、chunker、embedding、reranker、Prompt、模型配置和可控 seed，并记录不能固定的 Provider 因素。
+Day 6 建立 20 条黄金题：12 条可回答、4 条无答案、2 条表格、2 条图片；Day 7 扩展到至少 50 条。每个数据集版本固定文档版本、parser、chunker、embedding、reranker、Prompt、模型配置和可控 seed，并记录不能固定的 Provider 因素。
 
 评测必须自动比较 Dense、BM25、RRF 和 RRF + Reranker，至少输出：
 
-- Recall@5，Day 4 小型黄金集必须不低于 0.80；
+- Recall@5，Day 6 小型黄金集必须不低于 0.80；
 - MRR@10 和可选 nDCG，先记录可追溯基线；
 - Citation precision、recall 与可解析率，可解析率必须为 100%；
 - 无答案正确拒答率，必须不低于 0.90；
@@ -502,7 +502,7 @@ Day 4 建立 20 条黄金题：12 条可回答、4 条无答案、2 条表格、
 - 图片/表格命中、回答忠实度、延迟、Token 和费用；
 - 按失败类型区分召回、排序、生成、引用和权限问题。
 
-报告同时生成机器可比较 JSON 和供学习复盘的 Markdown。Day 7 结果不得低于已接受 Day 4 基线；相对基线下降超过 2 个百分点时门禁失败。参数变化必须附带评测差异，不能凭单个演示问题调整永久常量。
+报告同时生成机器可比较 JSON 和供学习复盘的 Markdown。Day 7 结果不得低于已接受 Day 6 基线；相对基线下降超过 2 个百分点时门禁失败。参数变化必须附带评测差异，不能凭单个演示问题调整永久常量。
 
 ## 13. 身份与 Workspace 安全边界
 
@@ -691,13 +691,15 @@ Day 7 固定硬门禁还包括 Citation 可解析率 100%、跨租户泄漏 0、
 
 ## 20. 当前实现状态
 
-当前已经实现 Monorepo 工程地基、Python 与 Node 锁文件、Python 和前端质量门、Playwright 浏览器测试、Gitleaks、依赖漏洞扫描、GitHub Actions CI 和 React 工程展示页面。
+Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
-新仓当前树与完整历史扫描为 0 个发现；两个参考仓的脱敏扫描发现待处置候选，详见 [参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目。
+本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。正式表结构来自两份线性 Alembic migration；PostgreSQL 是身份、Workspace、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态。
 
-当前尚未实现 FastAPI API、数据与索引服务、Outbox Dispatcher、Celery Worker/Beat、Job lease/fencing/对账、Alembic、Pydantic Settings、健康检查、身份与 Workspace、OpenAPI 契约生成，以及 Day 2～Day 6 的聊天、RAG、工具、记忆和 Research。
+这些新增实现尚未执行本轮最终统一 formatter、全量本地门禁和干净 CI，因此 D1-02～D1-08、D1-10～D1-12 当前统一记为 `implemented_pending_verification`，不能提前写成 `complete`。历史 CI 只证明当时已提交的较小基线，不等价于验证当前工作树。
 
-因此，本文件描述的是已经接受的目标架构，不能被理解为所有组件已经完成。
+新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能宣称 Day 1 整体完成。
+
+Day 2～Day 6 的聊天、知识库、RAG、行业工具、记忆和 Research 尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 

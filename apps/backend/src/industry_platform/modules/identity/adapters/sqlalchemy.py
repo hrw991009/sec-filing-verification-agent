@@ -7,10 +7,10 @@ from datetime import datetime
 
 from psycopg.errors import UniqueViolation
 from sqlalchemy import func, select
-from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.identity.domain import (
     AccountStatus,
     AuthenticationPersistenceError,
@@ -62,6 +62,7 @@ REFRESH_AUDIT_ACTION = "identity.session.refreshed"
 REFRESH_FAMILY_REVOCATION_AUDIT_ACTION = "identity.session.family_revoked"
 REFRESH_RECOVERY_AUDIT_ACTION = "identity.session.refresh_recovered"
 REFRESH_REPLAY_AUDIT_ACTION = "identity.session.refresh_replay_detected"
+LOGOUT_AUDIT_ACTION = "identity.session.logged_out"
 
 _ACCOUNT_STATUS_BY_USER_STATUS: dict[UserStatus, AccountStatus] = {
     UserStatus.ACTIVE: "active",
@@ -80,16 +81,6 @@ def _is_duplicate_email(error: IntegrityError) -> bool:
         isinstance(original_error, UniqueViolation)
         and original_error.diag.constraint_name == USER_EMAIL_UNIQUE_CONSTRAINT
     )
-
-
-def _safe_sqlstate(error: SQLAlchemyError) -> str | None:
-    """Extract a non-sensitive PostgreSQL classification without error text."""
-
-    if not isinstance(error, DBAPIError):
-        return None
-
-    sqlstate = getattr(error.orig, "sqlstate", None)
-    return sqlstate if isinstance(sqlstate, str) else None
 
 
 class SqlAlchemyCredentialReader:
@@ -118,7 +109,7 @@ class SqlAlchemyCredentialReader:
                 ).one_or_none()
         except SQLAlchemyError as error:
             raise AuthenticationPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None
 
         if row is None:
@@ -197,7 +188,7 @@ class SqlAlchemyLoginSessionRepository:
             await self._session.flush()
         except SQLAlchemyError as error:
             raise LoginSessionPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None
 
         return LoginSessionRecord(
@@ -226,7 +217,7 @@ class SqlAlchemyLoginSessionTransactionFactory:
                 yield SqlAlchemyLoginSessionRepository(session)
         except SQLAlchemyError as error:
             raise LoginSessionPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None
 
 
@@ -446,17 +437,23 @@ class SqlAlchemyRefreshSessionRepository:
             refresh_session.recovery_envelope = None
             refresh_session.recovery_expires_at = None
 
+        if command.reason == "refresh_replay_detected":
+            audit_action = REFRESH_REPLAY_AUDIT_ACTION
+            audit_outcome = AuditOutcome.DENIED
+        elif command.reason == "logout":
+            audit_action = LOGOUT_AUDIT_ACTION
+            audit_outcome = AuditOutcome.SUCCEEDED
+        else:
+            audit_action = REFRESH_FAMILY_REVOCATION_AUDIT_ACTION
+            audit_outcome = AuditOutcome.SUCCEEDED
+
         self._session.add(
             AuditLog(
                 actor_user_id=command.user_id,
-                action=(
-                    REFRESH_REPLAY_AUDIT_ACTION
-                    if command.reason == "refresh_replay_detected"
-                    else REFRESH_FAMILY_REVOCATION_AUDIT_ACTION
-                ),
+                action=audit_action,
                 resource_type="refresh_session_family",
                 resource_id=command.rotation_family_id,
-                outcome=AuditOutcome.DENIED,
+                outcome=audit_outcome,
                 trace_id=str(command.trace_id),
                 sanitized_metadata={"reason": command.reason},
             )
@@ -504,7 +501,7 @@ class SqlAlchemyRefreshSessionTransactionFactory:
                 yield SqlAlchemyRefreshSessionRepository(session)
         except SQLAlchemyError as error:
             raise RefreshSessionPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None
 
 
@@ -566,11 +563,11 @@ class SqlAlchemyRegistrationRepository:
                 raise EmailAlreadyRegisteredError from None
 
             raise RegistrationPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None
         except SQLAlchemyError as error:
             raise RegistrationPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None
 
         return RegistrationRecord(
@@ -597,5 +594,5 @@ class SqlAlchemyRegistrationTransactionFactory:
                 yield SqlAlchemyRegistrationRepository(session)
         except SQLAlchemyError as error:
             raise RegistrationPersistenceError(
-                sqlstate=_safe_sqlstate(error),
+                sqlstate=safe_sqlstate(error),
             ) from None

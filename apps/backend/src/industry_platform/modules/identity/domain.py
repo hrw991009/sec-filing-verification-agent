@@ -15,8 +15,11 @@ DeviceTokenHash = NewType("DeviceTokenHash", bytes)
 RefreshRecoveryEnvelope = NewType("RefreshRecoveryEnvelope", bytes)
 TraceId = NewType("TraceId", str)
 type AccountStatus = Literal["active", "disabled", "deleting", "deleted"]
+type WorkspaceRoleName = Literal["owner", "admin", "member", "viewer"]
 type RefreshRevocationReason = Literal[
     "account_unavailable",
+    "logout",
+    "password_changed",
     "refresh_replay_detected",
 ]
 
@@ -89,6 +92,21 @@ class AccessTokenGenerationError(RuntimeError):
         super().__init__("Access token generation failed")
 
 
+class InvalidAuthenticatedSessionError(RuntimeError):
+    """Reject a bearer credential without exposing which server check failed."""
+
+    def __init__(self) -> None:
+        super().__init__("Authenticated session rejected")
+
+
+class AuthenticatedSessionPersistenceError(RuntimeError):
+    """Carry only a safe database failure classification to HTTP delivery."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Authenticated session persistence failed")
+        self.sqlstate = sqlstate
+
+
 class InvalidSessionTokenError(ValueError):
     """Reject malformed browser token input without echoing it."""
 
@@ -138,6 +156,22 @@ class RefreshRecoveryError(RuntimeError):
         super().__init__("Refresh recovery failed")
 
 
+class RefreshRecoveryCleanupPersistenceError(RuntimeError):
+    """Carry only a safe database failure classification beyond an adapter."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Refresh recovery cleanup persistence failed")
+        self.sqlstate = sqlstate
+
+
+class RefreshRecoveryCleanupUnavailableError(RuntimeError):
+    """Expose one safe application failure for recovery-envelope maintenance."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Refresh recovery cleanup unavailable")
+        self.sqlstate = sqlstate
+
+
 class InvalidRefreshSessionError(RuntimeError):
     """Reject every invalid refresh attempt without revealing its failed check."""
 
@@ -151,6 +185,80 @@ class RefreshSessionPersistenceError(RuntimeError):
     def __init__(self, *, sqlstate: str | None = None) -> None:
         super().__init__("Refresh session persistence failed")
         self.sqlstate = sqlstate
+
+
+class RefreshSessionUnavailableError(RuntimeError):
+    """Expose one safe application-level failure for refresh infrastructure errors."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Refresh session unavailable")
+        self.sqlstate = sqlstate
+
+
+class InvalidLogoutSessionError(RuntimeError):
+    """Reject logout proof without exposing which browser binding failed."""
+
+    def __init__(self) -> None:
+        super().__init__("Logout session rejected")
+
+
+class LogoutSessionUnavailableError(RuntimeError):
+    """Expose one safe retryable failure for logout infrastructure errors."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Logout session unavailable")
+        self.sqlstate = sqlstate
+
+
+class InvalidPasswordChangeError(RuntimeError):
+    """Reject an untrusted browser boundary for password replacement."""
+
+    def __init__(self) -> None:
+        super().__init__("Password change rejected")
+
+
+class InvalidCurrentPasswordError(RuntimeError):
+    """Reject a wrong current password without exposing hash details."""
+
+    def __init__(self) -> None:
+        super().__init__("Current password rejected")
+
+
+class NewPasswordMatchesCurrentError(RuntimeError):
+    """Reject replacement with the currently active password."""
+
+    def __init__(self) -> None:
+        super().__init__("New password must differ from current password")
+
+
+class PasswordChangeConflictError(RuntimeError):
+    """Require reauthentication after another request wins the password CAS."""
+
+    def __init__(self) -> None:
+        super().__init__("Password change conflict")
+
+
+class PasswordChangePersistenceError(RuntimeError):
+    """Carry only a safe database failure classification to HTTP delivery."""
+
+    def __init__(self, *, sqlstate: str | None = None) -> None:
+        super().__init__("Password change persistence failed")
+        self.sqlstate = sqlstate
+
+
+class PasswordChangeRateLimitExceededError(RuntimeError):
+    """Expose one coarse retry boundary for repeated password changes."""
+
+    def __init__(self, *, retry_after_seconds: int) -> None:
+        super().__init__("Password change rate limit exceeded")
+        self.retry_after_seconds = retry_after_seconds
+
+
+class PasswordChangeRateLimitUnavailableError(RuntimeError):
+    """Fail closed when a password-change rate decision is unavailable."""
+
+    def __init__(self) -> None:
+        super().__init__("Password change rate limiter unavailable")
 
 
 class AuthenticationPersistenceError(RuntimeError):
@@ -193,6 +301,25 @@ class AuthenticateCredentialsCommand:
     email: str = field(repr=False)
     password: SecretStr = field(repr=False)
     trace_id: TraceId
+
+
+@dataclass(frozen=True, slots=True)
+class ChangePasswordCommand:
+    """Authenticated proof and secrets required for one password replacement."""
+
+    user_id: UUID
+    session_id: UUID
+    email: NormalizedEmail = field(repr=False)
+    origin: str = field(repr=False)
+    current_password: SecretStr = field(repr=False)
+    new_password: SecretStr = field(repr=False)
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        if self.user_id.int == 0 or self.session_id.int == 0:
+            raise ValueError("Password change identifiers must not be nil UUIDs")
+        if not self.email:
+            raise ValueError("Password change email must not be empty")
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,6 +402,33 @@ class AccessTokenClaims:
 
         if self.issued_at != self.not_before or self.expires_at <= self.issued_at:
             raise ValueError("Access token validity window is inconsistent")
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticatedWorkspace:
+    """One active Workspace membership visible to an authenticated account."""
+
+    workspace_id: UUID
+    name: str
+    role: WorkspaceRoleName
+
+    def __post_init__(self) -> None:
+        if self.workspace_id.int == 0 or not self.name.strip():
+            raise ValueError("Authenticated workspace is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticatedPrincipal:
+    """Server-verified user, session, and current Workspace memberships."""
+
+    user_id: UUID
+    session_id: UUID
+    email: NormalizedEmail
+    workspaces: tuple[AuthenticatedWorkspace, ...]
+
+    def __post_init__(self) -> None:
+        if self.user_id.int == 0 or self.session_id.int == 0 or not self.email:
+            raise ValueError("Authenticated principal is invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -404,6 +558,48 @@ class RefreshSessionCommand:
     csrf_header_value: str = field(repr=False)
     device_token: DeviceToken = field(repr=False)
     trace_id: TraceId
+
+
+@dataclass(frozen=True, slots=True)
+class LogoutSessionCommand:
+    """Untrusted browser proofs required to revoke one session family."""
+
+    origin: str = field(repr=False)
+    refresh_token: RefreshToken = field(repr=False)
+    csrf_cookie_value: str = field(repr=False)
+    csrf_header_value: str = field(repr=False)
+    device_token: DeviceToken = field(repr=False)
+    trace_id: TraceId
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshRecoveryCleanupCommand:
+    """Bound one maintenance transaction to a small, predictable row batch."""
+
+    batch_size: int
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.batch_size, bool)
+            or not isinstance(self.batch_size, int)
+            or not 1 <= self.batch_size <= 1000
+        ):
+            raise ValueError("Refresh recovery cleanup batch size must be between 1 and 1000")
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshRecoveryCleanupResult:
+    """Non-sensitive counts from one committed recovery-envelope cleanup batch."""
+
+    scanned_count: int
+    cleared_count: int
+
+    def __post_init__(self) -> None:
+        counts = (self.scanned_count, self.cleared_count)
+        if any(isinstance(count, bool) or not isinstance(count, int) for count in counts):
+            raise ValueError("Refresh recovery cleanup counts must be integers")
+        if not 0 <= self.cleared_count <= self.scanned_count:
+            raise ValueError("Refresh recovery cleanup counts are inconsistent")
 
 
 @dataclass(frozen=True, slots=True)
@@ -547,6 +743,28 @@ class PersistRefreshSuccessorCommand:
             raise ValueError("Refresh recovery expiration order is invalid")
         if not self.recovery_envelope:
             raise ValueError("Refresh recovery envelope must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class PersistPasswordChangeCommand:
+    """Persistence-safe values for one all-session password replacement."""
+
+    user_id: UUID
+    authenticated_session_id: UUID
+    expected_password_hash: PasswordHash = field(repr=False)
+    replacement_password_hash: PasswordHash = field(repr=False)
+    changed_at: datetime
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        if self.user_id.int == 0 or self.authenticated_session_id.int == 0:
+            raise ValueError("Password change identifiers must not be nil UUIDs")
+        if not self.expected_password_hash or not self.replacement_password_hash:
+            raise ValueError("Password change hashes must not be empty")
+        if self.expected_password_hash == self.replacement_password_hash:
+            raise ValueError("Password change hashes must differ")
+        if not _is_utc_timestamp(self.changed_at):
+            raise ValueError("Password change timestamp must use timezone-aware UTC")
 
 
 @dataclass(frozen=True, slots=True)

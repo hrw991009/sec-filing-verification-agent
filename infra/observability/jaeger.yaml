@@ -1,0 +1,60 @@
+# Based on Jaeger v2.20.0's official Badger example, reduced to the local OTLP path.
+service:
+  extensions: [jaeger_storage, jaeger_query, healthcheckv2]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+  telemetry:
+    resource:
+      service.name: jaeger
+    metrics:
+      level: detailed
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+    logs:
+      level: info
+
+extensions:
+  healthcheckv2:
+    use_v2: true
+    http:
+      endpoint: "${env:JAEGER_LISTEN_HOST:-localhost}:13133"
+
+  jaeger_query:
+    http:
+      endpoint: "${env:JAEGER_LISTEN_HOST:-localhost}:16686"
+    storage:
+      traces: local_store
+
+  jaeger_storage:
+    backends:
+      local_store:
+        badger:
+          directories:
+            keys: /tmp/jaeger/
+            values: /tmp/jaeger/
+          ephemeral: false
+          ttl:
+            spans: 168h
+          metrics_update_interval: 10s
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "${env:JAEGER_LISTEN_HOST:-localhost}:4317"
+      http:
+        endpoint: "${env:JAEGER_LISTEN_HOST:-localhost}:4318"
+
+processors:
+  batch:
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: local_store

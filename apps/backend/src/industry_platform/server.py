@@ -6,7 +6,7 @@ from typing import Final
 
 import uvicorn
 
-APPLICATION_IMPORT: Final = "industry_platform.main:app"
+APPLICATION_IMPORT: Final = "industry_platform.main:create_app"
 SELECTOR_LOOP_FACTORY_IMPORT: Final = "industry_platform.server:create_selector_event_loop"
 
 
@@ -33,6 +33,7 @@ def main() -> None:
         host="127.0.0.1",
         port=8000,
         loop=select_event_loop_factory(sys.platform),
+        factory=True,
     )
 
 

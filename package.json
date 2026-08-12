@@ -4,6 +4,9 @@
   "private": true,
   "description": "A multimodal industry intelligence workspace.",
   "scripts": {
+    "api:check": "pnpm run api:generate && git ls-files --error-unmatch packages/api-contract/openapi.json packages/api-contract/src/schema.d.ts && git diff --exit-code -- packages/api-contract/openapi.json packages/api-contract/src/schema.d.ts",
+    "api:generate": "pnpm run api:openapi && pnpm exec prettier --write packages/api-contract/openapi.json && pnpm --filter @industry-platform/api-contract run generate",
+    "api:openapi": "uv run --locked --package industry-platform-backend python -m industry_platform.openapi --output packages/api-contract/openapi.json",
     "build": "pnpm --recursive --if-present run build",
     "dev:web": "pnpm --filter @industry-platform/web run dev",
     "format": "prettier --write .",

@@ -7,27 +7,46 @@ from enum import StrEnum
 from uuid import uuid4
 
 from industry_platform.modules.identity.domain import (
+    AccessToken,
     AuthenticateCredentialsCommand,
+    AuthenticatedPrincipal,
+    AuthenticationPersistenceError,
+    ChangePasswordCommand,
     CreateLoginSessionCommand,
     CsrfToken,
     DeviceTokenHash,
     EstablishedLoginSession,
+    InvalidAccessTokenError,
+    InvalidAuthenticatedSessionError,
     InvalidBrowserSessionRequestError,
     InvalidCredentialsError,
+    InvalidCurrentPasswordError,
     InvalidEmailAddressError,
+    InvalidLogoutSessionError,
+    InvalidPasswordChangeError,
     InvalidRefreshSessionError,
     InvalidSessionTokenError,
     IssueAccessTokenCommand,
     LockedRefreshRotation,
     LoginSessionRecord,
+    LogoutSessionCommand,
+    LogoutSessionUnavailableError,
+    NewPasswordMatchesCurrentError,
+    PasswordChangePersistenceError,
     PasswordHash,
+    PersistPasswordChangeCommand,
     PersistRefreshSuccessorCommand,
     RecordRefreshRecoveryCommand,
     RefreshedSession,
+    RefreshRecoveryCleanupCommand,
+    RefreshRecoveryCleanupPersistenceError,
+    RefreshRecoveryCleanupResult,
+    RefreshRecoveryCleanupUnavailableError,
     RefreshRecoveryContext,
     RefreshRecoveryError,
     RefreshRevocationReason,
     RefreshSessionCommand,
+    RefreshSessionPersistenceError,
     RefreshSuccessorTokens,
     RefreshToken,
     RegisterUserCommand,
@@ -40,12 +59,15 @@ from industry_platform.modules.identity.emails import normalize_email_address
 from industry_platform.modules.identity.passwords import ValidatedPassword
 from industry_platform.modules.identity.ports import (
     AccessTokenCodec,
+    AuthenticatedSessionReader,
     BrowserSessionRequestGuard,
     CredentialAuthenticationUseCase,
     CredentialReader,
     LoginSessionTokenService,
     LoginSessionTransactionFactory,
+    PasswordChangeTransactionFactory,
     PasswordHasher,
+    RefreshRecoveryCleanupTransactionFactory,
     RefreshRecoveryCodec,
     RefreshSessionIdSource,
     RefreshSessionTokenService,
@@ -74,6 +96,37 @@ def utc_now() -> datetime:
     """Return one timezone-aware UTC instant for production session issuance."""
 
     return datetime.now(UTC)
+
+
+class AuthenticatedPrincipalService:
+    """Build one trusted request identity from JWT and live database state."""
+
+    def __init__(
+        self,
+        *,
+        access_token_codec: AccessTokenCodec,
+        session_reader: AuthenticatedSessionReader,
+        clock: UtcClock = utc_now,
+    ) -> None:
+        self._access_token_codec = access_token_codec
+        self._session_reader = session_reader
+        self._clock = clock
+
+    async def resolve(self, token: AccessToken) -> AuthenticatedPrincipal:
+        """Reject one uniform credential if JWT or server session is invalid."""
+
+        try:
+            now = self._clock()
+            claims = self._access_token_codec.verify(token, now=now)
+        except InvalidAccessTokenError:
+            raise InvalidAuthenticatedSessionError from None
+
+        principal = await self._session_reader.find_active(claims, now=now)
+
+        if principal is None:
+            raise InvalidAuthenticatedSessionError
+
+        return principal
 
 
 class CredentialAuthenticationService:
@@ -528,6 +581,151 @@ class RefreshSessionService:
                 trace_id=command.trace_id,
             )
         )
+
+
+class RefreshRecoveryCleanupService:
+    """Clear expired recovery ciphertext in a bounded reusable transaction."""
+
+    def __init__(
+        self,
+        *,
+        transaction_factory: RefreshRecoveryCleanupTransactionFactory,
+    ) -> None:
+        self._transaction_factory = transaction_factory
+
+    async def cleanup_expired(
+        self,
+        command: RefreshRecoveryCleanupCommand,
+    ) -> RefreshRecoveryCleanupResult:
+        """Return counts only after the selected batch has committed."""
+
+        try:
+            async with self._transaction_factory() as writer:
+                result = await writer.clear_expired(command)
+        except RefreshRecoveryCleanupPersistenceError as error:
+            raise RefreshRecoveryCleanupUnavailableError(
+                sqlstate=error.sqlstate,
+            ) from None
+
+        return result
+
+
+class LogoutSessionService:
+    """Verify browser proof and idempotently revoke one complete family."""
+
+    def __init__(
+        self,
+        *,
+        session_token_service: RefreshSessionTokenService,
+        browser_request_guard: BrowserSessionRequestGuard,
+        transaction_factory: RefreshSessionTransactionFactory,
+    ) -> None:
+        self._session_token_service = session_token_service
+        self._browser_request_guard = browser_request_guard
+        self._transaction_factory = transaction_factory
+
+    async def logout(self, command: LogoutSessionCommand) -> None:
+        """Commit revocation only after all browser bindings are proven."""
+
+        try:
+            refresh_hash = self._session_token_service.digest_refresh(command.refresh_token)
+            device_hash = self._session_token_service.digest_device(command.device_token)
+            self._browser_request_guard.validate_origin(command.origin)
+
+            async with self._transaction_factory() as writer:
+                rotation = await writer.lock_rotation(refresh_hash)
+                self._browser_request_guard.validate_csrf(
+                    cookie_value=command.csrf_cookie_value,
+                    header_value=command.csrf_header_value,
+                    expected_hash=rotation.presented.csrf_token_hash,
+                )
+
+                if not hmac.compare_digest(
+                    bytes(device_hash),
+                    bytes(rotation.presented.device_token_hash),
+                ):
+                    raise InvalidLogoutSessionError
+
+                if rotation.family_revoked_at is None:
+                    await writer.revoke_family(
+                        RevokeRefreshFamilyCommand(
+                            user_id=rotation.presented.user_id,
+                            rotation_family_id=rotation.family_id,
+                            detected_session_id=rotation.presented.session_id,
+                            revoked_at=rotation.checked_at,
+                            reason="logout",
+                            trace_id=command.trace_id,
+                        )
+                    )
+        except (
+            InvalidBrowserSessionRequestError,
+            InvalidRefreshSessionError,
+            InvalidSessionTokenError,
+        ):
+            raise InvalidLogoutSessionError from None
+        except RefreshSessionPersistenceError as error:
+            raise LogoutSessionUnavailableError(sqlstate=error.sqlstate) from None
+
+
+class PasswordChangeService:
+    """Verify the old password, hash the replacement, then revoke all sessions."""
+
+    def __init__(
+        self,
+        *,
+        authentication_service: CredentialAuthenticationUseCase,
+        password_hasher: PasswordHasher,
+        browser_request_guard: BrowserSessionRequestGuard,
+        transaction_factory: PasswordChangeTransactionFactory,
+        clock: UtcClock = utc_now,
+    ) -> None:
+        self._authentication_service = authentication_service
+        self._password_hasher = password_hasher
+        self._browser_request_guard = browser_request_guard
+        self._transaction_factory = transaction_factory
+        self._clock = clock
+
+    async def change_password(self, command: ChangePasswordCommand) -> None:
+        """Commit the replacement and global revocation or change nothing."""
+
+        try:
+            self._browser_request_guard.validate_origin(command.origin)
+            credentials = await self._authentication_service.authenticate(
+                AuthenticateCredentialsCommand(
+                    email=str(command.email),
+                    password=command.current_password,
+                    trace_id=command.trace_id,
+                )
+            )
+        except InvalidBrowserSessionRequestError:
+            raise InvalidPasswordChangeError from None
+        except InvalidCredentialsError:
+            raise InvalidCurrentPasswordError from None
+        except AuthenticationPersistenceError as error:
+            raise PasswordChangePersistenceError(sqlstate=error.sqlstate) from None
+
+        if credentials.user_id != command.user_id:
+            raise InvalidAuthenticatedSessionError
+
+        validated_password = ValidatedPassword.from_secret(command.new_password)
+        if await self._password_hasher.verify(
+            credentials.expected_password_hash,
+            command.new_password,
+        ):
+            raise NewPasswordMatchesCurrentError
+
+        replacement_hash = await self._password_hasher.hash(validated_password)
+        async with self._transaction_factory() as writer:
+            await writer.persist_password_change(
+                PersistPasswordChangeCommand(
+                    user_id=command.user_id,
+                    authenticated_session_id=command.session_id,
+                    expected_password_hash=credentials.expected_password_hash,
+                    replacement_password_hash=replacement_hash,
+                    changed_at=self._clock(),
+                    trace_id=command.trace_id,
+                )
+            )
 
 
 class RegistrationService:

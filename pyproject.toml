@@ -54,6 +54,8 @@ line-ending = "lf"
 [tool.mypy]
 python_version = "3.13"
 plugins = ["pydantic.mypy"]
+mypy_path = ["apps/backend/src"]
+explicit_package_bases = true
 files = [
   "apps/backend/src",
   "apps/backend/tests",
@@ -62,6 +64,10 @@ strict = true
 warn_unreachable = true
 show_error_codes = true
 pretty = true
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*", "croniter", "kombu", "kombu.*"]
+ignore_missing_imports = true
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

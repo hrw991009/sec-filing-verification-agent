@@ -1,14 +1,18 @@
 """Tests for platform-aware API server startup."""
 
 import asyncio
+import sys
+from unittest.mock import Mock
 
 import pytest
+import uvicorn
 from uvicorn import Config
 
 from industry_platform.server import (
     APPLICATION_IMPORT,
     SELECTOR_LOOP_FACTORY_IMPORT,
     create_selector_event_loop,
+    main,
     select_event_loop_factory,
 )
 
@@ -37,6 +41,25 @@ def test_uvicorn_can_resolve_the_project_loop_factory() -> None:
     config = Config(
         APPLICATION_IMPORT,
         loop=SELECTOR_LOOP_FACTORY_IMPORT,
+        factory=True,
     )
 
+    assert config.factory is True
     assert config.get_loop_factory() is create_selector_event_loop
+
+
+def test_server_starts_uvicorn_with_the_application_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = Mock()
+    monkeypatch.setattr(uvicorn, "run", run)
+
+    main()
+
+    run.assert_called_once_with(
+        APPLICATION_IMPORT,
+        host="127.0.0.1",
+        port=8000,
+        loop=select_event_loop_factory(sys.platform),
+        factory=True,
+    )

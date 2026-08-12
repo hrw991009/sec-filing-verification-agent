@@ -1,13 +1,21 @@
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-const localHost = "127.0.0.1";
+const localHost = "localhost";
+const backendOrigin = "http://127.0.0.1:8000";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [basicSsl(), react()],
   server: {
     host: localHost,
     port: 5173,
+    proxy: {
+      "/api": {
+        changeOrigin: false,
+        target: backendOrigin,
+      },
+    },
     strictPort: true,
   },
   preview: {

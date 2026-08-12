@@ -11,6 +11,13 @@ from industry_platform.modules.identity.models import (
     Workspace,
     WorkspaceMembership,
 )
+from industry_platform.modules.jobs.models import (
+    Job,
+    JobEvent,
+    OutboxEvent,
+    Schedule,
+    ScheduleOccurrence,
+)
 
 REGISTERED_MODELS: tuple[type[Base], ...] = (
     User,
@@ -19,6 +26,11 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     RefreshSessionFamily,
     RefreshSession,
     AuditLog,
+    Job,
+    JobEvent,
+    OutboxEvent,
+    Schedule,
+    ScheduleOccurrence,
 )
 
 metadata: MetaData = Base.metadata

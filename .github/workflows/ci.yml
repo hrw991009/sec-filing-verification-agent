@@ -200,10 +200,25 @@ jobs:
       - name: Install locked Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set up uv for API contract generation
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install pinned Python for API contract generation
+        run: uv python install
+
+      - name: Sync locked backend for API contract generation
+        run: uv sync --locked --package industry-platform-backend
+
       - name: Verify Node toolchain
         run: |
           node --version
           pnpm --version
+
+      - name: Verify generated API contract is current
+        run: pnpm run api:check
 
       - name: Check formatting
         run: pnpm run format:check
@@ -224,6 +239,44 @@ jobs:
     name: Browser E2E
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      APP_ENVIRONMENT: test
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: browser_ci
+      POSTGRES_USER: browser_ci
+      POSTGRES_PASSWORD: browser-ci-password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: browser-ci-redis-password
+      REFRESH_TOKEN_HMAC_KEY_B64: cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnI
+      CSRF_TOKEN_HMAC_KEY_B64: Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M
+      DEVICE_TOKEN_HMAC_KEY_B64: ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ
+      BROWSER_TRUSTED_ORIGINS_JSON: '["https://localhost:5173"]'
+    services:
+      postgres:
+        image: postgres:16.14-bookworm
+        env:
+          POSTGRES_DB: browser_ci
+          POSTGRES_USER: browser_ci
+          POSTGRES_PASSWORD: browser-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U browser_ci -d browser_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7.2.15-bookworm
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping | grep -q PONG || redis-cli -a
+          browser-ci-redis-password --no-auth-warning ping | grep -q PONG"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -243,10 +296,73 @@ jobs:
       - name: Install locked Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install pinned Python
+        run: uv python install
+
+      - name: Sync locked backend
+        run: uv sync --locked --package industry-platform-backend
+
+      - name: Generate ephemeral authentication keys
+        shell: bash
+        run: |
+          uv run --locked --all-packages python - <<'PY'
+          import json
+          import os
+          import secrets
+          from base64 import urlsafe_b64encode
+
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+          from cryptography.hazmat.primitives.serialization import (
+              Encoding,
+              NoEncryption,
+              PrivateFormat,
+              PublicFormat,
+          )
+
+          def encode(value: bytes) -> str:
+              return urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+          private_key = Ed25519PrivateKey.generate()
+          private_value = private_key.private_bytes(
+              Encoding.Raw,
+              PrivateFormat.Raw,
+              NoEncryption(),
+          )
+          public_value = private_key.public_key().public_bytes(
+              Encoding.Raw,
+              PublicFormat.Raw,
+          )
+          key_id = "browser-ci-ephemeral-key"
+          environment = {
+              "LOGIN_RATE_LIMIT_HMAC_KEY_B64": encode(secrets.token_bytes(32)),
+              "REFRESH_RECOVERY_AEAD_KEY_B64": encode(secrets.token_bytes(32)),
+              "ACCESS_TOKEN_CURRENT_KID": key_id,
+              "ACCESS_TOKEN_PRIVATE_KEY_B64": encode(private_value),
+              "ACCESS_TOKEN_PUBLIC_KEYS_JSON": json.dumps({key_id: encode(public_value)}),
+          }
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as github_env:
+              for name, value in environment.items():
+                  github_env.write(f"{name}={value}\n")
+          PY
+
+      - name: Require authentication on Redis
+        run: |
+          docker exec "${{ job.services.redis.id }}" \
+            redis-cli CONFIG SET requirepass "$REDIS_PASSWORD"
+          docker exec "${{ job.services.redis.id }}" \
+            redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping
+
       - name: Install Chromium and system dependencies
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Test production build in Chromium
+      - name: Test the real identity lifecycle in Chromium
         run: pnpm run test:e2e
 
       - name: Upload Playwright failure artifacts

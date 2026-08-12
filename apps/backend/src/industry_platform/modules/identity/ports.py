@@ -11,6 +11,8 @@ from industry_platform.modules.identity.domain import (
     AccessToken,
     AccessTokenClaims,
     AuthenticateCredentialsCommand,
+    AuthenticatedPrincipal,
+    ChangePasswordCommand,
     CreateLoginSessionCommand,
     CsrfToken,
     CsrfTokenHash,
@@ -23,11 +25,15 @@ from industry_platform.modules.identity.domain import (
     IssuedRefreshSuccessorTokens,
     LockedRefreshRotation,
     LoginSessionRecord,
+    LogoutSessionCommand,
     NormalizedEmail,
     PasswordHash,
+    PersistPasswordChangeCommand,
     PersistRefreshSuccessorCommand,
     RecordRefreshRecoveryCommand,
     RefreshedSession,
+    RefreshRecoveryCleanupCommand,
+    RefreshRecoveryCleanupResult,
     RefreshRecoveryContext,
     RefreshRecoveryEnvelope,
     RefreshSessionCommand,
@@ -118,6 +124,29 @@ class AccessTokenCodec(Protocol):
         now: datetime,
     ) -> AccessTokenClaims:
         """Verify signature, fixed metadata, claims, and validity window."""
+
+        ...
+
+
+class AuthenticatedSessionReader(Protocol):
+    """Resolve verified JWT claims against current PostgreSQL session state."""
+
+    async def find_active(
+        self,
+        claims: AccessTokenClaims,
+        *,
+        now: datetime,
+    ) -> AuthenticatedPrincipal | None:
+        """Return a principal only while the account and session remain active."""
+
+        ...
+
+
+class AuthenticatedPrincipalResolver(Protocol):
+    """Establish the one trusted identity context used by protected APIs."""
+
+    async def resolve(self, token: AccessToken) -> AuthenticatedPrincipal:
+        """Verify the bearer token and recheck its server-side session."""
 
         ...
 
@@ -289,6 +318,57 @@ class RefreshSessionUseCase(Protocol):
         ...
 
 
+class RefreshRecoveryCleanupUseCase(Protocol):
+    """Clear one bounded batch of expired successor-recovery envelopes."""
+
+    async def cleanup_expired(
+        self,
+        command: RefreshRecoveryCleanupCommand,
+    ) -> RefreshRecoveryCleanupResult:
+        """Return non-sensitive counts only after the cleanup commits."""
+
+        ...
+
+
+class LogoutSessionUseCase(Protocol):
+    """Revoke one proven browser session family idempotently."""
+
+    async def logout(self, command: LogoutSessionCommand) -> None:
+        """Commit revocation before reporting success to HTTP delivery."""
+
+        ...
+
+
+class PasswordChangeUseCase(Protocol):
+    """Replace a password and revoke every existing session atomically."""
+
+    async def change_password(self, command: ChangePasswordCommand) -> None:
+        """Commit all password and revocation state before returning."""
+
+        ...
+
+
+class PasswordChangeWriter(Protocol):
+    """Persistence operation available inside one password-change transaction."""
+
+    async def persist_password_change(
+        self,
+        command: PersistPasswordChangeCommand,
+    ) -> None:
+        """CAS the password and revoke all sessions in the same transaction."""
+
+        ...
+
+
+class PasswordChangeTransactionFactory(Protocol):
+    """Open a new atomic password-change transaction on demand."""
+
+    def __call__(self) -> AbstractAsyncContextManager[PasswordChangeWriter]:
+        """Return a context manager that commits or rolls back as one unit."""
+
+        ...
+
+
 class RefreshSessionWriter(Protocol):
     """Persistence operations available inside one refresh transaction."""
 
@@ -329,6 +409,27 @@ class RefreshSessionTransactionFactory(Protocol):
     """Open a new atomic refresh-session transaction on demand."""
 
     def __call__(self) -> AbstractAsyncContextManager[RefreshSessionWriter]:
+        """Return a context manager that commits or rolls back as one unit."""
+
+        ...
+
+
+class RefreshRecoveryCleanupWriter(Protocol):
+    """Persistence operation available inside one cleanup transaction."""
+
+    async def clear_expired(
+        self,
+        command: RefreshRecoveryCleanupCommand,
+    ) -> RefreshRecoveryCleanupResult:
+        """Lock, clear, and count one bounded batch using the database clock."""
+
+        ...
+
+
+class RefreshRecoveryCleanupTransactionFactory(Protocol):
+    """Open a new atomic recovery-envelope cleanup transaction on demand."""
+
+    def __call__(self) -> AbstractAsyncContextManager[RefreshRecoveryCleanupWriter]:
         """Return a context manager that commits or rolls back as one unit."""
 
         ...

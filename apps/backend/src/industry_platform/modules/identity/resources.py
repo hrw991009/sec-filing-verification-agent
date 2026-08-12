@@ -18,6 +18,15 @@ from industry_platform.modules.identity.adapters.browser_requests import (
 from industry_platform.modules.identity.adapters.login_rate_limits import (
     RedisLoginAttemptRateLimiter,
 )
+from industry_platform.modules.identity.adapters.password_changes import (
+    SqlAlchemyPasswordChangeTransactionFactory,
+)
+from industry_platform.modules.identity.adapters.principals import (
+    SqlAlchemyAuthenticatedSessionReader,
+)
+from industry_platform.modules.identity.adapters.refresh_cleanup import (
+    SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
+)
 from industry_platform.modules.identity.adapters.refresh_recovery import (
     AesGcmRefreshRecoveryCodec,
 )
@@ -32,15 +41,23 @@ from industry_platform.modules.identity.adapters.sqlalchemy import (
 )
 from industry_platform.modules.identity.ports import (
     AccessTokenCodec,
+    AuthenticatedPrincipalResolver,
     LoginAttemptRateLimiter,
     LoginSessionTokenService,
     LoginSessionUseCase,
+    LogoutSessionUseCase,
+    PasswordChangeUseCase,
+    RefreshRecoveryCleanupUseCase,
     RefreshSessionUseCase,
     RegistrationUseCase,
 )
 from industry_platform.modules.identity.service import (
+    AuthenticatedPrincipalService,
     CredentialAuthenticationService,
     LoginSessionService,
+    LogoutSessionService,
+    PasswordChangeService,
+    RefreshRecoveryCleanupService,
     RefreshSessionService,
     RegistrationService,
 )
@@ -52,10 +69,15 @@ class IdentityResources:
 
     registration_service: RegistrationUseCase
     login_service: LoginSessionUseCase
+    logout_service: LogoutSessionUseCase
+    password_change_service: PasswordChangeUseCase
     refresh_service: RefreshSessionUseCase
+    refresh_recovery_cleanup_service: RefreshRecoveryCleanupUseCase
     session_token_service: LoginSessionTokenService
     access_token_codec: AccessTokenCodec
+    principal_resolver: AuthenticatedPrincipalResolver
     login_rate_limiter: LoginAttemptRateLimiter
+    password_change_rate_limiter: LoginAttemptRateLimiter
 
 
 async def create_identity_resources(
@@ -94,6 +116,15 @@ async def create_identity_resources(
         account_max_attempts=settings.login_rate_limit_account_max_attempts,
         account_window_seconds=settings.login_rate_limit_account_window_seconds,
     )
+    password_change_rate_limiter = RedisLoginAttemptRateLimiter(
+        redis_client,
+        hmac_key=settings.login_rate_limit_hmac_key,
+        ip_max_attempts=settings.login_rate_limit_ip_max_attempts,
+        ip_window_seconds=settings.login_rate_limit_ip_window_seconds,
+        account_max_attempts=settings.login_rate_limit_account_max_attempts,
+        account_window_seconds=settings.login_rate_limit_account_window_seconds,
+        key_namespace="iip:password-change-rate-limit:v1",
+    )
     browser_request_guard = ExactBrowserSessionRequestGuard(
         trusted_origins=settings.browser_trusted_origins,
         token_service=session_token_service,
@@ -114,6 +145,17 @@ async def create_identity_resources(
             access_token_codec=access_token_codec,
             transaction_factory=SqlAlchemyLoginSessionTransactionFactory(session_factory),
         ),
+        logout_service=LogoutSessionService(
+            session_token_service=session_token_service,
+            browser_request_guard=browser_request_guard,
+            transaction_factory=SqlAlchemyRefreshSessionTransactionFactory(session_factory),
+        ),
+        password_change_service=PasswordChangeService(
+            authentication_service=authentication_service,
+            password_hasher=password_hasher,
+            browser_request_guard=browser_request_guard,
+            transaction_factory=SqlAlchemyPasswordChangeTransactionFactory(session_factory),
+        ),
         refresh_service=RefreshSessionService(
             session_token_service=session_token_service,
             access_token_codec=access_token_codec,
@@ -121,9 +163,17 @@ async def create_identity_resources(
             recovery_codec=recovery_codec,
             transaction_factory=SqlAlchemyRefreshSessionTransactionFactory(session_factory),
         ),
+        refresh_recovery_cleanup_service=RefreshRecoveryCleanupService(
+            transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory),
+        ),
         session_token_service=session_token_service,
         access_token_codec=access_token_codec,
+        principal_resolver=AuthenticatedPrincipalService(
+            access_token_codec=access_token_codec,
+            session_reader=SqlAlchemyAuthenticatedSessionReader(session_factory),
+        ),
         login_rate_limiter=login_rate_limiter,
+        password_change_rate_limiter=password_change_rate_limiter,
     )
 
 

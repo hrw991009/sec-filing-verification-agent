@@ -17,7 +17,7 @@ export default defineConfig(
     "**/node_modules/**",
     "**/playwright-report/**",
     "**/test-results/**",
-    "packages/api-contract/src/generated/**",
+    "packages/api-contract/src/schema.d.ts",
   ]),
   {
     files: ["**/*.{js,mjs}"],

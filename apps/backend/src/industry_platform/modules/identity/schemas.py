@@ -45,6 +45,26 @@ class LoginRequest(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
 
 
+class ChangePasswordRequest(BaseModel):
+    """Current proof and policy-compliant replacement accepted from one user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: SecretStr = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
+    new_password: SecretStr = Field(
+        min_length=MIN_PASSWORD_LENGTH,
+        max_length=MAX_PASSWORD_LENGTH,
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_policy(cls, value: SecretStr) -> SecretStr:
+        """Apply the same domain policy used by registration."""
+
+        ValidatedPassword.from_secret(value)
+        return value
+
+
 class AuthenticatedUser(BaseModel):
     """Safe user identity returned by registration and login."""
 
@@ -74,3 +94,30 @@ class LoginResponse(BaseModel):
     access_token: str = Field(min_length=1, repr=False)
     token_type: Literal["Bearer"] = BEARER_SCHEME
     expires_at: datetime
+
+
+class RefreshResponse(BaseModel):
+    """New short-lived Access Token returned after safe session rotation."""
+
+    access_token: str = Field(min_length=1, repr=False)
+    token_type: Literal["Bearer"] = BEARER_SCHEME
+    expires_at: datetime
+
+
+class CurrentWorkspace(BaseModel):
+    """One live Workspace membership returned by the current-user endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    name: str
+    role: Literal["owner", "admin", "member", "viewer"]
+
+
+class CurrentUserResponse(BaseModel):
+    """Current server-verified account and its live Workspace memberships."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user: AuthenticatedUser
+    workspaces: list[CurrentWorkspace]

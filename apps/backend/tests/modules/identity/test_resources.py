@@ -23,7 +23,11 @@ from industry_platform.modules.identity.adapters.session_tokens import (
 from industry_platform.modules.identity.domain import IssueAccessTokenCommand
 from industry_platform.modules.identity.resources import create_identity_resources
 from industry_platform.modules.identity.service import (
+    AuthenticatedPrincipalService,
     LoginSessionService,
+    LogoutSessionService,
+    PasswordChangeService,
+    RefreshRecoveryCleanupService,
     RefreshSessionService,
     RegistrationService,
 )
@@ -58,10 +62,21 @@ async def test_identity_resources_wire_the_complete_login_runtime(
 
         assert isinstance(resources.registration_service, RegistrationService)
         assert isinstance(resources.login_service, LoginSessionService)
+        assert isinstance(resources.logout_service, LogoutSessionService)
+        assert isinstance(resources.password_change_service, PasswordChangeService)
         assert isinstance(resources.refresh_service, RefreshSessionService)
+        assert isinstance(
+            resources.refresh_recovery_cleanup_service,
+            RefreshRecoveryCleanupService,
+        )
         assert isinstance(resources.session_token_service, HmacSessionTokenService)
         assert isinstance(resources.access_token_codec, Ed25519AccessTokenCodec)
+        assert isinstance(resources.principal_resolver, AuthenticatedPrincipalService)
         assert isinstance(resources.login_rate_limiter, RedisLoginAttemptRateLimiter)
+        assert isinstance(
+            resources.password_change_rate_limiter,
+            RedisLoginAttemptRateLimiter,
+        )
         assert verified_access == issued_access.claims
         assert (
             resources.session_token_service.digest_refresh(issued.refresh_token)

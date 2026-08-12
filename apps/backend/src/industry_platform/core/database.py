@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import URL, DateTime, MetaData, Uuid, func, text
+from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -23,6 +24,16 @@ NAMING_CONVENTION: dict[str, str] = {
 }
 
 type AsyncSessionFactory = async_sessionmaker[AsyncSession]
+
+
+def safe_sqlstate(error: SQLAlchemyError) -> str | None:
+    """Return only PostgreSQL's non-sensitive five-character error class."""
+
+    if not isinstance(error, DBAPIError):
+        return None
+
+    sqlstate = getattr(error.orig, "sqlstate", None)
+    return sqlstate if isinstance(sqlstate, str) and len(sqlstate) == 5 else None
 
 
 class Base(DeclarativeBase):

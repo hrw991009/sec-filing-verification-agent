@@ -2,8 +2,10 @@
 
 import hmac
 import re
+from collections.abc import Awaitable
 from ipaddress import IPv6Address, ip_address
 from secrets import token_hex
+from typing import cast
 
 from pydantic import SecretBytes
 from redis.asyncio import Redis
@@ -122,16 +124,19 @@ class RedisLoginAttemptRateLimiter:
         account_key = self._key_for_account(raw_email)
 
         try:
-            result: object = await self._client.eval(
-                _SLIDING_WINDOW_SCRIPT,
-                2,
-                ip_key,
-                account_key,
-                self._ip_max_attempts,
-                self._ip_window_milliseconds,
-                self._account_max_attempts,
-                self._account_window_milliseconds,
-                token_hex(16),
+            result = await cast(
+                Awaitable[object],
+                self._client.eval(
+                    _SLIDING_WINDOW_SCRIPT,
+                    2,
+                    ip_key,
+                    account_key,
+                    str(self._ip_max_attempts),
+                    str(self._ip_window_milliseconds),
+                    str(self._account_max_attempts),
+                    str(self._account_window_milliseconds),
+                    token_hex(16),
+                ),
             )
         except RedisError:
             raise LoginRateLimitUnavailableError from None

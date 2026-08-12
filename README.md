@@ -2,33 +2,39 @@
 
 面向行业研究与企业知识工作的多模态行业智能工作台。
 
-当前状态：Day 1 工程地基建设中。身份、工作空间、基础设施和健康检查尚未实现，不能视为可用产品。
+当前状态：Day 1 的工程地基、身份与 Workspace 纵向切片已经实现，正在等待本轮统一质量门和干净 CI 复核，因此相关能力记为 `implemented_pending_verification`，而不是 `complete`。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；在 Provider 侧吊销/轮换并复扫前，不得复制或启用参考仓 Provider 配置。
 
-七天交付口径：高质量完成能力矩阵从两个参考项目映射出的每一项目标，并在 Day 7 全部标为 `complete`；七天版本不宣称生产级，本文档不展开七天以后的打磨计划。
-
-## 执行基线
+## 文档入口
 
 - [七天主计划](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [七天目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
-- [参考仓凭据暴露审计与待处置清单](docs/security/credential-exposure-audit.md)
+- [Day 1 学习日志](docs/learning-log/day-1.md)
+- [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
+
+## 已实现的 Day 1 范围
+
+- FastAPI、Pydantic Settings、真实 `/health/live` 与 `/health/ready`；
+- PostgreSQL、Redis、私有 MinIO 默认 Compose，以及 tools、vector、search、observability profiles；
+- Alembic 身份、Workspace、Job、Outbox、Schedule 与 ScheduleOccurrence 迁移；
+- 注册、登录、`me`、修改密码、Logout、Ed25519 Access Token、Refresh/CSRF 轮换与恢复、登录限流；
+- owner/admin/member/viewer 服务端权限矩阵、跨 Workspace 拒绝与最后 owner 保护；
+- React 登录/注册/受保护首页/修改密码旅程，Access Token 只保存在内存；
+- FastAPI OpenAPI 生成 TypeScript 契约与统一 Web API Client；
+- PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
+- Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
+
+这不是 Day 2～Day 7 的业务产品。聊天、知识库、RAG、行业工具、记忆与 Research 仍按能力矩阵推进。
+
+## 执行基线与安装
+
 - Python 3.13.14
 - Node.js 24.16.0
 - uv 0.11.32
 - pnpm 10.10.0
 
-## 当前可运行范围
-
-目前可以运行 React 工程展示页、Python 包测试、前端组件测试和 Playwright Chromium 生产构建冒烟测试。
-
-目前还不能启动正式 API、数据库或身份功能，因为 PostgreSQL/Redis/MinIO Compose、FastAPI、Alembic、Settings、健康检查、认证和 Workspace 尚未实现。README 会随着 Day 1 纵向切片继续更新；不能把下面的工程展示页当成业务产品已经完成。
-
-安全前置门禁同样尚未完成：参考仓脱敏扫描发现待处置凭据候选。在[审计清单](docs/security/credential-exposure-audit.md)中的 Provider 侧吊销/轮换完成前，不得复制或启用参考仓 Provider 配置。
-
-## 第一次安装
-
-在项目根目录 `D:\industry_intelligence_platform` 执行：
+在仓库根目录执行：
 
 ```powershell
 uv --version
@@ -36,107 +42,213 @@ node --version
 pnpm --version
 docker --version
 docker compose version
-```
 
-版本应与“执行基线”一致。然后按照锁文件安装依赖：
-
-```powershell
 uv sync --locked --all-packages
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
-uv run python --version
+uv run --locked python --version
 ```
 
-`uv run python --version` 应显示 `Python 3.13.14`。这里不使用全局 `python --version` 判断项目解释器，因为 Conda 或系统 PATH 可能指向另一套 Python；`uv run` 会使用项目 `.venv` 与 `.python-version`。`--locked` 和 `--frozen-lockfile` 的作用是验证并使用仓库已经评审过的依赖版本，而不是在安装时悄悄更新锁文件。
+`uv run --locked python --version` 应显示 `Python 3.13.14`。项目解释器由 uv 管理，不以 Conda 或系统 PATH 中的全局 `python` 为准。
 
-## 运行前端
+## 配置本地环境
 
-开发服务器支持热更新：
+先复制模板；`.env` 已被 Git 忽略，不要提交它：
+
+```powershell
+Copy-Item -LiteralPath '.env.example' -Destination '.env'
+git check-ignore -v -- '.env'
+```
+
+模板中的本地数据库密码也应改成只用于本机的随机值。下面的命令只把 5 个相互独立的 32 字节 base64url 密钥和一组 Ed25519 密钥打印到终端；请逐项复制到 `.env`，不要把输出提交、粘贴到日志或聊天中，也不要在不同用途之间复用密钥：
+
+```powershell
+@'
+import json
+import secrets
+from base64 import urlsafe_b64encode
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+)
+
+def encode(value: bytes) -> str:
+    return urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+for name in (
+    "REFRESH_TOKEN_HMAC_KEY_B64",
+    "CSRF_TOKEN_HMAC_KEY_B64",
+    "DEVICE_TOKEN_HMAC_KEY_B64",
+    "LOGIN_RATE_LIMIT_HMAC_KEY_B64",
+    "REFRESH_RECOVERY_AEAD_KEY_B64",
+):
+    print(f"{name}={encode(secrets.token_bytes(32))}")
+
+private_key = Ed25519PrivateKey.generate()
+private_value = private_key.private_bytes(
+    Encoding.Raw,
+    PrivateFormat.Raw,
+    NoEncryption(),
+)
+public_value = private_key.public_key().public_bytes(
+    Encoding.Raw,
+    PublicFormat.Raw,
+)
+key_id = "local-development-1"
+print(f"ACCESS_TOKEN_CURRENT_KID={key_id}")
+print(f"ACCESS_TOKEN_PRIVATE_KEY_B64={encode(private_value)}")
+print(
+    "ACCESS_TOKEN_PUBLIC_KEYS_JSON="
+    + json.dumps({key_id: encode(public_value)}, separators=(",", ":"))
+)
+'@ | uv run --locked --package industry-platform-backend python -
+```
+
+保留 `.env.example` 中的精确 HTTPS origins；若改变 Web host 或 port，应同步更新 `BROWSER_TRUSTED_ORIGINS_JSON`，不能改成通配来源。
+
+## 启动基础设施与迁移
+
+默认只启动 PostgreSQL、Redis 和 MinIO，并且端口只绑定 `127.0.0.1`：
+
+```powershell
+$composeFile = 'infra/compose/compose.yaml'
+docker compose --env-file '.env' -f $composeFile config --quiet
+docker compose --env-file '.env' -f $composeFile up -d --wait postgres redis minio
+docker compose --env-file '.env' -f $composeFile ps
+```
+
+需要时按职责启用可选 profile：
+
+```powershell
+docker compose --env-file '.env' -f $composeFile --profile tools up -d --wait
+docker compose --env-file '.env' -f $composeFile --profile vector up -d --wait
+docker compose --env-file '.env' -f $composeFile --profile search up -d --wait
+docker compose --env-file '.env' -f $composeFile --profile observability up -d --wait
+```
+
+创建或升级正式表结构只能使用 Alembic：
+
+```powershell
+uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini heads
+uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head
+uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini current
+```
+
+正常停止使用 `docker compose --env-file '.env' -f $composeFile down`。不要随意加 `--volumes`，它会删除本地持久数据。
+
+## 启动应用与后台进程
+
+每条长运行命令各占一个 PowerShell 终端，并从仓库根目录执行：
+
+```powershell
+uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-api
+```
+
+```powershell
+uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-outbox-dispatcher
+```
+
+```powershell
+uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-celery-worker
+```
+
+```powershell
+uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-job-reconciler
+```
+
+```powershell
+uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-celery-beat
+```
+
+Beat 只通过 PostgreSQL 创建持久 ScheduleOccurrence、Job 和 Outbox；真正发布由 Dispatcher 完成，Worker 执行任务，Reconciler 修复未启动或 lease 过期的 Job。
+
+启动 Web：
 
 ```powershell
 pnpm run dev:web
 ```
 
-终端会显示实际访问地址，默认通常是 `http://127.0.0.1:5173/`。保持该终端运行；按 `Ctrl+C` 停止。
+浏览器打开 `https://localhost:5173`。本地证书由 Vite 生成，浏览器首次访问会提示确认自签名证书。Web 将 `/api` 代理到 `http://127.0.0.1:8000`。
 
-验证生产构建：
-
-```powershell
-pnpm run build
-pnpm run preview:web
-```
-
-默认预览地址通常是 `http://127.0.0.1:4173/`。不要双击 `apps/web/dist/index.html` 直接用 `file://` 打开：Vite 构建产物需要 HTTP Server 正确提供模块和资源路径。
-
-## 质量检查
-
-### Python
+API 基本检查：
 
 ```powershell
-uv sync --locked --all-packages
-uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend
-uv run --locked --all-packages ruff check --config pyproject.toml apps/backend
-uv run --locked --all-packages mypy --config-file pyproject.toml
-uv run --locked --all-packages pytest
-uv build --package industry-platform-backend
-uv audit --locked
+Invoke-RestMethod 'http://127.0.0.1:8000/health/live'
+Invoke-RestMethod 'http://127.0.0.1:8000/health/ready'
 ```
 
-### Web
+交互式 API 文档位于 `http://127.0.0.1:8000/docs`。
+
+## OpenAPI 契约
+
+OpenAPI 是后端与前端的唯一 DTO 来源。生成物是 `packages/api-contract/openapi.json` 和 `packages/api-contract/src/schema.d.ts`：
 
 ```powershell
-pnpm install --frozen-lockfile
-pnpm run format:check
-pnpm run lint
-pnpm run typecheck
-pnpm run test
-pnpm run build
-pnpm audit --audit-level high
-pnpm run test:e2e
+pnpm run api:generate
+pnpm run api:check
 ```
 
-`pnpm run test:e2e` 会构建 Web、启动 Vite preview、让 Chromium 访问生产构建并在结束后关闭测试服务器。失败产物位于被 Git 忽略的 `playwright-report/` 和 `test-results/`。
+修改 FastAPI schema 后先运行 `api:generate` 并评审生成 diff；CI 使用 `api:check` 阻止生成物漂移。
 
-### 密钥扫描
+## 统一验证
+
+先保持 PostgreSQL、Redis 和 MinIO 运行。以下是一组完整的本地收口命令；不要只挑绿色的子集代替完整验证：
 
 ```powershell
-gitleaks dir --redact --verbose .
-gitleaks git --redact --verbose --log-opts='--all' .
+$ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
+$env:POSTGRES_TESTS_REQUIRED = '1'
+$env:REDIS_TESTS_REQUIRED = '1'
+
+try {
+    uv sync --locked --all-packages
+    uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend
+    uv run --locked --all-packages ruff check --config pyproject.toml apps/backend
+    uv run --locked --all-packages mypy --config-file pyproject.toml --no-incremental
+    uv run --env-file '.env' --locked --all-packages pytest
+    uv build --package industry-platform-backend
+    uv audit --locked
+
+    pnpm install --frozen-lockfile
+    pnpm run api:check
+    pnpm run format:check
+    pnpm run lint
+    pnpm run typecheck
+    pnpm run test
+    pnpm run build
+    pnpm audit --audit-level high
+    pnpm run test:e2e
+
+    gitleaks dir --redact --verbose apps
+    gitleaks dir --redact --verbose packages
+    gitleaks dir --redact --verbose docs
+    gitleaks dir --redact --verbose .github
+    gitleaks dir --redact --verbose infra
+    gitleaks dir --redact --verbose .env.example
+    gitleaks dir --redact --verbose package.json
+    gitleaks dir --redact --verbose pnpm-workspace.yaml
+    gitleaks dir --redact --verbose pyproject.toml
+    gitleaks dir --redact --verbose playwright.config.ts
+    gitleaks git --redact --verbose --log-opts='--all' .
+    git diff --check
+    git diff --cached --check
+    git status --short
+}
+finally {
+    Remove-Item Env:POSTGRES_TESTS_REQUIRED -ErrorAction SilentlyContinue
+    Remove-Item Env:REDIS_TESTS_REQUIRED -ErrorAction SilentlyContinue
+}
 ```
 
-第一条检查当前目录，第二条检查完整 Git 历史；两者不能互相替代。
+本 README 记录的是实现与验证方法，不是一次已执行门禁的替代品。只有上述适用门禁和干净 CI 实际通过后，`implemented_pending_verification` 才能按能力矩阵的 Definition of Done 复核为 `complete`。即使代码门禁全部通过，D1-09 也必须等 6 组参考仓凭据完成 Provider 侧处置和复扫才能关闭。
 
 ## 常见问题
 
-### `uv` 指向了临时 OpenLoomi 目录
-
-先检查：
-
-```powershell
-Get-Command uv -All | Select-Object Name, Source
-where.exe uv
-uv --version
-```
-
-本项目预期使用当前用户稳定安装目录 `$env:USERPROFILE\.local\bin\uv.exe` 中的 0.11.32。若第一项不是它，应先修正 PowerShell 启动后的 PATH，再运行项目命令；不要在项目脚本中硬编码个人绝对路径。
-
-### PowerShell 同时显示 Conda 和项目虚拟环境
-
-uv 不要求激活环境。可以先执行 `deactivate` 和 `conda deactivate`，然后直接使用正常的 `uv ...` 命令。`.venv` 仍由 uv 管理。
-
-### Playwright 提示没有浏览器
-
-执行：
-
-```powershell
-pnpm exec playwright install chromium
-```
-
-### 如何判断当前工作区是否干净
-
-```powershell
-git status --short
-git diff --check
-```
-
-不要在不了解目标文件的情况下使用 `git reset --hard` 或删除整个目录。当前生成的 `dist/`、测试报告、缓存和虚拟环境均由 `.gitignore` 排除。
+- uv 不要求激活虚拟环境；若 Conda 干扰 PATH，可先退出 Conda，再直接运行 `uv ...`。
+- Playwright 缺 Chromium 时运行 `pnpm exec playwright install chromium`。
+- 分路径运行的 `gitleaks dir` 检查当前受控源码与配置，`gitleaks git --log-opts='--all'` 检查完整历史，两者不能互相替代。不要对仓库根目录直接运行 `gitleaks dir ... .`，因为它会扫描被 Git 忽略且本来就应包含本地密钥的真实 `.env`，从而产生无意义告警并把敏感文件带入扫描输出。
+- 不要用 `git reset --hard` 或删除整个工作区处理未知改动；先用 `git status --short` 和 `git diff` 确认归属。

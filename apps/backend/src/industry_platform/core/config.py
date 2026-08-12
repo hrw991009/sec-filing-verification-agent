@@ -40,6 +40,7 @@ _CANONICAL_SESSION_TOKEN_HMAC_KEY_PATTERN = re.compile(
 )
 _CANONICAL_ED25519_KEY_PATTERN = re.compile(rf"^[A-Za-z0-9_-]{{{ED25519_KEY_TEXT_LENGTH}}}$")
 _ACCESS_KEY_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+_QUEUE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _INVALID_HMAC_CONFIGURATION_MESSAGE = (
     "Authentication HMAC key must be canonical unpadded base64url for 32 bytes"
 )
@@ -255,6 +256,36 @@ class Settings(BaseSettings):
         Field(ge=1, le=86_400),
     ] = 300
 
+    celery_broker_redis_db: Annotated[int, Field(ge=0, le=15)] = 1
+    celery_worker_prefetch_multiplier: Annotated[int, Field(ge=1, le=16)] = 1
+    celery_broker_visibility_timeout_seconds: Annotated[
+        int,
+        Field(ge=3_600, le=3_600),
+    ] = 3_600
+    job_default_queue: Annotated[
+        str,
+        Field(pattern=_QUEUE_NAME_PATTERN.pattern),
+    ] = "default"
+    job_lease_seconds: Annotated[int, Field(ge=10, le=86_400)] = 120
+    job_heartbeat_seconds: Annotated[int, Field(ge=1, le=3_600)] = 30
+    job_unstarted_timeout_seconds: Annotated[int, Field(ge=10, le=3_600)] = 300
+    job_default_soft_time_limit_seconds: Annotated[
+        int,
+        Field(ge=1, le=1_799),
+    ] = 1_500
+    job_default_hard_time_limit_seconds: Annotated[
+        int,
+        Field(ge=2, le=1_800),
+    ] = 1_800
+    job_dispatch_batch_size: Annotated[int, Field(ge=1, le=1_000)] = 100
+    job_reconcile_batch_size: Annotated[int, Field(ge=1, le=1_000)] = 100
+    outbox_claim_seconds: Annotated[int, Field(ge=10, le=3_600)] = 60
+    outbox_dispatch_batch_size: Annotated[int, Field(ge=1, le=1_000)] = 100
+    scheduler_scan_interval_seconds: Annotated[
+        int,
+        Field(ge=1, le=300),
+    ] = 15
+
     @field_validator(
         "refresh_token_hmac_key",
         "csrf_token_hmac_key",
@@ -304,6 +335,24 @@ class Settings(BaseSettings):
 
         if total_memory_kib > MAX_ARGON2_PROCESS_MEMORY_KIB:
             raise ValueError("Argon2 process memory budget exceeds the allowed maximum")
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_reliable_job_timing(self) -> Self:
+        """Keep heartbeat and broker redelivery windows outside the job lease."""
+
+        if self.job_heartbeat_seconds >= self.job_lease_seconds:
+            raise ValueError("Job heartbeat interval must be shorter than its lease")
+
+        if self.job_default_soft_time_limit_seconds >= self.job_default_hard_time_limit_seconds:
+            raise ValueError("Job soft time limit must be shorter than its hard limit")
+
+        if (
+            self.celery_broker_visibility_timeout_seconds
+            <= self.job_default_hard_time_limit_seconds
+        ):
+            raise ValueError("Celery visibility timeout must exceed the hard time limit")
 
         return self
 

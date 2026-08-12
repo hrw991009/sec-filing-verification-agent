@@ -4,11 +4,12 @@ from datetime import UTC, datetime
 
 from fastapi import Response
 
-from industry_platform.modules.identity.domain import EstablishedLoginSession
+from industry_platform.modules.identity.domain import EstablishedLoginSession, RefreshedSession
 
 REFRESH_COOKIE_NAME = "__Host-iip_refresh"
 CSRF_COOKIE_NAME = "__Host-iip_csrf"
 DEVICE_COOKIE_NAME = "__Host-iip_device"
+CSRF_PROOF_HEADER_NAME = "X-CSRF-Token"
 
 
 def _max_age_seconds(*, issued_at: datetime, expires_at: datetime) -> int:
@@ -75,4 +76,55 @@ def set_login_cookies(response: Response, result: EstablishedLoginSession) -> No
         expires_at=result.session.absolute_expires_at,
         max_age=absolute_max_age,
         httponly=True,
+    )
+
+
+def set_refresh_cookies(response: Response, result: RefreshedSession) -> None:
+    """Publish the rotated Refresh and CSRF pair while preserving the device Cookie."""
+
+    idle_max_age = _max_age_seconds(
+        issued_at=result.session.issued_at,
+        expires_at=result.session.idle_expires_at,
+    )
+    _set_cookie(
+        response,
+        name=REFRESH_COOKIE_NAME,
+        value=result.refresh_token.reveal_for_transport(),
+        expires_at=result.session.idle_expires_at,
+        max_age=idle_max_age,
+        httponly=True,
+    )
+    _set_cookie(
+        response,
+        name=CSRF_COOKIE_NAME,
+        value=result.csrf_token.reveal_for_transport(),
+        expires_at=result.session.idle_expires_at,
+        max_age=idle_max_age,
+        httponly=False,
+    )
+
+
+def clear_session_cookies(response: Response) -> None:
+    """Expire every browser session Cookie after definitive session termination."""
+
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME,
+        path="/",
+        secure=True,
+        httponly=True,
+        samesite="strict",
+    )
+    response.delete_cookie(
+        key=CSRF_COOKIE_NAME,
+        path="/",
+        secure=True,
+        httponly=False,
+        samesite="strict",
+    )
+    response.delete_cookie(
+        key=DEVICE_COOKIE_NAME,
+        path="/",
+        secure=True,
+        httponly=True,
+        samesite="strict",
     )

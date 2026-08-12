@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-03
+> 更新日期：2026-08-12
 >
 > 权威来源：`docs/master-plan.md`
 
@@ -129,10 +129,10 @@ Deep Research 使用 LangGraph 建立一个正式 typed graph，支持计划、�
 |---|---|---|
 | Day 1 | 工程地基、身份、Workspace、基础设施、健康检查、CI | 注册登录与跨 Workspace 负向测试通过 |
 | Day 2 | 可恢复的流式聊天和会话管理 | 流式回答、停止、重试、刷新和删除闭环 |
-| Day 3 | 多知识库、私有文件和异步入库 | PDF 进入 ready，失败可解释、可重试 |
-| Day 4 | 混合 RAG、多模态 Evidence 和 Citation | 引用可解析、跨租户召回为零 |
-| Day 5 | Tool Registry、行业数据和安全 Text2SQL | 高危 SQL 全部拒绝，外部来源可追溯 |
-| Day 6 | 用户可控记忆和可恢复 Research | Worker 中断后可以从 Checkpoint 恢复 |
+| Day 3 | Tool Registry、行业数据和安全 Text2SQL | 高危 SQL 全部拒绝，外部来源可追溯 |
+| Day 4 | 用户可控记忆和可恢复 Research | Worker 中断后可以从 Checkpoint 恢复 |
+| Day 5 | 多知识库、私有文件和异步入库 | PDF 进入 ready，失败可解释、可重试 |
+| Day 6 | 混合 RAG、多模态 Evidence 和 Citation | 引用可解析、跨租户召回为零 |
 | Day 7 | 全链路集成、评测、安全、可观测和发布 | 完整用户路径、迁移、CI 和密钥扫描全绿 |
 
 任何一天的门禁没有通过，计划必须顺延，不能通过删除测试、放宽权限、伪造数据或跳过迁移来赶进度。
@@ -159,9 +159,9 @@ Day 1 未满足完整用户路径前，不能进入 Day 2。
 
 ### 6.1 功能完整性与诚实状态
 
-每项能力必须登记为 `complete`、`thin_slice`、`contract_only`、`blocked` 或 `planned`，禁止用模糊百分比表示完成度。这些状态描述当前事实进度，不是“高质量、低质量”的等级。
+每项能力必须登记为 `complete`、`implemented_pending_verification`、`thin_slice`、`contract_only`、`blocked` 或 `planned`，禁止用模糊百分比表示完成度。这些状态描述当前事实进度，不是“高质量、低质量”的等级。`implemented_pending_verification` 表示正式实现已经写入，但本轮适用的统一门禁、真实依赖验证或干净 CI 尚未全部实际通过；它不是 `complete` 的别名。
 
-七天验收时，矩阵中的每项目标都必须在预先冻结的范围内通过适用的安全、测试、失败、恢复、文档和兼容门禁，并标为 `complete`。任何矩阵目标仍为 `thin_slice`、`contract_only`、`blocked` 或 `planned`，都表示七天计划没有完成。
+七天验收时，矩阵中的每项目标都必须在预先冻结的范围内通过适用的安全、测试、失败、恢复、文档和兼容门禁，并标为 `complete`。任何矩阵目标仍为 `implemented_pending_verification`、`thin_slice`、`contract_only`、`blocked` 或 `planned`，都表示七天计划没有完成。
 
 面向用户的业务能力只有在具有真实旅程，并通过适用的后端行为、正常/空/失败/无权/取消或恢复 UI、持久化模型、权限与输入校验、测试、日志、错误码和文档门禁后，才可能标记为 `complete`。工程、文档和治理目标按其开发者/运维旅程逐项评审适用性，并记录 `N/A` 理由与复核人。空页面、硬编码数据、静默 Mock、孤立接口和没有证据的口头结论都不属于完成。
 
@@ -222,7 +222,7 @@ LLM 失效、Worker 重启、Redis、Elasticsearch 或 MinIO 故障、重复任�
 
 RAG、Agent 和性能相关功能必须进入可重复评测基线。至少评估召回、排序、Citation 可解析率、回答忠实度、拒答、跨租户隔离、延迟和费用。
 
-Day 7 的 Citation 可解析率必须为 100%，RAG 基线不得低于 Day 4；相对已接受基线下降超过 2 个百分点时门禁失败。七天目标所覆盖的文档、行业 Provider、Text2SQL 和 Research 场景必须进入黄金集、回归集、人工抽检和来源冲突检查。
+Day 7 的 Citation 可解析率必须为 100%，RAG 基线不得低于 Day 6；相对已接受基线下降超过 2 个百分点时门禁失败。七天目标所覆盖的文档、行业 Provider、Text2SQL 和 Research 场景必须进入黄金集、回归集、人工抽检和来源冲突检查。
 
 模型输出不是事实源。每个关键 Claim 必须能够回到用户有权访问的 Evidence；无法获得足够证据时，应明确拒答或表达不确定性，不能生成伪引用。
 
@@ -282,33 +282,19 @@ OpenAPI 是前后端唯一契约源；SSE 信封必须版本化并支持向前�
 
 ## 8. 当前实现状态
 
-截至 2026-08-03，仓库已经完成：
+截至 2026-08-12，仓库已经写入以下 Day 1 正式实现：
 
-- 全新 Git 仓库和主计划版本控制；
-- Python、Node.js、uv 和 pnpm 精确版本约束；
-- uv workspace 和 pnpm workspace；
-- Python Ruff、mypy、pytest 和构建门禁；
-- 前端 Prettier、ESLint、TypeScript、Vitest 和 Vite 构建；
-- Playwright Chromium 生产构建冒烟测试；
-- Gitleaks 当前目录和完整历史扫描；
-- Python 与 Node 依赖漏洞扫描；
-- GitHub Actions 六项并行 CI；
-- React 工程展示页面。
+- 精确运行时、uv/pnpm workspace、锁文件、Python/Web/浏览器质量门和固定 SHA 的 GitHub Actions；
+- PostgreSQL、Redis、私有 MinIO 默认 Compose，以及 tools、vector、search、observability profiles；
+- FastAPI、Pydantic Settings、真实 `live/ready`、统一错误语义和 Alembic 迁移；
+- 注册、登录、`me`、修改密码、Logout、Ed25519 Access Token、Refresh/CSRF 轮换与恢复、登录限流；
+- 默认 Workspace、owner membership、四角色服务端策略、跨租户拒绝与最后 owner 保护；
+- React 身份旅程、内存 Access Token、统一 API Client 和由 OpenAPI 生成的 TypeScript 契约；
+- PostgreSQL Job/JobEvent/Outbox/Schedule/Occurrence、独立 Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler 和数据库驱动 Beat；
+- 对应的领域、HTTP、PostgreSQL、Redis、契约和真实浏览器测试代码。
 
-上述 Gitleaks 完成项只指新项目。两个参考仓的脱敏扫描已经发现待处置候选，证据见 [参考仓凭据暴露审计](security/credential-exposure-audit.md)；Provider 侧吊销/轮换尚未完成，因此 D1-09 当前仍为 `thin_slice`。
+这些实现尚未执行本轮最终统一 formatter、全量本地门禁和干净 CI，因此能力矩阵中的 D1-02～D1-08、D1-10～D1-12 均为 `implemented_pending_verification`。历史 CI 只证明当时提交的工程基线，不能替代当前工作树的复核。
 
-当前尚未完成：
+两个参考仓的脱敏扫描已经发现 6 组待处置候选，证据见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。Provider 侧吊销/轮换尚未完成且候选仍全部为 `open`，因此 D1-09 保持 `thin_slice`；即使当前代码门禁全绿，也不能虚假关闭这一外部安全门禁。
 
-- PostgreSQL、Redis、MinIO、Milvus 和 Elasticsearch Compose；
-- FastAPI 应用；
-- Outbox Dispatcher、Celery Worker/Beat、Job lease/fencing 和未启动/过期对账；
-- Alembic migration；
-- Pydantic Settings 和 `.env.example`；
-- `/health/live` 和 `/health/ready`；
-- 注册、登录、修改密码、Refresh/CSRF 轮换与响应恢复、Logout 和 `me`；
-- Workspace、membership、四角色动作矩阵和最后 owner 保护；
-- OpenAPI 类型生成；
-- 前端登录、注册和 Auth Guard；
-- 身份 E2E 和跨 Workspace 负向测试。
-
-因此，项目仍处于 Day 1 工程地基阶段，不能标记为可用产品，也不能进入 Day 2。
+聊天、知识库、RAG、行业工具、记忆与 Research 仍未实现。Day 1 只有在统一验证与新 CI 通过、并且 D1-09 的 6 组参考仓凭据完成 Provider 侧处置和复扫后，才能整体标为完成。

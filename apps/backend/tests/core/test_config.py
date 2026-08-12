@@ -63,6 +63,20 @@ VALID_ENVIRONMENT = {
     "LOGIN_RATE_LIMIT_IP_WINDOW_SECONDS": "300",
     "LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS": "5",
     "LOGIN_RATE_LIMIT_ACCOUNT_WINDOW_SECONDS": "300",
+    "CELERY_BROKER_REDIS_DB": "1",
+    "CELERY_WORKER_PREFETCH_MULTIPLIER": "1",
+    "CELERY_BROKER_VISIBILITY_TIMEOUT_SECONDS": "3600",
+    "JOB_DEFAULT_QUEUE": "default",
+    "JOB_LEASE_SECONDS": "120",
+    "JOB_HEARTBEAT_SECONDS": "30",
+    "JOB_UNSTARTED_TIMEOUT_SECONDS": "300",
+    "JOB_DEFAULT_SOFT_TIME_LIMIT_SECONDS": "1500",
+    "JOB_DEFAULT_HARD_TIME_LIMIT_SECONDS": "1800",
+    "JOB_DISPATCH_BATCH_SIZE": "100",
+    "JOB_RECONCILE_BATCH_SIZE": "100",
+    "OUTBOX_CLAIM_SECONDS": "60",
+    "OUTBOX_DISPATCH_BATCH_SIZE": "100",
+    "SCHEDULER_SCAN_INTERVAL_SECONDS": "15",
 }
 
 
@@ -103,6 +117,20 @@ def test_settings_load_and_convert_environment_values(
     assert settings.login_rate_limit_ip_window_seconds == 300
     assert settings.login_rate_limit_account_max_attempts == 5
     assert settings.login_rate_limit_account_window_seconds == 300
+    assert settings.celery_broker_redis_db == 1
+    assert settings.celery_worker_prefetch_multiplier == 1
+    assert settings.celery_broker_visibility_timeout_seconds == 3_600
+    assert settings.job_default_queue == "default"
+    assert settings.job_lease_seconds == 120
+    assert settings.job_heartbeat_seconds == 30
+    assert settings.job_unstarted_timeout_seconds == 300
+    assert settings.job_default_soft_time_limit_seconds == 1_500
+    assert settings.job_default_hard_time_limit_seconds == 1_800
+    assert settings.job_dispatch_batch_size == 100
+    assert settings.job_reconcile_batch_size == 100
+    assert settings.outbox_claim_seconds == 60
+    assert settings.outbox_dispatch_batch_size == 100
+    assert settings.scheduler_scan_interval_seconds == 15
 
 
 def test_settings_hide_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -164,6 +192,20 @@ def test_settings_reject_missing_required_value(
         ("LOGIN_RATE_LIMIT_IP_WINDOW_SECONDS", "86401"),
         ("LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS", "1001"),
         ("LOGIN_RATE_LIMIT_ACCOUNT_WINDOW_SECONDS", "0"),
+        ("CELERY_BROKER_REDIS_DB", "16"),
+        ("CELERY_WORKER_PREFETCH_MULTIPLIER", "0"),
+        ("CELERY_BROKER_VISIBILITY_TIMEOUT_SECONDS", "59"),
+        ("JOB_DEFAULT_QUEUE", "invalid queue"),
+        ("JOB_LEASE_SECONDS", "9"),
+        ("JOB_HEARTBEAT_SECONDS", "0"),
+        ("JOB_UNSTARTED_TIMEOUT_SECONDS", "3601"),
+        ("JOB_DEFAULT_SOFT_TIME_LIMIT_SECONDS", "1800"),
+        ("JOB_DEFAULT_HARD_TIME_LIMIT_SECONDS", "1801"),
+        ("JOB_DISPATCH_BATCH_SIZE", "1001"),
+        ("JOB_RECONCILE_BATCH_SIZE", "0"),
+        ("OUTBOX_CLAIM_SECONDS", "9"),
+        ("OUTBOX_DISPATCH_BATCH_SIZE", "1001"),
+        ("SCHEDULER_SCAN_INTERVAL_SECONDS", "301"),
         ("REFRESH_TOKEN_HMAC_KEY_B64", encode_key(b"x" * 31)),
         ("REFRESH_TOKEN_HMAC_KEY_B64", encode_key(b"x" * 33)),
         ("LOGIN_RATE_LIMIT_HMAC_KEY_B64", encode_key(b"x" * 31)),
@@ -358,4 +400,36 @@ def test_settings_reject_argon2_process_memory_overcommit(
     monkeypatch.setenv("ARGON2_MAX_CONCURRENCY", "2")
 
     with pytest.raises(ValidationError, match="Argon2 process memory budget"):
+        Settings(_env_file=None)
+
+
+def test_settings_reject_heartbeat_that_cannot_refresh_job_lease(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("JOB_LEASE_SECONDS", "30")
+    monkeypatch.setenv("JOB_HEARTBEAT_SECONDS", "30")
+
+    with pytest.raises(ValidationError, match="heartbeat interval"):
+        Settings(_env_file=None)
+
+
+def test_settings_reject_broker_redelivery_inside_active_job_lease(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("CELERY_BROKER_VISIBILITY_TIMEOUT_SECONDS", "3599")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_settings_require_soft_limit_before_hard_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("JOB_DEFAULT_SOFT_TIME_LIMIT_SECONDS", "1500")
+    monkeypatch.setenv("JOB_DEFAULT_HARD_TIME_LIMIT_SECONDS", "1500")
+
+    with pytest.raises(ValidationError, match="soft time limit"):
         Settings(_env_file=None)

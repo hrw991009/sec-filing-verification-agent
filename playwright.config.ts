@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:4173";
+const baseURL = "https://localhost:5173";
 
 export default defineConfig({
   expect: {
@@ -14,6 +14,7 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        ignoreHTTPSErrors: true,
       },
     },
   ],
@@ -28,12 +29,24 @@ export default defineConfig({
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
-  webServer: {
-    command: "pnpm --filter @industry-platform/web run build && pnpm run preview:web",
-    reuseExistingServer: false,
-    stderr: "pipe",
-    stdout: "pipe",
-    timeout: 120_000,
-    url: baseURL,
-  },
+  webServer: [
+    {
+      command:
+        "uv run --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head && uv run --package industry-platform-backend industry-platform-api",
+      reuseExistingServer: process.env.CI !== "true",
+      stderr: "pipe",
+      stdout: "pipe",
+      timeout: 120_000,
+      url: "http://127.0.0.1:8000/health/live",
+    },
+    {
+      command: "pnpm --filter @industry-platform/web run dev",
+      ignoreHTTPSErrors: true,
+      reuseExistingServer: process.env.CI !== "true",
+      stderr: "pipe",
+      stdout: "pipe",
+      timeout: 120_000,
+      url: baseURL,
+    },
+  ],
 });

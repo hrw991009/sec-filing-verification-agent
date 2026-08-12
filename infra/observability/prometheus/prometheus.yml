@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  - job_name: jaeger
+    static_configs:
+      - targets: ["jaeger:8888"]
+
+  # This target is expected to be down when the vector profile is not running.
+  - job_name: milvus
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["milvus:9091"]

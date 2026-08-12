@@ -2,5 +2,21 @@
   "name": "@industry-platform/api-contract",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "generate": "openapi-typescript openapi.json --output src/schema.d.ts",
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  }
 }
