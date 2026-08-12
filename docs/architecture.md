@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-12
 >
-> 权威来源：`docs/master-plan.md`
+> 权威来源：`docs/master-plan.md` 1.7.0
 
 ## 1. 架构目标
 
@@ -19,9 +19,12 @@
 - 私有对象存储；
 - 可恢复异步任务；
 - 可重建向量和关键词索引；
+- 普通回答、Tool Use 与 Deep Research 共用统一 Agent Runtime；
+- Agent Harness 与 Evaluation Harness 复用同一生产执行语义；
 - 统一 Evidence 与 Citation；
 - 可替换外部 Provider；
 - 可恢复流式聊天与 Research；
+- 由正式 Event、Trace 与 Manifest 驱动的 Agent Learning Workbench；
 - 清晰模块边界；
 - 完整测试、安全和可观测门禁。
 
@@ -29,7 +32,7 @@
 
 ### 1.1 七天能力与成熟度边界
 
-七天阶段交付 `v0.1.0-learning-foundation`。它必须高质量完成能力矩阵从两个参考项目映射出的全部目标能力，并打通规定的完整用户路径，但不宣称已经达到生产级成熟度。
+七天阶段交付 `v0.1.0-agent-learning-foundation`。它必须高质量完成能力矩阵从两个参考项目映射出的全部目标能力，并打通规定的完整用户路径，但不宣称已经达到生产级成熟度。
 
 这里必须区分“能力广度”和“实现质量”：
 
@@ -62,25 +65,40 @@
 flowchart TB
   Browser[浏览器] --> Web[React Web]
   Web -->|REST / fetch-SSE| API[FastAPI API]
+  Web --> Workbench[Agent Learning Workbench]
+  Workbench -->|同一 REST / fetch-SSE 契约| API
 
   Browser -. 私有预签名上传 .-> MinIO[(MinIO)]
 
-  API --> PostgreSQL[(PostgreSQL)]
-  API --> Redis[(Redis)]
-  API --> MinIO
+  API --> App[Application Service]
+  Worker[Celery Worker] --> App
+  App --> PostgreSQL[(PostgreSQL)]
+  App --> Redis[(Redis)]
+  App --> MinIO
+
+  App --> Harness[Agent Harness]
+  Harness --> Runtime[Agent Runtime]
+  Runtime --> ModelPort[Model Provider Port]
+  Runtime --> ToolExecutor[Tool Registry / Executor]
+  ToolExecutor --> App
+  ModelPort --> Providers[外部 LLM Provider]
 
   Dispatcher[Outbox Dispatcher] --> PostgreSQL
   Dispatcher --> Redis
 
   Beat[Celery Beat] -->|调用同一 Application Service<br/>写 ScheduleOccurrence、Run、Job、Outbox| PostgreSQL
-  Redis --> Worker[Celery Worker]
+  Redis --> Worker
 
   Worker --> PostgreSQL
   Worker --> Redis
   Worker --> MinIO
   Worker --> Milvus[(Milvus)]
   Worker --> Elasticsearch[(Elasticsearch)]
-  Worker --> Providers[外部 AI、搜索和数据 Provider]
+  Worker --> AdapterPorts[Parser / Embedding / Vector / Lexical / Connector Ports]
+  AdapterPorts --> ProvidersAll[外部 Embedding、搜索和数据 Provider]
+  AdapterPorts --> Milvus
+  AdapterPorts --> Elasticsearch
+  AdapterPorts --> MinIO
 
   API -. 查询可重建索引 .-> Milvus
   API -. 查询可重建索引 .-> Elasticsearch
@@ -112,6 +130,9 @@ flowchart TB
 | 私有资产 | MinIO | 原文件、快照、图片、表格、页面和查询结果对象 |
 | 检索 | Milvus、Elasticsearch、RRF、可插拔 Reranker | Dense、BM25、融合、重排和调试排名 |
 | SQL 安全 | sqlglot | 完整 AST 解析、allowlist 和危险语句拒绝 |
+| Agent Runtime | 项目内统一执行层 | Run/Step/Event/State/Budget、model/tool loop、取消、终止、Checkpoint 与 Trace |
+| Agent Harness | 项目内组合层 | Instructions、Context Compiler、Tool/Skill、Memory、Knowledge/RAG、Approval、Artifact 与 Eval hook |
+| Evaluation Harness | 复用正式 Runtime/Harness | Scenario、Fake/Replay、Fault injection、Scorer、消融与回归报告 |
 | Research | LangGraph | 仅承载 Deep Research typed graph 与 Checkpoint |
 | 测试 | pytest、HTTPX、Testcontainers、Vitest、RTL、MSW、Playwright | 单元、组件、真实依赖、契约和关键浏览器旅程 |
 | 可观测 | JSON 日志、OpenTelemetry、Prometheus；Grafana/Tempo/Loki profile | 关联日志、指标、Trace、仪表盘和告警验证 |
@@ -124,8 +145,12 @@ flowchart TB
 |---|---|---|
 | React Web | 页面、路由、短期 UI 状态、服务端状态展示和 SSE 消费 | 不保存服务端业务事实，不持有供应商密钥 |
 | FastAPI API | 身份、权限、参数校验、事务、REST/SSE 契约和创建 Job | 不在请求中同步执行 OCR、Embedding、索引或 Research |
+| Application Service | 业务用例、WorkspaceScope、事务、Job/Outbox 原子创建和领域 Port 编排 | 不实现第二套 model/tool loop，不把 Router 或 Worker 当业务事实源 |
+| Agent Runtime | 统一推进 AgentRun/Step、typed State、model/tool loop、Event、Budget、取消、终止、Checkpoint 与 Trace | 不拥有业务权限规则，不直接依赖具体 Provider SDK、Router 或前端 |
+| Agent Harness | 组合可信 Instructions、Context、Tool/Skill、Memory、Knowledge/RAG、Guardrail、Approval、Artifact 与 Eval hook | 不另写生产执行器，不绕过 Runtime 调用模型或 Tool |
+| Evaluation Harness | 用同一 Runtime/Harness 执行 Scenario、Fake/Replay、Fault 与 Scorer | 不修改线上回答路径，不把 Fake 或 LLM judge 当真实质量证据 |
 | Outbox Dispatcher | 抢占 PostgreSQL Outbox、至少一次发布 Celery 消息、退避和持久 dead-letter | 不执行业务任务，不把“发布一次”当作可靠性保证 |
-| Celery Worker | 文档解析、Embedding、索引、LLM、Research、采集和评测 | 不建立第二套业务 Service |
+| Celery Worker | 调用正式 Application Service/Agent Runtime 承载文档解析、Embedding、索引、Agent Run、Research、采集和评测 | 不建立第二套业务 Service，不直接实现 model/tool 决策循环 |
 | Celery Beat | 计算到期计划，并调用与 API 相同的 Application Service；在单个 PostgreSQL 事务中幂等创建 ScheduleOccurrence、业务 Run、Job 和 Outbox | 不直接向 Redis/Celery 发布任务，不直接保存执行结果，不建立第二套调度业务逻辑 |
 | PostgreSQL | 用户、Workspace、业务资源、Job、Evidence 和最终状态 | 不承担大文件存储 |
 | Redis | Celery 队列、限流、缓存和短期流事件 | 不是业务事实源 |
@@ -165,10 +190,13 @@ scripts/                      生成、检查、对账和运维命令入口
 主要业务模块包括：
 
 - `identity`；
+- `agent_runtime`；
+- `agent_harness`；
 - `files`；
 - `knowledge`；
 - `ingestion`；
 - `retrieval`；
+- `context`；
 - `evidence`；
 - `conversation`；
 - `memory`；
@@ -190,10 +218,12 @@ identity ← 全部租户模块
 files ← knowledge / conversation / evidence
 knowledge ← ingestion / jobs / parser ports
 retrieval ← knowledge / vector / lexical / evidence
-conversation ← retrieval / memory / tools / evidence / LLM
-research ← retrieval / industry / data_explorer / evidence / tools / LLM
+agent_runtime → model/tool/checkpoint/trajectory ports / jobs / evidence
+agent_harness → agent_runtime / context / tools / memory / knowledge / retrieval / approval / evaluation ports
+conversation → agent_harness / evidence
+research → agent_harness / retrieval / industry / data_explorer / evidence
 industry ← jobs / evidence / connector ports
-evaluation → 只读观察 conversation / retrieval / research
+evaluation → agent_harness；只读观察 agent_runtime / conversation / retrieval / research
 ```
 
 必须遵守：
@@ -202,7 +232,11 @@ evaluation → 只读观察 conversation / retrieval / research
 - Service 通过 Repository 或 Port 工作；
 - Worker 复用相同 Service；
 - Provider SDK 只能出现在 `adapters/`；
+- 普通回答、Tool Use 和 Research 只能通过同一个 `AgentRuntime.run` 推进；
+- Harness 只组合 Runtime、Context、Tool、Memory、Knowledge/RAG、Approval 和 Eval hook，不实现第二套 loop；
 - `research` 不得导入具体 Milvus、Elasticsearch 或 MinIO SDK；
+- `research` 和 `conversation` 不得导入具体 Model Provider SDK，也不得直接调用 Provider Adapter；
+- LangGraph 节点调用统一 Runtime 或 Domain Port，不复制 Application Service、ToolExecutor 或 model/tool loop；
 - `conversation` 不得导入 Router；
 - `evaluation` 不得参与线上回答；
 - 每个 HTTP 请求、Celery task 和并发协程拥有独立 SQLAlchemy Session；
@@ -239,14 +273,16 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 文件与知识库 | `file_objects`、`knowledge_bases`、`documents`、`document_versions` | 文件对象私有；Document 指向唯一 current version；每个版本固定 parser/chunker 配置与状态 |
 | 解析资产 | `chunks`、`assets`、`chunk_asset_links`、`search_index_records` | Chunk 保留页码、标题路径、token、bbox 和内容哈希；资产保留图/表/page 类型与私有文件关系；索引外部 ID 唯一 |
 | 任务与投递 | `schedules`、`schedule_occurrences`、`jobs`、`job_events`、`outbox_events` | occurrence `(schedule_id, scheduled_for)` 唯一；Job 保存 dispatch/start、lease、fencing token、heartbeat 并是业务状态真相；事件序列单调；Outbox 具有抢占、尝试、下次投递与 dead-letter 状态 |
-| 会话与生成 | `chat_sessions`、`session_knowledge_bases`、`turns`、`messages`、`message_parts`、`message_attachments`、`generation_runs`、`message_feedback` | Turn 绑定客户端幂等 ID；Generation 与最终 Message 分离；搜索模式为 `none/web/local/both`；附件使用统一 FileObject |
+| 会话 | `chat_sessions`、`session_knowledge_bases`、`turns`、`messages`、`message_parts`、`message_attachments`、`message_feedback` | Turn 绑定客户端幂等 ID；搜索模式为 `none/web/local/both`；附件使用统一 FileObject；一个 Turn 可关联多个 AgentRun attempt，但只能选择一个当前正式结果 |
+| Agent 执行 | `agent_runs`、`agent_steps`、`agent_events`、`agent_checkpoints`、`run_artifacts`、`tool_calls`、`context_manifests` | 普通回答、Tool Use 与 Research 共用 Run/Step/Event/Checkpoint；sequence 单调、终态唯一、Budget/stop reason/version 完整；Context manifest 记录实际注入与裁剪决定 |
 | 证据与引用 | `evidence`、`message_citations` | locator 是版本化判别联合；Citation 必须指向真实 Evidence；读取底层资源时再次授权 |
-| 记忆 | `memories` | 保存来源、scope、kind、confidence、status、expires_at；候选、确认、停用和删除状态明确 |
-| Research | `research_runs`、`research_steps`、`research_checkpoints`、`research_reports`、`research_claims`、`claim_evidence` | Run 固定搜索模式、预算和版本；Checkpoint revision 唯一；关键 Claim 必须关联 Evidence |
+| 记忆 | `thread_memory_states`、`memories`、`memory_revisions` | Short-term 保存 Thread 消息引用、摘要、compaction revision 与 freshness；Long-term 当前投影和版本修订保存 provenance、scope、confidence、写入原因、策略/用户决定、停用、过期和删除 |
+| Research | `research_runs`、`research_plans`、`research_reports`、`research_claims`、`claim_evidence` | `research_runs.agent_run_id` 是统一执行事实的领域扩展；计划显式版本化；关键 Claim 关联 Evidence；不得再建立 research_steps/research_checkpoints 第二套执行历史 |
 | 证据图与图表 | `graph_nodes`、`graph_edges`、`chart_specs` | 图绑定 Research Run 并引用 Claim/Evidence/Entity；Chart 绑定 Query Run 或 Research Run，option 必须通过版本化 Schema |
 | 行业数据 | `industries`、`companies`、`data_sources`、`collection_runs`、`source_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots`、`metric_observations` | 公司与行业关系显式；指标带单位、观察时间、来源和口径；`(data_source_id, external_id)` 唯一；公共来源字段与领域字段分离；记录 URL、发布时间、采集时间、哈希和使用约束 |
 | 数据库与 SQL | `data_connections`、`schema_snapshots`、`query_runs` | 凭据只存 Secret 引用；allowlisted schema/table/column；同时保存 generated 与 validated SQL、预算、状态、行数和错误 |
-| 工具 | `tool_runs` | 保存调用者、权限、Schema 版本、脱敏输入/输出摘要、预算、耗时、来源、状态、错误码与 trace |
+| 工具 | `tool_calls`、`tool_runs` | `tool_calls` 是统一 AgentStep 下的执行事实；`tool_runs` 是可授权查询的业务审计投影，两者按唯一 ID 一对一关联，不各自推进状态；保存调用者、权限、Schema 版本、脱敏输入/输出摘要、预算、耗时、来源、状态、错误码与 trace |
+| Agent 评测 | `evaluation_cases`、`evaluation_results` | Case 固定 dataset/runtime/harness/model/prompt/context/toolset version、预算和夹具；Result 关联真实 AgentRun，并分别保存 trajectory/result/evidence/recovery、Token、费用和延迟评分 |
 
 统一采用 UUID、外键、数据库唯一约束和必要 check constraint。JSON 字段只能保存经过版本化 Schema 校验的扩展数据，不能用来逃避正式列、关系或 migration。
 
@@ -258,7 +294,7 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 会话 / 消息 / 附件 | 会话先进入删除状态；关联生成取消；仅在无其他引用时清理私有附件；消息不得只在前端隐藏 | 列表和详情不可见、流停止、刷新后仍删除、孤儿附件可被对账发现 |
 | 知识库 / 文档 / 版本 | 先标记 `deleting`，再清理 Milvus、Elasticsearch、MinIO 和缓存，最后进入 `deleted` | 任一外部删除失败可重试；旧索引不再召回；历史状态可解释 |
 | Memory | 删除立即从在线检索中过滤并失效缓存，再清理向量和持久内容 | 下一次回答不再使用；重复删除幂等；其他 Workspace 不受影响 |
-| Research / Checkpoint / Report | 取消运行后再删除派生 Checkpoint、图、图表和报告；共享 Evidence 按引用计数/所有权处理 | 删除后不能恢复该 Run；共享来源不被误删；外部副作用不重复 |
+| Agent Run / Research / Checkpoint / Report | 取消 AgentRun 后再删除该 Run 的统一 Checkpoint、Research 扩展、图、图表和报告；共享 Evidence 按引用计数/所有权处理 | 删除后不能恢复该 Run；共享来源不被误删；外部副作用不重复；不得遗留第二套 Research Checkpoint |
 | Evidence / Citation | Evidence 失效时 Citation 保留最小关系和原因，但不得继续暴露 excerpt、私有对象或签名 URL | 历史回答显示“来源已失效”，而不是伪造仍可访问引用 |
 | 审计 | 只保存脱敏、最小化事件；不能由普通资源删除接口级联清空 | 安全事件仍可追踪，且不保留密码、Token、Cookie 或全文原文 |
 | Redis / Milvus / Elasticsearch | 它们是缓存或派生层；删除/版本变化必须主动失效，并由定时对账兜底 | 清空后可从 PostgreSQL/MinIO 重建，旧 Workspace 数据不再命中 |
@@ -295,10 +331,10 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 | 私有文件 | `/files/presign`、`/files/{id}/complete`、`/files/{id}/download-url` |
 | 知识库与文档 | `/knowledge-bases`、`/knowledge-bases/{id}/documents`、`/documents/{id}/chunks`、`assets`、`retry`、`reindex` |
 | 会话与附件 | `/sessions`、`/sessions/{id}/messages`、`turns`、`attachments`；会话支持标题、搜索模式和多知识库关系 |
-| 生成与 SSE | `/generations/{id}/events`、`cancel`、`retry` |
+| Agent Run 与 SSE | `/agent-runs`、`/agent-runs/{id}`、`events`、`cancel`、`resume`、`artifacts`、`trace`；重试创建可关联的新 AgentRun attempt，不篡改旧 Run |
 | 检索 | `/search/hybrid`、`/search/web`；调试响应区分 Dense、BM25、RRF 与 Rerank 排名和分数 |
 | 记忆 | `/memories`、`/memories/search`、`/memories/from-session`、`confirm`、`disable`；删除走正式资源接口 |
-| Research | `/research-runs`、`/research-runs/{id}/events`、`report`、`cancel`、`resume`、`checkpoints`、`graph`、`charts` |
+| Research | `/research-runs`、`/research-runs/{id}/report`、`graph`、`charts`；其 events/cancel/resume/checkpoints 若保留，只能是对应 `/agent-runs/{agent_run_id}` 的授权兼容视图 |
 | 行业情报 | `/industry/items`、`stats`、`collection-runs`、`collection-runs/{id}`；支持分类/地区/公告类型筛选和手动触发 |
 | 数据源状态 | `/data-sources`、`/data-sources/{id}/readiness`、`/schedules/status`；未配置返回 `PROVIDER_NOT_CONFIGURED` |
 | 数据库浏览 | `/data-connections`、`/data-connections/{id}/test`、`tables`、`tables/{name}/schema`、`rows` |
@@ -319,7 +355,7 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
   "sequence": 12,
   "occurred_at": "2026-07-23T10:00:00Z",
   "trace_id": "uuid",
-  "type": "generation.delta",
+  "type": "agent.model.delta",
   "payload": {}
 }
 ```
@@ -330,8 +366,8 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 
 ```text
 id: 12
-event: generation.delta
-data: {"schema_version":1,"stream_id":"uuid","sequence":12,"occurred_at":"2026-07-23T10:00:00Z","trace_id":"uuid","type":"generation.delta","payload":{}}
+event: agent.model.delta
+data: {"schema_version":1,"stream_id":"uuid","sequence":12,"occurred_at":"2026-07-23T10:00:00Z","trace_id":"uuid","type":"agent.model.delta","payload":{}}
 
 ```
 
@@ -342,25 +378,25 @@ Token delta 可以进入带 TTL 的 Redis Streams，但最终消息、引用、�
 主要事件族固定为：
 
 ```text
-generation.queued | started | retrieval.started | retrieval.completed
-generation.tool.started | tool.completed | citation | delta
-generation.completed | failed | cancelled
+agent.run.queued | started | paused | resumed | completed | failed | cancelled
+agent.step.started | completed | failed
+agent.model.started | delta | completed
+agent.tool.requested | approval_required | started | completed | failed
+agent.evidence.added | claim.updated | artifact.created | checkpoint.saved
 
 ingestion.accepted | stage.changed | progress | asset.created
 ingestion.completed | failed | cancelled
 
-research.started | plan.created | phase.changed | step.started
-research.source.found | claim.extracted | chart.created | section.delta
-research.checkpoint.saved | completed | failed | cancelled
-
 stream.snapshot | stream.reset_required
 ```
+
+`generation.*` 或 `research.*` 若为旧页面保留，只能由同一个 `agent_run_id`、同一 sequence 和同一持久 Event 派生为兼容视图；它们不能拥有独立状态机、事件表、游标或终态。Ingestion 不是 Agent loop，可以保留独立事件族，但仍复用统一 SSE 信封。
 
 每种 `type` 的 payload 都有版本化 Schema 和大小上限。Token、Cookie、完整 Prompt、全文文档和原图不得进入事件。心跳只维持连接并携带当前最后序号，不伪装成业务进度。
 
 ### 9.1 断线、续传与取消
 
-1. 浏览器断开或 `AbortController.abort()` 只关闭本次订阅，不自动取消 Generation、Ingestion 或 Research。
+1. 浏览器断开或 `AbortController.abort()` 只关闭本次订阅，不自动取消 AgentRun 或 Ingestion；Research 的执行状态属于其关联 AgentRun。
 2. 取消必须显式调用对应 `cancel` API；服务端写入 `cancel_requested_at`，Worker 在安全点协作式取消，并最终发出唯一 `cancelled` 终态。
 3. 客户端重连发送 `Last-Event-ID`。它必须是当前资源端点内已经观察到的非负十进制 sequence；`0` 表示从可用起点开始。语法非法返回 HTTP 400 与 `INVALID_STREAM_CURSOR`，大于当前已分配 sequence 返回 HTTP 409 与 `STREAM_CURSOR_AHEAD`。若 Redis 中仍有后续事件，服务端从下一 sequence 继续；客户端按 `(stream_id, sequence)` 去重。
 4. 客户端发现 sequence 缺口时停止拼接 delta，并请求恢复，不能猜测缺失文本。
@@ -422,20 +458,63 @@ cron 按 IANA timezone 解释，`scheduled_for` 一律保存 UTC。夏令时不�
 ```text
 浏览器提交 client_request_id、搜索模式、KB、附件和消息
 → API 规范化并检查 Workspace、KB、附件和工具权限
-→ 单个 PostgreSQL 事务创建/复用 Turn、用户 Message、Generation、Job、Outbox
-→ API 返回 202、generation_id 和 events_url
+→ 单个 PostgreSQL 事务创建/复用 Turn、用户 Message、AgentRun attempt、Job、Outbox
+→ API 返回 202、agent_run_id 和 events_url
 → Dispatcher 至少一次发布
-→ Worker 重新授权并按 none / web / local / both 执行检索与工具
-→ LLMProvider 产生 delta、Token/费用和稳定错误
+→ Worker 重新授权并调用同一 Application Service / AgentRuntime.run
+→ Harness 按 none / web / local / both 选择 DirectAnswer 或受控 Tool/Knowledge profile
+→ Runtime 经 ContextCompiler、ToolExecutor 和 ModelProvider 推进 Step/Event
 → Redis 发送短期事件，PostgreSQL 持久化 partial/final Message、Citation 和终态
 → 独立幂等步骤生成或更新会话自动标题
 ```
 
-`LLMProvider` 固定提供 `stream_chat`、`complete` 和 `embed`，统一模型标识、超时、重试分类、Token、费用和 Provider request ID。确定性 Fake Provider 只用于测试；正式配置缺失返回 `PROVIDER_NOT_CONFIGURED`。
+`ModelProvider` 固定提供 `stream` 和 `complete`，统一模型标识、超时、重试分类、Token、费用和 Provider request ID。`EmbeddingProvider` 是独立 Port，固定 provider/model、dimension、normalization、batch/timeout 与 index version；它在 Day 5 随 Agent Knowledge/Dense baseline 实现，不前置到 Day 2。两类确定性 Fake 只用于测试；正式配置缺失返回稳定的未配置错误。
 
-Message、Turn、Generation 和 Job 分工如下：Message 是用户可见内容，Turn 是一次用户输入及其响应关系，Generation 是可重试的具体模型执行，Job 是后台执行与恢复状态。同一 Turn 可以有多次 Generation，但只能有一个被选为当前回答；重试不能复制用户 Message。
+Message、Turn、AgentRun 和 Job 分工如下：Message 是用户可见内容，Turn 是一次用户输入及其响应关系，AgentRun 是可重试的正式模型/工具执行，Job 是后台投递、lease 与进程执行状态。同一 Turn 可以有多个可关联的 AgentRun attempt，但只能有一个被选为当前回答；重试创建新 Run，不复制用户 Message，也不篡改旧 Run。
 
-模型失败时保留用户输入、已生成部分内容、已确认 Citation、错误码和可重试状态。附件使用统一 FileObject 和 message attachment 关系；删除附件必须检查它是否仍被 Message、Document 或 Evidence 引用。搜索模式和当前行业必须写入 Turn/Generation 快照，确保刷新后能解释当时使用了什么上下文。
+模型或 Tool 失败时保留用户输入、已生成部分内容、已确认 Citation、错误码和可重试状态。附件使用统一 FileObject 和 message attachment 关系；删除附件必须检查它是否仍被 Message、Document 或 Evidence 引用。搜索模式、当前行业、KB 与 Harness profile 必须写入 Turn/AgentRun 快照，确保刷新后能解释当时使用了什么上下文。
+
+Day 2 只启用 `none` 的 L0 正式链路；Day 3 在同一 Runtime 上启用 `web` Tool profile；Day 5 在 Knowledge/Dense baseline 完成后启用 `local/both`。EmbeddingProvider 只在 Day 5 随 Agent Knowledge 实现；Hybrid RAG、BM25 查询、RRF、rerank 和多模态 Context 只在 Day 6 启用，任何未就绪模式都返回稳定 readiness 错误而不是 Mock 成功。
+
+### 10.3 Agent Runtime、Harness 与恢复语义
+
+生产入口固定为：
+
+```text
+Application Command
+→ Agent Harness 选择版本化 profile、Instructions、Context sources、Tool surface 与 Policy
+→ Agent Runtime 创建/恢复 AgentRun 和 typed State
+→ ContextCompiler 生成 ModelInput 与 Context manifest
+→ Model decision → validate action → ToolExecutor → normalized Observation
+→ 更新 State、Evidence/Claim/Artifact refs、Budget 与 Event
+→ final / paused / failed / cancelled / budget exhausted 等唯一 stop reason
+```
+
+Runtime、Harness、Checkpoint、Trace 与 Job 不得混用：
+
+- Runtime 决定一个 AgentRun 的下一步，并维护单调 Step/Event sequence、预算和唯一终态；
+- Harness 决定允许哪些 Context、Tool、Skill、Guardrail、Approval 与 Eval hook，但不另写 loop；
+- Job/Celery 决定代码在哪个进程可靠执行以及 lease/fencing/retry，不决定 Agent 下一步；
+- Checkpoint 是同一 Run 可恢复的版本化 State 快照，使用 optimistic revision/CAS；
+- Trace 是 Event、Context manifest、usage、Evidence 与脱敏决策摘要形成的可观测投影，不用于恢复；
+- Short/Long-term Memory 是可选择的 Context source，不是 Run Checkpoint。
+
+Day 2 冻结通用 Checkpoint envelope、schema version、CAS 与不兼容版本拒绝；Day 5 才把 LangGraph state 映射到统一 Agent Checkpoint，完成 interrupt/resume、ApprovalRequest/Decision、Worker hard stop 恢复和副作用账本。保存外部副作用时遵循“持久化意图与幂等键 → 执行 → 持久化结果”，resume 必须先检查既有结果。
+
+关键 Port 的方向固定为：
+
+```text
+AgentRuntime.run(command, runtime_context) -> AsyncIterator[AgentEvent]
+ContextCompiler.compile(run, step, sources) -> ModelInput + ContextManifest
+ToolRegistry.resolve(name, runtime_context) -> TypedTool
+ToolExecutor.execute(call, runtime_context) -> ToolResult
+ApprovalPolicy.evaluate(call, policy_context) -> allow | deny | interrupt
+CheckpointStore.save(run_id, expected_revision, state) -> Checkpoint
+CheckpointStore.load(run_id, revision | latest) -> Checkpoint
+TrajectoryRecorder.record(event)
+```
+
+`runtime_context` 由服务端认证与授权产生，包含 Principal、WorkspaceScope、能力、依赖、Budget 和 Secret 引用；它不能原样进入模型。`policy_context` 由可信 Runtime Context、Harness profile、Budget 和 Tool side-effect class 派生，模型不能提交或修改审批结果。
 
 ## 11. 文档入库流程
 
@@ -445,7 +524,7 @@ uploaded → queued → validating → parsing → extracting_assets
                                       ↘ retrying / failed / cancelled
 ```
 
-文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。
+文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Day 5 完成 vector/lexical 两类索引写入与 Dense 查询基线；Day 6 复用同一 Dense 链路，启用 BM25 查询、RRF 和 rerank。
 
 删除时先进入 deleting，由 Worker 清理索引和对象，最后进入 deleted。
 
@@ -482,6 +561,8 @@ uploaded → queued → validating → parsing → extracting_assets
 
 Dense Top K、BM25 Top K、RRF 参数、Rerank 数量和最终 Chunk 数量都只是初始实验参数，不能成为未经评测的永久常量。
 
+Context Compiler 按依赖演进但不提前实现 RAG：Day 2 的 v0 只编译 Instructions、用户问题、会话摘要和可信 Runtime Context 的安全投影；Day 3 的 v1 增加有界 Tool Observation；Day 4 增加 Short/Long-term Memory 与 Evidence manifest；Day 5 接入 Agent Knowledge/Dense baseline；Day 6 的 v2 才合并 Hybrid/Multimodal RAG、Memory、Tool Observation、Evidence 与 Artifact refs，并按来源、多样性和 Token 预算裁剪。
+
 PDF、Chunk、图片、表格、网页、SQL 结果、新闻、政策和行业数据统一表示为 Evidence。locator 统一表达页码、bbox、Chunk、网页段落、SQL 表和行范围或行业来源 ID。
 
 Message Citation 将 Message 与 Evidence 连接，并记录顺序和对应 Claim。
@@ -490,7 +571,7 @@ Message Citation 将 Message 与 Evidence 连接，并记录顺序和对应 Clai
 
 `/search/hybrid` 的授权调试响应必须分别提供 Dense、BM25、RRF 和 Rerank 的原始名次、分数、过滤原因、最终去重结果、命中的资产以及实际送入 VLM 的图片数量。调试数据仍受 Workspace 权限保护，不能返回其他租户候选或全文敏感内容。
 
-Day 6 建立 20 条黄金题：12 条可回答、4 条无答案、2 条表格、2 条图片；Day 7 扩展到至少 50 条。每个数据集版本固定文档版本、parser、chunker、embedding、reranker、Prompt、模型配置和可控 seed，并记录不能固定的 Provider 因素。
+Day 6 累计至少 40 条 Agent Scenario，其中冻结不少于 20 条 RAG 子集，覆盖可回答、无答案、表格、图片和多源冲突；类别可以交叠，但每条必须标注期望 Evidence、引用与拒答行为。Day 7 将全 Agent Scenario 扩展到至少 50 条。每个数据集版本固定文档版本、parser、chunker、embedding、reranker、Prompt、模型配置和可控 seed，并记录不能固定的 Provider 因素。
 
 评测必须自动比较 Dense、BM25、RRF 和 RRF + Reranker，至少输出：
 
@@ -543,15 +624,26 @@ SSRF 测试必须覆盖 localhost、IPv4/IPv6 私网、整数/十六进制/混�
 
 ### 15.1 用户可控记忆
 
-Memory 具有 `candidate → confirmed → disabled/deleted/expired` 生命周期。候选记忆必须保存来源 Message、置信度、scope 和原因；敏感、低置信或无明确价值的内容不能自动永久保存。
+Memory 分为两层，且都不同于当前 LLM Context、Run State 与 Checkpoint：
+
+- Short-term Memory 是 Thread 内消息引用、摘要、compaction revision、freshness 和 checkpointed thread state；ContextCompiler 按预算选择其中一部分并记录 manifest；
+- Long-term/User Memory 是跨 Thread 可检索的事实、偏好、目标或经验，具有 `candidate → confirmed → disabled/deleted/expired` 生命周期和版本修订。
+
+候选长期记忆必须保存 provenance/source ref、scope、confidence、write reason、策略/用户决定和版本；敏感、低置信或无明确价值的内容不能自动永久保存。短期内容不能未经明确决策自动提升为长期事实，Context compaction 也不等于写入 Memory。
 
 用户旅程固定为“会话菜单保存为记忆 → 生成候选摘要 → 用户确认或编辑 → 保存 → 后续回答说明使用了哪条记忆 → 停用或删除后立即不再召回”。删除先在 PostgreSQL 过滤并失效缓存/向量，再异步清理派生数据；下一次回答不得再次使用。
 
+召回必须按当前目标、Workspace/user scope、时效、冲突、重复、敏感度和 Token 预算筛选；实际包含或排除的 Memory 及原因进入 Context manifest。Memory Eval 分别测量 write accuracy、retrieval precision/utility、污染率、冲突处理、Token 成本、用户修改生效率和删除残留率；删除残留不为零属于 P0 回归。
+
 ### 15.2 Tool Registry
 
-每个 Tool 注册 `name`、版本、description、input/output Schema、required permission、timeout、预算、重试分类和 execute Port。模型只能从本次请求由服务端计算出的 allowlist 中选择 Tool，不能通过 Prompt 参数扩大权限、范围、费用或运行时间。
+每个 Tool 注册 `name`、版本、description、typed input/output Schema、capability、WorkspaceScope、timeout、cost class、side-effect class、approval policy、重试分类和 execute Port。Harness profile 计算本次 Tool surface，Runtime 校验结构化 Action，`ToolExecutor` Adapter 才能调用正式 Application Service；模型不能通过 Prompt 参数扩大权限、范围、费用、审批或运行时间。
 
 每次调用创建 Tool Run，记录调用者、Workspace、Schema 版本、脱敏输入/输出摘要、来源、状态、耗时、预算消耗、稳定错误码和 trace。模型看到的 Tool 结果仍是不可信输入。知识检索、Web、行业、股票、数据库 Schema、Text2SQL 和图表都复用这一条正式链路。
+
+Day 3 完成 L1 单工具与 L2 有界循环，停止条件至少包括 final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error 和 no_progress。Day 3 的 Approval 只执行基于可信 policy context 的静态 allow/deny，或发出 `approval_required` 并停止；Day 5 才持久化 ApprovalRequest/Decision，执行 interrupt/resume、allow/deny/timeout 和重复 decision 幂等。
+
+Tool Result 首先归一化为带来源、时间、locator 和 content hash 的 Observation/EvidenceCandidate。它只有在授权、规范化、去重和 locator 校验后才能提升为 Evidence；不可信 Tool/文档内容不能改变 Instructions、Tool allowlist、WorkspaceScope、Budget 或 Approval 结果。
 
 ### 15.3 行业上下文与外部数据
 
@@ -580,17 +672,36 @@ Beat 计算到期 occurrence，或授权用户手动触发
 
 ### 15.4 Deep Research、报告与证据图
 
+Deep Research 使用同一个 Agent Runtime 与 ToolExecutor，并按可评测复杂度逐层演进。Planner、Retriever、Analyst、Writer、Verifier 首先是同一 typed graph 中的节点职责，不自动等于多个 Agent。
+
+```text
+L3：clarify_scope → ResearchBrief → plan → research_loop
+    → normalize Observation/EvidenceCandidate → Evidence/Claim ledger → explainable draft
+
+L4：L3 + typed LangGraph state → unified Agent Checkpoint
+    → interrupt/Approval → resume → idempotent side effects
+
+L5：L4 + outline/draft → verify → bounded revise → finalize
+    → complete / partial / uncertain Report
+```
+
+七天执行顺序固定为：Day 4 完成 L3；Day 5 在 Agent Knowledge 与 Dense baseline 上完成 L4；Day 6 在 Hybrid/Multimodal RAG 与 Context Engine 上完成 L5。L6 specialist/handoff 不是硬指标，只有统一 Evaluation Harness 相对单图基线证明质量收益显著高于延迟、Token 和调试成本时才进入后续实验。
+
+`ResearchBrief` 显式保存原始问题、确认范围、排除项、完成标准和预算，Planner 不能静默改题。L3 的每个 Claim 标注 support/refute/uncertain、coverage 与 conflict，并关联真实 Evidence locator；Observation 不经规范化不能冒充 Evidence。
+
 Research 使用一个 typed `ResearchState`：
 
 ```text
-scope → plan → parallel_retrieve(knowledge/web/industry/sql)
-→ extract_claims → analyze → outline → write
-→ verify → revise（最多 N 次）→ finalize
+schema/run/scope/ResearchBrief/plan/current node/pending actions
+→ Evidence/Claim/Artifact refs → budget/step/revise counters
+→ approval/cancel/stop reason → sanitized error summary
 ```
 
-Checkpoint 保存到 PostgreSQL。每个节点结束后持久化 revision、输入/输出摘要、Evidence、Token、费用和耗时；恢复从最后成功节点继续。Research 必须限制最大步骤、并发、Token、费用、运行时间、revise 次数和 Tool allowlist。副作用在节点重试和 resume 时必须保持幂等。
+LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，不创建 research_steps/research_checkpoints 第二套执行事实。每个安全节点结束后持久化 revision、输入/输出摘要、Evidence、Token、费用和耗时；恢复从最后成功 Checkpoint 继续。Research 必须限制最大步骤、并发、Token、费用、运行时间、revise 次数和 Tool allowlist。副作用在节点重试和 resume 时必须保持幂等。
 
-前端提供研究步骤时间线，以及来源/搜索结果、证据图、图表、报告四类详情。Checkpoint 支持列表、详情、删除和完整 UI 状态恢复；用户可以审批继续、取消和恢复。章节草稿与最终报告必须区分，最终报告的每个关键 Claim 关联 Evidence。
+Verifier 按 Claim 支持度、Citation 可解析性、coverage、conflict 和未决问题执行可判定评分；revise 受次数、Budget 与 deadline 限制。支持不足、冲突未解决或依赖失败时必须输出 partial/uncertain，不能由 finalizer 或 UI 伪装为 complete。
+
+前端提供研究步骤时间线，以及来源/搜索结果、证据图、图表、报告详情。Checkpoint 支持列表、详情、删除和完整 UI 状态恢复；用户可以查看审批请求与决定、继续、取消和恢复。章节草稿与最终报告必须区分，最终报告的每个关键 Claim 关联 Evidence。
 
 系统只保存面向用户的结果、Evidence 和简短 reasoning summary，不保存或展示模型原始 chain-of-thought。
 
@@ -601,6 +712,25 @@ Checkpoint 保存到 PostgreSQL。每个节点结束后持久化 revision、输�
 SQL 必须经过 sqlglot 完整 AST 校验，只允许受控 SELECT 或 CTE；递归检查 CTE 和子查询，拒绝多语句、DML、DDL、COPY、CALL、危险函数、系统 schema 和越界标识符。执行时强制只读事务、statement timeout、最大返回行数、扫描预算和查询审计。
 
 Query Run 同时保存原始问题、generated SQL、validated SQL、schema snapshot、状态、行数、结果对象引用和稳定错误。数据库故障或校验失败必须明确失败，禁止回退模拟数据。图表只接受通过版本化 JSON Schema 和 allowlist 的 ECharts 配置，不执行模型代码。
+
+### 15.6 Evaluation Harness 与 Agent Learning Workbench
+
+Evaluation Harness 与生产流量调用同一个 Agent Runtime/Harness；测试只替换 Provider/Tool 等外部边界、注入故障和运行 Scorer，不建立测试专用 loop。`Scenario/EvalCase` 固定 input、runtime/harness/model/prompt/context/toolset version、available tools、Budget、expected stop reason、deterministic fixture refs、Scorer 和人工备注。Replay 只重放冻结的外部响应，不宣称真实模型确定。
+
+数据集按 Day 2 ≥5、Day 3 ≥10、Day 4 ≥20、Day 5 ≥30、Day 6 ≥40、Day 7 ≥50 累积。评分分为 trajectory、result、evidence 和 runtime recovery 四层，并分别覆盖 Tool 选择/参数、Memory precision/utility/污染/删除残留、Evidence/Claim/Citation、Knowledge/RAG、stop reason、恢复/副作用、Token、费用和延迟；LLM judge 只能作为辅助。
+
+Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
+
+1. Run/Context：Run/Step 时间线、Context source、裁剪原因、Budget、usage、stop reason；
+2. Tool：Action、参数校验、Observation、allow/deny/approval_required、成本和 Artifact；
+3. Memory：候选、确认、召回、冲突、修改、停用、删除和实际注入；
+4. Evidence/Claim：Observation→Evidence→Claim、support/refute/uncertain、coverage/conflict；
+5. Knowledge locator：Document version、页码、Chunk、bbox、图片、表格和入库阶段；
+6. Checkpoint/HITL：revision、状态差异、暂停原因、ApprovalRequest/Decision 和 resume；
+7. Retrieval/Citation：query rewrite、Dense/BM25、RRF/rerank、过滤、Context 选择和 Citation 反查；
+8. Report：Verifier、bounded revise、complete/partial/uncertain、Evidence/Claim/Artifact 导航。
+
+Workbench 不是第二事实源。刷新、中断和恢复后，它必须从正式 API/Event/Trace/Manifest 重建状态；不得维护只供展示的 Mock trajectory、Memory、Evidence、Checkpoint 或评分。复杂前端可以依据 typed contract 并行实现，但所有交互、错误状态、关联导航和 Playwright 门禁仍属于正式交付。
 
 ## 16. 健康检查与失败行为
 
@@ -617,6 +747,10 @@ Milvus、Elasticsearch、MinIO 和 Provider 的状态作为具体功能 readines
 日志必须遮蔽 Token、密码、Cookie、Secret 和文档敏感原文。
 
 ### 16.1 可观测与审计数据流
+
+每个 AgentRun 必须贯穿 `request_id → job_id → run_id → step sequence → tool_call/evidence/artifact`，并记录 runtime/harness/model/prompt/context/toolset version、Context manifest、Budget、usage、stop reason 与恢复结果。结构化日志、OpenTelemetry Trace 和 Workbench 读取同一组关联 ID，但不成为业务事实源；Checkpoint 仍只从 PostgreSQL 的版本化状态恢复。
+
+Trace 不保存完整 Prompt、全文私有材料、Secret 或原始 chain-of-thought。对模型和 Tool 决策只保存用户可见结果、Evidence/Artifact 引用、输入输出摘要、稳定错误码和足以评测的简短 reasoning summary。Token delta 可以保留在短期流中，关键 Step、审批、Checkpoint、Evidence、Artifact 和唯一终态必须持久化。
 
 API、Dispatcher、Worker 和 Beat 通过 OTLP 把脱敏 Trace 与指标发送到 OpenTelemetry Collector。Collector 导出 Prometheus 指标，并在 Compose profile 中把 Trace/日志送入 Tempo/Loki，由 Grafana 展示。Collector 或可视化组件不可用时不得阻断业务事实写入，但必须产生可见降级状态；应用不能把遥测缓存在无限内存队列。
 
@@ -666,18 +800,20 @@ Day 7 完整 Compose 包含反向代理、Web、API、Outbox Dispatcher、Worker
 
 测试分层如下：
 
-- 领域单元：权限策略、状态机、幂等、RRF、SQL AST、预算、Citation 和错误分类；
-- 组件：React loading/empty/error/forbidden/retry/cancelled/partial、表单、引用、股票卡片、图表和 Research Tab；
+- Agent 领域单元：Run/Step/Event sequence、唯一终态、typed State/schema、Budget/stop reason、Checkpoint CAS、Tool/Approval policy、Memory、Evidence/Claim、幂等、RRF、SQL AST、Citation 和错误分类；
+- Agent 集成：生产与 Harness 共用 Runtime、ContextCompiler/ToolExecutor/Memory/Knowledge-RAG 组合、LangGraph→统一 Checkpoint 映射、Worker hard stop、重复 resume、取消竞态和零重复副作用；
+- Harness 回归：Scenario/Fake/Replay/Fault、L0/L1/L2/L3/L4/L5、trajectory/result/evidence/runtime recovery 四层 Scorer，以及 Memory/RAG 消融；
+- 组件：React loading/empty/error/forbidden/retry/cancelled/partial/uncertain、表单、引用、股票卡片、图表和 Workbench 八面板；
 - 真实依赖集成：通过 Testcontainers/Compose 验证 PostgreSQL、Redis、MinIO、Milvus 和 Elasticsearch；
-- 契约：OpenAPI 生成 diff、SSE payload、Provider/Parser/Tool Adapter、错误码和未知事件兼容；
-- E2E：身份与跨租户、聊天断线/停止/重试、文档入库、RAG 引用、Text2SQL、Memory、Research 中断恢复和完整用户路径；
-- Evaluation：固定数据集比较检索、引用、忠实度、拒答、延迟和费用。
+- 契约：OpenAPI 生成 diff、`agent.*` SSE payload、Provider/Embedding/Parser/Tool Adapter、Context/Checkpoint schema、错误码和未知事件兼容；
+- E2E：身份与跨租户、聊天断线/停止/重试、文档入库、RAG 引用、Text2SQL、Memory、Research 中断/HITL/恢复、Workbench 关联导航和完整用户路径；
+- Evaluation：固定数据集比较 Tool、Memory、Evidence、Knowledge/RAG、Research、恢复、引用、忠实度、拒答、延迟、Token 和费用。
 
 PR 不调用真实付费 API；确定性 Fake Adapter 必须实现同一合同测试，真实 Adapter 在显式配置的集成任务中验证。Fake 只能用于测试，正式运行缺少 Provider 时返回未配置错误。
 
 CI 必须执行 format、lint、类型检查、单元/组件/集成/契约测试、前端 build、后端 build、fresh migration、OpenAPI diff、Gitleaks 当前树与完整历史、Semgrep、Python/Node 依赖扫描、第三方许可证/NOTICE/来源归属核对和镜像扫描。来源不明、许可证不兼容、缺少强制归属或修改说明属于阻断项。依赖安装使用锁文件，不在 CI 中自动修复或更新锁文件。
 
-Day 7 固定硬门禁还包括 Citation 可解析率 100%、跨租户泄漏 0、高危 SQL 拒绝 100%、无答案拒答率不低于 0.90、RAG 相对已接受基线下降不超过 2 个百分点，以及备份恢复和镜像回退演练成功。
+Day 7 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 覆盖率不低于 90%、Run 唯一终态、Tool schema/allowlist/Budget 不可绕过、重复副作用为 0、Memory 删除残留为 0、恢复场景成功率 100%、Citation 可解析率 100%、跨租户泄漏 0、高危 SQL 拒绝 100%、无答案拒答率不低于 0.90、RAG 相对已接受基线下降不超过 2 个百分点，以及备份恢复和镜像回退演练成功。
 
 ## 19. 架构决策记录
 
@@ -695,17 +831,25 @@ Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settin
 
 本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。正式表结构来自两份线性 Alembic migration；PostgreSQL 是身份、Workspace、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态。
 
-这些新增实现尚未执行本轮最终统一 formatter、全量本地门禁和干净 CI，因此 D1-02～D1-08、D1-10～D1-12 当前统一记为 `implemented_pending_verification`，不能提前写成 `complete`。历史 CI 只证明当时已提交的较小基线，不等价于验证当前工作树。
+Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-02～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
-新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能宣称 Day 1 整体完成。
+新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2～Day 6 的聊天、知识库、RAG、行业工具、记忆和 Research 尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2～Day 7 的 Agent Runtime/Harness、聊天、Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research、Evaluation Harness 与 Learning Workbench 尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 
 | 术语 | 在本项目中的简单含义 |
 |---|---|
 | Workspace | 一组用户和数据的隔离空间；它既是协作边界，也是权限边界 |
+| Agent Runtime | 普通回答、Tool Use 和 Research 共用的生产执行层；推进 Run/Step、State、Event、Budget、取消、终止与恢复 |
+| Agent Harness | 在 Runtime 上组合 Instructions、Context、Tool/Skill、Memory、Knowledge/RAG、Approval、Artifact 与 Eval hook 的工作环境；不另写 loop |
+| Evaluation Harness | 使用同一 Runtime/Harness 运行 Scenario、Fake/Replay、Fault 与 Scorer 的评测入口，不替代生产入口 |
+| Runtime Context | 服务端可信的 user、WorkspaceScope、依赖、能力、Budget 与 Secret 引用；不能原样序列化给模型 |
+| LLM Context | 某一次模型调用实际看到的有限输入窗口，由 ContextCompiler 按来源和预算生成 |
+| State | 同一个 AgentRun 内随 Step 演进的计划、消息、中间结果、Evidence/Artifact 引用和计数 |
+| Short-term Memory | 跨同一 Thread 的消息引用、摘要与 compaction 状态；不等于当前窗口，也不自动成为长期记忆 |
+| Long-term Memory | 跨 Thread 可检索、可确认、修改、停用和删除的用户事实、偏好、目标或经验 |
 | 元数据 | 描述数据的数据，例如文件名、大小、哈希、版本和状态；不是文件正文自身 |
 | Evidence | 系统中真实存在、可重新授权和定位的证据资源 |
 | Citation | 一条回答或 Claim 对某个 Evidence 的结构化引用关系 |
@@ -721,6 +865,10 @@ Day 2～Day 6 的聊天、知识库、RAG、行业工具、记忆和 Research �
 | 重新加载 | 索引只返回候选 ID 后，回 PostgreSQL 加载最新资源并重新做权限检查 |
 | Schema | 对数据字段、类型、必填项和允许值的正式约束，不是随意 JSON |
 | SSE | 服务端在一条 HTTP 连接上持续向浏览器发送有顺序的事件 |
-| Checkpoint | Research 在一个安全节点结束后保存的可恢复状态快照 |
+| Checkpoint | 一个 AgentRun 在安全边界保存的版本化 State 快照，用于继续同一次执行；不等于 Trace 或 Memory |
+| Trace | Event、Context manifest、usage、Evidence 和脱敏决策摘要形成的“实际发生了什么”的可观测投影；不用于恢复 |
+| Artifact | 普通 final message 之外的报告、表格、图表、文件或引用集等正式交付物 |
+| Eval | Scorer/Grader 在版本化 Dataset/Experiment 上对结果、轨迹、Evidence 与恢复赋分；不等于 Trace、测试或 Approval |
+| HITL | 高成本或有副作用步骤在持久中断后等待人类 allow/deny/timeout，并能跨刷新或 Worker 重启继续 |
 | live / ready | live 表示进程还活着；ready 表示关键依赖可用、当前可以安全接收流量 |
 | dead-letter | 多次投递或执行仍失败后保存的持久状态，供告警、检查和人工重放 |

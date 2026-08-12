@@ -2,11 +2,11 @@
 
 面向行业研究与企业知识工作的多模态行业智能工作台。
 
-当前状态：Day 1 的工程地基、身份与 Workspace 纵向切片已经实现，正在等待本轮统一质量门和干净 CI 复核，因此相关能力记为 `implemented_pending_verification`，而不是 `complete`。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；在 Provider 侧吊销/轮换并复扫前，不得复制或启用参考仓 Provider 配置。
+当前状态：Day 1 的新仓工程地基、身份与 Workspace、可靠异步底座、前端身份旅程和统一契约已经通过全量本地门禁与提交 `2c4e6e9` 的干净 CI，D1-01～D1-08、D1-10～D1-12 均为 `complete`。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 2 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
 
 ## 文档入口
 
-- [七天主计划](docs/master-plan.md)
+- [七天主计划 v1.7.0（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [七天目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -25,7 +25,7 @@
 - PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
-这不是 Day 2～Day 7 的业务产品。聊天、知识库、RAG、行业工具、记忆与 Research 仍按能力矩阵推进。
+Day 2～Day 7 的 Agent Runtime/Harness、Tool Use、Short/Long-term Memory、Deep Research、Agent Knowledge/RAG、Eval 与 Learning Workbench 尚未实现，后续严格按主计划和能力矩阵的单一正式链路推进。
 
 ## 执行基线与安装
 
@@ -244,7 +244,9 @@ finally {
 }
 ```
 
-本 README 记录的是实现与验证方法，不是一次已执行门禁的替代品。只有上述适用门禁和干净 CI 实际通过后，`implemented_pending_verification` 才能按能力矩阵的 Definition of Done 复核为 `complete`。即使代码门禁全部通过，D1-09 也必须等 6 组参考仓凭据完成 Provider 侧处置和复扫才能关闭。
+上述命令仍是后续变更必须重复执行的统一验证方法。Day 1 当前基线已在本地完整执行，并由提交 [`2c4e6e9`](https://github.com/hrw991009/industry-intelligence-platform/commit/2c4e6e92237584bbac2816577e1509286f08b14b) 的 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339) 在干净环境通过；D1-01～D1-08、D1-10～D1-12 已按能力矩阵复核为 `complete`。
+
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 7 发布标签。后续开发以 [七天主计划 v1.7.0](docs/master-plan.md) 为权威执行基线。
 
 ## 常见问题
 

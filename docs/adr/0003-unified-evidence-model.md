@@ -4,7 +4,9 @@
 >
 > 日期：2026-08-03
 >
-> 依据：`docs/master-plan.md` 第 2、5.2、5.3、5.4、6.4、11、12、13 节
+> 修订日期：2026-08-12
+>
+> 依据：`docs/master-plan.md` v1.7.0 第 2、5.1、5.2、5.4、5.5、6.4、6.7 与 Day 3～Day 6
 
 ## 背景
 
@@ -17,6 +19,21 @@
 ## 决定
 
 采用统一 Evidence 与 Citation 模型。
+
+外部 Tool、Knowledge/RAG、网页、文件、SQL 和行业 Adapter 的原始结果首先是 **Observation/EvidenceCandidate**，不是 Evidence。提升流程固定为：
+
+```text
+ToolResult / RetrievalResult / Parsed Asset
+→ Observation/EvidenceCandidate（不可信）
+→ Workspace/资源重新授权
+→ Schema 与 locator 校验
+→ 来源规范化、去重、版本与 content hash 固定
+→ 敏感内容最小化和许可检查
+→ Evidence Normalizer 决策
+→ active Evidence 或明确拒绝/失效结果
+```
+
+只有该流程成功后，候选才能被 Agent Context、Claim、Citation 或 Report 当作 Evidence。成为 Evidence 只表示它是可授权、可定位、可追溯的来源，不表示内容天然真实，也不能赋予它修改 Instructions、Tool allowlist、WorkspaceScope、Budget 或 Approval 的能力。
 
 ### Evidence
 
@@ -35,6 +52,8 @@ Evidence 表达一项可引用来源，至少包括：
 - `license_or_terms`；
 - `status`、`invalidated_at` 和 `invalidation_reason`；
 - 经过 Schema 校验的 `metadata`。
+- `origin_run_id`、`origin_step_id`，以及可选 `origin_tool_call_id`、`origin_observation_id`；
+- `normalizer_version`、`authorization_scope_snapshot` 和来源资源版本。
 
 `kind` 是受控枚举，至少覆盖 `document_text`、`document_image`、`document_table`、`web_snapshot`、`sql_result`、`news`、`policy`、`bidding` 和 `stock`。公共字段不得因为某个 Provider 缺失而改变语义，Provider 私有字段只能保留在 Adapter 原始快照或受控 metadata 中。
 
@@ -51,6 +70,8 @@ Evidence 表达一项可引用来源，至少包括：
 
 Evidence 可以引用 MinIO 中的私有来源快照，但只能保存 object key 关联，不能保存长期公开 URL。Canonical URL 用于标识来源，快照与 content hash 用于证明回答时实际看到的版本；来源更新必须创建新版本，不能静默改写旧 Evidence。
 
+Evidence lineage 必须能从 Evidence 反查产生它的 Observation、AgentRun/Step/ToolCall、Adapter/Parser/Retrieval 配置、来源资源版本、授权范围和规范化版本；也能从最终 Message/Report/Artifact 沿 Citation/Claim 反查 Evidence 与原始 locator。相同内容跨版本或跨 Workspace 不能仅凭 hash 合并为同一授权对象。
+
 Evidence 状态至少包括 `active`、`superseded`、`tombstoned` 和 `unavailable`。来源被删除、权限收回或许可不再允许展示时，历史 Citation 保留最小审计关系和失效原因，但不得继续返回敏感 excerpt、私有对象或可访问签名 URL。
 
 ### Message Citation
@@ -65,7 +86,9 @@ Evidence 状态至少包括 `active`、`superseded`、`tombstoned` 和 `unavaila
 
 Research 使用 `research_claims` 和 `claim_evidence` 表达结论、置信度、核验状态，以及 Evidence 对 Claim 的支持或反驳关系。
 
-`claim_evidence.relation` 只接受 `supports`、`refutes` 或 `context`，并保存核验状态和排序依据。报告中的每个关键 Claim 至少关联一项当前用户有权访问的 Evidence；证据不足或冲突未解决时必须明确标记，而不是生成伪确定结论。
+`claim_evidence.relation` 只接受 `supports`、`refutes` 或 `context`，并保存关系版本、核验状态、排序依据和创建该判断的 Run/Step。Claim 本身使用受控 `supported`、`refuted`、`uncertain`、`conflicted` 等 verification status 表达总体结论；`uncertain` 不是伪造一条 Evidence relation。报告中的每个关键 Claim 至少关联一项当前用户有权访问的 Evidence，或者明确标记 Evidence 缺失；证据不足或冲突未解决时必须标记 uncertain/conflicted，而不是生成伪确定结论。
+
+Claim、Evidence 与 Citation 的关系不能折叠：Evidence 是来源事实，Claim 是对来源作出的结构化陈述，`claim_evidence` 表达支持/反驳/上下文关系，Citation 则把用户可见 Message/Report 位置指向 Evidence。Verifier 按支持度、覆盖、冲突、locator 和 Citation 可解析性评分，但不能通过评价文风创造缺失的 Evidence。
 
 ### 证据图与图表
 
@@ -94,6 +117,7 @@ SQL 结果、来源快照和 excerpt 必须按数据连接与 Workspace 的敏�
 ### 收益
 
 - 聊天、RAG、Text2SQL、行业数据和 Research 共享一套引用模型；
+- Tool Observation 到 Evidence 的可信提升边界和端到端 lineage 可审计；
 - 前端可以使用统一引用组件展示文本、页码、图片、表格、网页和 SQL 来源；
 - Citation precision、Citation recall 和可解析率可以统一评测；
 - Research Report 的关键 Claim 可以追溯到具体 Evidence；
@@ -105,6 +129,7 @@ SQL 结果、来源快照和 excerpt 必须按数据连接与 Workspace 的敏�
 
 - `locator` 和 `metadata` 必须有正式 Schema 和版本策略，不能演变成无约束 JSON；
 - 不同来源的定位能力不同，Adapter 必须转换为统一语义；
+- Observation/EvidenceCandidate、Evidence、Claim 与 Citation 必须分别建模，增加了规范化与 lineage 维护成本；
 - 来源内容变化时需要区分 canonical URL、快照和内容哈希；
 - Evidence 删除或失效时，历史 Citation 需要明确状态，不能静默指向错误内容；
 - 多模态资产需要额外关联文件、页码和 bbox。
@@ -129,9 +154,19 @@ SQL 结果、来源快照和 excerpt 必须按数据连接与 Workspace 的敏�
 
 否决原因：模型可能产生不存在或无法解析的来源。所有 Citation 必须关联系统中真实存在且已授权的 Evidence。
 
+### 将 Tool Observation 或 Retrieval Result 直接写成 Evidence
+
+否决原因：原始结果可能越权、缺少 locator、重复、过期、包含恶意指令或依赖失败。必须经过授权、Schema/locator 校验、规范化、版本固定和敏感内容最小化。
+
+### 将 Claim 文本和 Citation 当作同一个字段
+
+否决原因：这样无法表达多个 Evidence 对同一 Claim 的支持/反驳、证据冲突、覆盖不足和一个 Evidence 支持多个 Claim，也无法做 trajectory/evidence 分层 Eval。
+
 ## 验证
 
 - 每个 Citation 都能反查到真实 Evidence；
+- 每个 Evidence 都能反查产生它的 Observation、Run/Step/ToolCall、来源版本与 normalizer version；
+- 未授权、locator 无效、来源版本缺失、依赖失败或许可不允许的 Observation 不得提升为 active Evidence；
 - Evidence 能定位到文档版本、页码、bbox、Chunk、资产、网页段落或 SQL 范围；
 - 每种 `kind` 缺少必填 locator 字段或出现禁止字段时，Schema 校验失败；
 - 生成后验证每个引用存在，禁止伪造来源；
@@ -139,6 +174,7 @@ SQL 结果、来源快照和 excerpt 必须按数据连接与 Workspace 的敏�
 - 删除、重建索引和来源变化后，Citation 状态仍可解释；
 - 失效 Evidence 不再返回 excerpt 或签名 URL，但历史 Citation 能说明失效原因；
 - 每个关键 Research Claim 都有关联 Evidence，证据图中的节点和边能反查正式资源；
+- `claim_evidence` 的 supports/refutes/context 与 Claim 的 supported/refuted/uncertain/conflicted 状态分别验证；冲突或缺证据不能被 finalizer 改写为确定结论；
 - 含函数、脚本、外链或超预算数据的 ECharts spec 被拒绝；
 - 小型评测集的 Citation 可解析率达到 100%；
 - 无答案问题证据不足时必须拒答。

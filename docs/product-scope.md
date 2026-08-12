@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-12
 >
-> 权威来源：`docs/master-plan.md`
+> 权威来源：`docs/master-plan.md` 1.7.0
 
 ## 1. 产品定位
 
@@ -23,7 +23,7 @@
 七天学习与开发阶段的目标版本为：
 
 ```text
-v0.1.0-learning-foundation
+v0.1.0-agent-learning-foundation
 ```
 
 该版本需要建立一条真实可运行的核心用户路径：
@@ -33,11 +33,13 @@ v0.1.0-learning-foundation
 → 选择知识库分别完成图片题与表格题 → 获得带页码、图片与表格引用的回答
 → 调用安全 Text2SQL 并查看图表 → 管理记忆
 → 发起 Research → 中断并恢复 → 查看带引用的报告和证据图
+→ 在 Agent Learning Workbench 反查 Context、Tool、Memory、Evidence、Checkpoint 与 Retrieval
+→ 比较 L0/L2/L3/L4/L5 以及 Memory/RAG 对照
 ```
 
 七天版本必须高质量完成能力矩阵从两个参考项目映射出的全部目标能力，并达到各自冻结的七天验收深度；它不宣称把这些能力的所有数据源、格式、规模和企业运行条件都打磨到生产级成熟度。
 
-七天结束时，身份与 Workspace、聊天、会话管理、附件、多知识库、异步文档入库、混合 RAG、多模态 Evidence、Citation、记忆、工具、行业数据、安全 Text2SQL、图表、Deep Research、报告和证据图等目标能力都不能缺席。
+七天结束时，Agent Runtime/Harness、Eval、Learning Workbench、身份与 Workspace、聊天、会话管理、附件、多知识库、异步文档入库、混合 RAG、多模态 Evidence、Citation、Short/Long-term Memory、工具、行业数据、安全 Text2SQL、图表、Deep Research、报告和证据图等目标能力都不能缺席。
 
 “冻结范围”表示七天产品主动限制能力的广度，例如冻结一组真实文档夹具、一个合规 Web Search Adapter、新闻/政策/招投标/股票各一个正式 Provider 契约与至少一个真实来源样例，或一个安全 Text2SQL 样例库；它不表示可以使用低质量代码、假数据、静默 Mock、缺失权限或跳过失败测试。冻结范围内的能力必须真实、完整、可测试、可恢复。
 
@@ -93,9 +95,11 @@ Workspace membership 使用 ADR 0006 冻结的 owner/admin/member/viewer 服务�
 
 ### 3.5 用户可控记忆
 
+Short-term Memory 保存 Thread 内的消息引用、摘要、compaction revision、freshness 和实际 Context 注入清单；它与当前模型窗口、Run State、Checkpoint 和 Long-term Memory 分开建模，不能未经决策自动提升为长期事实。
+
 记忆必须允许用户查看、确认、编辑、停用和删除，也必须允许用户关闭自动记忆功能。
 
-系统不能默认永久保存全部聊天，也不能保存原始 chain-of-thought。
+Long-term Memory 必须记录 provenance、scope、confidence、写入原因、策略或用户决定和版本修订。系统不能默认永久保存全部聊天，也不能保存原始 chain-of-thought；删除或停用后，后续 Context manifest 和回答不得继续引用该记忆。
 
 ### 3.6 工具与行业数据
 
@@ -119,23 +123,33 @@ Text2SQL 使用独立只读数据库账户，并限制允许访问的 schema、t
 
 Deep Research 使用 LangGraph 建立一个正式 typed graph，支持计划、多源检索、Claim 提取、分析、写作、核验、有上限的修改、Checkpoint、中断、恢复、取消和预算。
 
-研究报告的每个关键 Claim 必须关联 Evidence，并能从 Claim/Evidence 生成基础关系图和受校验的 ECharts 视图。用户可以查看研究时间线、来源、审批或继续、取消、恢复、报告和证据图。
+研究报告的每个关键 Claim 必须关联 Evidence，并能从 Claim/Evidence 生成基础关系图和受校验的 ECharts 视图。用户可以查看研究时间线、来源、审批请求、审批决定与继续执行、取消、恢复、报告和证据图。
 
 普通 CRUD、身份、普通聊天和文档入库不得为了“Agent 化”而使用 LangGraph。
+
+### 3.9 Agent Runtime、Harness、Eval 与学习型可视化
+
+普通回答、Tool Use 和 Deep Research 共用一套 Provider-neutral Agent Runtime，统一 `Run/Step/Event/State/Budget/stop reason`、Context manifest、Checkpoint 和 Trace。Agent Harness 在 Runtime 上组合 Instructions、Tool/Skill、Memory、Knowledge/RAG、Approval、Artifact 与 Eval hook，不建立第二套模型或工具循环。
+
+Evaluation Harness 使用同一 Runtime/Harness 执行版本化 Scenario、Fake/Replay、Fault injection 和 Scorer。数据集从 Day 2 起逐日累计，分别评价结果、轨迹、Evidence、Memory、Knowledge/RAG、恢复、Token、费用和延迟；Trace 记录执行事实，Eval 负责评分，两者不能互相冒充。
+
+Agent Learning Workbench 完整展示 Run/Context、Tool、Memory、Evidence/Claim、Knowledge locator、Checkpoint/HITL、Retrieval/Citation 和 Report。复杂前端可由独立前端实现工作流依据 OpenAPI、Event、Trace、Manifest 与状态契约并行交付，其编码工时不计入学习者的核心概念时段；页面、交互、真实数据链路和 Playwright 门禁仍属于正式产品范围。
 
 ## 4. 每日范围
 
 | 阶段 | 主要范围 | 核心门禁 |
 |---|---|---|
 | Day 1 | 工程地基、身份、Workspace、基础设施、健康检查、CI | 注册登录与跨 Workspace 负向测试通过 |
-| Day 2 | 可恢复的流式聊天和会话管理 | 流式回答、停止、重试、刷新和删除闭环 |
-| Day 3 | Tool Registry、行业数据和安全 Text2SQL | 高危 SQL 全部拒绝，外部来源可追溯 |
-| Day 4 | 用户可控记忆和可恢复 Research | Worker 中断后可以从 Checkpoint 恢复 |
-| Day 5 | 多知识库、私有文件和异步入库 | PDF 进入 ready，失败可解释、可重试 |
-| Day 6 | 混合 RAG、多模态 Evidence 和 Citation | 引用可解析、跨租户召回为零 |
-| Day 7 | 全链路集成、评测、安全、可观测和发布 | 完整用户路径、迁移、CI 和密钥扫描全绿 |
+| Day 2 | Agent Runtime v0、基础 Harness、流式直接回答与会话 | 唯一 Runtime、固定 Scenario、可恢复 SSE 与 Run/Context Trace 闭环 |
+| Day 3 | 有界 Tool Use、行业能力和 Text2SQL | Tool Schema/scope/预算不可绕过，真实来源与 Artifact 可追溯 |
+| Day 4 | Short/Long-term Memory、Evidence 与 Research L3 | Memory 全生命周期可治理；Claim/Evidence、coverage 和不确定项可解释 |
+| Day 5 | Agent Knowledge、异步入库与 Durable Research L4 | 私有知识可引用；Checkpoint/HITL 恢复且不重复副作用 |
+| Day 6 | Hybrid RAG、多模态 Context 与 Research L5 | 引用可解析、跨租户召回为零，Verifier 与 bounded revise 有正式报告 |
+| Day 7 | Agent Eval、故障回归、统一 Workbench 与完整交付 | ≥50 场景、完整用户路径、恢复门禁、迁移、CI 和密钥扫描全绿 |
 
 任何一天的门禁没有通过，计划必须顺延，不能通过删除测试、放宽权限、伪造数据或跳过迁移来赶进度。
+
+复杂前端页面和学习型可视化保留为正式交付，由独立前端实现工作流按 OpenAPI、Event、Trace、Manifest 和状态契约并行实现，不计入学习者的核心概念工时。学习者仍须能够使用这些页面解释 Runtime、Tool、Memory、Evidence、Checkpoint、Knowledge/RAG 与 Eval 的真实行为。
 
 逐项目标、参考来源、冻结范围、验收证据和当前事实状态见 [七天目标能力矩阵](feature-matrix.md)。每日摘要不能代替该矩阵；Day 7 必须逐行验收。
 
@@ -278,7 +292,7 @@ OpenAPI 是前后端唯一契约源；SSE 信封必须版本化并支持向前�
 4. 运行完整用户路径、fresh migration、CI、密钥扫描、依赖/镜像扫描、RAG 回归和备份恢复演练；
 5. 任一目标能力未达到规定深度，或任一最低质量门禁失败，七天计划即未完成并顺延，不能通过改名为“后续优化”绕过。
 
-七天交付物是高质量、功能完整但尚不宣称生产级的 `v0.1.0-learning-foundation`。本文到七天验收为止。
+七天交付物是高质量、功能完整但尚不宣称生产级的 `v0.1.0-agent-learning-foundation`。本文到七天验收为止。
 
 ## 8. 当前实现状态
 
@@ -293,8 +307,10 @@ OpenAPI 是前后端唯一契约源；SSE 信封必须版本化并支持向前�
 - PostgreSQL Job/JobEvent/Outbox/Schedule/Occurrence、独立 Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler 和数据库驱动 Beat；
 - 对应的领域、HTTP、PostgreSQL、Redis、契约和真实浏览器测试代码。
 
-这些实现尚未执行本轮最终统一 formatter、全量本地门禁和干净 CI，因此能力矩阵中的 D1-02～D1-08、D1-10～D1-12 均为 `implemented_pending_verification`。历史 CI 只证明当时提交的工程基线，不能替代当前工作树的复核。
+这些实现已经通过最终统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI，因此能力矩阵中的 D1-02～D1-08、D1-10～D1-12 均已复核为 `complete`。
 
 两个参考仓的脱敏扫描已经发现 6 组待处置候选，证据见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。Provider 侧吊销/轮换尚未完成且候选仍全部为 `open`，因此 D1-09 保持 `thin_slice`；即使当前代码门禁全绿，也不能虚假关闭这一外部安全门禁。
 
-聊天、知识库、RAG、行业工具、记忆与 Research 仍未实现。Day 1 只有在统一验证与新 CI 通过、并且 D1-09 的 6 组参考仓凭据完成 Provider 侧处置和复扫后，才能整体标为完成。
+D1-09 是独立的外部治理尾项：它不否定已完成的新仓 Day 1 工程门禁，也不阻断 Day 2 Agent 学习；但在 6 组候选全部吊销/轮换并复扫前，它仍阻断 Day 7 发布标签。
+
+Day 2～Day 7 的 Agent Runtime/Harness、聊天、Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research、Evaluation Harness 与 Learning Workbench 仍未实现。Day 1 的工程实现与自动化门禁已经完成；D1-09 的 6 组参考仓凭据仍是独立的外部处置尾项，只有完成 Provider 侧处置和复扫后，Day 1 全部矩阵项才能无保留地标为 `complete`。
