@@ -8,8 +8,14 @@ from industry_platform.modules.agent_runtime.checkpoints import (
     LoadCheckpointRequest,
     SaveCheckpointCommand,
 )
+from industry_platform.modules.agent_runtime.context import (
+    CompiledContext,
+    ContextCompilationInput,
+    ContextManifest,
+)
 from industry_platform.modules.agent_runtime.events import AgentEvent
 from industry_platform.modules.agent_runtime.model import (
+    ModelMessage,
     ModelRequest,
     ModelResponse,
     ModelStreamItem,
@@ -26,6 +32,39 @@ class ModelProvider(Protocol):
 
     async def complete(self, request: ModelRequest) -> ModelResponse:
         """Return one normalized non-streaming response."""
+
+        ...
+
+
+class ContextTokenCounter(Protocol):
+    """Estimate model input with one named, replaceable counting policy."""
+
+    @property
+    def version(self) -> str:
+        """Return the stable counter version recorded in each manifest."""
+
+        ...
+
+    def count(self, *, model: str, messages: tuple[ModelMessage, ...]) -> int:
+        """Return a conservative positive estimate for the supplied messages."""
+
+        ...
+
+
+class ContextCompiler(Protocol):
+    """Turn explicit safe sources into one Provider request and audit manifest."""
+
+    def compile(self, compilation: ContextCompilationInput) -> CompiledContext:
+        """Compile without loading permissions, dependencies, or Secrets itself."""
+
+        ...
+
+
+class ContextManifestStore(Protocol):
+    """Persist a manifest before the matching Provider call begins."""
+
+    async def save(self, manifest: ContextManifest) -> None:
+        """Save idempotently or reject a conflicting manifest for the same Step."""
 
         ...
 

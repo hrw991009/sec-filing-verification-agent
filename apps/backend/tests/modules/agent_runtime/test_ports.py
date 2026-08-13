@@ -11,6 +11,11 @@ from industry_platform.modules.agent_runtime.checkpoints import (
     LoadCheckpointRequest,
     SaveCheckpointCommand,
 )
+from industry_platform.modules.agent_runtime.context import (
+    CompiledContext,
+    ContextCompilationInput,
+    ContextManifest,
+)
 from industry_platform.modules.agent_runtime.domain import (
     AGENT_RUNTIME_SCHEMA_VERSION,
     AgentRunStatus,
@@ -29,6 +34,9 @@ from industry_platform.modules.agent_runtime.model import (
 from industry_platform.modules.agent_runtime.ports import (
     AgentRuntime,
     CheckpointStore,
+    ContextCompiler,
+    ContextManifestStore,
+    ContextTokenCounter,
     ModelProvider,
     ToolExecutor,
     TrajectoryRecorder,
@@ -125,6 +133,24 @@ class RecordingRuntime:
         yield self.event
 
 
+class FixedContextTokenCounter:
+    version = "fixed-counter-v1"
+
+    def count(self, *, model: str, messages: tuple[ModelMessage, ...]) -> int:
+        del model
+        return len(messages)
+
+
+class ContextCompilerStub:
+    def compile(self, compilation: ContextCompilationInput) -> CompiledContext:
+        raise NotImplementedError
+
+
+class ContextManifestStoreStub:
+    async def save(self, manifest: ContextManifest) -> None:
+        raise NotImplementedError
+
+
 def accept_model_provider(provider: ModelProvider) -> ModelProvider:
     return provider
 
@@ -147,6 +173,18 @@ def accept_runtime(
     runtime: AgentRuntime[str, UUID],
 ) -> AgentRuntime[str, UUID]:
     return runtime
+
+
+def accept_context_token_counter(counter: ContextTokenCounter) -> ContextTokenCounter:
+    return counter
+
+
+def accept_context_compiler(compiler: ContextCompiler) -> ContextCompiler:
+    return compiler
+
+
+def accept_context_manifest_store(store: ContextManifestStore) -> ContextManifestStore:
+    return store
 
 
 @pytest.mark.asyncio
@@ -191,3 +229,17 @@ def test_checkpoint_store_port_remains_a_persistence_boundary() -> None:
 
     assert accept_checkpoint_store(StoreStub()) is not None
     assert AgentRunStatus.QUEUED.value == "queued"
+
+
+def test_context_ports_keep_counting_compilation_and_persistence_separate() -> None:
+    counter = accept_context_token_counter(FixedContextTokenCounter())
+
+    assert (
+        counter.count(
+            model="openai-compatible/test-model",
+            messages=(ModelMessage(role=ModelRole.USER, content="hello"),),
+        )
+        == 1
+    )
+    assert accept_context_compiler(ContextCompilerStub()) is not None
+    assert accept_context_manifest_store(ContextManifestStoreStub()) is not None

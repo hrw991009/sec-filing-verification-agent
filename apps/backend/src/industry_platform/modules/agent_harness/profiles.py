@@ -36,6 +36,7 @@ class DirectAnswerProfile:
     context_compiler_version: str
     output_contract_version: str
     model: str
+    max_input_tokens: int
     max_output_tokens: int
     system_instructions: str = field(repr=False)
     run_type: AgentRunType = field(default=AgentRunType.DIRECT_ANSWER, init=False)
@@ -70,11 +71,12 @@ class DirectAnswerProfile:
                 raise ValueError(f"{field_name} is invalid")
         if not _MODEL_PATTERN.fullmatch(self.model):
             raise ValueError("Direct-answer model is invalid")
-        if (
-            isinstance(self.max_output_tokens, bool)
-            or not 1 <= self.max_output_tokens <= MAX_RUN_TOKENS
+        for token_limit, field_name in (
+            (self.max_input_tokens, "Direct-answer max input tokens"),
+            (self.max_output_tokens, "Direct-answer max output tokens"),
         ):
-            raise ValueError("Direct-answer max output tokens are invalid")
+            if isinstance(token_limit, bool) or not 1 <= token_limit <= MAX_RUN_TOKENS:
+                raise ValueError(f"{field_name} is invalid")
         if (
             not self.system_instructions.strip()
             or len(self.system_instructions) > _MAX_SYSTEM_INSTRUCTIONS_LENGTH

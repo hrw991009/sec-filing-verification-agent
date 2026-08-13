@@ -23,6 +23,7 @@ def profile() -> DirectAnswerProfile:
         context_compiler_version="context-v0",
         output_contract_version="final-markdown-v1",
         model="openai-compatible/test-model",
+        max_input_tokens=2_048,
         max_output_tokens=512,
         system_instructions="Answer the user's question directly and safely.",
     )
@@ -57,6 +58,10 @@ def test_profile_is_immutable_and_hides_instructions() -> None:
             "profile name",
         ),
         (lambda configured: replace(configured, model=" invalid model "), "model"),
+        (
+            lambda configured: replace(configured, max_input_tokens=0),
+            "max input tokens",
+        ),
         (
             lambda configured: replace(configured, max_output_tokens=0),
             "max output tokens",
