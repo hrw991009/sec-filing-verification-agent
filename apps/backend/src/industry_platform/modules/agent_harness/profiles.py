@@ -10,6 +10,7 @@ from industry_platform.modules.agent_runtime.domain import (
     MAX_RUN_TOKENS,
     AgentRunType,
 )
+from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
 
 DIRECT_ANSWER_PROFILE_SCHEMA_VERSION: Final = 1
 DIRECT_ANSWER_TOOLSET_VERSION: Final = "toolset-none-v1"
@@ -82,3 +83,18 @@ class DirectAnswerProfile:
             or len(self.system_instructions) > _MAX_SYSTEM_INSTRUCTIONS_LENGTH
         ):
             raise ValueError("Direct-answer system instructions are invalid")
+
+    def to_runtime_policy(self) -> DirectAnswerRuntimePolicy:
+        """Project Harness choices into the Runtime-owned no-tool execution policy."""
+
+        return DirectAnswerRuntimePolicy(
+            schema_version=self.schema_version,
+            profile_version=self.profile_version,
+            prompt_version=self.prompt_version,
+            context_compiler_version=self.context_compiler_version,
+            output_contract_version=self.output_contract_version,
+            model=self.model,
+            max_input_tokens=self.max_input_tokens,
+            max_output_tokens=self.max_output_tokens,
+            system_instructions=self.system_instructions,
+        )

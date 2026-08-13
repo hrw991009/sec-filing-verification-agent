@@ -78,6 +78,7 @@ class RunStopReason(StrEnum):
     TOOL_ERROR = "tool_error"
     NO_PROGRESS = "no_progress"
     APPROVAL_REQUIRED = "approval_required"
+    RUNTIME_ERROR = "runtime_error"
 
 
 class RunArtifactKind(StrEnum):
@@ -477,6 +478,10 @@ def validate_step_sequence(steps: Sequence[AgentStep], run: AgentRun) -> None:
 
     if len(steps) > run.budget.max_steps:
         raise ValueError("Step sequence exceeds the trusted Run budget")
+    if run.status in TERMINAL_RUN_STATUSES and any(
+        step.status is AgentStepStatus.RUNNING for step in steps
+    ):
+        raise ValueError("A terminal Run cannot contain a running Step")
     if steps and run.state_revision < steps[-1].state_revision:
         raise ValueError("Run revision cannot precede its latest Step revision")
     if run.status is AgentRunStatus.COMPLETED and not completed_final_seen:

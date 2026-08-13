@@ -192,6 +192,21 @@ def test_step_sequence_is_contiguous_monotonic_and_has_one_final_step() -> None:
         validate_step_sequence((steps[0],), completed_run)
     with pytest.raises(ValueError, match="non-terminal"):
         validate_step_sequence(steps, run(state_revision=3))
+    failed_run = run(
+        status=AgentRunStatus.FAILED,
+        state_revision=2,
+        stop_reason=RunStopReason.PROVIDER_ERROR,
+        started_at=NOW + timedelta(seconds=1),
+        terminal_at=NOW + timedelta(seconds=3),
+    )
+    running_step = replace(
+        model_step(),
+        status=AgentStepStatus.RUNNING,
+        completed_at=None,
+        latency_ms=None,
+    )
+    with pytest.raises(ValueError, match="terminal Run cannot contain a running Step"):
+        validate_step_sequence((running_step,), failed_run)
 
 
 def test_artifact_references_are_closed_within_the_same_run() -> None:

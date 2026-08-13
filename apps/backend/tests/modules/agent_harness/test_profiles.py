@@ -31,6 +31,7 @@ def profile() -> DirectAnswerProfile:
 
 def test_direct_answer_is_explicitly_one_no_tool_baseline_call() -> None:
     configured = profile()
+    runtime_policy = configured.to_runtime_policy()
 
     assert configured.run_type is AgentRunType.DIRECT_ANSWER
     assert configured.execution_mode is ProfileExecutionMode.BASELINE_MODEL_RUN
@@ -39,6 +40,9 @@ def test_direct_answer_is_explicitly_one_no_tool_baseline_call() -> None:
     assert configured.available_tools == ()
     assert configured.toolset_version == DIRECT_ANSWER_TOOLSET_VERSION
     assert configured.final_output_format == "markdown"
+    assert runtime_policy.profile_version == configured.profile_version
+    assert runtime_policy.model_call_limit == 1
+    assert runtime_policy.allows_tools is False
 
 
 def test_profile_is_immutable_and_hides_instructions() -> None:

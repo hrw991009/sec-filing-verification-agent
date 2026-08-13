@@ -161,22 +161,41 @@ class ContextCompilerV0:
             max_output_tokens=allowed_output_tokens,
             deadline=compilation.run.budget.deadline,
         )
+        attributed_messages: tuple[tuple[ContextSourceKind, ModelMessage], ...] = (
+            (ContextSourceKind.SYSTEM_INSTRUCTIONS, system_message),
+            (ContextSourceKind.RUNTIME_CONTEXT_PROJECTION, projection_message),
+        )
+        if summary_included and summary_message is not None:
+            attributed_messages = (
+                *attributed_messages,
+                (ContextSourceKind.CONVERSATION_SUMMARY, summary_message),
+            )
+        attributed_messages = (
+            *attributed_messages,
+            (ContextSourceKind.USER_QUESTION, question_message),
+        )
+        source_token_estimates = self._source_token_estimates(
+            model=compilation.model,
+            messages=attributed_messages,
+        )
+        if sum(source_token_estimates.values()) != selected_count:
+            raise ValueError("Context source token estimates do not match the compiled input")
         sources = (
             self._included_source(
                 ordinal=1,
                 kind=ContextSourceKind.SYSTEM_INSTRUCTIONS,
                 source_id="direct-answer-instructions",
                 source_version=compilation.prompt_version,
-                message=system_message,
-                model=compilation.model,
+                estimated_token_count=source_token_estimates[ContextSourceKind.SYSTEM_INSTRUCTIONS],
             ),
             self._included_source(
                 ordinal=2,
                 kind=ContextSourceKind.RUNTIME_CONTEXT_PROJECTION,
                 source_id="current-workspace-display",
                 source_version=projection.version,
-                message=projection_message,
-                model=compilation.model,
+                estimated_token_count=source_token_estimates[
+                    ContextSourceKind.RUNTIME_CONTEXT_PROJECTION
+                ],
             ),
             (
                 self._included_source(
@@ -184,8 +203,9 @@ class ContextCompilerV0:
                     kind=ContextSourceKind.CONVERSATION_SUMMARY,
                     source_id="conversation-summary",
                     source_version=compilation.conversation_summary_version or "not-available-v1",
-                    message=summary_message,
-                    model=compilation.model,
+                    estimated_token_count=source_token_estimates[
+                        ContextSourceKind.CONVERSATION_SUMMARY
+                    ],
                 )
                 if summary_included
                 else ContextSourceManifestEntry(
@@ -204,8 +224,7 @@ class ContextCompilerV0:
                 kind=ContextSourceKind.USER_QUESTION,
                 source_id="current-user-question",
                 source_version="turn-input-v1",
-                message=question_message,
-                model=compilation.model,
+                estimated_token_count=source_token_estimates[ContextSourceKind.USER_QUESTION],
             ),
         )
         manifest = ContextManifest(
@@ -240,11 +259,8 @@ class ContextCompilerV0:
         kind: ContextSourceKind,
         source_id: str,
         source_version: str,
-        message: ModelMessage | None,
-        model: str,
+        estimated_token_count: int,
     ) -> ContextSourceManifestEntry:
-        if message is None:
-            raise ValueError("An included Context source requires a message")
         return ContextSourceManifestEntry(
             ordinal=ordinal,
             source_kind=kind,
@@ -252,6 +268,31 @@ class ContextCompilerV0:
             source_version=source_version,
             included=True,
             decision_reason=ContextDecisionReason.INCLUDED,
-            estimated_token_count=self._count(model=model, messages=(message,)),
-            message_role=message.role,
+            estimated_token_count=estimated_token_count,
+            message_role=(
+                ModelRole.SYSTEM
+                if kind is ContextSourceKind.SYSTEM_INSTRUCTIONS
+                else ModelRole.USER
+            ),
         )
+
+    def _source_token_estimates(
+        self,
+        *,
+        model: str,
+        messages: tuple[tuple[ContextSourceKind, ModelMessage], ...],
+    ) -> dict[ContextSourceKind, int]:
+        """Attribute shared framing once by measuring each message's prefix increase."""
+
+        estimates: dict[ContextSourceKind, int] = {}
+        prefix: tuple[ModelMessage, ...] = ()
+        previous_count = 0
+        for kind, message in messages:
+            prefix = (*prefix, message)
+            current_count = self._count(model=model, messages=prefix)
+            marginal_count = current_count - previous_count
+            if marginal_count < 1:
+                raise ValueError("Context token counter must increase for every message")
+            estimates[kind] = marginal_count
+            previous_count = current_count
+        return estimates

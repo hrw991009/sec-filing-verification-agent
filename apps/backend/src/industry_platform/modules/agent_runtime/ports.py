@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from typing import Protocol
+from uuid import UUID
 
 from industry_platform.modules.agent_runtime.checkpoints import (
     CheckpointEnvelope,
@@ -60,11 +61,33 @@ class ContextCompiler(Protocol):
         ...
 
 
+class ContextManifestStoreError(RuntimeError):
+    """A sanitized failure to commit the Context manifest fact."""
+
+
 class ContextManifestStore(Protocol):
     """Persist a manifest before the matching Provider call begins."""
 
     async def save(self, manifest: ContextManifest) -> None:
         """Save idempotently or reject a conflicting manifest for the same Step."""
+
+        ...
+
+
+class AgentEventCommitter(Protocol):
+    """Commit an Event before Runtime exposes it to Harness or another observer."""
+
+    async def append(self, event: AgentEvent) -> None:
+        """Append by stream sequence, accepting only an identical idempotent replay."""
+
+        ...
+
+
+class CancellationProbe(Protocol):
+    """Read the explicit persisted cancellation request at Runtime safe points."""
+
+    async def is_cancel_requested(self, *, run_id: UUID, workspace_id: UUID) -> bool:
+        """Return true only for an authorized explicit Run cancellation request."""
 
         ...
 
