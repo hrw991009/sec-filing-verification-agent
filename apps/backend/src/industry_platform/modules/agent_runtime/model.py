@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from types import MappingProxyType
 from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import (
@@ -17,6 +18,7 @@ from industry_platform.modules.agent_runtime.domain import (
 
 _MODEL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
 _PROVIDER_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
+_PRICING_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+-]{0,127}$")
 
 
 class ModelRole(StrEnum):
@@ -33,11 +35,32 @@ class ModelFinishReason(StrEnum):
     STOP = "stop"
     LENGTH = "length"
     CONTENT_FILTER = "content_filter"
+    REFUSAL = "refusal"
 
 
 def _require_non_negative_integer(value: int, *, field_name: str) -> None:
     if isinstance(value, bool) or value < 0:
         raise ValueError(f"{field_name} must be a non-negative integer")
+
+
+def _freeze_json_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze_json_value(item) for key, item in value.items()})
+    if isinstance(value, list | tuple):
+        return tuple(_freeze_json_value(item) for item in value)
+    return value
+
+
+def _thaw_json_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {key: _thaw_json_value(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_thaw_json_value(item) for item in value]
+    return value
+
+
+def _thaw_json_mapping(value: Mapping[str, object]) -> dict[str, object]:
+    return {key: _thaw_json_value(item) for key, item in value.items()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,14 +110,15 @@ class ModelRequest:
             raise ValueError("Model max output tokens are invalid")
         require_utc(self.deadline, field_name="Model request deadline")
         if self.response_schema is not None:
-            object.__setattr__(
-                self,
-                "response_schema",
-                snapshot_json_mapping(
-                    self.response_schema,
+            try:
+                snapshot = snapshot_json_mapping(
+                    _thaw_json_mapping(self.response_schema),
                     error_message="Model response schema must be canonical JSON data",
-                ),
-            )
+                )
+                frozen_schema = _freeze_json_value(snapshot)
+            except RecursionError:
+                raise ValueError("Model response schema must be canonical JSON data") from None
+            object.__setattr__(self, "response_schema", frozen_schema)
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +129,7 @@ class ModelUsage:
     output_tokens: int
     cached_input_tokens: int
     cost_micro_usd: int
+    pricing_version: str | None = None
 
     def __post_init__(self) -> None:
         for usage_value, field_name in (
@@ -116,6 +141,10 @@ class ModelUsage:
             _require_non_negative_integer(usage_value, field_name=field_name)
         if self.cached_input_tokens > self.input_tokens:
             raise ValueError("Cached input tokens cannot exceed all input tokens")
+        if self.pricing_version is not None and not _PRICING_VERSION_PATTERN.fullmatch(
+            self.pricing_version
+        ):
+            raise ValueError("Model pricing version is invalid")
 
     @property
     def total_tokens(self) -> int:
