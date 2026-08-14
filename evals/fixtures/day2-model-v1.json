@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "fixture_set_id": "day2-direct-answer-model",
+  "fixture_set_version": "v1",
+  "workspace_id": "33333333-3333-4333-8333-333333333333",
+  "model": "openai-compatible/fake-model",
+  "system_instructions": "Answer the current question directly with concise Markdown.",
+  "workspace_display_name": "Day 2 Harness",
+  "max_output_tokens": 128,
+  "fixtures": [
+    {
+      "fixture_id": "fake-model/direct-answer-basic",
+      "fixture_version": "v1",
+      "question": "What is the purpose of an Agent Runtime?",
+      "deltas": [
+        "The Runtime advances a run under typed state, budget, ",
+        "event, and stop-reason rules."
+      ],
+      "completion": {
+        "finish_reason": "stop",
+        "output_text": "The Runtime advances a run under typed state, budget, event, and stop-reason rules.",
+        "input_tokens": 44,
+        "output_tokens": 18,
+        "cached_input_tokens": 0,
+        "cost_micro_usd": 50,
+        "pricing_version": "fake-pricing-v1",
+        "provider_request_id": "fake-basic-v1"
+      },
+      "error": null,
+      "allow_early_close": false,
+      "cancellation_checks": []
+    },
+    {
+      "fixture_id": "fake-model/direct-answer-invalid-format",
+      "fixture_version": "v1",
+      "question": "Return a response whose stream and completion disagree.",
+      "deltas": ["A valid-looking delta."],
+      "completion": {
+        "finish_reason": "stop",
+        "output_text": "A conflicting completed response.",
+        "input_tokens": 40,
+        "output_tokens": 7,
+        "cached_input_tokens": 0,
+        "cost_micro_usd": 30,
+        "pricing_version": "fake-pricing-v1",
+        "provider_request_id": "fake-invalid-v1"
+      },
+      "error": null,
+      "allow_early_close": false,
+      "cancellation_checks": []
+    },
+    {
+      "fixture_id": "fake-model/direct-answer-timeout",
+      "fixture_version": "v1",
+      "question": "Simulate a Provider timeout.",
+      "deltas": [],
+      "completion": null,
+      "error": {
+        "code": "provider_timeout",
+        "partial_response": false,
+        "retry_after_seconds": null
+      },
+      "allow_early_close": false,
+      "cancellation_checks": []
+    },
+    {
+      "fixture_id": "fake-model/direct-answer-rate-limited",
+      "fixture_version": "v1",
+      "question": "Simulate a retryable Provider rate limit.",
+      "deltas": [],
+      "completion": null,
+      "error": {
+        "code": "provider_rate_limited",
+        "partial_response": false,
+        "retry_after_seconds": 2
+      },
+      "allow_early_close": false,
+      "cancellation_checks": []
+    },
+    {
+      "fixture_id": "fake-model/direct-answer-half-response",
+      "fixture_version": "v1",
+      "question": "Simulate a stream that ends before completion.",
+      "deltas": ["This response stops midway."],
+      "completion": null,
+      "error": null,
+      "allow_early_close": false,
+      "cancellation_checks": []
+    },
+    {
+      "fixture_id": "fake-model/direct-answer-cancelled",
+      "fixture_version": "v1",
+      "question": "Cancel this Run after its first model delta.",
+      "deltas": ["The first chunk.", "The second chunk."],
+      "completion": {
+        "finish_reason": "stop",
+        "output_text": "The first chunk.The second chunk.",
+        "input_tokens": 40,
+        "output_tokens": 8,
+        "cached_input_tokens": 0,
+        "cost_micro_usd": 30,
+        "pricing_version": "fake-pricing-v1",
+        "provider_request_id": "fake-cancel-v1"
+      },
+      "error": null,
+      "allow_early_close": true,
+      "cancellation_checks": [false, false, true]
+    }
+  ]
+}

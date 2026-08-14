@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "snapshot_set_id": "day2-direct-answer-traces",
+  "snapshot_set_version": "v1",
+  "snapshots": [
+    {
+      "snapshot_id": "trace/day2-direct-answer-basic",
+      "snapshot_version": "v1",
+      "case_id": "day2-direct-answer-basic",
+      "case_version": "v1",
+      "event_types": [
+        "agent.run.queued",
+        "agent.run.started",
+        "agent.step.started",
+        "agent.model.started",
+        "agent.model.delta",
+        "agent.model.delta",
+        "agent.model.completed",
+        "agent.step.completed",
+        "agent.step.started",
+        "agent.step.completed",
+        "agent.run.completed"
+      ],
+      "stop_reason": "final"
+    },
+    {
+      "snapshot_id": "trace/day2-direct-answer-invalid-format",
+      "snapshot_version": "v1",
+      "case_id": "day2-direct-answer-invalid-format",
+      "case_version": "v1",
+      "event_types": [
+        "agent.run.queued",
+        "agent.run.started",
+        "agent.step.started",
+        "agent.model.started",
+        "agent.model.delta",
+        "agent.step.failed",
+        "agent.run.failed"
+      ],
+      "stop_reason": "invalid_provider_response"
+    },
+    {
+      "snapshot_id": "trace/day2-direct-answer-timeout",
+      "snapshot_version": "v1",
+      "case_id": "day2-direct-answer-timeout",
+      "case_version": "v1",
+      "event_types": [
+        "agent.run.queued",
+        "agent.run.started",
+        "agent.step.started",
+        "agent.model.started",
+        "agent.step.failed",
+        "agent.run.failed"
+      ],
+      "stop_reason": "provider_timeout"
+    },
+    {
+      "snapshot_id": "trace/day2-direct-answer-rate-limited",
+      "snapshot_version": "v1",
+      "case_id": "day2-direct-answer-rate-limited",
+      "case_version": "v1",
+      "event_types": [
+        "agent.run.queued",
+        "agent.run.started",
+        "agent.step.started",
+        "agent.model.started",
+        "agent.step.failed",
+        "agent.run.failed"
+      ],
+      "stop_reason": "provider_rate_limited"
+    },
+    {
+      "snapshot_id": "trace/day2-direct-answer-half-response",
+      "snapshot_version": "v1",
+      "case_id": "day2-direct-answer-half-response",
+      "case_version": "v1",
+      "event_types": [
+        "agent.run.queued",
+        "agent.run.started",
+        "agent.step.started",
+        "agent.model.started",
+        "agent.model.delta",
+        "agent.step.failed",
+        "agent.run.failed"
+      ],
+      "stop_reason": "incomplete_provider_response"
+    },
+    {
+      "snapshot_id": "trace/day2-direct-answer-cancelled",
+      "snapshot_version": "v1",
+      "case_id": "day2-direct-answer-cancelled",
+      "case_version": "v1",
+      "event_types": [
+        "agent.run.queued",
+        "agent.run.started",
+        "agent.step.started",
+        "agent.model.started",
+        "agent.model.delta",
+        "agent.run.cancelled"
+      ],
+      "stop_reason": "cancelled"
+    }
+  ]
+}

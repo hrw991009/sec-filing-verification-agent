@@ -18,6 +18,7 @@ from industry_platform.modules.agent_runtime.model import (
     ModelResponse,
     ModelStreamItem,
 )
+from industry_platform.modules.agent_runtime.provider_errors import ModelProviderError
 
 
 class FakeModelOperation(StrEnum):
@@ -116,14 +117,19 @@ class ScriptedModelExchange:
     expectation: ModelRequestExpectation
     response: ModelResponse | None = field(default=None, repr=False)
     stream_items: tuple[ModelStreamItem, ...] | None = field(default=None, repr=False)
+    error: ModelProviderError | None = field(default=None, repr=False)
+    allow_early_close: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.allow_early_close, bool):
+            raise ValueError("Fake Model early-close policy is invalid")
         if self.operation is FakeModelOperation.COMPLETE:
-            if self.response is None or self.stream_items is not None:
-                raise ValueError("A complete Fake exchange requires only a response")
+            outcomes = int(self.response is not None) + int(self.error is not None)
+            if outcomes != 1 or self.stream_items is not None or self.allow_early_close:
+                raise ValueError("A complete Fake exchange requires one response or error")
             return
         if self.stream_items is None or self.response is not None:
-            raise ValueError("A streaming Fake exchange requires only stream items")
+            raise ValueError("A streaming Fake exchange requires declared stream items")
         object.__setattr__(self, "stream_items", tuple(self.stream_items))
 
 
@@ -185,19 +191,26 @@ class ScriptedModelProvider:
                 yield item
             self._cursor += 1
             fully_delivered = True
+            if exchange.error is not None:
+                raise exchange.error
         finally:
             self._stream_active = False
             if not fully_delivered:
-                self._stream_abandoned = True
+                if exchange.allow_early_close:
+                    self._cursor += 1
+                else:
+                    self._stream_abandoned = True
 
     async def complete(self, request: ModelRequest) -> ModelResponse:
         """Return the declared normalized response without implicit retries."""
 
         exchange = self._next_exchange(FakeModelOperation.COMPLETE, request)
-        if exchange.response is None:
-            raise AssertionError("Validated complete exchange lost its response")
         self._cursor += 1
         self._requests.append(request)
+        if exchange.error is not None:
+            raise exchange.error
+        if exchange.response is None:
+            raise AssertionError("Validated complete exchange lost its response")
         return exchange.response
 
     def assert_exhausted(self) -> None:
