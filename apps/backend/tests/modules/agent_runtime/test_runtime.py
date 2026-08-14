@@ -367,6 +367,8 @@ async def test_success_uses_one_provider_call_and_commits_before_yielding() -> N
         AgentEventType.STEP_COMPLETED,
         AgentEventType.RUN_COMPLETED,
     ]
+    model_step_completed = events[7]
+    assert model_step_completed.payload["cached_input_tokens"] == 0
     assert events[-2].payload["content_markdown"] == "A direct answer."
     assert events[-1].payload["stop_reason"] == RunStopReason.FINAL.value
     assert "provider/runtime-test-key" not in repr(events)

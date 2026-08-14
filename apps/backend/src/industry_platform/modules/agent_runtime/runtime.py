@@ -625,6 +625,7 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
                 "step_kind": model_step.kind.value,
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens,
+                "cached_input_tokens": response.usage.cached_input_tokens,
                 "cost_micro_usd": response.usage.cost_micro_usd,
             },
         )

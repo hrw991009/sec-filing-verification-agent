@@ -187,6 +187,7 @@ class SqlAlchemyAgentEventCommitter:
             if step.kind is AgentStepKind.MODEL:
                 run.input_tokens_used += step.input_tokens
                 run.output_tokens_used += step.output_tokens
+                run.cached_input_tokens_used += _optional_int(payload, "cached_input_tokens") or 0
                 run.cost_micro_usd += step.cost_micro_usd
             return
         if event.event_type in {
