@@ -14,6 +14,7 @@ from industry_platform.modules.conversations.domain import (
     PreparedDirectAnswerTurn,
     StartDirectAnswerTurn,
     build_queued_run,
+    derive_conversation_title,
     deterministic_run_id,
     fingerprint_direct_answer_turn,
 )
@@ -72,7 +73,13 @@ class ConversationApplicationService:
             workspace_id=command.workspace_id,
             idempotency_key=command.idempotency_key,
         )
+        create_conversation = command.conversation_id is None
         conversation_id = command.conversation_id or self._new_id()
+        conversation_title = (
+            command.new_conversation_title or derive_conversation_title(command.question)
+            if create_conversation
+            else None
+        )
         turn_id = self._new_id()
         user_message_id = self._new_id()
         job_id = self._new_id()
@@ -119,8 +126,8 @@ class ConversationApplicationService:
         )
         prepared = PreparedDirectAnswerTurn(
             conversation_id=conversation_id,
-            create_conversation=command.conversation_id is None,
-            conversation_title=command.new_conversation_title,
+            create_conversation=create_conversation,
+            conversation_title=conversation_title,
             turn_id=turn_id,
             user_message_id=user_message_id,
             run=run,

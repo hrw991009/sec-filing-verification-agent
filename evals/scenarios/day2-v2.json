@@ -12,8 +12,8 @@
         "scenario_id": "day2-direct-answer-basic",
         "scenario_version": "v1",
         "run_type": "direct_answer",
-        "profile": {"name": "direct-answer", "version": "v0"},
-        "input": {"question": "What is the purpose of an Agent Runtime?"},
+        "profile": { "name": "direct-answer", "version": "v0" },
+        "input": { "question": "What is the purpose of an Agent Runtime?" },
         "runtime_version": "runtime-v0",
         "harness_version": "harness-v0",
         "model_version": "fake-model-v1",
@@ -28,7 +28,7 @@
           "timeout_seconds": 30
         },
         "deterministic_fixture_refs": [
-          {"name": "fake-model/direct-answer-basic", "version": "v1"}
+          { "name": "fake-model/direct-answer-basic", "version": "v1" }
         ]
       },
       "expected_stop_reason": "final",
@@ -37,13 +37,16 @@
         "replay_cursor": 4
       },
       "scorers": [
-        {"category": "result", "name": "exact-final-output", "version": "v1", "parameters": {}},
-        {"category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {}},
-        {"category": "runtime_recovery", "name": "committed-event-replay", "version": "v1", "parameters": {}}
+        { "category": "result", "name": "exact-final-output", "version": "v1", "parameters": {} },
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {} },
+        {
+          "category": "runtime_recovery",
+          "name": "committed-event-replay",
+          "version": "v1",
+          "parameters": {}
+        }
       ],
-      "trace_refs": [
-        {"name": "trace/day2-direct-answer-basic", "version": "v1"}
-      ],
+      "trace_refs": [{ "name": "trace/day2-direct-answer-basic", "version": "v1" }],
       "artifact_refs": [],
       "human_notes": "The disconnect check replays committed Events after cursor 4 without calling the Runtime again."
     },
@@ -56,8 +59,8 @@
         "scenario_id": "day2-direct-answer-invalid-format",
         "scenario_version": "v1",
         "run_type": "direct_answer",
-        "profile": {"name": "direct-answer", "version": "v0"},
-        "input": {"question": "Return a response whose stream and completion disagree."},
+        "profile": { "name": "direct-answer", "version": "v0" },
+        "input": { "question": "Return a response whose stream and completion disagree." },
         "runtime_version": "runtime-v0",
         "harness_version": "harness-v0",
         "model_version": "fake-model-v1",
@@ -65,19 +68,22 @@
         "context_version": "context-v0",
         "toolset_version": "toolset-none-v1",
         "available_tools": [],
-        "budget": {"max_steps": 2, "max_total_tokens": 512, "max_cost_micro_usd": 10000, "timeout_seconds": 30},
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
         "deterministic_fixture_refs": [
-          {"name": "fake-model/direct-answer-invalid-format", "version": "v1"}
+          { "name": "fake-model/direct-answer-invalid-format", "version": "v1" }
         ]
       },
       "expected_stop_reason": "invalid_provider_response",
       "expected_behavior": {},
       "scorers": [
-        {"category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {}}
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {} }
       ],
-      "trace_refs": [
-        {"name": "trace/day2-direct-answer-invalid-format", "version": "v1"}
-      ],
+      "trace_refs": [{ "name": "trace/day2-direct-answer-invalid-format", "version": "v1" }],
       "artifact_refs": [],
       "human_notes": null
     },
@@ -90,8 +96,8 @@
         "scenario_id": "day2-direct-answer-timeout",
         "scenario_version": "v1",
         "run_type": "direct_answer",
-        "profile": {"name": "direct-answer", "version": "v0"},
-        "input": {"question": "Simulate a Provider timeout."},
+        "profile": { "name": "direct-answer", "version": "v0" },
+        "input": { "question": "Simulate a Provider timeout." },
         "runtime_version": "runtime-v0",
         "harness_version": "harness-v0",
         "model_version": "fake-model-v1",
@@ -99,17 +105,22 @@
         "context_version": "context-v0",
         "toolset_version": "toolset-none-v1",
         "available_tools": [],
-        "budget": {"max_steps": 2, "max_total_tokens": 512, "max_cost_micro_usd": 10000, "timeout_seconds": 30},
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
         "deterministic_fixture_refs": [
-          {"name": "fake-model/direct-answer-timeout", "version": "v1"}
+          { "name": "fake-model/direct-answer-timeout", "version": "v1" }
         ]
       },
       "expected_stop_reason": "provider_timeout",
       "expected_behavior": {},
       "scorers": [
-        {"category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {}}
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {} }
       ],
-      "trace_refs": [{"name": "trace/day2-direct-answer-timeout", "version": "v1"}],
+      "trace_refs": [{ "name": "trace/day2-direct-answer-timeout", "version": "v1" }],
       "artifact_refs": [],
       "human_notes": null
     },
@@ -122,8 +133,8 @@
         "scenario_id": "day2-direct-answer-rate-limited",
         "scenario_version": "v1",
         "run_type": "direct_answer",
-        "profile": {"name": "direct-answer", "version": "v0"},
-        "input": {"question": "Simulate a retryable Provider rate limit."},
+        "profile": { "name": "direct-answer", "version": "v0" },
+        "input": { "question": "Simulate a retryable Provider rate limit." },
         "runtime_version": "runtime-v0",
         "harness_version": "harness-v0",
         "model_version": "fake-model-v1",
@@ -131,17 +142,22 @@
         "context_version": "context-v0",
         "toolset_version": "toolset-none-v1",
         "available_tools": [],
-        "budget": {"max_steps": 2, "max_total_tokens": 512, "max_cost_micro_usd": 10000, "timeout_seconds": 30},
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
         "deterministic_fixture_refs": [
-          {"name": "fake-model/direct-answer-rate-limited", "version": "v1"}
+          { "name": "fake-model/direct-answer-rate-limited", "version": "v1" }
         ]
       },
       "expected_stop_reason": "provider_rate_limited",
       "expected_behavior": {},
       "scorers": [
-        {"category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {}}
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {} }
       ],
-      "trace_refs": [{"name": "trace/day2-direct-answer-rate-limited", "version": "v1"}],
+      "trace_refs": [{ "name": "trace/day2-direct-answer-rate-limited", "version": "v1" }],
       "artifact_refs": [],
       "human_notes": null
     },
@@ -154,8 +170,8 @@
         "scenario_id": "day2-direct-answer-half-response",
         "scenario_version": "v1",
         "run_type": "direct_answer",
-        "profile": {"name": "direct-answer", "version": "v0"},
-        "input": {"question": "Simulate a stream that ends before completion."},
+        "profile": { "name": "direct-answer", "version": "v0" },
+        "input": { "question": "Simulate a stream that ends before completion." },
         "runtime_version": "runtime-v0",
         "harness_version": "harness-v0",
         "model_version": "fake-model-v1",
@@ -163,17 +179,22 @@
         "context_version": "context-v0",
         "toolset_version": "toolset-none-v1",
         "available_tools": [],
-        "budget": {"max_steps": 2, "max_total_tokens": 512, "max_cost_micro_usd": 10000, "timeout_seconds": 30},
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
         "deterministic_fixture_refs": [
-          {"name": "fake-model/direct-answer-half-response", "version": "v1"}
+          { "name": "fake-model/direct-answer-half-response", "version": "v1" }
         ]
       },
       "expected_stop_reason": "incomplete_provider_response",
       "expected_behavior": {},
       "scorers": [
-        {"category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {}}
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {} }
       ],
-      "trace_refs": [{"name": "trace/day2-direct-answer-half-response", "version": "v1"}],
+      "trace_refs": [{ "name": "trace/day2-direct-answer-half-response", "version": "v1" }],
       "artifact_refs": [],
       "human_notes": null
     },
@@ -186,8 +207,8 @@
         "scenario_id": "day2-direct-answer-cancelled",
         "scenario_version": "v1",
         "run_type": "direct_answer",
-        "profile": {"name": "direct-answer", "version": "v0"},
-        "input": {"question": "Cancel this Run after its first model delta."},
+        "profile": { "name": "direct-answer", "version": "v0" },
+        "input": { "question": "Cancel this Run after its first model delta." },
         "runtime_version": "runtime-v0",
         "harness_version": "harness-v0",
         "model_version": "fake-model-v1",
@@ -195,17 +216,22 @@
         "context_version": "context-v0",
         "toolset_version": "toolset-none-v1",
         "available_tools": [],
-        "budget": {"max_steps": 2, "max_total_tokens": 512, "max_cost_micro_usd": 10000, "timeout_seconds": 30},
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
         "deterministic_fixture_refs": [
-          {"name": "fake-model/direct-answer-cancelled", "version": "v1"}
+          { "name": "fake-model/direct-answer-cancelled", "version": "v1" }
         ]
       },
       "expected_stop_reason": "cancelled",
       "expected_behavior": {},
       "scorers": [
-        {"category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {}}
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "parameters": {} }
       ],
-      "trace_refs": [{"name": "trace/day2-direct-answer-cancelled", "version": "v1"}],
+      "trace_refs": [{ "name": "trace/day2-direct-answer-cancelled", "version": "v1" }],
       "artifact_refs": [],
       "human_notes": null
     }

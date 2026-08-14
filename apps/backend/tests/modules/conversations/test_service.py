@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -101,6 +102,20 @@ async def test_same_idempotency_key_builds_the_same_run_id() -> None:
     await service(second_writer).start_direct_answer(request())
 
     assert first_writer.prepared[0].run.run_id == second_writer.prepared[0].run.run_id
+
+
+@pytest.mark.asyncio
+async def test_service_derives_title_when_a_new_conversation_omits_it() -> None:
+    writer = RecordingWriter()
+    automatic = replace(
+        request(),
+        new_conversation_title=None,
+        question="  Explain   the quarterly risks.  ",
+    )
+
+    await service(writer).start_direct_answer(automatic)
+
+    assert writer.prepared[0].conversation_title == "Explain the quarterly risks."
 
 
 @pytest.mark.asyncio

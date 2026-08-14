@@ -9,6 +9,7 @@ from industry_platform.modules.agent_runtime.domain import RunBudget
 from industry_platform.modules.conversations.domain import (
     StartDirectAnswerTurn,
     TurnSearchMode,
+    derive_conversation_title,
     deterministic_run_id,
     fingerprint_direct_answer_turn,
 )
@@ -54,8 +55,19 @@ def test_turn_accepts_only_one_new_or_existing_conversation_target() -> None:
 
     assert existing.conversation_id is not None
 
-    with pytest.raises(ValueError, match="Exactly one"):
+    with pytest.raises(ValueError, match="cannot declare"):
         command(conversation_id=existing.conversation_id)
+
+
+def test_new_conversation_can_derive_a_bounded_one_line_title() -> None:
+    automatic = command(new_conversation_title=None)
+    long_question = "  first line\n" + "detail " * 40
+
+    assert automatic.conversation_id is None
+    title = derive_conversation_title(long_question)
+    assert "\n" not in title
+    assert len(title) == 160
+    assert title.endswith("...")
 
 
 @pytest.mark.parametrize("mode", [TurnSearchMode.WEB, TurnSearchMode.LOCAL, TurnSearchMode.BOTH])

@@ -65,8 +65,8 @@ class StartDirectAnswerTurn:
             require_non_nil_uuid(value, field_name=field_name)
         if self.conversation_id is not None:
             require_non_nil_uuid(self.conversation_id, field_name="Conversation ID")
-        if (self.conversation_id is None) == (self.new_conversation_title is None):
-            raise ValueError("Exactly one existing conversation or new title is required")
+        if self.conversation_id is not None and self.new_conversation_title is not None:
+            raise ValueError("An existing conversation cannot declare a new title")
         if self.new_conversation_title is not None:
             _require_bounded_text(
                 self.new_conversation_title,
@@ -240,6 +240,21 @@ def build_queued_run(
 def _require_bounded_text(value: str, *, maximum: int, field_name: str) -> None:
     if not value.strip() or len(value) > maximum or "\x00" in value:
         raise ValueError(f"{field_name} is invalid")
+
+
+def derive_conversation_title(question: str) -> str:
+    """Create a stable one-line title from the first user message."""
+
+    _require_bounded_text(
+        question,
+        maximum=MAX_USER_MESSAGE_LENGTH,
+        field_name="User message",
+    )
+    normalized = " ".join(question.split())
+    if len(normalized) <= MAX_CONVERSATION_TITLE_LENGTH:
+        return normalized
+    prefix = normalized[: MAX_CONVERSATION_TITLE_LENGTH - 3].rstrip()
+    return f"{prefix}..."
 
 
 def _require_version(value: str, *, field_name: str) -> None:
