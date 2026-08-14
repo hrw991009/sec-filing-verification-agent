@@ -6,13 +6,17 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Protocol
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from industry_platform.core.config import Settings
 from industry_platform.core.database import (
     create_database_engine,
     create_database_session_factory,
 )
+from industry_platform.modules.agent_runtime.execution import (
+    DirectAnswerRunExecutionUseCase,
+)
+from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
 )
@@ -115,6 +119,39 @@ class IdentityRefreshRecoveryCleanupHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class DirectAnswerJobHandler:
+    """Parse one bounded Run reference and delegate all execution to Agent Runtime."""
+
+    execution_use_case: DirectAnswerRunExecutionUseCase = field(repr=False)
+
+    async def execute(self, payload: Mapping[str, object]) -> Mapping[str, object]:
+        if set(payload) != {"schema_version", "agent_run_id"}:
+            raise InvalidJobPayloadError
+        schema_version = payload["schema_version"]
+        raw_run_id = payload["agent_run_id"]
+        if (
+            schema_version != 1
+            or isinstance(schema_version, bool)
+            or not isinstance(raw_run_id, str)
+        ):
+            raise InvalidJobPayloadError
+        try:
+            run_id = UUID(raw_run_id)
+        except ValueError:
+            raise InvalidJobPayloadError from None
+        if run_id.int == 0:
+            raise InvalidJobPayloadError
+
+        result = await self.execution_use_case.execute_run(run_id)
+        return {
+            "agent_run_id": str(result.run_id),
+            "run_status": result.status.value,
+            "stop_reason": result.stop_reason.value,
+            "terminal_event_sequence": result.terminal_event_sequence,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FixedJobHandlerRegistry:
     """Immutable allowlist; persisted names never trigger dynamic imports."""
 
@@ -127,14 +164,16 @@ class FixedJobHandlerRegistry:
     def production(
         cls,
         cleanup_use_case: RefreshRecoveryCleanupUseCase,
+        direct_answer_use_case: DirectAnswerRunExecutionUseCase | None = None,
     ) -> "FixedJobHandlerRegistry":
-        return cls(
-            {
-                IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
-                    IdentityRefreshRecoveryCleanupHandler(cleanup_use_case)
-                )
-            }
-        )
+        handlers: dict[str, JobHandler] = {
+            IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
+                IdentityRefreshRecoveryCleanupHandler(cleanup_use_case)
+            )
+        }
+        if direct_answer_use_case is not None:
+            handlers[DIRECT_ANSWER_TASK_NAME] = DirectAnswerJobHandler(direct_answer_use_case)
+        return cls(handlers)
 
     def resolve(self, task_name: str) -> JobHandler:
         handler = self._handlers.get(task_name)

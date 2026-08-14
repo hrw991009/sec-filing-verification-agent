@@ -10,6 +10,12 @@ from uuid import UUID
 import pytest
 from celery import Celery
 
+from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunStopReason
+from industry_platform.modules.agent_runtime.execution import (
+    DirectAnswerExecutionResult,
+    DirectAnswerRunExecutionUseCase,
+)
+from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
 from industry_platform.modules.identity.domain import (
     RefreshRecoveryCleanupCommand,
     RefreshRecoveryCleanupResult,
@@ -80,6 +86,20 @@ class BlockingCleanupUseCase:
         self.started.set()
         await asyncio.Event().wait()
         raise AssertionError("unreachable")
+
+
+class RecordingDirectAnswerUseCase:
+    def __init__(self) -> None:
+        self.run_ids: list[UUID] = []
+
+    async def execute_run(self, run_id: UUID) -> DirectAnswerExecutionResult:
+        self.run_ids.append(run_id)
+        return DirectAnswerExecutionResult(
+            run_id=run_id,
+            status=AgentRunStatus.COMPLETED,
+            stop_reason=RunStopReason.FINAL,
+            terminal_event_sequence=11,
+        )
 
 
 class RecordingJobUseCase:
@@ -182,11 +202,12 @@ def runtime(
     jobs: RecordingJobUseCase,
     cleanup: RefreshRecoveryCleanupUseCase,
     *,
+    direct_answer: DirectAnswerRunExecutionUseCase | None = None,
     heartbeat_seconds: float = 60,
 ) -> JobExecutionRuntime:
     return JobExecutionRuntime(
         jobs=cast(JobApplicationUseCase, jobs),
-        handlers=FixedJobHandlerRegistry.production(cleanup),
+        handlers=FixedJobHandlerRegistry.production(cleanup, direct_answer),
         worker_id="worker-unit-1",
         heartbeat_seconds=heartbeat_seconds,
     )
@@ -212,6 +233,55 @@ async def test_successful_cleanup_uses_pg_payload_shape_and_duplicate_is_no_op()
     }
     assert jobs.acquire_commands[0].outbox_id == OUTBOX_ID
     assert jobs.acquire_commands[0].trace_id == TRACE_ID
+
+
+@pytest.mark.asyncio
+async def test_direct_answer_job_delegates_only_the_run_id_to_agent_runtime() -> None:
+    execution = RecordingDirectAnswerUseCase()
+    jobs = RecordingJobUseCase(
+        acquired_job(
+            task_name=DIRECT_ANSWER_TASK_NAME,
+            payload={"schema_version": 1, "agent_run_id": str(JOB_ID)},
+        )
+    )
+
+    result = await runtime(jobs, RecordingCleanupUseCase(), direct_answer=execution).execute(
+        delivery()
+    )
+
+    assert result is JobExecutionDisposition.SUCCEEDED
+    assert execution.run_ids == [JOB_ID]
+    assert jobs.finish_commands[0].result == {
+        "agent_run_id": str(JOB_ID),
+        "run_status": "completed",
+        "stop_reason": "final",
+        "terminal_event_sequence": 11,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"schema_version": 1},
+        {"schema_version": True, "agent_run_id": str(JOB_ID)},
+        {"schema_version": 1, "agent_run_id": "not-a-uuid"},
+        {"schema_version": 1, "agent_run_id": str(UUID(int=0))},
+    ],
+)
+async def test_direct_answer_job_rejects_invalid_payload_without_running_agent(
+    payload: dict[str, object],
+) -> None:
+    execution = RecordingDirectAnswerUseCase()
+    jobs = RecordingJobUseCase(acquired_job(task_name=DIRECT_ANSWER_TASK_NAME, payload=payload))
+
+    result = await runtime(jobs, RecordingCleanupUseCase(), direct_answer=execution).execute(
+        delivery()
+    )
+
+    assert result is JobExecutionDisposition.FAILED
+    assert execution.run_ids == []
+    assert jobs.finish_commands[0].error_code == JobExecutionErrorCode.INVALID_PAYLOAD.value
 
 
 @pytest.mark.asyncio
