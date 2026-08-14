@@ -8,7 +8,12 @@ from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import require_non_nil_uuid, require_utc
 from industry_platform.modules.conversations.domain import MAX_CONVERSATION_TITLE_LENGTH
-from industry_platform.modules.workspaces.domain import WorkspaceScope
+from industry_platform.modules.workspaces.domain import (
+    WorkspaceAccessDeniedError,
+    WorkspaceAction,
+    WorkspaceScope,
+)
+from industry_platform.modules.workspaces.policy import scope_allows
 
 DEFAULT_CONVERSATION_PAGE_SIZE: Final = 20
 MAX_CONVERSATION_PAGE_SIZE: Final = 100
@@ -176,6 +181,37 @@ class ConversationManagementRepository(Protocol):
     ) -> bool: ...
 
 
+class ConversationManagementUseCase(Protocol):
+    """Workspace-authorized conversation operations exposed to delivery adapters."""
+
+    async def list_conversations(
+        self,
+        scope: WorkspaceScope,
+        *,
+        page_size: int = DEFAULT_CONVERSATION_PAGE_SIZE,
+        cursor: ConversationCursor | None = None,
+    ) -> ConversationPage: ...
+
+    async def get_conversation(
+        self, scope: WorkspaceScope, conversation_id: UUID
+    ) -> ConversationDetail: ...
+
+    async def list_messages(
+        self,
+        scope: WorkspaceScope,
+        conversation_id: UUID,
+        *,
+        page_size: int = DEFAULT_CONVERSATION_PAGE_SIZE,
+        cursor: MessageCursor | None = None,
+    ) -> MessagePage: ...
+
+    async def rename(
+        self, scope: WorkspaceScope, command: RenameConversation
+    ) -> ConversationSummary: ...
+
+    async def delete(self, scope: WorkspaceScope, conversation_id: UUID) -> bool: ...
+
+
 @dataclass(frozen=True, slots=True)
 class ConversationManagementService:
     """Validate caller-controlled limits and delegate only with a trusted Workspace scope."""
@@ -190,6 +226,7 @@ class ConversationManagementService:
         page_size: int = DEFAULT_CONVERSATION_PAGE_SIZE,
         cursor: ConversationCursor | None = None,
     ) -> ConversationPage:
+        _require_action(scope, WorkspaceAction.VIEW)
         _require_page_size(page_size)
         return await self.repository.list_conversations(
             scope=scope, page_size=page_size, cursor=cursor
@@ -198,6 +235,7 @@ class ConversationManagementService:
     async def get_conversation(
         self, scope: WorkspaceScope, conversation_id: UUID
     ) -> ConversationDetail:
+        _require_action(scope, WorkspaceAction.VIEW)
         require_non_nil_uuid(conversation_id, field_name="Conversation ID")
         return await self.repository.get_conversation(scope=scope, conversation_id=conversation_id)
 
@@ -209,6 +247,7 @@ class ConversationManagementService:
         page_size: int = DEFAULT_CONVERSATION_PAGE_SIZE,
         cursor: MessageCursor | None = None,
     ) -> MessagePage:
+        _require_action(scope, WorkspaceAction.VIEW)
         require_non_nil_uuid(conversation_id, field_name="Conversation ID")
         _require_page_size(page_size)
         return await self.repository.list_messages(
@@ -221,10 +260,12 @@ class ConversationManagementService:
     async def rename(
         self, scope: WorkspaceScope, command: RenameConversation
     ) -> ConversationSummary:
+        _require_action(scope, WorkspaceAction.UPDATE_RESOURCE)
         now = self._now()
         return await self.repository.rename(scope=scope, command=command, updated_at=now)
 
     async def delete(self, scope: WorkspaceScope, conversation_id: UUID) -> bool:
+        _require_action(scope, WorkspaceAction.DELETE_RESOURCE)
         require_non_nil_uuid(conversation_id, field_name="Conversation ID")
         return await self.repository.delete(
             scope=scope,
@@ -236,3 +277,8 @@ class ConversationManagementService:
         value = self.clock()
         require_utc(value, field_name="Conversation management time")
         return value
+
+
+def _require_action(scope: WorkspaceScope, action: WorkspaceAction) -> None:
+    if not scope_allows(scope, action):
+        raise WorkspaceAccessDeniedError

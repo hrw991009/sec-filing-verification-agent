@@ -13,7 +13,7 @@ from industry_platform.modules.conversations.management import (
     MessagePage,
     RenameConversation,
 )
-from industry_platform.modules.workspaces.domain import WorkspaceScope
+from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
 NOW = datetime(2026, 8, 14, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -94,6 +94,25 @@ async def test_rename_and_delete_use_one_validated_utc_time() -> None:
     assert renamed.title == "New title"
     assert deleted is True
     assert repository.mutations == [("New title", NOW), ("deleted", NOW)]
+
+
+@pytest.mark.asyncio
+async def test_viewers_can_read_but_cannot_mutate_conversations() -> None:
+    repository = RecordingRepository()
+    service = ConversationManagementService(repository=repository, clock=lambda: NOW)
+    viewer = WorkspaceScope(workspace_id=WORKSPACE_ID, user_id=USER_ID, role="viewer")
+
+    page = await service.list_conversations(viewer)
+    assert page.items == ()
+    with pytest.raises(WorkspaceAccessDeniedError):
+        await service.rename(
+            viewer,
+            RenameConversation(conversation_id=CONVERSATION_ID, title="Forbidden rename"),
+        )
+    with pytest.raises(WorkspaceAccessDeniedError):
+        await service.delete(viewer, CONVERSATION_ID)
+
+    assert repository.mutations == []
 
 
 def test_titles_are_one_line_and_summary_repr_does_not_contain_message_content() -> None:

@@ -39,6 +39,15 @@ from industry_platform.core.redis_client import (
     check_redis_connection,
     create_redis_client,
 )
+from industry_platform.modules.conversations.resources import (
+    create_conversation_resources,
+)
+from industry_platform.modules.conversations.router import router as conversation_router
+from industry_platform.modules.conversations.schemas import InvalidConversationCursorError
+from industry_platform.modules.conversations.service import (
+    ConversationNotFoundError,
+    ConversationPersistenceError,
+)
 from industry_platform.modules.identity.domain import (
     AccessTokenGenerationError,
     AuthenticatedSessionPersistenceError,
@@ -130,6 +139,7 @@ def create_app(
                 redis_client,
             )
             workspace_resources = create_workspace_resources(database_session_factory)
+            conversation_resources = create_conversation_resources(database_session_factory)
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
@@ -142,6 +152,7 @@ def create_app(
             )
             application.state.identity_resources = identity_resources
             application.state.workspace_resources = workspace_resources
+            application.state.conversation_resources = conversation_resources
             application.state.job_resources = job_resources
 
             yield
@@ -170,6 +181,7 @@ def create_app(
     )
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(workspace_router, prefix="/api/v1")
+    application.include_router(conversation_router, prefix="/api/v1")
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -511,6 +523,54 @@ def create_app(
             code="PASSWORD_CHANGE_UNAVAILABLE",
             detail="The password could not be changed. Please try again.",
             problem_type="urn:iip:problem:password-change-unavailable",
+        )
+
+    @application.exception_handler(InvalidConversationCursorError)
+    async def handle_invalid_conversation_cursor(
+        request: Request,
+        _error: InvalidConversationCursorError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title="Invalid conversation cursor",
+            code="INVALID_CONVERSATION_CURSOR",
+            detail="The conversation page cursor is invalid or no longer supported.",
+            problem_type="urn:iip:problem:invalid-conversation-cursor",
+        )
+
+    @application.exception_handler(ConversationNotFoundError)
+    async def handle_conversation_not_found(
+        request: Request,
+        _error: ConversationNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Conversation not found",
+            code="CONVERSATION_NOT_FOUND",
+            detail="The requested conversation does not exist in this workspace.",
+            problem_type="urn:iip:problem:conversation-not-found",
+        )
+
+    @application.exception_handler(ConversationPersistenceError)
+    async def handle_conversation_unavailable(
+        request: Request,
+        error: ConversationPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Conversation persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Conversation service unavailable",
+            code="CONVERSATION_UNAVAILABLE",
+            detail="Conversation data is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:conversation-unavailable",
         )
 
     @application.exception_handler(WorkspaceAccessDeniedError)
