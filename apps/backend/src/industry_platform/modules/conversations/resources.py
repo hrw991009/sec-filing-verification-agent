@@ -30,6 +30,8 @@ class ConversationResources:
 
 def create_conversation_resources(
     session_factory: AsyncSessionFactory,
+    *,
+    supports_image_input: bool = False,
 ) -> ConversationResources:
     return ConversationResources(
         management_service=ConversationManagementService(
@@ -37,7 +39,10 @@ def create_conversation_resources(
         ),
         submission_service=ConversationSubmissionService(
             application=ConversationApplicationService(
-                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory)
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(
+                    session_factory,
+                    supports_image_input=supports_image_input,
+                )
             )
         ),
     )

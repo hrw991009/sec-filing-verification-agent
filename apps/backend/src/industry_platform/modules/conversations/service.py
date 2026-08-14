@@ -38,6 +38,14 @@ class ConversationPersistenceError(RuntimeError):
         self.sqlstate = sqlstate
 
 
+class ConversationAttachmentNotReadyError(RuntimeError):
+    """One or more requested attachments cannot be committed to this message."""
+
+
+class ConversationAttachmentNotSupportedError(RuntimeError):
+    """The active model route cannot consume one selected attachment kind."""
+
+
 class DirectAnswerTurnWriter(Protocol):
     """Write every acceptance fact through one database transaction."""
 
@@ -136,6 +144,7 @@ class ConversationApplicationService:
             search_mode=command.search_mode,
             industry_id=command.industry_id,
             knowledge_base_ids=command.knowledge_base_ids,
+            attachment_ids=command.attachment_ids,
         )
         async with self.transaction_factory() as writer:
             return await writer.submit(prepared)

@@ -11,7 +11,13 @@ from industry_platform.modules.agent_runtime.models import (
     ContextManifestRecord,
     RunArtifactRecord,
 )
-from industry_platform.modules.conversations.models import Conversation, Message, Turn
+from industry_platform.modules.conversations.models import (
+    Conversation,
+    Message,
+    MessageAttachment,
+    Turn,
+)
+from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.identity.models import (
     AuditLog,
     RefreshSession,
@@ -42,8 +48,10 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     ScheduleOccurrence,
     Conversation,
     Turn,
+    FileObject,
     AgentRunRecord,
     Message,
+    MessageAttachment,
     AgentStepRecord,
     AgentEventRecord,
     ContextManifestRecord,

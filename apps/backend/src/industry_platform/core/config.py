@@ -210,6 +210,7 @@ class AgentModelRouteSettings(BaseModel):
     input_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
     cached_input_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
     output_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
+    supports_image_input: bool = False
 
     @field_validator("response_models")
     @classmethod
@@ -345,6 +346,14 @@ class Settings(BaseSettings):
     )
     agent_model_request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
 
+    minio_endpoint: str | None = None
+    minio_access_key: str | None = None
+    minio_secret_key: SecretStr | None = None
+    minio_bucket: str | None = None
+    minio_region: str = "us-east-1"
+    minio_secure: bool = False
+    minio_presign_expiry_seconds: Annotated[int, Field(ge=300, le=900)] = 600
+
     @field_validator(
         "refresh_token_hmac_key",
         "csrf_token_hmac_key",
@@ -419,9 +428,44 @@ class Settings(BaseSettings):
             raise ValueError("Agent model Provider configuration must be complete")
         return self
 
+    @model_validator(mode="after")
+    def validate_minio_configuration(self) -> Self:
+        """Allow an explicitly absent store or one complete private-store configuration."""
+
+        values = (
+            self.minio_endpoint,
+            self.minio_access_key,
+            self.minio_secret_key,
+            self.minio_bucket,
+        )
+        if any(value is not None for value in values) and not all(
+            value is not None for value in values
+        ):
+            raise ValueError("MinIO configuration must be complete")
+        if self.minio_endpoint is not None:
+            if (
+                "://" in self.minio_endpoint
+                or "/" in self.minio_endpoint
+                or not self.minio_endpoint.strip()
+            ):
+                raise ValueError("MinIO endpoint must be a host and port")
+            if not self.minio_access_key or not self.minio_access_key.strip():
+                raise ValueError("MinIO access key is invalid")
+            if not self.minio_secret_key or not self.minio_secret_key.get_secret_value().strip():
+                raise ValueError("MinIO secret key is invalid")
+            if not self.minio_bucket or not re.fullmatch(
+                r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.minio_bucket
+            ):
+                raise ValueError("MinIO bucket name is invalid")
+        return self
+
     @property
     def agent_model_provider_configured(self) -> bool:
         return self.agent_model_route is not None
+
+    @property
+    def minio_configured(self) -> bool:
+        return self.minio_bucket is not None
 
     @model_validator(mode="after")
     def validate_reliable_job_timing(self) -> Self:

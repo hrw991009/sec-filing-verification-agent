@@ -20,15 +20,20 @@ from industry_platform.modules.conversations.models import (
     Conversation,
     ConversationStatus,
     Message,
+    MessageAttachment,
     MessageRole,
     MessageStatus,
     Turn,
 )
 from industry_platform.modules.conversations.service import (
+    ConversationAttachmentNotReadyError,
+    ConversationAttachmentNotSupportedError,
     ConversationNotFoundError,
     ConversationPersistenceError,
     DirectAnswerTurnWriter,
 )
+from industry_platform.modules.files.domain import AttachmentKind, FileObjectStatus
+from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyJobWriter
 from industry_platform.modules.jobs.models import OutboxEvent
 
@@ -38,11 +43,41 @@ class SqlAlchemyDirectAnswerTurnWriter:
     """Use the same AsyncSession for business rows and Day 1 Job/Outbox rows."""
 
     session: AsyncSession
+    supports_image_input: bool = False
 
     async def submit(self, prepared: PreparedDirectAnswerTurn) -> DirectAnswerTurnReceipt:
         job_record = await SqlAlchemyJobWriter(self.session).submit(prepared.job)
         if not job_record.created:
             return await self._existing_receipt(prepared, job_record.job_id)
+
+        if prepared.attachment_ids:
+            attachments = tuple(
+                await self.session.scalars(
+                    select(FileObject)
+                    .where(
+                        FileObject.id.in_(prepared.attachment_ids),
+                        FileObject.workspace_id == prepared.run.workspace_id,
+                    )
+                    .order_by(FileObject.id)
+                    .with_for_update()
+                )
+            )
+            by_id = {attachment.id: attachment for attachment in attachments}
+            if len(by_id) != len(prepared.attachment_ids):
+                raise ConversationAttachmentNotReadyError
+            if any(
+                by_id[attachment_id].status is not FileObjectStatus.READY
+                or by_id[attachment_id].attached_at is not None
+                for attachment_id in prepared.attachment_ids
+            ):
+                raise ConversationAttachmentNotReadyError
+            if not self.supports_image_input and any(
+                by_id[attachment_id].kind is AttachmentKind.IMAGE
+                for attachment_id in prepared.attachment_ids
+            ):
+                raise ConversationAttachmentNotSupportedError
+            for attachment_id in prepared.attachment_ids:
+                by_id[attachment_id].attached_at = prepared.run.created_at
 
         if prepared.create_conversation:
             if prepared.conversation_title is None:
@@ -134,19 +169,29 @@ class SqlAlchemyDirectAnswerTurnWriter:
             )
         )
         await self.session.flush()
-        self.session.add(
-            Message(
-                id=prepared.user_message_id,
+        message = Message(
+            id=prepared.user_message_id,
+            workspace_id=run.workspace_id,
+            turn_id=prepared.turn_id,
+            agent_run_id=run.run_id,
+            created_by_user_id=run.user_id,
+            role=MessageRole.USER,
+            status=MessageStatus.COMMITTED,
+            content_markdown=prepared.question,
+            created_at=run.created_at,
+            updated_at=run.created_at,
+        )
+        self.session.add(message)
+        await self.session.flush()
+        self.session.add_all(
+            MessageAttachment(
                 workspace_id=run.workspace_id,
-                turn_id=prepared.turn_id,
-                agent_run_id=run.run_id,
-                created_by_user_id=run.user_id,
-                role=MessageRole.USER,
-                status=MessageStatus.COMMITTED,
-                content_markdown=prepared.question,
+                message_id=message.id,
+                file_id=file_id,
+                ordinal=ordinal,
                 created_at=run.created_at,
-                updated_at=run.created_at,
             )
+            for ordinal, file_id in enumerate(prepared.attachment_ids)
         )
         self.session.add(
             AgentEventRecord(
@@ -220,6 +265,7 @@ class SqlAlchemyDirectAnswerTurnTransactionFactory:
     """Commit all accepted-turn facts together or roll all of them back."""
 
     session_factory: AsyncSessionFactory
+    supports_image_input: bool = False
 
     def __call__(self) -> AbstractAsyncContextManager[DirectAnswerTurnWriter]:
         return self._transaction()
@@ -228,8 +274,16 @@ class SqlAlchemyDirectAnswerTurnTransactionFactory:
     async def _transaction(self) -> AsyncIterator[DirectAnswerTurnWriter]:
         try:
             async with self.session_factory.begin() as session:
-                yield SqlAlchemyDirectAnswerTurnWriter(session)
-        except (ConversationNotFoundError, ConversationPersistenceError):
+                yield SqlAlchemyDirectAnswerTurnWriter(
+                    session,
+                    supports_image_input=self.supports_image_input,
+                )
+        except (
+            ConversationAttachmentNotReadyError,
+            ConversationAttachmentNotSupportedError,
+            ConversationNotFoundError,
+            ConversationPersistenceError,
+        ):
             raise
         except SQLAlchemyError as error:
             raise ConversationPersistenceError(sqlstate=safe_sqlstate(error)) from None

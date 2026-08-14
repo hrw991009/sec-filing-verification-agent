@@ -132,6 +132,7 @@ class Message(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "conversation_messages"
     __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
         ForeignKeyConstraint(
             ["turn_id", "workspace_id"],
             ["conversation_turns.id", "conversation_turns.workspace_id"],
@@ -197,3 +198,31 @@ class Message(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     content_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class MessageAttachment(Base):
+    """Ordered association between one user message and a ready private file."""
+
+    __tablename__ = "message_attachments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["message_id", "workspace_id"],
+            ["conversation_messages.id", "conversation_messages.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["file_id", "workspace_id"],
+            ["file_objects.id", "file_objects.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("file_id"),
+        UniqueConstraint("message_id", "ordinal"),
+        CheckConstraint("ordinal >= 0 AND ordinal < 4", name="ordinal_bounded"),
+        Index(None, "workspace_id", "message_id", "ordinal"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    message_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, nullable=False)
+    file_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

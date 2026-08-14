@@ -1,7 +1,9 @@
 """SQLAlchemy adapter that loads one fresh Direct Answer Runtime execution."""
 
+import hashlib
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import cast
+from typing import Protocol, cast
 from uuid import UUID, uuid5
 
 from sqlalchemy import and_, select
@@ -9,18 +11,36 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.agent_runtime.context import (
+    MAX_CONTEXT_ATTACHMENTS,
+    AttachmentContextSource,
     BackgroundRunPrincipal,
     TrustedRuntimeContext,
 )
 from industry_platform.modules.agent_runtime.domain import AgentRun, AgentRunStatus, RunBudget
 from industry_platform.modules.agent_runtime.execution import DirectAnswerExecutionInput
+from industry_platform.modules.agent_runtime.model import (
+    MAX_MODEL_IMAGE_BYTES,
+    ModelImageMediaType,
+    ModelImagePart,
+)
 from industry_platform.modules.agent_runtime.models import AgentRunRecord
 from industry_platform.modules.agent_runtime.runtime_contracts import (
     DirectAnswerRunCommand,
     DirectAnswerRuntimePolicy,
 )
 from industry_platform.modules.agent_runtime.state import RunState
-from industry_platform.modules.conversations.models import Message, MessageRole, MessageStatus
+from industry_platform.modules.conversations.models import (
+    Message,
+    MessageAttachment,
+    MessageRole,
+    MessageStatus,
+)
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    AttachmentMediaType,
+    FileObjectStatus,
+)
+from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.identity.domain import (
     AuthenticatedWorkspace,
     TraceId,
@@ -53,12 +73,43 @@ class DirectAnswerRunLoadError(RuntimeError):
         self.sqlstate = sqlstate
 
 
+class AttachmentObjectReader(Protocol):
+    """Small private-object read shape needed by Runtime image loading."""
+
+    async def read_bounded(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        maximum_bytes: int,
+    ) -> bytes: ...
+
+
+type AttachmentRow = tuple[
+    int,
+    UUID,
+    UUID,
+    FileObjectStatus,
+    AttachmentKind | None,
+    AttachmentMediaType | None,
+    str,
+    str | None,
+    int | None,
+    str | None,
+    str | None,
+    str | None,
+    int | None,
+    int | None,
+]
+
+
 @dataclass(frozen=True, slots=True)
 class SqlAlchemyDirectAnswerRunLoader:
     """Load one trusted, bounded Runtime input without reading Provider Secrets."""
 
     session_factory: AsyncSessionFactory
     policy: DirectAnswerRuntimePolicy
+    attachment_object_reader: AttachmentObjectReader | None = None
 
     async def load(self, run_id: UUID) -> DirectAnswerExecutionInput:
         if run_id.int == 0:
@@ -69,6 +120,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                     await session.execute(
                         select(
                             AgentRunRecord,
+                            Message.id,
                             Message.content_markdown,
                             Workspace.name,
                             WorkspaceMembership.role,
@@ -99,12 +151,52 @@ class SqlAlchemyDirectAnswerRunLoader:
                         )
                     )
                 ).one_or_none()
+                if row is None:
+                    raise DirectAnswerRunNotExecutableError
+                record, message_id, question, workspace_name, stored_role = row
+                attachment_rows = cast(
+                    list[AttachmentRow],
+                    (
+                        await session.execute(
+                            select(
+                                MessageAttachment.ordinal,
+                                FileObject.id,
+                                FileObject.workspace_id,
+                                FileObject.status,
+                                FileObject.kind,
+                                FileObject.detected_media_type,
+                                FileObject.bucket,
+                                FileObject.object_key,
+                                FileObject.safe_size,
+                                FileObject.safe_sha256,
+                                FileObject.extracted_text,
+                                FileObject.parser_version,
+                                FileObject.width,
+                                FileObject.height,
+                            )
+                            .join(
+                                FileObject,
+                                and_(
+                                    FileObject.id == MessageAttachment.file_id,
+                                    FileObject.workspace_id == MessageAttachment.workspace_id,
+                                ),
+                            )
+                            .where(
+                                MessageAttachment.message_id == message_id,
+                                MessageAttachment.workspace_id == record.workspace_id,
+                            )
+                            .order_by(
+                                MessageAttachment.ordinal,
+                                MessageAttachment.file_id,
+                            )
+                        )
+                    )
+                    .tuples()
+                    .all(),
+                )
         except SQLAlchemyError as error:
             raise DirectAnswerRunLoadError(sqlstate=safe_sqlstate(error)) from None
 
-        if row is None:
-            raise DirectAnswerRunNotExecutableError
-        record, question, workspace_name, stored_role = row
         if not isinstance(question, str) or not isinstance(workspace_name, str):
             raise DirectAnswerRunNotExecutableError
         role = cast(WorkspaceRoleName, stored_role.value)
@@ -167,6 +259,10 @@ class SqlAlchemyDirectAnswerRunLoader:
             capabilities=frozenset({WorkspaceAction.VIEW}),
             budget=budget,
         )
+        attachments = await self._load_attachments(
+            workspace_id=record.workspace_id,
+            rows=attachment_rows,
+        )
         return DirectAnswerExecutionInput(
             command=DirectAnswerRunCommand(
                 run=run,
@@ -176,6 +272,135 @@ class SqlAlchemyDirectAnswerRunLoader:
                 final_step_id=uuid5(run_id, "direct-answer-final-step-v1"),
                 manifest_id=uuid5(run_id, "direct-answer-context-manifest-v1"),
                 user_question=question,
+                attachments=attachments,
             ),
             runtime_context=runtime_context,
+        )
+
+    async def _load_attachments(
+        self,
+        *,
+        workspace_id: UUID,
+        rows: Sequence[AttachmentRow],
+    ) -> tuple[AttachmentContextSource, ...]:
+        if len(rows) > MAX_CONTEXT_ATTACHMENTS:
+            raise DirectAnswerRunNotExecutableError
+
+        attachments: list[AttachmentContextSource] = []
+        for expected_ordinal, row in enumerate(rows):
+            (
+                stored_ordinal,
+                file_id,
+                stored_workspace_id,
+                status,
+                kind,
+                detected_media_type,
+                bucket,
+                object_key,
+                safe_size,
+                safe_sha256,
+                extracted_text,
+                parser_version,
+                width,
+                height,
+            ) = row
+            if (
+                stored_ordinal != expected_ordinal
+                or stored_workspace_id != workspace_id
+                or status is not FileObjectStatus.READY
+                or detected_media_type is None
+                or not isinstance(safe_sha256, str)
+                or not isinstance(parser_version, str)
+                or not isinstance(safe_size, int)
+                or isinstance(safe_size, bool)
+                or safe_size < 1
+            ):
+                raise DirectAnswerRunNotExecutableError
+
+            try:
+                if kind is AttachmentKind.TEXT:
+                    if (
+                        not isinstance(extracted_text, str)
+                        or len(extracted_text.encode("utf-8")) != safe_size
+                    ):
+                        raise DirectAnswerRunNotExecutableError
+                    attachment = AttachmentContextSource(
+                        file_id=file_id,
+                        workspace_id=stored_workspace_id,
+                        ordinal=expected_ordinal + 1,
+                        media_type=detected_media_type.value,
+                        sha256=safe_sha256,
+                        parser_version=parser_version,
+                        extracted_text=extracted_text,
+                    )
+                elif kind is AttachmentKind.IMAGE:
+                    attachment = AttachmentContextSource(
+                        file_id=file_id,
+                        workspace_id=stored_workspace_id,
+                        ordinal=expected_ordinal + 1,
+                        media_type=detected_media_type.value,
+                        sha256=safe_sha256,
+                        parser_version=parser_version,
+                        image_part=await self._load_image_part(
+                            file_id=file_id,
+                            media_type=detected_media_type.value,
+                            bucket=bucket,
+                            object_key=object_key,
+                            actual_size=safe_size,
+                            sha256=safe_sha256,
+                            width=width,
+                            height=height,
+                        ),
+                    )
+                else:
+                    raise DirectAnswerRunNotExecutableError
+            except (TypeError, ValueError):
+                raise DirectAnswerRunNotExecutableError from None
+            attachments.append(attachment)
+        return tuple(attachments)
+
+    async def _load_image_part(
+        self,
+        *,
+        file_id: UUID,
+        media_type: str,
+        bucket: str,
+        object_key: str | None,
+        actual_size: int,
+        sha256: str,
+        width: int | None,
+        height: int | None,
+    ) -> ModelImagePart:
+        if (
+            self.attachment_object_reader is None
+            or not isinstance(bucket, str)
+            or not isinstance(object_key, str)
+            or not isinstance(width, int)
+            or isinstance(width, bool)
+            or not isinstance(height, int)
+            or isinstance(height, bool)
+            or actual_size > MAX_MODEL_IMAGE_BYTES
+        ):
+            raise DirectAnswerRunLoadError
+        try:
+            data = await self.attachment_object_reader.read_bounded(
+                bucket=bucket,
+                object_key=object_key,
+                maximum_bytes=MAX_MODEL_IMAGE_BYTES,
+            )
+        except Exception:
+            raise DirectAnswerRunLoadError from None
+        if (
+            not isinstance(data, bytes)
+            or len(data) != actual_size
+            or hashlib.sha256(data).hexdigest() != sha256
+        ):
+            raise DirectAnswerRunLoadError
+        return ModelImagePart(
+            file_id=file_id,
+            media_type=ModelImageMediaType(media_type),
+            data=data,
+            sha256=sha256,
+            width=width,
+            height=height,
         )

@@ -18,6 +18,7 @@ from industry_platform.modules.conversations.domain import (
     TurnSearchMode,
 )
 from industry_platform.modules.conversations.management import (
+    ConversationAttachment,
     ConversationCursor,
     ConversationDetail,
     ConversationManagementUseCase,
@@ -34,6 +35,8 @@ from industry_platform.modules.conversations.router import (
 )
 from industry_platform.modules.conversations.schemas import encode_message_cursor
 from industry_platform.modules.conversations.service import (
+    ConversationAttachmentNotReadyError,
+    ConversationAttachmentNotSupportedError,
     ConversationNotFoundError,
     ConversationPersistenceError,
 )
@@ -42,6 +45,11 @@ from industry_platform.modules.conversations.submission import (
     ConversationModeNotReadyError,
     ConversationSubmissionUseCase,
     SubmitConversationTurn,
+)
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    AttachmentMediaType,
+    FileObjectStatus,
 )
 from industry_platform.modules.identity.domain import (
     AccessToken,
@@ -63,6 +71,7 @@ TURN_ID = UUID("77777777-7777-4777-8777-777777777777")
 RUN_ID = UUID("88888888-8888-4888-8888-888888888888")
 JOB_ID = UUID("99999999-9999-4999-8999-999999999999")
 OUTBOX_EVENT_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+FILE_ID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 RAW_ACCESS_VALUE = ".".join(("header", "payload", "signature"))
 
 
@@ -179,6 +188,16 @@ def message() -> ConversationMessage:
         status="final",
         content_markdown="A durable **answer**.",
         created_at=NOW,
+        attachments=(
+            ConversationAttachment(
+                file_id=FILE_ID,
+                original_name="market-notes.txt",
+                kind=AttachmentKind.TEXT,
+                detected_media_type=AttachmentMediaType.TEXT_PLAIN,
+                actual_size=128,
+                status=FileObjectStatus.READY,
+            ),
+        ),
     )
 
 
@@ -246,6 +265,18 @@ def test_routes_round_trip_opaque_cursors_and_trusted_workspace_scope(
     assert first_page.json()["conversations"][0]["title"] == "Quarterly risks"
     assert detail.json()["turn_count"] == 2
     assert messages.json()["messages"][0]["content_markdown"] == "A durable **answer**."
+    assert messages.json()["messages"][0]["attachments"] == [
+        {
+            "file_id": str(FILE_ID),
+            "original_name": "market-notes.txt",
+            "kind": "text",
+            "detected_media_type": "text/plain",
+            "actual_size": 128,
+            "status": "ready",
+            "width": None,
+            "height": None,
+        }
+    ]
     assert renamed.json()["title"] == "Renamed conversation"
     assert deleted.status_code == 204
     assert all(call[1] == WorkspaceScope(WORKSPACE_ID, USER_ID, "member") for call in service.calls)
@@ -270,7 +301,11 @@ def test_post_accepts_one_direct_answer_through_the_submission_service(
         response = client.post(
             root,
             headers=headers,
-            json={"question": "Explain this market.", "mode": "none"},
+            json={
+                "question": "Explain this market.",
+                "mode": "none",
+                "attachment_ids": [str(FILE_ID)],
+            },
         )
 
     assert response.status_code == 202
@@ -288,6 +323,7 @@ def test_post_accepts_one_direct_answer_through_the_submission_service(
     assert request.idempotency_key == "browser-turn-1"
     assert request.question == "Explain this market."
     assert request.search_mode is TurnSearchMode.NONE
+    assert request.attachment_ids == (FILE_ID,)
     assert str(request.trace_id)
 
 
@@ -303,6 +339,32 @@ def test_post_rejects_a_question_too_large_for_the_runtime_before_submission(
         )
 
     assert_problem(response, 422, "REQUEST_VALIDATION_FAILED")
+    assert submission.calls == []
+
+
+def test_post_rejects_duplicate_or_too_many_attachments_before_submission(
+    test_settings: Settings,
+) -> None:
+    submission = StubSubmissionService()
+    root = f"/api/v1/workspaces/{WORKSPACE_ID}/conversations"
+    attachment_ids = [str(UUID(f"00000000-0000-4000-8000-{value:012d}")) for value in range(1, 6)]
+    with conversation_client(test_settings, submission=submission) as client:
+        duplicate = client.post(
+            root,
+            headers={**bearer_header(), "Idempotency-Key": "duplicate-attachments"},
+            json={
+                "question": "Explain this market.",
+                "attachment_ids": [str(FILE_ID), str(FILE_ID)],
+            },
+        )
+        too_many = client.post(
+            root,
+            headers={**bearer_header(), "Idempotency-Key": "too-many-attachments"},
+            json={"question": "Explain this market.", "attachment_ids": attachment_ids},
+        )
+
+    assert_problem(duplicate, 422, "REQUEST_VALIDATION_FAILED")
+    assert_problem(too_many, 422, "REQUEST_VALIDATION_FAILED")
     assert submission.calls == []
 
 
@@ -363,6 +425,14 @@ def test_routes_reject_untrusted_scope_cursor_and_payload(
         (
             ConversationIdempotencyConflictError(),
             "CONVERSATION_IDEMPOTENCY_CONFLICT",
+        ),
+        (
+            ConversationAttachmentNotReadyError(),
+            "CONVERSATION_ATTACHMENT_NOT_READY",
+        ),
+        (
+            ConversationAttachmentNotSupportedError(),
+            "CONVERSATION_ATTACHMENT_NOT_SUPPORTED",
         ),
     ],
 )

@@ -19,6 +19,7 @@ from industry_platform.modules.conversations.resources import (
 )
 from industry_platform.modules.conversations.schemas import (
     MAX_CURSOR_LENGTH,
+    ConversationAttachmentResponse,
     ConversationCollectionResponse,
     ConversationDetailResponse,
     ConversationMessageCollectionResponse,
@@ -120,6 +121,7 @@ async def start_conversation_turn(
             search_mode=payload.mode,
             industry_id=payload.industry_id,
             knowledge_base_ids=tuple(payload.knowledge_base_ids),
+            attachment_ids=tuple(payload.attachment_ids),
         ),
     )
     set_no_store_headers(response)
@@ -303,4 +305,17 @@ def _message_response(message: ConversationMessage) -> ConversationMessageRespon
         status=message.status,
         content_markdown=message.content_markdown,
         created_at=message.created_at,
+        attachments=[
+            ConversationAttachmentResponse(
+                file_id=attachment.file_id,
+                original_name=attachment.original_name,
+                kind=attachment.kind,
+                detected_media_type=attachment.detected_media_type,
+                actual_size=attachment.actual_size,
+                status=attachment.status,
+                width=attachment.width,
+                height=attachment.height,
+            )
+            for attachment in message.attachments
+        ],
     )

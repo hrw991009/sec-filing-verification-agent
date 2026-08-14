@@ -167,6 +167,7 @@ def test_optional_agent_model_configuration_is_strict_and_secret_safe(
                 "input_micro_usd_per_million": 1_000_000,
                 "cached_input_micro_usd_per_million": 100_000,
                 "output_micro_usd_per_million": 2_000_000,
+                "supports_image_input": True,
             }
         ),
     )
@@ -182,6 +183,7 @@ def test_optional_agent_model_configuration_is_strict_and_secret_safe(
         input_micro_usd_per_million=1_000_000,
         cached_input_micro_usd_per_million=100_000,
         output_micro_usd_per_million=2_000_000,
+        supports_image_input=True,
     )
     assert provider_key not in repr(settings)
 
@@ -192,6 +194,46 @@ def test_partial_agent_model_configuration_is_rejected(
     configure_valid_environment(monkeypatch)
     monkeypatch.setenv("AGENT_MODEL_PROVIDER_BASE_URL", "https://api.example.com/v1")
 
+    with pytest.raises(ValidationError, match="must be complete"):
+        Settings(_env_file=None)
+
+
+def test_optional_minio_configuration_is_complete_and_secret_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    sensitive_storage_value = "local-object-store-secret"
+    monkeypatch.setenv("MINIO_ENDPOINT", "127.0.0.1:19000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "industry-platform-files")
+    monkeypatch.setenv("MINIO_SECRET_KEY", sensitive_storage_value)
+    monkeypatch.setenv("MINIO_BUCKET", "industry-platform-private")
+    monkeypatch.setenv("MINIO_REGION", "us-east-1")
+    monkeypatch.setenv("MINIO_SECURE", "false")
+    monkeypatch.setenv("MINIO_PRESIGN_EXPIRY_SECONDS", "600")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.minio_configured is True
+    assert settings.minio_endpoint == "127.0.0.1:19000"
+    assert settings.minio_bucket == "industry-platform-private"
+    assert settings.minio_presign_expiry_seconds == 600
+    assert sensitive_storage_value not in repr(settings)
+
+
+def test_partial_or_url_shaped_minio_configuration_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("MINIO_ENDPOINT", "https://127.0.0.1:19000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "industry-platform-files")
+    monkeypatch.setenv("MINIO_SECRET_KEY", "local-object-store-secret")
+    monkeypatch.setenv("MINIO_BUCKET", "industry-platform-private")
+
+    with pytest.raises(ValidationError, match="host and port"):
+        Settings(_env_file=None)
+
+    monkeypatch.setenv("MINIO_ENDPOINT", "127.0.0.1:19000")
+    monkeypatch.delenv("MINIO_BUCKET")
     with pytest.raises(ValidationError, match="must be complete"):
         Settings(_env_file=None)
 

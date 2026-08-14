@@ -9,6 +9,8 @@ from industry_platform.modules.agent_runtime.context import (
     CONTEXT_COMPILER_V0,
     MAX_CONTEXT_QUESTION_LENGTH,
     MAX_CONTEXT_SUMMARY_LENGTH,
+    AttachmentContextSource,
+    validate_attachment_context_sources,
 )
 from industry_platform.modules.agent_runtime.domain import (
     MAX_RUN_TOKENS,
@@ -85,6 +87,7 @@ class DirectAnswerRunCommand:
     user_question: str = field(repr=False)
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
+    attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         validate_run_state(self.run, self.state)
@@ -129,3 +132,11 @@ class DirectAnswerRunCommand:
             ):
                 raise ValueError("Direct Answer conversation summary is invalid")
             object.__setattr__(self, "conversation_summary", summary)
+        object.__setattr__(
+            self,
+            "attachments",
+            validate_attachment_context_sources(
+                self.attachments,
+                workspace_id=self.run.workspace_id,
+            ),
+        )

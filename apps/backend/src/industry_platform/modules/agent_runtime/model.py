@@ -1,5 +1,6 @@
 """Provider-neutral model request, streaming, response, and usage contracts."""
 
+import hashlib
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -19,6 +20,11 @@ from industry_platform.modules.agent_runtime.domain import (
 _MODEL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
 _PROVIDER_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
 _PRICING_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+-]{0,127}$")
+_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+
+MAX_MODEL_IMAGE_BYTES = 5_000_000
+MAX_MODEL_IMAGE_DIMENSION = 4_096
+MAX_MODEL_IMAGE_PIXELS = 16_000_000
 
 
 class ModelRole(StrEnum):
@@ -36,6 +42,14 @@ class ModelFinishReason(StrEnum):
     LENGTH = "length"
     CONTENT_FILTER = "content_filter"
     REFUSAL = "refusal"
+
+
+class ModelImageMediaType(StrEnum):
+    """Static image formats accepted by the Day 2 model boundary."""
+
+    PNG = "image/png"
+    JPEG = "image/jpeg"
+    WEBP = "image/webp"
 
 
 def _require_non_negative_integer(value: int, *, field_name: str) -> None:
@@ -64,15 +78,54 @@ def _thaw_json_mapping(value: Mapping[str, object]) -> dict[str, object]:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelImagePart:
+    """One verified, metadata-free image passed to a vision-capable Provider."""
+
+    file_id: UUID
+    media_type: ModelImageMediaType
+    data: bytes = field(repr=False)
+    sha256: str
+    width: int
+    height: int
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.file_id, field_name="Model image file ID")
+        image_data = bytes(self.data)
+        if not 1 <= len(image_data) <= MAX_MODEL_IMAGE_BYTES:
+            raise ValueError("Model image byte length is invalid")
+        if (
+            not _SHA256_PATTERN.fullmatch(self.sha256)
+            or not hashlib.sha256(image_data).hexdigest() == self.sha256
+        ):
+            raise ValueError("Model image digest is invalid")
+        for value, field_name in (
+            (self.width, "Model image width"),
+            (self.height, "Model image height"),
+        ):
+            if isinstance(value, bool) or not 1 <= value <= MAX_MODEL_IMAGE_DIMENSION:
+                raise ValueError(f"{field_name} is invalid")
+        if self.width * self.height > MAX_MODEL_IMAGE_PIXELS:
+            raise ValueError("Model image pixel count is invalid")
+        object.__setattr__(self, "data", image_data)
+
+
+@dataclass(frozen=True, slots=True)
 class ModelMessage:
     """One bounded message prepared by the Context Compiler."""
 
     role: ModelRole
     content: str = field(repr=False)
+    image_parts: tuple[ModelImagePart, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         if not self.content.strip():
             raise ValueError("Model message content must not be blank")
+        image_parts = tuple(self.image_parts)
+        if len(image_parts) > 4 or len({part.file_id for part in image_parts}) != len(image_parts):
+            raise ValueError("Model message image parts are invalid")
+        if image_parts and self.role is not ModelRole.USER:
+            raise ValueError("Only user messages may carry model image parts")
+        object.__setattr__(self, "image_parts", image_parts)
 
 
 @dataclass(frozen=True, slots=True)

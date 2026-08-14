@@ -11,6 +11,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validat
 
 from industry_platform.modules.conversations.domain import (
     MAX_CONVERSATION_TITLE_LENGTH,
+    MAX_TURN_ATTACHMENTS,
     MAX_USER_MESSAGE_LENGTH,
     TurnSearchMode,
 )
@@ -19,6 +20,11 @@ from industry_platform.modules.conversations.management import (
     ConversationMessageRole,
     ConversationMessageStatus,
     MessageCursor,
+)
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    AttachmentMediaType,
+    FileObjectStatus,
 )
 
 MAX_CURSOR_LENGTH: Final = 512
@@ -86,6 +92,7 @@ class StartConversationTurnRequest(StrictConversationModel):
     mode: TurnSearchMode = TurnSearchMode.NONE
     industry_id: NonNilUuid | None = None
     knowledge_base_ids: list[NonNilUuid] = Field(default_factory=list, max_length=100)
+    attachment_ids: list[NonNilUuid] = Field(default_factory=list, max_length=MAX_TURN_ATTACHMENTS)
 
     @field_validator("question")
     @classmethod
@@ -105,6 +112,8 @@ class StartConversationTurnRequest(StrictConversationModel):
             raise ValueError("An existing conversation cannot declare a new title")
         if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
             raise ValueError("Knowledge-base IDs must be unique")
+        if len(set(self.attachment_ids)) != len(self.attachment_ids):
+            raise ValueError("Attachment IDs must be unique")
         if self.knowledge_base_ids and self.mode not in {
             TurnSearchMode.LOCAL,
             TurnSearchMode.BOTH,
@@ -138,6 +147,17 @@ class ConversationCollectionResponse(StrictConversationModel):
     next_cursor: str | None
 
 
+class ConversationAttachmentResponse(StrictConversationModel):
+    file_id: UUID
+    original_name: str
+    kind: AttachmentKind
+    detected_media_type: AttachmentMediaType
+    actual_size: int
+    status: FileObjectStatus
+    width: int | None
+    height: int | None
+
+
 class ConversationMessageResponse(StrictConversationModel):
     id: UUID
     turn_id: UUID
@@ -146,6 +166,7 @@ class ConversationMessageResponse(StrictConversationModel):
     status: ConversationMessageStatus
     content_markdown: str
     created_at: datetime
+    attachments: list[ConversationAttachmentResponse]
 
 
 class ConversationMessageCollectionResponse(StrictConversationModel):

@@ -20,6 +20,7 @@ NOW = datetime(2026, 8, 13, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
 OTHER_WORKSPACE_ID = UUID("22222222-2222-4222-8222-222222222222")
 USER_ID = UUID("33333333-3333-4333-8333-333333333333")
+ATTACHMENT_IDS = tuple(UUID(f"00000000-0000-4000-8000-{value:012d}") for value in range(1, 6))
 
 
 def budget() -> RunBudget:
@@ -118,6 +119,29 @@ def test_changed_user_input_changes_the_private_request_fingerprint() -> None:
 
     assert fingerprint_direct_answer_turn(first, run_id=run_id) != fingerprint_direct_answer_turn(
         changed, run_id=run_id
+    )
+
+
+def test_attachment_ids_are_ordered_unique_and_bounded() -> None:
+    accepted = command(attachment_ids=ATTACHMENT_IDS[:4])
+
+    assert accepted.attachment_ids == ATTACHMENT_IDS[:4]
+    with pytest.raises(ValueError, match="must be unique"):
+        command(attachment_ids=(ATTACHMENT_IDS[0], ATTACHMENT_IDS[0]))
+    with pytest.raises(ValueError, match="limit exceeded"):
+        command(attachment_ids=ATTACHMENT_IDS)
+
+
+def test_attachment_order_is_part_of_the_idempotency_fingerprint() -> None:
+    first = command(attachment_ids=ATTACHMENT_IDS[:2])
+    reversed_order = command(attachment_ids=tuple(reversed(ATTACHMENT_IDS[:2])))
+    run_id = deterministic_run_id(
+        workspace_id=WORKSPACE_ID,
+        idempotency_key="browser-request-1",
+    )
+
+    assert fingerprint_direct_answer_turn(first, run_id=run_id) != fingerprint_direct_answer_turn(
+        reversed_order, run_id=run_id
     )
 
 

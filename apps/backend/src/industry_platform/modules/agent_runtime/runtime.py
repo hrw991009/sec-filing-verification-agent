@@ -259,6 +259,7 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
                     compiled_at=compiled_at,
                     conversation_summary=command.conversation_summary,
                     conversation_summary_version=command.conversation_summary_version,
+                    attachments=command.attachments,
                 )
             )
         except RuntimeDeadlineExceeded:

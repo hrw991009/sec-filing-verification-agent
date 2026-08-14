@@ -8,6 +8,11 @@ from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import require_non_nil_uuid, require_utc
 from industry_platform.modules.conversations.domain import MAX_CONVERSATION_TITLE_LENGTH
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    AttachmentMediaType,
+    FileObjectStatus,
+)
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -95,6 +100,42 @@ class ConversationDetail:
 
 
 @dataclass(frozen=True, slots=True)
+class ConversationAttachment:
+    """Safe metadata returned with a durable message; storage coordinates stay private."""
+
+    file_id: UUID
+    original_name: str
+    kind: AttachmentKind
+    detected_media_type: AttachmentMediaType
+    actual_size: int
+    status: FileObjectStatus
+    width: int | None = None
+    height: int | None = None
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.file_id, field_name="Conversation attachment file ID")
+        if not self.original_name or "\x00" in self.original_name:
+            raise ValueError("Conversation attachment filename is invalid")
+        if not isinstance(self.kind, AttachmentKind):
+            raise ValueError("Conversation attachment kind is invalid")
+        if not isinstance(self.detected_media_type, AttachmentMediaType):
+            raise ValueError("Conversation attachment media type is invalid")
+        if isinstance(self.actual_size, bool) or self.actual_size < 0:
+            raise ValueError("Conversation attachment size is invalid")
+        if not isinstance(self.status, FileObjectStatus):
+            raise ValueError("Conversation attachment status is invalid")
+        dimensions = (self.width, self.height)
+        if any(
+            value is not None and (isinstance(value, bool) or value <= 0) for value in dimensions
+        ):
+            raise ValueError("Conversation attachment dimensions are invalid")
+        if self.kind is AttachmentKind.IMAGE and None in dimensions:
+            raise ValueError("Image attachment dimensions are required")
+        if self.kind is AttachmentKind.TEXT and any(value is not None for value in dimensions):
+            raise ValueError("Text attachments cannot declare image dimensions")
+
+
+@dataclass(frozen=True, slots=True)
 class ConversationMessage:
     message_id: UUID
     turn_id: UUID
@@ -103,6 +144,7 @@ class ConversationMessage:
     status: ConversationMessageStatus
     content_markdown: str = field(repr=False)
     created_at: datetime
+    attachments: tuple[ConversationAttachment, ...] = ()
 
     def __post_init__(self) -> None:
         for identifier, field_name in (
@@ -120,6 +162,10 @@ class ConversationMessage:
         if not self.content_markdown.strip() or "\x00" in self.content_markdown:
             raise ValueError("Conversation Message content is invalid")
         require_utc(self.created_at, field_name="Conversation Message creation time")
+        attachments = tuple(self.attachments)
+        if len({item.file_id for item in attachments}) != len(attachments):
+            raise ValueError("Conversation Message attachments must be unique")
+        object.__setattr__(self, "attachments", attachments)
 
 
 @dataclass(frozen=True, slots=True)

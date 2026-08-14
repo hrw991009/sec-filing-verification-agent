@@ -48,9 +48,11 @@ class SubmitConversationTurn:
     search_mode: TurnSearchMode = TurnSearchMode.NONE
     industry_id: UUID | None = None
     knowledge_base_ids: tuple[UUID, ...] = ()
+    attachment_ids: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "knowledge_base_ids", tuple(self.knowledge_base_ids))
+        object.__setattr__(self, "attachment_ids", tuple(self.attachment_ids))
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +128,7 @@ class ConversationSubmissionService:
             search_mode=request.search_mode,
             industry_id=request.industry_id,
             knowledge_base_ids=request.knowledge_base_ids,
+            attachment_ids=request.attachment_ids,
         )
         try:
             return await self.application.start_direct_answer(command)

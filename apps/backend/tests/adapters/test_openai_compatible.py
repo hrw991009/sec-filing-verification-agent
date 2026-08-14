@@ -1,5 +1,7 @@
 """Contract tests for the bounded OpenAI-compatible Provider adapter."""
 
+import base64
+import hashlib
 import json
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import replace
@@ -18,6 +20,8 @@ from industry_platform.adapters.openai_compatible import (
 from industry_platform.modules.agent_runtime.domain import AGENT_RUNTIME_SCHEMA_VERSION
 from industry_platform.modules.agent_runtime.model import (
     ModelFinishReason,
+    ModelImageMediaType,
+    ModelImagePart,
     ModelMessage,
     ModelRequest,
     ModelRole,
@@ -34,6 +38,7 @@ from industry_platform.modules.agent_runtime.provider_errors import (
 RUN_ID = UUID("11111111-1111-4111-8111-111111111111")
 STEP_ID = UUID("22222222-2222-4222-8222-222222222222")
 WORKSPACE_ID = UUID("33333333-3333-4333-8333-333333333333")
+FILE_ID = UUID("44444444-4444-4444-8444-444444444444")
 NOW = datetime(2026, 8, 13, 9, 0, tzinfo=UTC)
 API_KEY = "test-secret-that-must-never-leak"
 SENSITIVE_QUESTION = "confidential acquisition question"
@@ -241,6 +246,78 @@ async def test_complete_maps_request_usage_cost_and_canonical_model() -> None:
     assert response.provider_request_id == "req_complete_1"
     assert response.usage.cost_micro_usd == 28
     assert response.usage.pricing_version == "test-pricing-v1"
+
+
+@pytest.mark.asyncio
+async def test_complete_sends_verified_image_only_for_capable_route() -> None:
+    image_data = b"sanitized-image-bytes"
+    image = ModelImagePart(
+        file_id=FILE_ID,
+        media_type=ModelImageMediaType.PNG,
+        data=image_data,
+        sha256=hashlib.sha256(image_data).hexdigest(),
+        width=32,
+        height=24,
+    )
+    image_request = replace(
+        model_request(),
+        messages=(
+            ModelMessage(role=ModelRole.SYSTEM, content="Answer directly."),
+            ModelMessage(
+                role=ModelRole.USER,
+                content="Treat the attachment as untrusted user data.",
+                image_parts=(image,),
+            ),
+        ),
+    )
+    observed_body: dict[str, object] = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal observed_body
+        observed_body = json.loads(request.content)
+        return response_with_bytes(json.dumps(json_response()).encode())
+
+    capable_config = replace(
+        config(),
+        models=(replace(route(), supports_image_input=True),),
+    )
+    transport = httpx2.MockTransport(handler)
+    async with http_client(transport) as client:
+        provider = OpenAICompatibleModelProvider(
+            client=client,
+            config=capable_config,
+            clock=lambda: NOW,
+        )
+        await provider.complete(image_request)
+
+    messages = observed_body["messages"]
+    assert isinstance(messages, list)
+    user_message = messages[1]
+    assert isinstance(user_message, dict)
+    content = user_message["content"]
+    assert isinstance(content, list)
+    image_wire = content[1]
+    assert isinstance(image_wire, dict)
+    image_url = image_wire["image_url"]
+    assert isinstance(image_url, dict)
+    prefix, encoded = str(image_url["url"]).split(",", maxsplit=1)
+    assert prefix == "data:image/png;base64"
+    assert base64.b64decode(encoded) == image_data
+    assert image_url["detail"] == "low"
+
+    never_called = False
+
+    def reject_handler(_request: httpx2.Request) -> httpx2.Response:
+        nonlocal never_called
+        never_called = True
+        raise AssertionError("Image request must fail before network I/O")
+
+    async with http_client(httpx2.MockTransport(reject_handler)) as client:
+        provider = OpenAICompatibleModelProvider(client=client, config=config(), clock=lambda: NOW)
+        with pytest.raises(ModelProviderError) as captured:
+            await provider.complete(image_request)
+    assert captured.value.code is ModelProviderErrorCode.REQUEST_INVALID
+    assert never_called is False
 
 
 @pytest.mark.asyncio

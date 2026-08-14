@@ -24,6 +24,7 @@ from industry_platform.modules.jobs.domain import JobRequestFingerprint, Prepare
 
 MAX_CONVERSATION_TITLE_LENGTH: Final = 160
 MAX_USER_MESSAGE_LENGTH: Final = MAX_CONTEXT_QUESTION_LENGTH
+MAX_TURN_ATTACHMENTS: Final = 4
 DIRECT_ANSWER_TASK_NAME: Final = "agent.run.direct_answer"
 DIRECT_ANSWER_QUEUE_NAME: Final = "agents"
 _RUN_ID_NAMESPACE: Final = UUID("d1da4f86-ae26-4a35-b444-508e6f51010a")
@@ -57,6 +58,7 @@ class StartDirectAnswerTurn:
     search_mode: TurnSearchMode = TurnSearchMode.NONE
     industry_id: UUID | None = None
     knowledge_base_ids: tuple[UUID, ...] = ()
+    attachment_ids: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
         for value, field_name in (
@@ -101,6 +103,14 @@ class StartDirectAnswerTurn:
         if knowledge_base_ids:
             raise ValueError("Local knowledge mode is not ready on Day 2")
         object.__setattr__(self, "knowledge_base_ids", knowledge_base_ids)
+        attachment_ids = tuple(self.attachment_ids)
+        if len(attachment_ids) > MAX_TURN_ATTACHMENTS:
+            raise ValueError("Turn attachment limit exceeded")
+        if len(set(attachment_ids)) != len(attachment_ids):
+            raise ValueError("Turn attachment IDs must be unique")
+        for attachment_id in attachment_ids:
+            require_non_nil_uuid(attachment_id, field_name="Turn attachment ID")
+        object.__setattr__(self, "attachment_ids", attachment_ids)
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +128,7 @@ class PreparedDirectAnswerTurn:
     search_mode: TurnSearchMode = TurnSearchMode.NONE
     industry_id: UUID | None = None
     knowledge_base_ids: tuple[UUID, ...] = ()
+    attachment_ids: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
         for value, field_name in (
@@ -139,6 +150,14 @@ class PreparedDirectAnswerTurn:
             maximum=MAX_USER_MESSAGE_LENGTH,
             field_name="Prepared user message",
         )
+        attachment_ids = tuple(self.attachment_ids)
+        if len(attachment_ids) > MAX_TURN_ATTACHMENTS:
+            raise ValueError("Prepared attachment limit exceeded")
+        if len(set(attachment_ids)) != len(attachment_ids):
+            raise ValueError("Prepared attachment IDs must be unique")
+        for attachment_id in attachment_ids:
+            require_non_nil_uuid(attachment_id, field_name="Prepared attachment ID")
+        object.__setattr__(self, "attachment_ids", attachment_ids)
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +202,7 @@ def fingerprint_direct_answer_turn(
         "harness_version": command.harness_version,
         "industry_id": str(command.industry_id) if command.industry_id is not None else None,
         "knowledge_base_ids": sorted(str(value) for value in command.knowledge_base_ids),
+        "attachment_ids": [str(value) for value in command.attachment_ids],
         "new_conversation_title": command.new_conversation_title,
         "question": command.question,
         "run_id": str(run_id),

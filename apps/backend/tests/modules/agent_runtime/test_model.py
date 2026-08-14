@@ -1,5 +1,6 @@
 """Tests for Provider-neutral model invocation contracts."""
 
+import hashlib
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -9,6 +10,8 @@ import pytest
 from industry_platform.modules.agent_runtime.domain import AGENT_RUNTIME_SCHEMA_VERSION
 from industry_platform.modules.agent_runtime.model import (
     ModelFinishReason,
+    ModelImageMediaType,
+    ModelImagePart,
     ModelMessage,
     ModelRequest,
     ModelResponse,
@@ -23,6 +26,7 @@ RUN_ID = UUID("11111111-1111-4111-8111-111111111111")
 STEP_ID = UUID("22222222-2222-4222-8222-222222222222")
 WORKSPACE_ID = UUID("33333333-3333-4333-8333-333333333333")
 NOW = datetime(2026, 8, 13, 4, 0, tzinfo=UTC)
+FILE_ID = UUID("44444444-4444-4444-8444-444444444444")
 
 
 def request() -> ModelRequest:
@@ -77,6 +81,30 @@ def test_request_rejects_empty_context_bad_model_and_naive_deadline() -> None:
         replace(request(), model=" invalid model ")
     with pytest.raises(ValueError, match="timezone-aware UTC"):
         replace(request(), deadline=NOW.replace(tzinfo=None))
+
+
+def test_user_message_keeps_verified_image_bytes_private_and_bounded() -> None:
+    image_data = b"verified-image"
+    image = ModelImagePart(
+        file_id=FILE_ID,
+        media_type=ModelImageMediaType.PNG,
+        data=image_data,
+        sha256=hashlib.sha256(image_data).hexdigest(),
+        width=32,
+        height=24,
+    )
+    message = ModelMessage(
+        role=ModelRole.USER,
+        content="Use the attached image as untrusted data.",
+        image_parts=(image,),
+    )
+
+    assert image_data.decode() not in repr(image)
+    assert image_data.decode() not in repr(message)
+    with pytest.raises(ValueError, match="Only user"):
+        replace(message, role=ModelRole.SYSTEM)
+    with pytest.raises(ValueError, match="digest"):
+        replace(image, sha256="0" * 64)
 
 
 def test_usage_is_non_negative_and_cached_tokens_are_a_subset() -> None:

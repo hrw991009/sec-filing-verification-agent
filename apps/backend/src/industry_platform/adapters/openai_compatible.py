@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import ipaddress
 import math
 import re
@@ -100,6 +101,7 @@ class OpenAICompatibleModelRoute:
     input_micro_usd_per_million: int
     cached_input_micro_usd_per_million: int
     output_micro_usd_per_million: int
+    supports_image_input: bool = False
 
     def __post_init__(self) -> None:
         _require_model_name(self.model, field_name="Canonical model name")
@@ -117,6 +119,8 @@ class OpenAICompatibleModelRoute:
             (self.output_micro_usd_per_million, "Output token price"),
         ):
             _require_price(value, field_name=field_name)
+        if not isinstance(self.supports_image_input, bool):
+            raise ValueError("Model image-input capability is invalid")
         object.__setattr__(self, "response_models", response_models)
 
     def calculate_cost(
@@ -597,12 +601,31 @@ class OpenAICompatibleModelProvider:
         *,
         streaming: bool,
     ) -> dict[str, object]:
+        messages: list[dict[str, object]] = []
+        for message in request.messages:
+            if not message.image_parts:
+                content: object = message.content
+            else:
+                if not route.supports_image_input:
+                    raise _InvalidProviderRequest
+                content_parts: list[dict[str, object]] = [{"type": "text", "text": message.content}]
+                for image in message.image_parts:
+                    encoded = base64.b64encode(image.data).decode("ascii")
+                    content_parts.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{image.media_type.value};base64,{encoded}",
+                                "detail": "low",
+                            },
+                        }
+                    )
+                content = content_parts
+            messages.append({"role": message.role.value, "content": content})
+
         body: dict[str, object] = {
             "model": route.upstream_model,
-            "messages": [
-                {"role": message.role.value, "content": message.content}
-                for message in request.messages
-            ],
+            "messages": messages,
             "max_completion_tokens": request.max_output_tokens,
             "n": 1,
             "service_tier": "default",

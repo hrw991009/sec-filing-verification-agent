@@ -1,5 +1,6 @@
 """Tests for Context Compiler v0, trusted Runtime Context, and its manifest."""
 
+import hashlib
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -8,6 +9,7 @@ import pytest
 
 from industry_platform.modules.agent_runtime.context import (
     CONTEXT_COMPILER_V0,
+    AttachmentContextSource,
     CompiledContext,
     ContextBudgetExceededError,
     ContextCompilationInput,
@@ -29,7 +31,12 @@ from industry_platform.modules.agent_runtime.domain import (
     AgentStepStatus,
     RunBudget,
 )
-from industry_platform.modules.agent_runtime.model import ModelMessage, ModelRole
+from industry_platform.modules.agent_runtime.model import (
+    ModelImageMediaType,
+    ModelImagePart,
+    ModelMessage,
+    ModelRole,
+)
 from industry_platform.modules.agent_runtime.state import RunState
 from industry_platform.modules.identity.domain import (
     AuthenticatedPrincipal,
@@ -48,6 +55,8 @@ USER_ID = UUID("55555555-5555-4555-8555-555555555555")
 SESSION_ID = UUID("66666666-6666-4666-8666-666666666666")
 STEP_ID = UUID("77777777-7777-4777-8777-777777777777")
 MANIFEST_ID = UUID("88888888-8888-4888-8888-888888888888")
+TEXT_FILE_ID = UUID("99999999-9999-4999-8999-999999999999")
+IMAGE_FILE_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 NOW = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
 
 OTHER_WORKSPACE_NAME = "other-workspace-must-not-leak"
@@ -176,6 +185,7 @@ def compilation_input(
     summary: str | None = "Earlier the user asked about Runtime boundaries.",
     max_input_tokens: int = 256,
     max_output_tokens: int = 128,
+    attachments: tuple[AttachmentContextSource, ...] = (),
 ) -> ContextCompilationInput:
     selected_budget = budget or run_budget()
     return ContextCompilationInput(
@@ -194,6 +204,7 @@ def compilation_input(
         compiled_at=NOW + timedelta(seconds=3),
         conversation_summary=summary,
         conversation_summary_version="summary-v1" if summary is not None else None,
+        attachments=attachments,
     )
 
 
@@ -203,6 +214,44 @@ def compiler() -> ContextCompilerV0:
 
 def all_visible_text(compiled: CompiledContext) -> str:
     return "\n".join(message.content for message in compiled.request.messages)
+
+
+def text_attachment(
+    *,
+    text: str = "Revenue grew 12% year over year.",
+    ordinal: int = 1,
+    workspace_id: UUID = WORKSPACE_ID,
+) -> AttachmentContextSource:
+    return AttachmentContextSource(
+        file_id=TEXT_FILE_ID,
+        workspace_id=workspace_id,
+        ordinal=ordinal,
+        media_type="text/plain",
+        sha256=hashlib.sha256(text.encode()).hexdigest(),
+        parser_version="chat-attachment-parser-v1",
+        extracted_text=text,
+    )
+
+
+def image_attachment(*, ordinal: int = 2) -> AttachmentContextSource:
+    image_data = b"verified-and-sanitized-image"
+    digest = hashlib.sha256(image_data).hexdigest()
+    return AttachmentContextSource(
+        file_id=IMAGE_FILE_ID,
+        workspace_id=WORKSPACE_ID,
+        ordinal=ordinal,
+        media_type="image/png",
+        sha256=digest,
+        parser_version="chat-attachment-parser-v1",
+        image_part=ModelImagePart(
+            file_id=IMAGE_FILE_ID,
+            media_type=ModelImageMediaType.PNG,
+            data=image_data,
+            sha256=digest,
+            width=640,
+            height=480,
+        ),
+    )
 
 
 def test_compile_orders_layers_and_manifest_without_saving_source_text() -> None:
@@ -217,8 +266,11 @@ def test_compile_orders_layers_and_manifest_without_saving_source_text() -> None
         ModelRole.USER,
     ]
     assert first.request.messages[-1].content == "What does the Context Compiler do?"
-    assert tuple(source.source_kind for source in first.manifest.sources) == tuple(
-        ContextSourceKind
+    assert tuple(source.source_kind for source in first.manifest.sources) == (
+        ContextSourceKind.SYSTEM_INSTRUCTIONS,
+        ContextSourceKind.RUNTIME_CONTEXT_PROJECTION,
+        ContextSourceKind.CONVERSATION_SUMMARY,
+        ContextSourceKind.USER_QUESTION,
     )
     assert all(source.included for source in first.manifest.sources)
     assert first.manifest.sources[2].decision_reason is ContextDecisionReason.INCLUDED
@@ -270,6 +322,75 @@ def test_summary_is_user_data_and_is_omitted_whole_when_it_cannot_fit() -> None:
 
     unavailable = compiler().compile(compilation_input(summary=None))
     assert unavailable.manifest.sources[2].decision_reason is ContextDecisionReason.NOT_AVAILABLE
+
+
+def test_selected_attachments_are_untrusted_and_manifest_omits_payloads() -> None:
+    selected = (text_attachment(), image_attachment())
+    compiled = compiler().compile(
+        compilation_input(
+            attachments=selected,
+            max_input_tokens=512,
+        )
+    )
+
+    assert [message.role for message in compiled.request.messages] == [
+        ModelRole.SYSTEM,
+        ModelRole.USER,
+        ModelRole.USER,
+        ModelRole.USER,
+        ModelRole.USER,
+        ModelRole.USER,
+    ]
+    text_message, image_message = compiled.request.messages[3:5]
+    assert "untrusted data" in text_message.content
+    assert "Revenue grew 12%" in text_message.content
+    assert text_message.image_parts == ()
+    assert "untrusted data" in image_message.content
+    assert image_message.image_parts == (selected[1].image_part,)
+    assert compiled.request.messages[-1].content == "What does the Context Compiler do?"
+
+    attachment_sources = tuple(
+        source
+        for source in compiled.manifest.sources
+        if source.source_kind is ContextSourceKind.ATTACHMENT
+    )
+    assert [source.ordinal for source in attachment_sources] == [4, 5]
+    assert [source.source_id for source in attachment_sources] == [
+        str(TEXT_FILE_ID),
+        str(IMAGE_FILE_ID),
+    ]
+    assert [source.source_sha256 for source in attachment_sources] == [
+        selected[0].sha256,
+        selected[1].sha256,
+    ]
+    manifest_representation = repr(compiled.manifest)
+    assert "Revenue grew 12%" not in manifest_representation
+    assert "verified-and-sanitized-image" not in manifest_representation
+
+
+def test_selected_attachment_is_required_and_never_silently_dropped_for_budget() -> None:
+    selected = (text_attachment(text="attachment-data " * 100),)
+
+    with pytest.raises(ContextBudgetExceededError):
+        compiler().compile(
+            compilation_input(
+                attachments=selected,
+                summary=None,
+                max_input_tokens=40,
+            )
+        )
+
+
+def test_attachment_context_rejects_wrong_order_workspace_or_digest() -> None:
+    with pytest.raises(ValueError, match="order or Workspace"):
+        replace(compilation_input(), attachments=(text_attachment(ordinal=2),))
+    with pytest.raises(ValueError, match="order or Workspace"):
+        replace(
+            compilation_input(),
+            attachments=(text_attachment(workspace_id=OTHER_WORKSPACE_ID),),
+        )
+    with pytest.raises(ValueError, match="does not match its digest"):
+        replace(text_attachment(), sha256="0" * 64)
 
 
 def test_run_usage_reduces_output_allowance_and_required_input_never_gets_truncated() -> None:
@@ -339,3 +460,17 @@ def test_counter_failure_is_rejected_before_a_provider_request_can_exist() -> No
         model="openai-compatible/test-model",
         messages=(message,),
     ) > len(message.content)
+    selected_image = image_attachment()
+    assert selected_image.image_part is not None
+    image_message = ModelMessage(
+        role=ModelRole.USER,
+        content="verified image",
+        image_parts=(selected_image.image_part,),
+    )
+    assert upper_bound.count(
+        model="openai-compatible/test-model",
+        messages=(image_message,),
+    ) > upper_bound.count(
+        model="openai-compatible/test-model",
+        messages=(message,),
+    )

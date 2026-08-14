@@ -1,5 +1,6 @@
 """Typed inputs and audit records for compiling one model-visible context."""
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -19,7 +20,12 @@ from industry_platform.modules.agent_runtime.domain import (
     require_non_nil_uuid,
     require_utc,
 )
-from industry_platform.modules.agent_runtime.model import ModelRequest, ModelRole
+from industry_platform.modules.agent_runtime.model import (
+    ModelImageMediaType,
+    ModelImagePart,
+    ModelRequest,
+    ModelRole,
+)
 from industry_platform.modules.agent_runtime.state import RunState, validate_run_state
 from industry_platform.modules.identity.domain import AuthenticatedWorkspace
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
@@ -33,9 +39,14 @@ MAX_CONTEXT_SYSTEM_INSTRUCTIONS_LENGTH: Final = 20_000
 MAX_CONTEXT_QUESTION_LENGTH: Final = 20_000
 MAX_CONTEXT_SUMMARY_LENGTH: Final = 50_000
 MAX_CONTEXT_WORKSPACE_NAME_LENGTH: Final = 256
+MAX_CONTEXT_ATTACHMENT_TEXT_LENGTH: Final = 500_000
+MAX_CONTEXT_ATTACHMENTS: Final = 4
+MAX_CONTEXT_MANIFEST_SOURCES: Final = 4 + MAX_CONTEXT_ATTACHMENTS
 
 _VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+/-]{0,127}$")
 _SECRET_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
+_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+_TEXT_ATTACHMENT_MEDIA_TYPES: Final = frozenset({"text/plain", "text/markdown"})
 
 
 class RuntimePrincipal(Protocol):
@@ -66,11 +77,12 @@ class BackgroundRunPrincipal:
 
 
 class ContextSourceKind(StrEnum):
-    """The four inputs understood by the Day 2 compiler."""
+    """The base inputs plus each explicitly selected Day 2 attachment."""
 
     SYSTEM_INSTRUCTIONS = "system_instructions"
     RUNTIME_CONTEXT_PROJECTION = "runtime_context_projection"
     CONVERSATION_SUMMARY = "conversation_summary"
+    ATTACHMENT = "attachment"
     USER_QUESTION = "user_question"
 
 
@@ -177,6 +189,80 @@ class TrustedRuntimeContext:
 
 
 @dataclass(frozen=True, slots=True)
+class AttachmentContextSource:
+    """One verified text or image attachment selected for the current message."""
+
+    file_id: UUID
+    workspace_id: UUID
+    ordinal: int
+    media_type: str
+    sha256: str
+    parser_version: str
+    extracted_text: str | None = field(default=None, repr=False)
+    image_part: ModelImagePart | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.file_id, field_name="Attachment Context file ID")
+        require_non_nil_uuid(self.workspace_id, field_name="Attachment Context Workspace ID")
+        if isinstance(self.ordinal, bool) or not 1 <= self.ordinal <= MAX_CONTEXT_ATTACHMENTS:
+            raise ValueError("Attachment Context ordinal is invalid")
+        if not _SHA256_PATTERN.fullmatch(self.sha256):
+            raise ValueError("Attachment Context digest is invalid")
+        _require_version(self.parser_version, field_name="Attachment Context parser version")
+
+        media_type = self.media_type.strip().lower()
+        if media_type != self.media_type:
+            raise ValueError("Attachment Context media type is not canonical")
+        if media_type in _TEXT_ATTACHMENT_MEDIA_TYPES:
+            if self.extracted_text is None or self.image_part is not None:
+                raise ValueError("Text Attachment Context requires only extracted text")
+            text = self.extracted_text
+            if (
+                not text.strip()
+                or len(text) > MAX_CONTEXT_ATTACHMENT_TEXT_LENGTH
+                or "\r" in text
+                or any(ord(character) < 32 and character not in {"\n", "\t"} for character in text)
+            ):
+                raise ValueError("Attachment Context extracted text is invalid")
+            if hashlib.sha256(text.encode("utf-8")).hexdigest() != self.sha256:
+                raise ValueError("Attachment Context text does not match its digest")
+            return
+
+        try:
+            image_media_type = ModelImageMediaType(media_type)
+        except ValueError:
+            raise ValueError("Attachment Context media type is unsupported") from None
+        if self.extracted_text is not None or self.image_part is None:
+            raise ValueError("Image Attachment Context requires only an image part")
+        if (
+            self.image_part.file_id != self.file_id
+            or self.image_part.media_type is not image_media_type
+            or self.image_part.sha256 != self.sha256
+        ):
+            raise ValueError("Attachment Context image does not match its metadata")
+
+
+def validate_attachment_context_sources(
+    attachments: tuple[AttachmentContextSource, ...],
+    *,
+    workspace_id: UUID,
+) -> tuple[AttachmentContextSource, ...]:
+    """Freeze and validate the complete ordered attachment selection."""
+
+    selected = tuple(attachments)
+    if len(selected) > MAX_CONTEXT_ATTACHMENTS:
+        raise ValueError("Attachment Context exceeds the attachment count limit")
+    if len({attachment.file_id for attachment in selected}) != len(selected):
+        raise ValueError("Attachment Context file IDs must be unique")
+    if any(
+        attachment.workspace_id != workspace_id or attachment.ordinal != ordinal
+        for ordinal, attachment in enumerate(selected, start=1)
+    ):
+        raise ValueError("Attachment Context order or Workspace is invalid")
+    return selected
+
+
+@dataclass(frozen=True, slots=True)
 class ContextCompilationInput:
     """All explicit inputs needed to compile one Direct Answer model request."""
 
@@ -195,6 +281,7 @@ class ContextCompilationInput:
     compiled_at: datetime
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
+    attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         require_non_nil_uuid(self.manifest_id, field_name="Context manifest ID")
@@ -262,6 +349,14 @@ class ContextCompilationInput:
                     field_name="Conversation summary",
                 ),
             )
+        object.__setattr__(
+            self,
+            "attachments",
+            validate_attachment_context_sources(
+                self.attachments,
+                workspace_id=self.run.workspace_id,
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,9 +371,10 @@ class ContextSourceManifestEntry:
     decision_reason: ContextDecisionReason
     estimated_token_count: int
     message_role: ModelRole | None
+    source_sha256: str | None = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.ordinal, bool) or not 1 <= self.ordinal <= 4:
+        if isinstance(self.ordinal, bool) or not 1 <= self.ordinal <= MAX_CONTEXT_MANIFEST_SOURCES:
             raise ValueError("Context source ordinal is invalid")
         _require_version(self.source_id, field_name="Context source ID")
         _require_version(self.source_version, field_name="Context source version")
@@ -297,6 +393,11 @@ class ContextSourceManifestEntry:
             or self.message_role is not None
         ):
             raise ValueError("An excluded Context source cannot claim model input")
+        if self.source_kind is ContextSourceKind.ATTACHMENT:
+            if not _SHA256_PATTERN.fullmatch(self.source_sha256 or ""):
+                raise ValueError("Attachment Context source digest is invalid")
+        elif self.source_sha256 is not None:
+            raise ValueError("Only Attachment Context sources may record a digest")
 
 
 @dataclass(frozen=True, slots=True)
@@ -372,15 +473,27 @@ class ContextManifest:
         require_utc(self.created_at, field_name="Context manifest creation time")
 
         sources = tuple(self.sources)
-        expected_kinds = tuple(ContextSourceKind)
-        if len(sources) != len(expected_kinds) or any(
-            entry.ordinal != ordinal or entry.source_kind is not expected_kind
-            for ordinal, (entry, expected_kind) in enumerate(
-                zip(sources, expected_kinds, strict=True),
-                start=1,
-            )
+        expected_prefix = (
+            ContextSourceKind.SYSTEM_INSTRUCTIONS,
+            ContextSourceKind.RUNTIME_CONTEXT_PROJECTION,
+            ContextSourceKind.CONVERSATION_SUMMARY,
+        )
+        kinds = tuple(source.source_kind for source in sources)
+        if (
+            not 4 <= len(sources) <= MAX_CONTEXT_MANIFEST_SOURCES
+            or kinds[:3] != expected_prefix
+            or kinds[-1] is not ContextSourceKind.USER_QUESTION
+            or any(kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:-1])
+            or any(source.ordinal != ordinal for ordinal, source in enumerate(sources, start=1))
         ):
-            raise ValueError("Context manifest sources must use the fixed v0 order")
+            raise ValueError("Context manifest sources use an invalid v0 order")
+        attachment_ids = tuple(
+            source.source_id
+            for source in sources
+            if source.source_kind is ContextSourceKind.ATTACHMENT
+        )
+        if len(attachment_ids) != len(set(attachment_ids)):
+            raise ValueError("Context manifest Attachment source IDs must be unique")
         object.__setattr__(self, "sources", sources)
 
 

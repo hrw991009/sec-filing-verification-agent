@@ -341,6 +341,9 @@ def _to_context_source(value: object) -> ContextSourceManifestEntry:
         decision_reason=ContextDecisionReason(_required_str(value, "decision_reason")),
         estimated_token_count=_required_int(value, "estimated_token_count"),
         message_role=message_role,
+        source_sha256=(
+            None if value.get("source_sha256") is None else _required_str(value, "source_sha256")
+        ),
     )
 
 

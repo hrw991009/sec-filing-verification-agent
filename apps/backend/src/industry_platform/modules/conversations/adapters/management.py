@@ -1,5 +1,6 @@
 """SQLAlchemy conversation management backed by formal Workspace-owned rows."""
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -9,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.conversations.management import (
+    ConversationAttachment,
     ConversationCursor,
     ConversationDetail,
     ConversationMessage,
@@ -24,6 +26,7 @@ from industry_platform.modules.conversations.models import (
     Conversation,
     ConversationStatus,
     Message,
+    MessageAttachment,
     MessageRole,
     MessageStatus,
     Turn,
@@ -32,6 +35,12 @@ from industry_platform.modules.conversations.service import (
     ConversationNotFoundError,
     ConversationPersistenceError,
 )
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    AttachmentMediaType,
+    FileObjectStatus,
+)
+from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 
@@ -154,17 +163,64 @@ class SqlAlchemyConversationManagementRepository:
                     )
                 statement = statement.order_by(Message.created_at, Message.id).limit(page_size + 1)
                 records = tuple(await session.scalars(statement))
+                visible = records[:page_size]
+                attachments_by_message: dict[UUID, list[ConversationAttachment]] = defaultdict(list)
+                if visible:
+                    attachment_statement = (
+                        select(
+                            MessageAttachment.message_id,
+                            FileObject.id,
+                            FileObject.original_name,
+                            FileObject.kind,
+                            FileObject.detected_media_type,
+                            FileObject.actual_size,
+                            FileObject.status,
+                            FileObject.width,
+                            FileObject.height,
+                        )
+                        .select_from(MessageAttachment)
+                        .join(
+                            FileObject,
+                            and_(
+                                FileObject.id == MessageAttachment.file_id,
+                                FileObject.workspace_id == MessageAttachment.workspace_id,
+                            ),
+                        )
+                        .where(
+                            MessageAttachment.workspace_id == scope.workspace_id,
+                            MessageAttachment.message_id.in_(
+                                tuple(message.id for message in visible)
+                            ),
+                        )
+                        .order_by(MessageAttachment.message_id, MessageAttachment.ordinal)
+                    )
+                    for row in (await session.execute(attachment_statement)).all():
+                        attachments_by_message[row.message_id].append(
+                            ConversationAttachment(
+                                file_id=row.id,
+                                original_name=row.original_name,
+                                kind=AttachmentKind(_enum_value(row.kind)),
+                                detected_media_type=AttachmentMediaType(
+                                    _enum_value(row.detected_media_type)
+                                ),
+                                actual_size=_required_positive_integer(row.actual_size),
+                                status=FileObjectStatus(_enum_value(row.status)),
+                                width=row.width,
+                                height=row.height,
+                            )
+                        )
         except ConversationNotFoundError:
             raise
         except SQLAlchemyError as error:
             raise ConversationPersistenceError(sqlstate=safe_sqlstate(error)) from None
-        visible = records[:page_size]
         next_cursor = None
         if len(records) > page_size:
             last = visible[-1]
             next_cursor = MessageCursor(created_at=last.created_at, message_id=last.id)
         return MessagePage(
-            items=tuple(_message(record) for record in visible),
+            items=tuple(
+                _message(record, tuple(attachments_by_message[record.id])) for record in visible
+            ),
             next_cursor=next_cursor,
         )
 
@@ -238,7 +294,10 @@ def _summary(record: Conversation) -> ConversationSummary:
     )
 
 
-def _message(record: Message) -> ConversationMessage:
+def _message(
+    record: Message,
+    attachments: tuple[ConversationAttachment, ...] = (),
+) -> ConversationMessage:
     role: ConversationMessageRole = "user" if record.role is MessageRole.USER else "assistant"
     if record.status is MessageStatus.COMMITTED:
         status: ConversationMessageStatus = "committed"
@@ -254,4 +313,18 @@ def _message(record: Message) -> ConversationMessage:
         status=status,
         content_markdown=record.content_markdown,
         created_at=record.created_at,
+        attachments=attachments,
     )
+
+
+def _enum_value(value: object) -> str:
+    raw = getattr(value, "value", value)
+    if not isinstance(raw, str):
+        raise ConversationPersistenceError()
+    return raw
+
+
+def _required_positive_integer(value: int | None) -> int:
+    if value is None or isinstance(value, bool) or value <= 0:
+        raise ConversationPersistenceError()
+    return value

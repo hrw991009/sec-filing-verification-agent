@@ -35,6 +35,7 @@ from industry_platform.modules.agent_runtime.execution import (
 )
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
+from industry_platform.modules.files.resources import create_private_file_object_store
 
 UNCONFIGURED_AGENT_MODEL = "openai-compatible/unconfigured"
 
@@ -111,7 +112,11 @@ def create_direct_answer_runtime_resources(
         cancellation_probe=SqlAlchemyAgentRunControl(session_factory),
     )
     execution_service = DirectAnswerRunExecutionService(
-        loader=SqlAlchemyDirectAnswerRunLoader(session_factory, policy),
+        loader=SqlAlchemyDirectAnswerRunLoader(
+            session_factory,
+            policy,
+            attachment_object_reader=create_private_file_object_store(settings),
+        ),
         runtime=runtime,
     )
     return DirectAnswerRuntimeResources(
@@ -139,6 +144,7 @@ def _provider_config(settings: Settings) -> OpenAICompatibleProviderConfig | Non
                 input_micro_usd_per_million=route.input_micro_usd_per_million,
                 cached_input_micro_usd_per_million=(route.cached_input_micro_usd_per_million),
                 output_micro_usd_per_million=route.output_micro_usd_per_million,
+                supports_image_input=route.supports_image_input,
             ),
         ),
         request_timeout_seconds=settings.agent_model_request_timeout_seconds,

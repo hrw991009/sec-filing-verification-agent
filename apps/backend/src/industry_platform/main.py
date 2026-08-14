@@ -58,12 +58,24 @@ from industry_platform.modules.conversations.resources import (
 from industry_platform.modules.conversations.router import router as conversation_router
 from industry_platform.modules.conversations.schemas import InvalidConversationCursorError
 from industry_platform.modules.conversations.service import (
+    ConversationAttachmentNotReadyError,
+    ConversationAttachmentNotSupportedError,
     ConversationNotFoundError,
     ConversationPersistenceError,
 )
 from industry_platform.modules.conversations.submission import (
     ConversationIdempotencyConflictError,
     ConversationModeNotReadyError,
+)
+from industry_platform.modules.files.resources import create_file_resources
+from industry_platform.modules.files.router import router as file_router
+from industry_platform.modules.files.service import (
+    FileNotFoundError,
+    FileServiceUnavailableError,
+    FileStateConflictError,
+    FileStorageConfigurationError,
+    FileUploadExpiredError,
+    FileValidationRejectedError,
 )
 from industry_platform.modules.identity.domain import (
     AccessTokenGenerationError,
@@ -156,7 +168,17 @@ def create_app(
                 redis_client,
             )
             workspace_resources = create_workspace_resources(database_session_factory)
-            conversation_resources = create_conversation_resources(database_session_factory)
+            conversation_resources = create_conversation_resources(
+                database_session_factory,
+                supports_image_input=(
+                    active_settings.agent_model_route is not None
+                    and active_settings.agent_model_route.supports_image_input
+                ),
+            )
+            file_resources = create_file_resources(
+                active_settings,
+                database_session_factory,
+            )
             agent_run_delivery_resources = create_agent_run_delivery_resources(
                 database_session_factory
             )
@@ -173,6 +195,7 @@ def create_app(
             application.state.identity_resources = identity_resources
             application.state.workspace_resources = workspace_resources
             application.state.conversation_resources = conversation_resources
+            application.state.file_resources = file_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.job_resources = job_resources
 
@@ -210,6 +233,7 @@ def create_app(
     application.include_router(workspace_router, prefix="/api/v1")
     application.include_router(conversation_router, prefix="/api/v1")
     application.include_router(agent_run_router, prefix="/api/v1")
+    application.include_router(file_router, prefix="/api/v1")
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -609,6 +633,34 @@ def create_app(
             problem_type="urn:iip:problem:conversation-idempotency-conflict",
         )
 
+    @application.exception_handler(ConversationAttachmentNotReadyError)
+    async def handle_conversation_attachment_not_ready(
+        request: Request,
+        _error: ConversationAttachmentNotReadyError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation attachment not ready",
+            code="CONVERSATION_ATTACHMENT_NOT_READY",
+            detail="Every selected attachment must be ready and unused in this workspace.",
+            problem_type="urn:iip:problem:conversation-attachment-not-ready",
+        )
+
+    @application.exception_handler(ConversationAttachmentNotSupportedError)
+    async def handle_conversation_attachment_not_supported(
+        request: Request,
+        _error: ConversationAttachmentNotSupportedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation attachment not supported",
+            code="CONVERSATION_ATTACHMENT_NOT_SUPPORTED",
+            detail="The active model route does not support the selected attachment type.",
+            problem_type="urn:iip:problem:conversation-attachment-not-supported",
+        )
+
     @application.exception_handler(ConversationPersistenceError)
     async def handle_conversation_unavailable(
         request: Request,
@@ -627,6 +679,96 @@ def create_app(
             code="CONVERSATION_UNAVAILABLE",
             detail="Conversation data is temporarily unavailable. Please try again.",
             problem_type="urn:iip:problem:conversation-unavailable",
+        )
+
+    @application.exception_handler(FileNotFoundError)
+    async def handle_file_not_found(
+        request: Request,
+        _error: FileNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="File not found",
+            code="FILE_NOT_FOUND",
+            detail="The requested file does not exist in this workspace.",
+            problem_type="urn:iip:problem:file-not-found",
+        )
+
+    @application.exception_handler(FileUploadExpiredError)
+    async def handle_file_upload_expired(
+        request: Request,
+        _error: FileUploadExpiredError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="File upload expired",
+            code="FILE_UPLOAD_EXPIRED",
+            detail="Create a new upload before sending this attachment.",
+            problem_type="urn:iip:problem:file-upload-expired",
+        )
+
+    @application.exception_handler(FileStateConflictError)
+    async def handle_file_state_conflict(
+        request: Request,
+        _error: FileStateConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="File state conflict",
+            code="FILE_STATE_CONFLICT",
+            detail="The file cannot perform that operation in its current state.",
+            problem_type="urn:iip:problem:file-state-conflict",
+        )
+
+    @application.exception_handler(FileValidationRejectedError)
+    async def handle_file_validation_rejected(
+        request: Request,
+        error: FileValidationRejectedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="File rejected",
+            code=f"FILE_{error.code.value.upper()}",
+            detail="The uploaded attachment did not pass the required safety checks.",
+            problem_type="urn:iip:problem:file-validation-rejected",
+        )
+
+    @application.exception_handler(FileStorageConfigurationError)
+    async def handle_file_storage_configuration_required(
+        request: Request,
+        _error: FileStorageConfigurationError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="File storage not configured",
+            code="FILE_STORAGE_CONFIGURATION_REQUIRED",
+            detail="Private file storage is not configured for this deployment.",
+            problem_type="urn:iip:problem:file-storage-configuration-required",
+        )
+
+    @application.exception_handler(FileServiceUnavailableError)
+    async def handle_file_service_unavailable(
+        request: Request,
+        error: FileServiceUnavailableError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "File service unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "not-applicable",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="File service unavailable",
+            code="FILE_SERVICE_UNAVAILABLE",
+            detail="File storage is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:file-service-unavailable",
         )
 
     @application.exception_handler(AgentRunNotFoundError)

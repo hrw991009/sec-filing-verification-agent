@@ -28,6 +28,10 @@ NOW = datetime(2026, 8, 13, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
 USER_ID = UUID("22222222-2222-4222-8222-222222222222")
 IDS = tuple(UUID(f"00000000-0000-4000-8000-{value:012d}") for value in range(1, 20))
+ATTACHMENT_IDS = (
+    UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+    UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+)
 
 
 class RecordingWriter:
@@ -64,6 +68,7 @@ def request() -> StartDirectAnswerTurn:
         idempotency_key="browser-request-1",
         question="private-user-question",
         new_conversation_title="New conversation",
+        attachment_ids=ATTACHMENT_IDS,
     )
 
 
@@ -96,6 +101,7 @@ async def test_service_prepares_one_linked_queued_run_and_durable_job() -> None:
     assert prepared.run.job_id == prepared.job.job_id == receipt.job_id
     assert prepared.job.scope.workspace_id == WORKSPACE_ID
     assert prepared.job.payload == {"agent_run_id": str(prepared.run.run_id), "schema_version": 1}
+    assert prepared.attachment_ids == ATTACHMENT_IDS
     assert "private-user-question" not in repr(prepared)
     assert "private-user-question" not in str(dict(prepared.job.payload))
 
@@ -150,6 +156,7 @@ async def test_submission_policy_builds_the_trusted_command_and_budget() -> None
             trace_id=TraceId("http-turn-trace"),
             idempotency_key="http-request-1",
             question="Explain this market.",
+            attachment_ids=ATTACHMENT_IDS,
         ),
     )
 
@@ -163,6 +170,7 @@ async def test_submission_policy_builds_the_trusted_command_and_budget() -> None
     assert prepared.run.budget.max_total_tokens == 4_096
     assert prepared.run.budget.max_cost_micro_usd == 250_000
     assert prepared.run.budget.deadline == NOW + timedelta(seconds=300)
+    assert prepared.attachment_ids == ATTACHMENT_IDS
 
 
 @pytest.mark.asyncio

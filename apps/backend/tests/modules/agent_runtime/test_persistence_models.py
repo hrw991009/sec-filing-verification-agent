@@ -8,7 +8,8 @@ from industry_platform.modules.agent_runtime.models import (
     AgentStepRecord,
     ContextManifestRecord,
 )
-from industry_platform.modules.conversations.models import Message, Turn
+from industry_platform.modules.conversations.models import Message, MessageAttachment, Turn
+from industry_platform.modules.files.models import FileObject
 
 
 def constraint_columns(
@@ -28,6 +29,8 @@ def test_workspace_is_part_of_every_cross_resource_foreign_key() -> None:
         ("agent_steps", ("run_id", "workspace_id")),
         ("agent_events", ("run_id", "workspace_id")),
         ("context_manifests", ("step_id", "run_id", "workspace_id")),
+        ("message_attachments", ("message_id", "workspace_id")),
+        ("message_attachments", ("file_id", "workspace_id")),
     }
     tables = tuple(
         table
@@ -38,6 +41,7 @@ def test_workspace_is_part_of_every_cross_resource_foreign_key() -> None:
             AgentStepRecord.__table__,
             AgentEventRecord.__table__,
             ContextManifestRecord.__table__,
+            MessageAttachment.__table__,
         )
         if isinstance(table, Table)
     )
@@ -81,3 +85,25 @@ def test_database_allows_only_one_user_input_and_one_final_message() -> None:
 
     assert "uq_conversation_messages_one_user_input_per_turn" in partial_unique_indexes
     assert "uq_conversation_messages_one_final_per_run" in partial_unique_indexes
+
+
+def test_private_file_keys_and_message_attachment_order_are_unique() -> None:
+    file_table = FileObject.__table__
+    attachment_table = MessageAttachment.__table__
+    assert isinstance(file_table, Table)
+    assert isinstance(attachment_table, Table)
+    file_unique_columns = {
+        constraint_columns(constraint)
+        for constraint in file_table.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+    attachment_unique_columns = {
+        constraint_columns(constraint)
+        for constraint in attachment_table.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+
+    assert ("id", "workspace_id") in file_unique_columns
+    assert ("bucket", "staging_object_key") in file_unique_columns
+    assert ("file_id",) in attachment_unique_columns
+    assert ("message_id", "ordinal") in attachment_unique_columns
