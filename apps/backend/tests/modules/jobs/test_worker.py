@@ -7,9 +7,12 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import UUID
 
+import httpx2
 import pytest
 from celery import Celery
 
+from industry_platform.core.config import Settings
+from industry_platform.core.database import create_database_engine, create_database_session_factory
 from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunStopReason
 from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerExecutionResult,
@@ -44,9 +47,11 @@ from industry_platform.modules.jobs.domain import (
 from industry_platform.modules.jobs.ports import JobApplicationUseCase
 from industry_platform.workers.runtime import (
     IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER,
+    DirectAnswerJobHandler,
     FixedJobHandlerRegistry,
     JobExecutionDisposition,
     JobExecutionRuntime,
+    create_job_delivery_runtime,
 )
 from industry_platform.workers.tasks import register_job_execution_task
 
@@ -416,3 +421,29 @@ def test_celery_task_is_keyword_only_and_broker_body_has_no_handler_or_payload()
     assert SENSITIVE_VALUE not in serialized
     first_app.close()
     second_app.close()
+
+
+@pytest.mark.asyncio
+async def test_production_composition_registers_the_direct_answer_runtime(
+    test_settings: Settings,
+) -> None:
+    engine = create_database_engine(test_settings)
+    client = httpx2.AsyncClient(
+        transport=httpx2.MockTransport(lambda _request: httpx2.Response(500)),
+        follow_redirects=False,
+        trust_env=False,
+    )
+    try:
+        worker = create_job_delivery_runtime(
+            test_settings,
+            create_database_session_factory(engine),
+            client,
+        )
+
+        assert isinstance(
+            worker.handlers.resolve(DIRECT_ANSWER_TASK_NAME),
+            DirectAnswerJobHandler,
+        )
+    finally:
+        await client.aclose()
+        await engine.dispose()

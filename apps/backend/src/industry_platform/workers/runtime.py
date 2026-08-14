@@ -1,20 +1,27 @@
 """Fenced execution runtime and the fixed production job-handler registry."""
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Protocol
 from uuid import UUID, uuid4
 
+import httpx2
+
+from industry_platform.adapters.public_egress import create_public_egress_http_client
 from industry_platform.core.config import Settings
 from industry_platform.core.database import (
+    AsyncSessionFactory,
     create_database_engine,
     create_database_session_factory,
 )
 from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerRunExecutionUseCase,
+)
+from industry_platform.modules.agent_runtime.resources import (
+    create_direct_answer_runtime_resources,
 )
 from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
@@ -348,24 +355,50 @@ async def run_job_delivery(
     delivery: JobDispatchMessage,
     *,
     settings: Settings,
+    provider_http_client_factory: Callable[[], httpx2.AsyncClient] = (
+        create_public_egress_http_client
+    ),
 ) -> JobExecutionDisposition:
     """Compose fresh task resources; every operation borrows its own session."""
 
     engine = create_database_engine(settings)
     try:
         session_factory = create_database_session_factory(engine)
-        cleanup_service = RefreshRecoveryCleanupService(
-            transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory)
-        )
-        runtime = JobExecutionRuntime(
-            jobs=create_job_resources(
+        async with provider_http_client_factory() as provider_http_client:
+            runtime = create_job_delivery_runtime(
                 settings,
                 session_factory,
-            ).application_service,
-            handlers=FixedJobHandlerRegistry.production(cleanup_service),
-            worker_id=f"celery-{uuid4().hex}",
-            heartbeat_seconds=settings.job_heartbeat_seconds,
-        )
-        return await runtime.execute(delivery)
+                provider_http_client,
+            )
+            return await runtime.execute(delivery)
     finally:
         await engine.dispose()
+
+
+def create_job_delivery_runtime(
+    settings: Settings,
+    session_factory: AsyncSessionFactory,
+    provider_http_client: httpx2.AsyncClient,
+) -> JobExecutionRuntime:
+    """Compose every fixed production handler, including the unified Agent Runtime."""
+
+    cleanup_service = RefreshRecoveryCleanupService(
+        transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory)
+    )
+    direct_answer = create_direct_answer_runtime_resources(
+        settings,
+        session_factory,
+        provider_http_client,
+    )
+    return JobExecutionRuntime(
+        jobs=create_job_resources(
+            settings,
+            session_factory,
+        ).application_service,
+        handlers=FixedJobHandlerRegistry.production(
+            cleanup_service,
+            direct_answer.execution_service,
+        ),
+        worker_id=f"celery-{uuid4().hex}",
+        heartbeat_seconds=settings.job_heartbeat_seconds,
+    )
