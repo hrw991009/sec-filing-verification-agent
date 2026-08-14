@@ -13,6 +13,10 @@ from httpx2 import Response as HttpxResponse
 from industry_platform.core.config import Settings
 from industry_platform.core.http import PROBLEM_MEDIA_TYPE
 from industry_platform.main import create_app
+from industry_platform.modules.conversations.domain import (
+    DirectAnswerTurnReceipt,
+    TurnSearchMode,
+)
 from industry_platform.modules.conversations.management import (
     ConversationCursor,
     ConversationDetail,
@@ -26,11 +30,18 @@ from industry_platform.modules.conversations.management import (
 )
 from industry_platform.modules.conversations.router import (
     get_conversation_management_service,
+    get_conversation_submission_service,
 )
 from industry_platform.modules.conversations.schemas import encode_message_cursor
 from industry_platform.modules.conversations.service import (
     ConversationNotFoundError,
     ConversationPersistenceError,
+)
+from industry_platform.modules.conversations.submission import (
+    ConversationIdempotencyConflictError,
+    ConversationModeNotReadyError,
+    ConversationSubmissionUseCase,
+    SubmitConversationTurn,
 )
 from industry_platform.modules.identity.domain import (
     AccessToken,
@@ -50,6 +61,8 @@ CONVERSATION_ID = UUID("55555555-5555-4555-8555-555555555555")
 MESSAGE_ID = UUID("66666666-6666-4666-8666-666666666666")
 TURN_ID = UUID("77777777-7777-4777-8777-777777777777")
 RUN_ID = UUID("88888888-8888-4888-8888-888888888888")
+JOB_ID = UUID("99999999-9999-4999-8999-999999999999")
+OUTBOX_EVENT_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 RAW_ACCESS_VALUE = ".".join(("header", "payload", "signature"))
 
 
@@ -115,6 +128,30 @@ class StubConversationService:
             raise self.failure
 
 
+@dataclass(slots=True)
+class StubSubmissionService:
+    failure: Exception | None = None
+    calls: list[tuple[WorkspaceScope, SubmitConversationTurn]] = field(default_factory=list)
+
+    async def submit(
+        self,
+        scope: WorkspaceScope,
+        request: SubmitConversationTurn,
+    ) -> DirectAnswerTurnReceipt:
+        self.calls.append((scope, request))
+        if self.failure is not None:
+            raise self.failure
+        return DirectAnswerTurnReceipt(
+            conversation_id=CONVERSATION_ID,
+            turn_id=TURN_ID,
+            user_message_id=MESSAGE_ID,
+            run_id=RUN_ID,
+            job_id=JOB_ID,
+            outbox_event_id=OUTBOX_EVENT_ID,
+            created=True,
+        )
+
+
 def principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         user_id=USER_ID,
@@ -150,6 +187,7 @@ def conversation_client(
     settings: Settings,
     *,
     service: ConversationManagementUseCase | None = None,
+    submission: ConversationSubmissionUseCase | None = None,
 ) -> Iterator[TestClient]:
     application = create_app(settings=settings)
     application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
@@ -157,6 +195,9 @@ def conversation_client(
     )
     application.dependency_overrides[get_conversation_management_service] = lambda: (
         service if service is not None else StubConversationService()
+    )
+    application.dependency_overrides[get_conversation_submission_service] = lambda: (
+        submission if submission is not None else StubSubmissionService()
     )
     with TestClient(application, base_url="https://localhost") as client:
         yield client
@@ -218,6 +259,38 @@ def test_routes_round_trip_opaque_cursors_and_trusted_workspace_scope(
         assert response.headers["cache-control"] == "no-store"
 
 
+def test_post_accepts_one_direct_answer_through_the_submission_service(
+    test_settings: Settings,
+) -> None:
+    submission = StubSubmissionService()
+    root = f"/api/v1/workspaces/{WORKSPACE_ID}/conversations"
+    headers = {**bearer_header(), "Idempotency-Key": "browser-turn-1"}
+
+    with conversation_client(test_settings, submission=submission) as client:
+        response = client.post(
+            root,
+            headers=headers,
+            json={"question": "Explain this market.", "mode": "none"},
+        )
+
+    assert response.status_code == 202
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {
+        "conversation_id": str(CONVERSATION_ID),
+        "turn_id": str(TURN_ID),
+        "user_message_id": str(MESSAGE_ID),
+        "agent_run_id": str(RUN_ID),
+        "job_id": str(JOB_ID),
+        "created": True,
+    }
+    scope, request = submission.calls[0]
+    assert scope == WorkspaceScope(WORKSPACE_ID, USER_ID, "member")
+    assert request.idempotency_key == "browser-turn-1"
+    assert request.question == "Explain this market."
+    assert request.search_mode is TurnSearchMode.NONE
+    assert str(request.trace_id)
+
+
 def test_routes_reject_untrusted_scope_cursor_and_payload(
     test_settings: Settings,
 ) -> None:
@@ -240,13 +313,58 @@ def test_routes_reject_untrusted_scope_cursor_and_payload(
             headers=bearer_header(),
             json={"title": " line one\nline two "},
         )
+        missing_idempotency_key = client.post(
+            root,
+            headers=bearer_header(),
+            json={"question": "Explain this market."},
+        )
+        invalid_turn_shape = client.post(
+            root,
+            headers={**bearer_header(), "Idempotency-Key": "browser-turn-1"},
+            json={
+                "question": "Explain this market.",
+                "conversation_id": str(CONVERSATION_ID),
+                "title": "Cannot rename here",
+            },
+        )
 
     assert_problem(unauthenticated, 401, "INVALID_AUTHENTICATED_SESSION")
     assert_problem(outside_scope, 403, "WORKSPACE_ACCESS_DENIED")
     assert_problem(invalid_cursor, 400, "INVALID_CONVERSATION_CURSOR")
     assert_problem(wrong_cursor_kind, 400, "INVALID_CONVERSATION_CURSOR")
     assert_problem(invalid_title, 422, "REQUEST_VALIDATION_FAILED")
+    assert_problem(missing_idempotency_key, 422, "REQUEST_VALIDATION_FAILED")
+    assert_problem(invalid_turn_shape, 422, "REQUEST_VALIDATION_FAILED")
     assert service.calls == []
+
+
+@pytest.mark.parametrize(
+    ("failure", "code"),
+    [
+        (
+            ConversationModeNotReadyError(TurnSearchMode.WEB),
+            "CONVERSATION_MODE_NOT_READY",
+        ),
+        (
+            ConversationIdempotencyConflictError(),
+            "CONVERSATION_IDEMPOTENCY_CONFLICT",
+        ),
+    ],
+)
+def test_submission_conflicts_use_stable_problem_contracts(
+    test_settings: Settings,
+    failure: Exception,
+    code: str,
+) -> None:
+    submission = StubSubmissionService(failure=failure)
+    with conversation_client(test_settings, submission=submission) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/conversations",
+            headers={**bearer_header(), "Idempotency-Key": "browser-turn-1"},
+            json={"question": "Explain this market."},
+        )
+
+    assert_problem(response, 409, code)
 
 
 @pytest.mark.parametrize(

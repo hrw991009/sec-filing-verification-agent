@@ -171,7 +171,6 @@ def fingerprint_direct_answer_turn(
 
     document = {
         "budget": {
-            "deadline": command.budget.deadline.isoformat().replace("+00:00", "Z"),
             "max_cost_micro_usd": command.budget.max_cost_micro_usd,
             "max_steps": command.budget.max_steps,
             "max_total_tokens": command.budget.max_total_tokens,

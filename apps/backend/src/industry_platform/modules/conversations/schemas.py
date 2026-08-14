@@ -4,12 +4,16 @@ import base64
 import binascii
 import json
 from datetime import UTC, datetime
-from typing import Annotated, Any, Final, Literal
+from typing import Annotated, Any, Final, Literal, Self
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, field_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from industry_platform.modules.conversations.domain import MAX_CONVERSATION_TITLE_LENGTH
+from industry_platform.modules.conversations.domain import (
+    MAX_CONVERSATION_TITLE_LENGTH,
+    MAX_USER_MESSAGE_LENGTH,
+    TurnSearchMode,
+)
 from industry_platform.modules.conversations.management import (
     ConversationCursor,
     ConversationMessageRole,
@@ -35,8 +39,35 @@ def _non_nil_uuid(value: UUID) -> UUID:
 type NonNilUuid = Annotated[UUID, AfterValidator(_non_nil_uuid)]
 
 
+def _idempotency_key(value: str) -> str:
+    if (
+        not value
+        or len(value) > 200
+        or value != value.strip()
+        or any(ord(character) < 33 or ord(character) > 126 for character in value)
+    ):
+        raise ValueError("Idempotency key is invalid")
+    return value
+
+
+type IdempotencyKey = Annotated[str, AfterValidator(_idempotency_key)]
+
+
 class StrictConversationModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+def _validated_title(value: str) -> str:
+    if (
+        not value.strip()
+        or value != value.strip()
+        or len(value) > MAX_CONVERSATION_TITLE_LENGTH
+        or "\n" in value
+        or "\r" in value
+        or "\x00" in value
+    ):
+        raise ValueError("Conversation title is invalid")
+    return value
 
 
 class RenameConversationRequest(StrictConversationModel):
@@ -45,16 +76,50 @@ class RenameConversationRequest(StrictConversationModel):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: str) -> str:
-        if (
-            not value.strip()
-            or value != value.strip()
-            or len(value) > MAX_CONVERSATION_TITLE_LENGTH
-            or "\n" in value
-            or "\r" in value
-            or "\x00" in value
-        ):
-            raise ValueError("Conversation title is invalid")
+        return _validated_title(value)
+
+
+class StartConversationTurnRequest(StrictConversationModel):
+    question: str
+    conversation_id: NonNilUuid | None = None
+    title: str | None = None
+    mode: TurnSearchMode = TurnSearchMode.NONE
+    industry_id: NonNilUuid | None = None
+    knowledge_base_ids: list[NonNilUuid] = Field(default_factory=list, max_length=100)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        if not value.strip() or len(value) > MAX_USER_MESSAGE_LENGTH or "\x00" in value:
+            raise ValueError("Question is invalid")
         return value
+
+    @field_validator("title")
+    @classmethod
+    def validate_optional_title(cls, value: str | None) -> str | None:
+        return _validated_title(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_turn_shape(self) -> Self:
+        if self.conversation_id is not None and self.title is not None:
+            raise ValueError("An existing conversation cannot declare a new title")
+        if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
+            raise ValueError("Knowledge-base IDs must be unique")
+        if self.knowledge_base_ids and self.mode not in {
+            TurnSearchMode.LOCAL,
+            TurnSearchMode.BOTH,
+        }:
+            raise ValueError("Knowledge-base IDs require local search mode")
+        return self
+
+
+class StartConversationTurnResponse(StrictConversationModel):
+    conversation_id: UUID
+    turn_id: UUID
+    user_message_id: UUID
+    agent_run_id: UUID
+    job_id: UUID
+    created: bool
 
 
 class ConversationSummaryResponse(StrictConversationModel):

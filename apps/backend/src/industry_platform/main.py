@@ -48,6 +48,10 @@ from industry_platform.modules.conversations.service import (
     ConversationNotFoundError,
     ConversationPersistenceError,
 )
+from industry_platform.modules.conversations.submission import (
+    ConversationIdempotencyConflictError,
+    ConversationModeNotReadyError,
+)
 from industry_platform.modules.identity.domain import (
     AccessTokenGenerationError,
     AuthenticatedSessionPersistenceError,
@@ -175,7 +179,12 @@ def create_app(
         allow_origins=list(active_settings.browser_trusted_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", CSRF_PROOF_HEADER_NAME],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            CSRF_PROOF_HEADER_NAME,
+        ],
         expose_headers=[TRACE_ID_HEADER],
         max_age=600,
     )
@@ -551,6 +560,34 @@ def create_app(
             code="CONVERSATION_NOT_FOUND",
             detail="The requested conversation does not exist in this workspace.",
             problem_type="urn:iip:problem:conversation-not-found",
+        )
+
+    @application.exception_handler(ConversationModeNotReadyError)
+    async def handle_conversation_mode_not_ready(
+        request: Request,
+        _error: ConversationModeNotReadyError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation mode not ready",
+            code="CONVERSATION_MODE_NOT_READY",
+            detail="Only direct answers without search are available right now.",
+            problem_type="urn:iip:problem:conversation-mode-not-ready",
+        )
+
+    @application.exception_handler(ConversationIdempotencyConflictError)
+    async def handle_conversation_idempotency_conflict(
+        request: Request,
+        _error: ConversationIdempotencyConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation request conflict",
+            code="CONVERSATION_IDEMPOTENCY_CONFLICT",
+            detail="This idempotency key was already used for a different request.",
+            problem_type="urn:iip:problem:conversation-idempotency-conflict",
         )
 
     @application.exception_handler(ConversationPersistenceError)

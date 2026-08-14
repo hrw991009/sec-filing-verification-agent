@@ -151,7 +151,8 @@ export interface paths {
         /** List Conversations */
         get: operations["list_conversations_api_v1_workspaces__workspace_id__conversations_get"];
         put?: never;
-        post?: never;
+        /** Start Conversation Turn */
+        post: operations["start_conversation_turn_api_v1_workspaces__workspace_id__conversations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -435,6 +436,7 @@ export interface components {
          * @enum {string}
          */
         DependencyStatus: "ok" | "failed";
+        IdempotencyKey: string;
         /**
          * LivenessResponse
          * @description Stable public contract for the liveness endpoint.
@@ -480,6 +482,8 @@ export interface components {
             token_type: "Bearer";
             user: components["schemas"]["AuthenticatedUser"];
         };
+        /** Format: uuid */
+        NonNilUuid: string;
         /**
          * ReadinessChecks
          * @description Public status of each required dependency.
@@ -568,6 +572,55 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** StartConversationTurnRequest */
+        StartConversationTurnRequest: {
+            conversation_id?: components["schemas"]["NonNilUuid"] | null;
+            industry_id?: components["schemas"]["NonNilUuid"] | null;
+            /** Knowledge Base Ids */
+            knowledge_base_ids?: components["schemas"]["NonNilUuid"][];
+            /** @default none */
+            mode: components["schemas"]["TurnSearchMode"];
+            /** Question */
+            question: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** StartConversationTurnResponse */
+        StartConversationTurnResponse: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /** Created */
+            created: boolean;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /**
+             * Turn Id
+             * Format: uuid
+             */
+            turn_id: string;
+            /**
+             * User Message Id
+             * Format: uuid
+             */
+            user_message_id: string;
+        };
+        /**
+         * TurnSearchMode
+         * @description Search capability requested for one immutable turn snapshot.
+         * @enum {string}
+         */
+        TurnSearchMode: "none" | "web" | "local" | "both";
         /** WorkspaceCollectionResponse */
         WorkspaceCollectionResponse: {
             /** Workspaces */
@@ -1494,6 +1547,188 @@ export interface operations {
             };
             /** @description Workspace access denied */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Conversation service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    start_conversation_turn_api_v1_workspaces__workspace_id__conversations_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["schemas"]["IdempotencyKey"];
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartConversationTurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartConversationTurnResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Conversation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Conversation request conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

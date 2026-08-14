@@ -1,5 +1,6 @@
 """Domain tests for durable direct-answer turn acceptance."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -117,4 +118,20 @@ def test_changed_user_input_changes_the_private_request_fingerprint() -> None:
 
     assert fingerprint_direct_answer_turn(first, run_id=run_id) != fingerprint_direct_answer_turn(
         changed, run_id=run_id
+    )
+
+
+def test_server_generated_deadline_does_not_break_an_idempotent_retry() -> None:
+    first = command()
+    retried = replace(
+        first,
+        budget=replace(first.budget, deadline=first.budget.deadline + timedelta(seconds=1)),
+    )
+    run_id = deterministic_run_id(
+        workspace_id=WORKSPACE_ID,
+        idempotency_key="browser-request-1",
+    )
+
+    assert fingerprint_direct_answer_turn(first, run_id=run_id) == fingerprint_direct_answer_turn(
+        retried, run_id=run_id
     )

@@ -8,15 +8,24 @@ from industry_platform.core.database import AsyncSessionFactory
 from industry_platform.modules.conversations.adapters.management import (
     SqlAlchemyConversationManagementRepository,
 )
+from industry_platform.modules.conversations.adapters.sqlalchemy import (
+    SqlAlchemyDirectAnswerTurnTransactionFactory,
+)
 from industry_platform.modules.conversations.management import (
     ConversationManagementService,
     ConversationManagementUseCase,
+)
+from industry_platform.modules.conversations.service import ConversationApplicationService
+from industry_platform.modules.conversations.submission import (
+    ConversationSubmissionService,
+    ConversationSubmissionUseCase,
 )
 
 
 @dataclass(frozen=True, slots=True)
 class ConversationResources:
     management_service: ConversationManagementUseCase
+    submission_service: ConversationSubmissionUseCase
 
 
 def create_conversation_resources(
@@ -25,7 +34,12 @@ def create_conversation_resources(
     return ConversationResources(
         management_service=ConversationManagementService(
             repository=SqlAlchemyConversationManagementRepository(session_factory)
-        )
+        ),
+        submission_service=ConversationSubmissionService(
+            application=ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory)
+            )
+        ),
     )
 
 

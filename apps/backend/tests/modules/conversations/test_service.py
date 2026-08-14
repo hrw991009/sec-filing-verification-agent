@@ -13,9 +13,16 @@ from industry_platform.modules.conversations.domain import (
     DirectAnswerTurnReceipt,
     PreparedDirectAnswerTurn,
     StartDirectAnswerTurn,
+    TurnSearchMode,
 )
 from industry_platform.modules.conversations.service import ConversationApplicationService
+from industry_platform.modules.conversations.submission import (
+    ConversationModeNotReadyError,
+    ConversationSubmissionService,
+    SubmitConversationTurn,
+)
 from industry_platform.modules.identity.domain import TraceId
+from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
 NOW = datetime(2026, 8, 13, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -127,3 +134,56 @@ async def test_transaction_failure_is_not_reported_as_an_accepted_turn() -> None
 
     with pytest.raises(RuntimeError, match="commit failed"):
         await service(FailingWriter()).start_direct_answer(request())
+
+
+@pytest.mark.asyncio
+async def test_submission_policy_builds_the_trusted_command_and_budget() -> None:
+    writer = RecordingWriter()
+    submission = ConversationSubmissionService(
+        application=service(writer),
+        clock=lambda: NOW,
+    )
+
+    receipt = await submission.submit(
+        WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+        SubmitConversationTurn(
+            trace_id=TraceId("http-turn-trace"),
+            idempotency_key="http-request-1",
+            question="Explain this market.",
+        ),
+    )
+
+    assert receipt.created is True
+    prepared = writer.prepared[0]
+    assert prepared.run.workspace_id == WORKSPACE_ID
+    assert prepared.run.user_id == USER_ID
+    assert prepared.run.runtime_version == "direct-answer-runtime-v0"
+    assert prepared.run.harness_version == "harness-v0"
+    assert prepared.run.budget.max_steps == 2
+    assert prepared.run.budget.max_total_tokens == 4_096
+    assert prepared.run.budget.max_cost_micro_usd == 250_000
+    assert prepared.run.budget.deadline == NOW + timedelta(seconds=300)
+
+
+@pytest.mark.asyncio
+async def test_submission_rejects_viewers_and_unready_modes_before_writing() -> None:
+    writer = RecordingWriter()
+    submission = ConversationSubmissionService(
+        application=service(writer),
+        clock=lambda: NOW,
+    )
+    request_value = SubmitConversationTurn(
+        trace_id=TraceId("http-turn-trace"),
+        idempotency_key="http-request-1",
+        question="Explain this market.",
+    )
+
+    with pytest.raises(WorkspaceAccessDeniedError):
+        await submission.submit(WorkspaceScope(WORKSPACE_ID, USER_ID, "viewer"), request_value)
+    with pytest.raises(ConversationModeNotReadyError):
+        await submission.submit(
+            WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+            replace(request_value, search_mode=TurnSearchMode.WEB),
+        )
+
+    assert writer.prepared == []
