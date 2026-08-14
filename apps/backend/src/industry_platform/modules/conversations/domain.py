@@ -10,6 +10,7 @@ from enum import StrEnum
 from typing import Final
 from uuid import UUID, uuid5
 
+from industry_platform.modules.agent_runtime.context import MAX_CONTEXT_QUESTION_LENGTH
 from industry_platform.modules.agent_runtime.domain import (
     AgentRun,
     AgentRunStatus,
@@ -22,7 +23,7 @@ from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.domain import JobRequestFingerprint, PreparedJobSubmission
 
 MAX_CONVERSATION_TITLE_LENGTH: Final = 160
-MAX_USER_MESSAGE_LENGTH: Final = 100_000
+MAX_USER_MESSAGE_LENGTH: Final = MAX_CONTEXT_QUESTION_LENGTH
 DIRECT_ANSWER_TASK_NAME: Final = "agent.run.direct_answer"
 DIRECT_ANSWER_QUEUE_NAME: Final = "agents"
 _RUN_ID_NAMESPACE: Final = UUID("d1da4f86-ae26-4a35-b444-508e6f51010a")

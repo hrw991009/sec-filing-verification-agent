@@ -291,6 +291,21 @@ def test_post_accepts_one_direct_answer_through_the_submission_service(
     assert str(request.trace_id)
 
 
+def test_post_rejects_a_question_too_large_for_the_runtime_before_submission(
+    test_settings: Settings,
+) -> None:
+    submission = StubSubmissionService()
+    with conversation_client(test_settings, submission=submission) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/conversations",
+            headers={**bearer_header(), "Idempotency-Key": "oversized-turn-1"},
+            json={"question": "x" * 20_001},
+        )
+
+    assert_problem(response, 422, "REQUEST_VALIDATION_FAILED")
+    assert submission.calls == []
+
+
 def test_routes_reject_untrusted_scope_cursor_and_payload(
     test_settings: Settings,
 ) -> None:

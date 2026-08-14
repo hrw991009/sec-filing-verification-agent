@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Final
+from typing import Final, Protocol
 from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import (
@@ -21,7 +21,7 @@ from industry_platform.modules.agent_runtime.domain import (
 )
 from industry_platform.modules.agent_runtime.model import ModelRequest, ModelRole
 from industry_platform.modules.agent_runtime.state import RunState, validate_run_state
-from industry_platform.modules.identity.domain import AuthenticatedPrincipal
+from industry_platform.modules.identity.domain import AuthenticatedWorkspace
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
 from industry_platform.modules.workspaces.policy import WORKSPACE_ROLE_ACTIONS
 
@@ -36,6 +36,33 @@ MAX_CONTEXT_WORKSPACE_NAME_LENGTH: Final = 256
 
 _VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+/-]{0,127}$")
 _SECRET_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
+
+
+class RuntimePrincipal(Protocol):
+    """Small identity shape shared by authenticated requests and background Runs."""
+
+    @property
+    def user_id(self) -> UUID: ...
+
+    @property
+    def workspaces(self) -> tuple[AuthenticatedWorkspace, ...]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BackgroundRunPrincipal:
+    """Current database-backed identity for a Worker; it is not a browser Session."""
+
+    user_id: UUID
+    workspaces: tuple[AuthenticatedWorkspace, ...]
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.user_id, field_name="Background Run user ID")
+        workspaces = tuple(self.workspaces)
+        if not workspaces or len({workspace.workspace_id for workspace in workspaces}) != len(
+            workspaces
+        ):
+            raise ValueError("Background Run Workspaces are invalid")
+        object.__setattr__(self, "workspaces", workspaces)
 
 
 class ContextSourceKind(StrEnum):
@@ -104,7 +131,7 @@ class RuntimeContextProjectionV0:
 class TrustedRuntimeContext:
     """Server-verified authorization state that must never be serialized as a prompt."""
 
-    principal: AuthenticatedPrincipal = field(repr=False)
+    principal: RuntimePrincipal = field(repr=False)
     workspace_scope: WorkspaceScope = field(repr=False)
     capabilities: frozenset[WorkspaceAction] = field(repr=False)
     budget: RunBudget = field(repr=False)
