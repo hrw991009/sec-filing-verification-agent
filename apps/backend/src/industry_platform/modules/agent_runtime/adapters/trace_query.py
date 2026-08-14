@@ -1,4 +1,4 @@
-"""PostgreSQL query for the safe Agent Learning Workbench read model."""
+"""SQLAlchemy query adapter for the safe Agent Learning Workbench read model."""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass

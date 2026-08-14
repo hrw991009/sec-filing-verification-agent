@@ -12,13 +12,13 @@ from industry_platform.core.database import (
     create_database_engine,
     create_database_session_factory,
 )
-from industry_platform.modules.agent_runtime.domain import RunBudget, RunStopReason
-from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
-from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
-from industry_platform.modules.agent_runtime.persistence import (
+from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyAgentEventCommitter,
     SqlAlchemyAgentRunControl,
 )
+from industry_platform.modules.agent_runtime.domain import RunBudget, RunStopReason
+from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
+from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,
 )

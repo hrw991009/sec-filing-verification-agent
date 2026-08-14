@@ -1,4 +1,4 @@
-"""SQLAlchemy adapters for committed Agent Events, manifests, replay, and cancellation."""
+"""SQLAlchemy adapters for committed Events, manifests, replay, and cancellation."""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass

@@ -8,11 +8,11 @@ import pytest
 from sqlalchemy import update
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
-from industry_platform.modules.agent_runtime.domain import RunBudget
-from industry_platform.modules.agent_runtime.execution_persistence import (
+from industry_platform.modules.agent_runtime.adapters.execution import (
     DirectAnswerRunNotExecutableError,
     SqlAlchemyDirectAnswerRunLoader,
 )
+from industry_platform.modules.agent_runtime.domain import RunBudget
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,

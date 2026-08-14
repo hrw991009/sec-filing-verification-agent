@@ -1,4 +1,4 @@
-"""PostgreSQL loader for one fresh Direct Answer Runtime execution."""
+"""SQLAlchemy adapter that loads one fresh Direct Answer Runtime execution."""
 
 from dataclasses import dataclass
 from typing import cast
