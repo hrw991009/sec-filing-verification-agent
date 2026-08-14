@@ -39,6 +39,19 @@ from industry_platform.core.redis_client import (
     check_redis_connection,
     create_redis_client,
 )
+from industry_platform.modules.agent_runtime.delivery import (
+    AgentRunDeliveryStateError,
+    AgentRunDeliveryUnavailableError,
+    AgentRunNotFoundError,
+)
+from industry_platform.modules.agent_runtime.resources import (
+    create_agent_run_delivery_resources,
+)
+from industry_platform.modules.agent_runtime.router import router as agent_run_router
+from industry_platform.modules.agent_runtime.streaming import (
+    StreamContractError,
+    StreamErrorCode,
+)
 from industry_platform.modules.conversations.resources import (
     create_conversation_resources,
 )
@@ -144,6 +157,9 @@ def create_app(
             )
             workspace_resources = create_workspace_resources(database_session_factory)
             conversation_resources = create_conversation_resources(database_session_factory)
+            agent_run_delivery_resources = create_agent_run_delivery_resources(
+                database_session_factory
+            )
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
@@ -157,6 +173,7 @@ def create_app(
             application.state.identity_resources = identity_resources
             application.state.workspace_resources = workspace_resources
             application.state.conversation_resources = conversation_resources
+            application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.job_resources = job_resources
 
             yield
@@ -183,6 +200,7 @@ def create_app(
             "Authorization",
             "Content-Type",
             "Idempotency-Key",
+            "Last-Event-ID",
             CSRF_PROOF_HEADER_NAME,
         ],
         expose_headers=[TRACE_ID_HEADER],
@@ -191,6 +209,7 @@ def create_app(
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(workspace_router, prefix="/api/v1")
     application.include_router(conversation_router, prefix="/api/v1")
+    application.include_router(agent_run_router, prefix="/api/v1")
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -608,6 +627,65 @@ def create_app(
             code="CONVERSATION_UNAVAILABLE",
             detail="Conversation data is temporarily unavailable. Please try again.",
             problem_type="urn:iip:problem:conversation-unavailable",
+        )
+
+    @application.exception_handler(AgentRunNotFoundError)
+    async def handle_agent_run_not_found(
+        request: Request,
+        _error: AgentRunNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Agent Run not found",
+            code="AGENT_RUN_NOT_FOUND",
+            detail="The requested Agent Run does not exist in this workspace.",
+            problem_type="urn:iip:problem:agent-run-not-found",
+        )
+
+    @application.exception_handler(StreamContractError)
+    async def handle_agent_stream_contract_error(
+        request: Request,
+        error: StreamContractError,
+    ) -> JSONResponse:
+        invalid_cursor = error.code is StreamErrorCode.INVALID_CURSOR
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=(
+                status.HTTP_400_BAD_REQUEST if invalid_cursor else status.HTTP_409_CONFLICT
+            ),
+            title="Invalid Agent stream cursor"
+            if invalid_cursor
+            else "Agent stream reset required",
+            code=error.code.value,
+            detail=(
+                "Last-Event-ID must be a non-negative decimal sequence."
+                if invalid_cursor
+                else "Reconnect using a cursor from this Agent Run's committed stream."
+            ),
+            problem_type=f"urn:iip:problem:{error.code.value.lower().replace('_', '-')}",
+        )
+
+    @application.exception_handler(AgentRunDeliveryStateError)
+    @application.exception_handler(AgentRunDeliveryUnavailableError)
+    async def handle_agent_delivery_unavailable(
+        request: Request,
+        error: AgentRunDeliveryUnavailableError | AgentRunDeliveryStateError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        sqlstate = error.sqlstate if isinstance(error, AgentRunDeliveryUnavailableError) else None
+        logger.error(
+            "Agent event delivery unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Agent event delivery unavailable",
+            code="AGENT_EVENT_DELIVERY_UNAVAILABLE",
+            detail="Agent events are temporarily unavailable. Please reconnect shortly.",
+            problem_type="urn:iip:problem:agent-event-delivery-unavailable",
         )
 
     @application.exception_handler(WorkspaceAccessDeniedError)

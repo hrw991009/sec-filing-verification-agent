@@ -11,6 +11,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.agent_runtime.context import ContextManifest
+from industry_platform.modules.agent_runtime.delivery import (
+    AgentRunDeliveryUnavailableError,
+    AgentRunStreamDescriptor,
+)
 from industry_platform.modules.agent_runtime.domain import (
     AgentRunStatus,
     AgentStepKind,
@@ -241,13 +245,13 @@ class SqlAlchemyAgentRunControl:
                     select(Job).where(Job.id == run.job_id).with_for_update()
                 )
                 if job is None or job.workspace_id != workspace_id:
-                    raise AgentEventPersistenceError()
+                    raise AgentRunDeliveryUnavailableError()
                 job.cancel_requested_at = job.cancel_requested_at or requested_at
                 return True
-        except AgentEventPersistenceError:
+        except AgentRunDeliveryUnavailableError:
             raise
         except SQLAlchemyError as error:
-            raise AgentEventPersistenceError(sqlstate=safe_sqlstate(error)) from None
+            raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
 
     async def is_cancel_requested(self, *, run_id: UUID, workspace_id: UUID) -> bool:
         try:
@@ -269,6 +273,33 @@ class SqlAlchemyCommittedEventSource:
 
     session_factory: AsyncSessionFactory
 
+    async def find_run(
+        self, *, run_id: UUID, workspace_id: UUID
+    ) -> AgentRunStreamDescriptor | None:
+        try:
+            async with self.session_factory() as session:
+                run = await session.scalar(
+                    select(AgentRunRecord).where(
+                        AgentRunRecord.id == run_id,
+                        AgentRunRecord.workspace_id == workspace_id,
+                    )
+                )
+                if run is None:
+                    return None
+                return AgentRunStreamDescriptor(
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    user_id=run.user_id,
+                    stream_id=run.event_stream_id,
+                    trace_id=TraceId(run.trace_id),
+                    status=run.status,
+                    latest_committed_sequence=run.event_count,
+                )
+        except (TypeError, ValueError):
+            raise AgentRunDeliveryUnavailableError() from None
+        except SQLAlchemyError as error:
+            raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
+
     async def load_window(self, *, stream_id: UUID, workspace_id: UUID) -> CommittedEventWindow:
         try:
             async with self.session_factory() as session:
@@ -282,17 +313,53 @@ class SqlAlchemyCommittedEventSource:
                         .order_by(AgentEventRecord.sequence)
                     )
                 )
+            events = tuple(_to_domain_event(record) for record in records)
+            latest = events[-1].sequence if events else 0
+            return CommittedEventWindow(
+                stream_id=stream_id,
+                workspace_id=workspace_id,
+                earliest_available_sequence=1 if events else 0,
+                latest_committed_sequence=latest,
+                events=events,
+            )
+        except (TypeError, ValueError):
+            raise AgentRunDeliveryUnavailableError() from None
         except SQLAlchemyError as error:
-            raise AgentEventPersistenceError(sqlstate=safe_sqlstate(error)) from None
-        events = tuple(_to_domain_event(record) for record in records)
-        latest = events[-1].sequence if events else 0
-        return CommittedEventWindow(
-            stream_id=stream_id,
-            workspace_id=workspace_id,
-            earliest_available_sequence=1 if events else 0,
-            latest_committed_sequence=latest,
-            events=events,
-        )
+            raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
+
+    async def load_events_after(
+        self,
+        *,
+        run_id: UUID,
+        stream_id: UUID,
+        workspace_id: UUID,
+        after_sequence: int,
+        limit: int,
+    ) -> tuple[AgentEvent, ...]:
+        if isinstance(after_sequence, bool) or after_sequence < 0:
+            raise ValueError("Committed Event cursor is invalid")
+        if isinstance(limit, bool) or not 1 <= limit <= 10_000:
+            raise ValueError("Committed Event batch limit is invalid")
+        try:
+            async with self.session_factory() as session:
+                records = tuple(
+                    await session.scalars(
+                        select(AgentEventRecord)
+                        .where(
+                            AgentEventRecord.run_id == run_id,
+                            AgentEventRecord.stream_id == stream_id,
+                            AgentEventRecord.workspace_id == workspace_id,
+                            AgentEventRecord.sequence > after_sequence,
+                        )
+                        .order_by(AgentEventRecord.sequence)
+                        .limit(limit)
+                    )
+                )
+            return tuple(_to_domain_event(record) for record in records)
+        except (TypeError, ValueError):
+            raise AgentRunDeliveryUnavailableError() from None
+        except SQLAlchemyError as error:
+            raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
 
 
 async def _locked_step(

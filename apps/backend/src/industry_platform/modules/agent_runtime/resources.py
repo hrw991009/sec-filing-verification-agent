@@ -1,8 +1,9 @@
-"""Composition of the production Direct Answer Runtime around an injected egress client."""
+"""Composition roots for production Agent execution and HTTP delivery."""
 
 from dataclasses import dataclass, field
 
 import httpx2
+from fastapi import Request
 
 from industry_platform.adapters.openai_compatible import (
     OpenAICompatibleModelProvider,
@@ -17,11 +18,16 @@ from industry_platform.modules.agent_runtime.adapters.execution import (
 from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyAgentEventCommitter,
     SqlAlchemyAgentRunControl,
+    SqlAlchemyCommittedEventSource,
     SqlAlchemyContextManifestStore,
 )
 from industry_platform.modules.agent_runtime.context_compiler import (
     ContextCompilerV0,
     Utf8UpperBoundTokenCounter,
+)
+from industry_platform.modules.agent_runtime.delivery import (
+    AgentRunDeliveryService,
+    AgentRunDeliveryUseCase,
 )
 from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerRunExecutionService,
@@ -40,6 +46,31 @@ class DirectAnswerRuntimeResources:
     execution_service: DirectAnswerRunExecutionUseCase = field(repr=False)
     model: str
     provider_configured: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AgentRunDeliveryResources:
+    """API-owned committed Event reader and cooperative cancellation service."""
+
+    service: AgentRunDeliveryUseCase
+
+
+def create_agent_run_delivery_resources(
+    session_factory: AsyncSessionFactory,
+) -> AgentRunDeliveryResources:
+    return AgentRunDeliveryResources(
+        service=AgentRunDeliveryService(
+            event_reader=SqlAlchemyCommittedEventSource(session_factory),
+            cancellation_controller=SqlAlchemyAgentRunControl(session_factory),
+        )
+    )
+
+
+def get_agent_run_delivery_resources(request: Request) -> AgentRunDeliveryResources:
+    resources = getattr(request.app.state, "agent_run_delivery_resources", None)
+    if not isinstance(resources, AgentRunDeliveryResources):
+        raise RuntimeError("Application lifespan has not initialized Agent delivery resources")
+    return resources
 
 
 def create_direct_answer_runtime_resources(

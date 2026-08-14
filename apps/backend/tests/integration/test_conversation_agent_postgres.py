@@ -15,6 +15,7 @@ from industry_platform.core.database import (
 from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyAgentEventCommitter,
     SqlAlchemyAgentRunControl,
+    SqlAlchemyCommittedEventSource,
 )
 from industry_platform.modules.agent_runtime.domain import RunBudget, RunStopReason
 from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
@@ -202,6 +203,52 @@ def test_cancellation_is_written_to_run_and_job_together(
                     select(Job.cancel_requested_at).where(Job.id == receipt.job_id)
                 )
             assert run_cancelled_at == job_cancelled_at == NOW + timedelta(seconds=1)
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
+def test_committed_event_reader_resolves_run_inside_workspace_and_reads_bounded_batches(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(command())
+            reader = SqlAlchemyCommittedEventSource(session_factory)
+
+            descriptor = await reader.find_run(
+                run_id=receipt.run_id,
+                workspace_id=WORKSPACE_ID,
+            )
+            hidden = await reader.find_run(
+                run_id=receipt.run_id,
+                workspace_id=uuid4(),
+            )
+
+            assert descriptor is not None
+            assert descriptor.run_id == receipt.run_id
+            assert descriptor.user_id == USER_ID
+            assert descriptor.latest_committed_sequence == 1
+            assert hidden is None
+
+            events = await reader.load_events_after(
+                run_id=receipt.run_id,
+                stream_id=descriptor.stream_id,
+                workspace_id=WORKSPACE_ID,
+                after_sequence=0,
+                limit=1,
+            )
+            assert len(events) == 1
+            assert events[0].event_type is AgentEventType.RUN_QUEUED
+            assert events[0].sequence == 1
         finally:
             await engine.dispose()
 
