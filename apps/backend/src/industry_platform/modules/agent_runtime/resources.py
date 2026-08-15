@@ -1,6 +1,8 @@
 """Composition roots for production Agent execution and HTTP delivery."""
 
 from dataclasses import dataclass, field
+from typing import Protocol
+from uuid import UUID
 
 import httpx2
 from fastapi import Request
@@ -21,6 +23,9 @@ from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyCommittedEventSource,
     SqlAlchemyContextManifestStore,
 )
+from industry_platform.modules.agent_runtime.adapters.trace_query import (
+    SqlAlchemyAgentTraceQuery,
+)
 from industry_platform.modules.agent_runtime.context_compiler import (
     ContextCompilerV0,
     Utf8UpperBoundTokenCounter,
@@ -35,7 +40,9 @@ from industry_platform.modules.agent_runtime.execution import (
 )
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
+from industry_platform.modules.agent_runtime.trace import AgentTrace
 from industry_platform.modules.files.resources import create_private_file_object_store
+from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 UNCONFIGURED_AGENT_MODEL = "openai-compatible/unconfigured"
 
@@ -56,6 +63,19 @@ class AgentRunDeliveryResources:
     service: AgentRunDeliveryUseCase
 
 
+class AgentTraceQuery(Protocol):
+    """Workspace-scoped safe Trace read boundary used by HTTP delivery."""
+
+    async def get(self, *, scope: WorkspaceScope, run_id: UUID) -> AgentTrace: ...
+
+
+@dataclass(frozen=True, slots=True)
+class AgentTraceResources:
+    """API-owned read-only Agent Trace query."""
+
+    query: AgentTraceQuery
+
+
 def create_agent_run_delivery_resources(
     session_factory: AsyncSessionFactory,
 ) -> AgentRunDeliveryResources:
@@ -71,6 +91,19 @@ def get_agent_run_delivery_resources(request: Request) -> AgentRunDeliveryResour
     resources = getattr(request.app.state, "agent_run_delivery_resources", None)
     if not isinstance(resources, AgentRunDeliveryResources):
         raise RuntimeError("Application lifespan has not initialized Agent delivery resources")
+    return resources
+
+
+def create_agent_trace_resources(
+    session_factory: AsyncSessionFactory,
+) -> AgentTraceResources:
+    return AgentTraceResources(query=SqlAlchemyAgentTraceQuery(session_factory))
+
+
+def get_agent_trace_resources(request: Request) -> AgentTraceResources:
+    resources = getattr(request.app.state, "agent_trace_resources", None)
+    if not isinstance(resources, AgentTraceResources):
+        raise RuntimeError("Application lifespan has not initialized Agent Trace resources")
     return resources
 
 

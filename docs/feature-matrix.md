@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-12
+> 更新日期：2026-08-14
 >
 > 权威来源：`docs/master-plan.md` 1.7.0
 
@@ -107,15 +107,30 @@ D1-09 的参考仓历史凭据处置需要 Provider 侧外部操作。它不否�
 
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
-| D2-01 | 可替换 Model Provider | R1 + R2 + NEW | `stream/complete`；确定性 Fake 仅测试；一个服务端 OpenAI-compatible Adapter。Embedding 使用 Day 5 的独立 Port | Provider contract、超时、429、半截响应、Token/费用 | `planned` | `complete` |
-| D2-02 | 完整会话管理 | R1 + R2 | 新建、列表、详情、消息分页、重命名、删除、自动标题 | 正常/空/分页/刷新/删除 E2E，删除真实调用后端 | `planned` | `complete` |
-| D2-03 | 单轮搜索模式 | R2 | 每个 Turn 明确保存 `none/web/local/both`、行业和一个或多个知识库；Day 2 启用 none，Day 3 启用 web，Day 5 启用 local/both，未就绪时返回稳定 readiness 错误 | 四种模式快照/恢复与分阶段 readiness 测试；禁止 Mock 搜索成功 | `planned` | `complete` |
-| D2-04 | 聊天附件生命周期 | R1 + R2 + NEW | 上传、处理状态、关联消息、列表、删除；文本/图片真实解析，其他格式不伪装支持 | 文件类型真值表、越权/删除/失败测试 | `planned` | `complete` |
-| D2-05 | 可恢复流式回答 | R1 + R2 + NEW | 202 + Job；固定 `id: sequence`/`event: type`/`data: envelope`；不推进游标的 comment 心跳；停止/重试、Last-Event-ID、snapshot、唯一终态、有界缓冲与慢客户端背压 | wire contract、非法/跨流/超前游标、断开/重连/重复/缺口/过期、慢客户端、Redis 丢失、取消测试 | `planned` | `complete` |
-| D2-06 | 失败不丢用户工作 | NEW | 保存用户消息、partial、Citation、错误码和可重试状态 | Provider 失败和 Worker 中断后刷新仍可解释 | `planned` | `complete` |
-| D2-07 | 安全 Markdown 与可见步骤 | R2 + NEW | 消毒 Markdown；只展示 Tool/Research 的审计摘要，不展示原始 CoT | XSS、恶意链接、Prompt 注入和日志检查 | `planned` | `complete` |
-| D2-08 | Agent Runtime v0 与唯一执行入口 | NEW | 版本化 AgentRun/Step/Event/State/Artifact/Budget、Provider-neutral Ports、唯一终态/stop reason、ContextCompiler v0/manifest，以及 Checkpoint envelope/schema/CAS 基础；Runtime Context 不原样入模，Celery 只承载正式 Runtime | 领域不变量、Context manifest、Checkpoint 版本/CAS、生产/Harness 同入口、原子创建/可靠投递、SSE 重连不重复当前 Model Step | `planned` | `complete` |
-| D2-09 | Harness Scenario、Fake 与 Trace 基座 | NEW | 版本化 Scenario/EvalCase v1、runtime/harness/model/prompt/context/available-tools version、Fake Model、record/replay、Provider fault injection、最小 CLI、依赖文档 | 固定 Scenario 两次 Event 骨架一致；格式错误/timeout/取消可重现；L0 toolset 可为空；Trace 无 Secret、敏感原文和原始 CoT | `planned` | `complete` |
+| D2-01 | 可替换 Model Provider | R1 + R2 + NEW | `stream/complete`；确定性 Fake 仅测试；一个服务端 OpenAI-compatible Adapter。Embedding 使用 Day 5 的独立 Port | Provider contract、超时、429、半截响应、Token/费用 | `implemented_pending_verification` | `complete` |
+| D2-02 | 完整会话管理 | R1 + R2 | 新建、列表、详情、消息分页、重命名、删除、自动标题 | 正常/空/分页/刷新/删除 E2E，删除真实调用后端 | `implemented_pending_verification` | `complete` |
+| D2-03 | 单轮搜索模式 | R2 | 每个 Turn 明确保存 `none/web/local/both`、行业和一个或多个知识库；Day 2 启用 none，Day 3 启用 web，Day 5 启用 local/both，未就绪时返回稳定 readiness 错误 | 四种模式快照/恢复与分阶段 readiness 测试；禁止 Mock 搜索成功 | `implemented_pending_verification` | `complete` |
+| D2-04 | 聊天附件生命周期 | R1 + R2 + NEW | 上传、处理状态、关联消息、列表、删除；文本/图片真实解析，其他格式不伪装支持 | 文件类型真值表、越权/删除/失败测试 | `implemented_pending_verification` | `complete` |
+| D2-05 | 可恢复流式回答 | R1 + R2 + NEW | 202 + Job；固定 `id: sequence`/`event: type`/`data: envelope`；不推进游标的 comment 心跳；停止/重试、Last-Event-ID、snapshot、唯一终态、有界缓冲与慢客户端背压 | wire contract、非法/跨流/超前游标、断开/重连/重复/缺口/过期、慢客户端、Redis 丢失、取消测试 | `implemented_pending_verification` | `complete` |
+| D2-06 | 失败不丢用户工作 | NEW | 保存用户消息、partial、错误码和可重试状态；已有 Evidence locator 后再保存 Citation | Provider 失败和 Worker 中断后刷新仍可解释；Day 2 L0 没有 Evidence 来源，Citation 按主计划在 Day 6 接入 | `implemented_pending_verification` | `complete` |
+| D2-07 | 安全 Markdown 与可见步骤 | R2 + NEW | 消毒 Markdown；只展示 Tool/Research 的审计摘要，不展示原始 CoT | XSS、恶意链接、Prompt 注入和日志检查 | `implemented_pending_verification` | `complete` |
+| D2-08 | Agent Runtime v0 与唯一执行入口 | NEW | 版本化 AgentRun/Step/Event/State/Artifact/Budget、Provider-neutral Ports、唯一终态/stop reason、ContextCompiler v0/manifest，以及 Checkpoint envelope/schema/CAS 基础；Runtime Context 不原样入模，Celery 只承载正式 Runtime | 领域不变量、Context manifest、Checkpoint 版本/CAS、生产/Harness 同入口、原子创建/可靠投递、SSE 重连不重复当前 Model Step | `implemented_pending_verification` | `complete` |
+| D2-09 | Harness Scenario、Fake 与 Trace 基座 | NEW | 版本化 Scenario/EvalCase v1、runtime/harness/model/prompt/context/available-tools version、Fake Model、record/replay、Provider fault injection、最小 CLI、依赖文档 | 固定 Scenario 两次 Event 骨架一致；格式错误/timeout/取消可重现；L0 toolset 可为空；Trace 无 Secret、敏感原文和原始 CoT | `implemented_pending_verification` | `complete` |
+
+### 4.1 Day 2 当前证据与保留门禁
+
+当前仓库已经写入正式实现，而不再是 `planned`：
+
+- `modules/agent_runtime/` 包含版本化 Run/Step/Event/State/Budget、Checkpoint 基础契约、Context Compiler、Direct Answer Runtime、PostgreSQL 持久化、SSE/取消和脱敏 Trace 查询；`modules/agent_harness/` 通过同一 Runtime 运行 Scenario/Fake/Replay，不另写生产 loop。
+- `modules/conversations/`、`modules/files/` 和 `workers/` 已连接 Conversation/Turn/Message、Run、Job/Outbox、私有 MinIO 附件和 Worker 执行；Turn 的模式、行业和知识库选择是持久快照。Day 2 只接受 `none`，其余模式返回明确的 readiness 错误。
+- `evals/scenarios/day2-v2.json` 有 6 个版本化用例：正常、格式错误、超时、429、半截响应和取消；`evals/fixtures/day2-model-v1.json` 是有界回放数据，`evals/snapshots/day2-traces-v1.json` 是不含问题、答案和 Secret 的 Event 骨架快照。
+- Web 聊天工作台消费生成的 OpenAPI 类型与正式 HTTP/SSE：会话、分页消息、模式、附件、停止、重连、错误/partial 状态、安全 Markdown和脱敏 Run/Context Trace；相关组件测试位于 `apps/web/src/chat/`，浏览器旅程位于 `tests/e2e/`。
+
+D2-01～D2-09 的正式实现均已写入，当前统一标为 `implemented_pending_verification`，但还不足以写成 `complete`。D2-06 中的 Citation 在 Day 2 L0 明确为不适用：`master-plan.md` 把 Day 2 定义为一次无工具的直接回答，把 Evidence/Claim 放在 Day 4，把基于真实 Evidence locator 的 Citation gate 放在 Day 6。Day 2 没有可引用的 Evidence 来源，生成空引用或伪引用反而违反计划；本次只校正矩阵的执行日归属，不删除 Day 6 的 Citation 能力。复核：执行代理，2026-08-14；Day 7 完成状态前仍需项目所有者复核。
+
+当前工作树已重新通过：Ruff format/check（257 files）、mypy（236 source files）、pytest 快速集（645 passed，52 个真实依赖用例按开关跳过）、强制 PostgreSQL/Redis/MinIO 集成（52 passed）、Web Vitest（31 passed）、TypeScript/ESLint/Prettier/build、OpenAPI/TypeScript 契约确定性再生成，以及 Playwright（2 passed）。浏览器取消旅程现已等待已提交的 `agent.run.cancelled` 并验证刷新恢复，不再把 HTTP 202 当作完成。数据库已在真实 PostgreSQL 执行 `alembic upgrade head`。
+
+状态仍不能提升为 `complete`。代码门禁尚缺：Worker 中断、lease 过期或 handler/load/persistence 失败后，已运行的 AgentRun 仍可能缺唯一失败终态；Provider 在首个 delta 前挂起时取消只能等待 Provider timeout；生产 SSE 尚未真正接入 snapshot/裁剪和有界慢客户端背压；Agent Runtime 的结构化日志/指标不足；`ChatWorkbench.tsx` 仍超过主计划禁止的千行万能 Page 阈值。证据门禁尚缺：未配置 Provider 的生产全链路失败验收、Worker 中断/恢复与真实断线/慢客户端场景、完整会话/附件浏览器旅程、当前提交的干净 GitHub CI，以及学习者口述复核。真实 OpenAI-compatible Provider smoke 可以补充信心，但主计划允许在没有付费 Provider 时以 Fake/冻结回归加正式 `provider_not_configured` 失败链路验收，绝不能把 Fake 写成真实模型成功。
 
 ## 5. Day 3：Agent Harness v1、有界 Tool Use、行业与 Text2SQL
 

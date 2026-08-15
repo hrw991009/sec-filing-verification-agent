@@ -21,6 +21,88 @@
         "title": "AddWorkspaceMemberRequest",
         "type": "object"
       },
+      "AgentEventType": {
+        "description": "Day 2 Event vocabulary shared by persistence, SSE, and Trace.",
+        "enum": [
+          "agent.run.queued",
+          "agent.run.started",
+          "agent.run.paused",
+          "agent.run.resumed",
+          "agent.run.completed",
+          "agent.run.failed",
+          "agent.run.cancelled",
+          "agent.step.started",
+          "agent.step.completed",
+          "agent.step.failed",
+          "agent.model.started",
+          "agent.model.delta",
+          "agent.model.completed",
+          "agent.artifact.created",
+          "agent.checkpoint.saved"
+        ],
+        "title": "AgentEventType",
+        "type": "string"
+      },
+      "AgentRunStatus": {
+        "description": "Persisted lifecycle of one logical Agent run.",
+        "enum": ["queued", "running", "paused", "completed", "failed", "cancelled"],
+        "title": "AgentRunStatus",
+        "type": "string"
+      },
+      "AgentRunType": {
+        "description": "Execution shape sharing the same public Runtime semantics.",
+        "enum": ["direct_answer", "tool_loop", "research"],
+        "title": "AgentRunType",
+        "type": "string"
+      },
+      "AgentStepKind": {
+        "description": "Auditable kinds of work inside the unified Runtime.",
+        "enum": ["model", "tool", "approval", "checkpoint", "final"],
+        "title": "AgentStepKind",
+        "type": "string"
+      },
+      "AgentStepStatus": {
+        "description": "Lifecycle of one persisted Agent step.",
+        "enum": ["running", "completed", "failed", "cancelled"],
+        "title": "AgentStepStatus",
+        "type": "string"
+      },
+      "AgentTraceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "context_manifests": {
+            "items": {
+              "$ref": "#/components/schemas/ContextManifestResponse"
+            },
+            "title": "Context Manifests",
+            "type": "array"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TraceEventResponse"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "run": {
+            "$ref": "#/components/schemas/TraceRunResponse"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/TraceStepResponse"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": ["schema_version", "run", "steps", "context_manifests", "events"],
+        "title": "AgentTraceResponse",
+        "type": "object"
+      },
       "AttachmentKind": {
         "description": "The two attachment paths intentionally available on Day 2.",
         "enum": ["text", "image"],
@@ -85,6 +167,204 @@
         },
         "required": ["role"],
         "title": "ChangeWorkspaceMemberRoleRequest",
+        "type": "object"
+      },
+      "ContextBudgetResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_output_tokens": {
+            "title": "Allowed Output Tokens",
+            "type": "integer"
+          },
+          "estimated_input_tokens": {
+            "title": "Estimated Input Tokens",
+            "type": "integer"
+          },
+          "max_input_tokens": {
+            "title": "Max Input Tokens",
+            "type": "integer"
+          },
+          "run_max_total_tokens": {
+            "title": "Run Max Total Tokens",
+            "type": "integer"
+          },
+          "tokens_used_before_step": {
+            "title": "Tokens Used Before Step",
+            "type": "integer"
+          },
+          "unreserved_run_tokens": {
+            "title": "Unreserved Run Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "run_max_total_tokens",
+          "tokens_used_before_step",
+          "max_input_tokens",
+          "estimated_input_tokens",
+          "allowed_output_tokens",
+          "unreserved_run_tokens"
+        ],
+        "title": "ContextBudgetResponse",
+        "type": "object"
+      },
+      "ContextDecisionReason": {
+        "description": "Why one declared input was or was not sent to the model.",
+        "enum": ["included", "not_available", "excluded_token_budget"],
+        "title": "ContextDecisionReason",
+        "type": "string"
+      },
+      "ContextManifestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "budget": {
+            "$ref": "#/components/schemas/ContextBudgetResponse"
+          },
+          "compiler_version": {
+            "title": "Compiler Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "manifest_id": {
+            "format": "uuid",
+            "title": "Manifest Id",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "runtime_projection_version": {
+            "title": "Runtime Projection Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ContextSourceResponse"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "step_id": {
+            "format": "uuid",
+            "title": "Step Id",
+            "type": "string"
+          },
+          "token_counter_version": {
+            "title": "Token Counter Version",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "manifest_id",
+          "workspace_id",
+          "run_id",
+          "step_id",
+          "compiler_version",
+          "prompt_version",
+          "runtime_projection_version",
+          "token_counter_version",
+          "created_at",
+          "budget",
+          "sources"
+        ],
+        "title": "ContextManifestResponse",
+        "type": "object"
+      },
+      "ContextSourceKind": {
+        "description": "The base inputs plus each explicitly selected Day 2 attachment.",
+        "enum": [
+          "system_instructions",
+          "runtime_context_projection",
+          "conversation_summary",
+          "attachment",
+          "user_question"
+        ],
+        "title": "ContextSourceKind",
+        "type": "string"
+      },
+      "ContextSourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "decision_reason": {
+            "$ref": "#/components/schemas/ContextDecisionReason"
+          },
+          "estimated_token_count": {
+            "title": "Estimated Token Count",
+            "type": "integer"
+          },
+          "included": {
+            "title": "Included",
+            "type": "boolean"
+          },
+          "message_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/ContextSourceKind"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ordinal",
+          "source_kind",
+          "source_id",
+          "source_version",
+          "included",
+          "decision_reason",
+          "estimated_token_count",
+          "message_role",
+          "source_sha256"
+        ],
+        "title": "ContextSourceResponse",
         "type": "object"
       },
       "ConversationAttachmentResponse": {
@@ -260,8 +540,31 @@
             "title": "Id",
             "type": "string"
           },
+          "industry_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry Id"
+          },
+          "knowledge_base_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Knowledge Base Ids",
+            "type": "array"
+          },
           "role": {
             "$ref": "#/components/schemas/ConversationMessageRole"
+          },
+          "search_mode": {
+            "$ref": "#/components/schemas/TurnSearchMode"
           },
           "status": {
             "$ref": "#/components/schemas/ConversationMessageStatus"
@@ -280,6 +583,9 @@
           "status",
           "content_markdown",
           "created_at",
+          "search_mode",
+          "industry_id",
+          "knowledge_base_ids",
           "attachments"
         ],
         "title": "ConversationMessageResponse",
@@ -639,6 +945,12 @@
         "title": "LoginResponse",
         "type": "object"
       },
+      "ModelRole": {
+        "description": "Provider-independent roles visible to the model.",
+        "enum": ["system", "user", "assistant"],
+        "title": "ModelRole",
+        "type": "string"
+      },
       "NonNilUuid": {
         "format": "uuid",
         "type": "string"
@@ -771,6 +1083,29 @@
         "title": "RenameConversationRequest",
         "type": "object"
       },
+      "RunStopReason": {
+        "description": "Stable reason explaining why a run will no longer advance.",
+        "enum": [
+          "final",
+          "cancelled",
+          "provider_timeout",
+          "provider_rate_limited",
+          "provider_error",
+          "invalid_provider_response",
+          "incomplete_provider_response",
+          "max_steps",
+          "deadline_exceeded",
+          "token_budget_exceeded",
+          "cost_budget_exceeded",
+          "tool_denied",
+          "tool_error",
+          "no_progress",
+          "approval_required",
+          "runtime_error"
+        ],
+        "title": "RunStopReason",
+        "type": "string"
+      },
       "StartConversationTurnRequest": {
         "additionalProperties": false,
         "properties": {
@@ -876,6 +1211,286 @@
           "created"
         ],
         "title": "StartConversationTurnResponse",
+        "type": "object"
+      },
+      "TraceEventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "details": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Details",
+            "type": "object"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/AgentEventType"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          }
+        },
+        "required": ["schema_version", "sequence", "occurred_at", "event_type", "details"],
+        "title": "TraceEventResponse",
+        "type": "object"
+      },
+      "TraceRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "event_count": {
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "event_stream_id": {
+            "format": "uuid",
+            "title": "Event Stream Id",
+            "type": "string"
+          },
+          "harness_version": {
+            "title": "Harness Version",
+            "type": "string"
+          },
+          "max_cost_micro_usd": {
+            "title": "Max Cost Micro Usd",
+            "type": "integer"
+          },
+          "max_steps": {
+            "title": "Max Steps",
+            "type": "integer"
+          },
+          "max_total_tokens": {
+            "title": "Max Total Tokens",
+            "type": "integer"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "run_type": {
+            "$ref": "#/components/schemas/AgentRunType"
+          },
+          "runtime_version": {
+            "title": "Runtime Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state_revision": {
+            "title": "State Revision",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentRunStatus"
+          },
+          "step_count": {
+            "title": "Step Count",
+            "type": "integer"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunStopReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terminal_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal At"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "turn_id": {
+            "format": "uuid",
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/TraceUsageResponse"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "run_id",
+          "workspace_id",
+          "conversation_id",
+          "turn_id",
+          "event_stream_id",
+          "trace_id",
+          "run_type",
+          "status",
+          "stop_reason",
+          "runtime_version",
+          "harness_version",
+          "state_revision",
+          "max_steps",
+          "max_total_tokens",
+          "max_cost_micro_usd",
+          "deadline",
+          "event_count",
+          "step_count",
+          "usage",
+          "created_at",
+          "started_at",
+          "terminal_at"
+        ],
+        "title": "TraceRunResponse",
+        "type": "object"
+      },
+      "TraceStepResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AgentStepKind"
+          },
+          "last_event_sequence": {
+            "title": "Last Event Sequence",
+            "type": "integer"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentStepStatus"
+          },
+          "step_id": {
+            "format": "uuid",
+            "title": "Step Id",
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/TraceUsageResponse"
+          }
+        },
+        "required": [
+          "step_id",
+          "sequence",
+          "kind",
+          "status",
+          "last_event_sequence",
+          "started_at",
+          "completed_at",
+          "usage",
+          "error_code"
+        ],
+        "title": "TraceStepResponse",
+        "type": "object"
+      },
+      "TraceUsageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cached_input_tokens": {
+            "title": "Cached Input Tokens",
+            "type": "integer"
+          },
+          "cost_micro_usd": {
+            "title": "Cost Micro Usd",
+            "type": "integer"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          }
+        },
+        "required": ["input_tokens", "output_tokens", "cached_input_tokens", "cost_micro_usd"],
+        "title": "TraceUsageResponse",
         "type": "object"
       },
       "TurnSearchMode": {
@@ -2917,6 +3532,293 @@
           }
         ],
         "summary": "Stream Agent Run Events",
+        "tags": ["agent-runs"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/agent-runs/{run_id}/trace": {
+      "get": {
+        "description": "Return the sanitized PostgreSQL Trace projection for one authorized Run.",
+        "operationId": "get_agent_run_trace_api_v1_workspaces__workspace_id__agent_runs__run_id__trace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTraceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Agent Run not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Persisted Agent Trace is inconsistent"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Agent Trace temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Get Agent Run Trace",
         "tags": ["agent-runs"]
       }
     },

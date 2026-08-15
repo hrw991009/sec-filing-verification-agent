@@ -188,6 +188,9 @@ def message() -> ConversationMessage:
         status="final",
         content_markdown="A durable **answer**.",
         created_at=NOW,
+        search_mode=TurnSearchMode.LOCAL,
+        industry_id=UUID("99999999-9999-4999-8999-999999999999"),
+        knowledge_base_ids=(UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),),
         attachments=(
             ConversationAttachment(
                 file_id=FILE_ID,
@@ -265,6 +268,11 @@ def test_routes_round_trip_opaque_cursors_and_trusted_workspace_scope(
     assert first_page.json()["conversations"][0]["title"] == "Quarterly risks"
     assert detail.json()["turn_count"] == 2
     assert messages.json()["messages"][0]["content_markdown"] == "A durable **answer**."
+    assert messages.json()["messages"][0]["search_mode"] == "local"
+    assert messages.json()["messages"][0]["industry_id"] == ("99999999-9999-4999-8999-999999999999")
+    assert messages.json()["messages"][0]["knowledge_base_ids"] == [
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    ]
     assert messages.json()["messages"][0]["attachments"] == [
         {
             "file_id": str(FILE_ID),

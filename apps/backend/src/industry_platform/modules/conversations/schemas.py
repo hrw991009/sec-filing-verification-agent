@@ -166,6 +166,9 @@ class ConversationMessageResponse(StrictConversationModel):
     status: ConversationMessageStatus
     content_markdown: str
     created_at: datetime
+    search_mode: TurnSearchMode
+    industry_id: UUID | None
+    knowledge_base_ids: list[UUID]
     attachments: list[ConversationAttachmentResponse]
 
 

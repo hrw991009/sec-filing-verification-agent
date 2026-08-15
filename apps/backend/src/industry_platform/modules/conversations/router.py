@@ -305,6 +305,9 @@ def _message_response(message: ConversationMessage) -> ConversationMessageRespon
         status=message.status,
         content_markdown=message.content_markdown,
         created_at=message.created_at,
+        search_mode=message.search_mode,
+        industry_id=message.industry_id,
+        knowledge_base_ids=list(message.knowledge_base_ids),
         attachments=[
             ConversationAttachmentResponse(
                 file_id=attachment.file_id,

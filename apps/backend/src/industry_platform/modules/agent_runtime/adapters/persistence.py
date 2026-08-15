@@ -4,10 +4,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.agent_runtime.context import ContextManifest
@@ -33,7 +34,8 @@ from industry_platform.modules.agent_runtime.ports import ContextManifestStoreEr
 from industry_platform.modules.agent_runtime.streaming import CommittedEventWindow
 from industry_platform.modules.conversations.models import Message, MessageRole, MessageStatus
 from industry_platform.modules.identity.domain import TraceId
-from industry_platform.modules.jobs.models import Job
+from industry_platform.modules.jobs.domain import TERMINAL_JOB_STATUSES, JobEventType, JobStatus
+from industry_platform.modules.jobs.models import Job, JobEvent
 
 
 class AgentEventPersistenceError(RuntimeError):
@@ -90,40 +92,9 @@ class SqlAlchemyAgentEventCommitter:
                     )
                     .with_for_update()
                 )
-                if run is None or run.event_stream_id != event.stream_id:
+                if run is None:
                     raise AgentEventPersistenceError()
-                if run.trace_id != str(event.trace_id):
-                    raise AgentEventPersistenceError()
-
-                existing = await session.scalar(
-                    select(AgentEventRecord).where(
-                        AgentEventRecord.stream_id == event.stream_id,
-                        AgentEventRecord.sequence == event.sequence,
-                    )
-                )
-                if existing is not None:
-                    if not _same_event(existing, event):
-                        raise AgentEventPersistenceError()
-                    return
-                if event.sequence != run.event_count + 1:
-                    raise AgentEventPersistenceError()
-
-                session.add(
-                    AgentEventRecord(
-                        workspace_id=event.workspace_id,
-                        run_id=event.run_id,
-                        stream_id=event.stream_id,
-                        sequence=event.sequence,
-                        occurred_at=event.occurred_at,
-                        trace_id=str(event.trace_id),
-                        schema_version=event.schema_version,
-                        event_type=event.event_type,
-                        payload=_plain_json_mapping(event.payload),
-                    )
-                )
-                await self._project(session, run, event)
-                run.event_count = event.sequence
-                run.updated_at = event.occurred_at
+                await _append_locked_agent_event(session, run, event)
         except AgentEventPersistenceError:
             raise
         except (TypeError, ValueError):
@@ -131,10 +102,9 @@ class SqlAlchemyAgentEventCommitter:
         except SQLAlchemyError as error:
             raise AgentEventPersistenceError(sqlstate=safe_sqlstate(error)) from None
 
-    async def _project(self, session: object, run: AgentRunRecord, event: AgentEvent) -> None:
-        # The concrete type is kept local to avoid exposing AsyncSession in the public Port.
-        from sqlalchemy.ext.asyncio import AsyncSession
-
+    @staticmethod
+    async def _project(session: object, run: AgentRunRecord, event: AgentEvent) -> None:
+        # Runtime Ports stay SQLAlchemy-free; only this concrete adapter sees AsyncSession.
         if not isinstance(session, AsyncSession):
             raise AgentEventPersistenceError()
         payload = event.payload
@@ -214,7 +184,7 @@ class SqlAlchemyAgentEventCommitter:
 
 @dataclass(frozen=True, slots=True)
 class SqlAlchemyAgentRunControl:
-    """Persist cancellation on both business Run and execution Job."""
+    """Persist cancellation and immediately settle work that never acquired a Worker."""
 
     session_factory: AsyncSessionFactory
 
@@ -247,9 +217,44 @@ class SqlAlchemyAgentRunControl:
                 if job is None or job.workspace_id != workspace_id:
                     raise AgentRunDeliveryUnavailableError()
                 job.cancel_requested_at = job.cancel_requested_at or requested_at
+                if job.status not in TERMINAL_JOB_STATUSES:
+                    if job.status is JobStatus.RUNNING:
+                        return True
+                    terminal_at = max(
+                        run.cancel_requested_at,
+                        run.updated_at,
+                        job.updated_at,
+                    )
+                    _cancel_unstarted_job(session, job, terminal_at=terminal_at)
+                elif job.status is not JobStatus.CANCELLED:
+                    raise AgentRunDeliveryUnavailableError()
+
+                if run.status is AgentRunStatus.QUEUED:
+                    terminal_at = max(
+                        run.cancel_requested_at,
+                        run.updated_at,
+                        job.updated_at,
+                    )
+                    await _append_locked_agent_event(
+                        session,
+                        run,
+                        AgentEvent(
+                            schema_version=run.schema_version,
+                            stream_id=run.event_stream_id,
+                            run_id=run.id,
+                            workspace_id=run.workspace_id,
+                            sequence=run.event_count + 1,
+                            occurred_at=terminal_at,
+                            trace_id=TraceId(run.trace_id),
+                            event_type=AgentEventType.RUN_CANCELLED,
+                            payload={"stop_reason": RunStopReason.CANCELLED.value},
+                        ),
+                    )
                 return True
         except AgentRunDeliveryUnavailableError:
             raise
+        except (TypeError, ValueError):
+            raise AgentRunDeliveryUnavailableError() from None
         except SQLAlchemyError as error:
             raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
 
@@ -360,6 +365,82 @@ class SqlAlchemyCommittedEventSource:
             raise AgentRunDeliveryUnavailableError() from None
         except SQLAlchemyError as error:
             raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
+
+
+async def _append_locked_agent_event(
+    session: AsyncSession,
+    run: AgentRunRecord,
+    event: AgentEvent,
+) -> None:
+    """Append and project one Event while the caller holds the Run row lock."""
+
+    if (
+        run.id != event.run_id
+        or run.workspace_id != event.workspace_id
+        or run.event_stream_id != event.stream_id
+        or run.trace_id != str(event.trace_id)
+        or run.schema_version != event.schema_version
+    ):
+        raise AgentEventPersistenceError()
+
+    existing = await session.scalar(
+        select(AgentEventRecord).where(
+            AgentEventRecord.stream_id == event.stream_id,
+            AgentEventRecord.sequence == event.sequence,
+        )
+    )
+    if existing is not None:
+        if not _same_event(existing, event):
+            raise AgentEventPersistenceError()
+        return
+    if event.sequence != run.event_count + 1 or event.occurred_at < run.updated_at:
+        raise AgentEventPersistenceError()
+
+    session.add(
+        AgentEventRecord(
+            workspace_id=event.workspace_id,
+            run_id=event.run_id,
+            stream_id=event.stream_id,
+            sequence=event.sequence,
+            occurred_at=event.occurred_at,
+            trace_id=str(event.trace_id),
+            schema_version=event.schema_version,
+            event_type=event.event_type,
+            payload=_plain_json_mapping(event.payload),
+        )
+    )
+    await SqlAlchemyAgentEventCommitter._project(session, run, event)
+    run.event_count = event.sequence
+    run.updated_at = event.occurred_at
+
+
+def _cancel_unstarted_job(
+    session: AsyncSession,
+    job: Job,
+    *,
+    terminal_at: datetime,
+) -> None:
+    """Settle a Job that never acquired a Worker lease in the current transaction."""
+
+    job.status = JobStatus.CANCELLED
+    job.terminal_at = terminal_at
+    job.stage_name = JobStatus.CANCELLED.value
+    job.stage_sequence += 1
+    job.last_error_code = None
+    job.updated_at = terminal_at
+    session.add(
+        JobEvent(
+            id=uuid4(),
+            job_id=job.id,
+            event_type=JobEventType.CANCELLED,
+            generation=job.generation,
+            dispatch_generation=job.dispatch_generation,
+            fencing_token=job.fencing_token,
+            event_sequence=job.stage_sequence,
+            occurred_at=terminal_at,
+            details={"source": "agent_run_cancel"},
+        )
+    )
 
 
 async def _locked_step(

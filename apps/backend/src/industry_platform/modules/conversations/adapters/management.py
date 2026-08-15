@@ -138,7 +138,7 @@ class SqlAlchemyConversationManagementRepository:
                 if exists is None:
                     raise ConversationNotFoundError
                 statement = (
-                    select(Message)
+                    select(Message, Turn)
                     .join(
                         Turn,
                         and_(
@@ -162,7 +162,7 @@ class SqlAlchemyConversationManagementRepository:
                         )
                     )
                 statement = statement.order_by(Message.created_at, Message.id).limit(page_size + 1)
-                records = tuple(await session.scalars(statement))
+                records = tuple((await session.execute(statement)).tuples())
                 visible = records[:page_size]
                 attachments_by_message: dict[UUID, list[ConversationAttachment]] = defaultdict(list)
                 if visible:
@@ -189,7 +189,7 @@ class SqlAlchemyConversationManagementRepository:
                         .where(
                             MessageAttachment.workspace_id == scope.workspace_id,
                             MessageAttachment.message_id.in_(
-                                tuple(message.id for message in visible)
+                                tuple(message.id for message, _turn in visible)
                             ),
                         )
                         .order_by(MessageAttachment.message_id, MessageAttachment.ordinal)
@@ -215,11 +215,16 @@ class SqlAlchemyConversationManagementRepository:
             raise ConversationPersistenceError(sqlstate=safe_sqlstate(error)) from None
         next_cursor = None
         if len(records) > page_size:
-            last = visible[-1]
+            last, _turn = visible[-1]
             next_cursor = MessageCursor(created_at=last.created_at, message_id=last.id)
         return MessagePage(
             items=tuple(
-                _message(record, tuple(attachments_by_message[record.id])) for record in visible
+                _message(
+                    message,
+                    turn=turn,
+                    attachments=tuple(attachments_by_message[message.id]),
+                )
+                for message, turn in visible
             ),
             next_cursor=next_cursor,
         )
@@ -296,6 +301,8 @@ def _summary(record: Conversation) -> ConversationSummary:
 
 def _message(
     record: Message,
+    *,
+    turn: Turn,
     attachments: tuple[ConversationAttachment, ...] = (),
 ) -> ConversationMessage:
     role: ConversationMessageRole = "user" if record.role is MessageRole.USER else "assistant"
@@ -313,6 +320,9 @@ def _message(
         status=status,
         content_markdown=record.content_markdown,
         created_at=record.created_at,
+        search_mode=turn.search_mode,
+        industry_id=turn.industry_id,
+        knowledge_base_ids=tuple(turn.knowledge_base_ids),
         attachments=attachments,
     )
 

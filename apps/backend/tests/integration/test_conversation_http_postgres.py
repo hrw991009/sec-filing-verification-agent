@@ -104,6 +104,9 @@ def test_conversation_http_is_workspace_scoped_and_soft_deletes(
     assert detail.json()["turn_count"] == 1
     assert messages.status_code == 200
     assert messages.json()["messages"][0]["content_markdown"] == "Explain this market."
+    assert messages.json()["messages"][0]["search_mode"] == "none"
+    assert messages.json()["messages"][0]["industry_id"] is None
+    assert messages.json()["messages"][0]["knowledge_base_ids"] == []
     assert renamed.status_code == 200
     assert renamed.json()["title"] == "Renamed in PostgreSQL"
     assert outsider.status_code == 403

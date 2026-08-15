@@ -39,6 +39,11 @@ from industry_platform.core.redis_client import (
     check_redis_connection,
     create_redis_client,
 )
+from industry_platform.modules.agent_runtime.adapters.trace_query import (
+    AgentTraceDataError,
+    AgentTraceNotFoundError,
+    AgentTraceQueryError,
+)
 from industry_platform.modules.agent_runtime.delivery import (
     AgentRunDeliveryStateError,
     AgentRunDeliveryUnavailableError,
@@ -46,6 +51,7 @@ from industry_platform.modules.agent_runtime.delivery import (
 )
 from industry_platform.modules.agent_runtime.resources import (
     create_agent_run_delivery_resources,
+    create_agent_trace_resources,
 )
 from industry_platform.modules.agent_runtime.router import router as agent_run_router
 from industry_platform.modules.agent_runtime.streaming import (
@@ -182,6 +188,7 @@ def create_app(
             agent_run_delivery_resources = create_agent_run_delivery_resources(
                 database_session_factory
             )
+            agent_trace_resources = create_agent_trace_resources(database_session_factory)
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
@@ -197,6 +204,7 @@ def create_app(
             application.state.conversation_resources = conversation_resources
             application.state.file_resources = file_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
+            application.state.agent_trace_resources = agent_trace_resources
             application.state.job_resources = job_resources
 
             yield
@@ -771,10 +779,11 @@ def create_app(
             problem_type="urn:iip:problem:file-service-unavailable",
         )
 
+    @application.exception_handler(AgentTraceNotFoundError)
     @application.exception_handler(AgentRunNotFoundError)
     async def handle_agent_run_not_found(
         request: Request,
-        _error: AgentRunNotFoundError,
+        _error: AgentRunNotFoundError | AgentTraceNotFoundError,
     ) -> JSONResponse:
         return problem_response(
             trace_id=get_trace_id(request),
@@ -783,6 +792,42 @@ def create_app(
             code="AGENT_RUN_NOT_FOUND",
             detail="The requested Agent Run does not exist in this workspace.",
             problem_type="urn:iip:problem:agent-run-not-found",
+        )
+
+    @application.exception_handler(AgentTraceDataError)
+    async def handle_agent_trace_data_error(
+        request: Request,
+        _error: AgentTraceDataError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error("Persisted Agent Trace is inconsistent trace_id=%s", trace_id)
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            title="Agent Trace data invalid",
+            code="AGENT_TRACE_DATA_INVALID",
+            detail="The Agent Trace could not be reconstructed from persisted data.",
+            problem_type="urn:iip:problem:agent-trace-data-invalid",
+        )
+
+    @application.exception_handler(AgentTraceQueryError)
+    async def handle_agent_trace_unavailable(
+        request: Request,
+        error: AgentTraceQueryError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Agent Trace unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Agent Trace unavailable",
+            code="AGENT_TRACE_UNAVAILABLE",
+            detail="Agent Trace data is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:agent-trace-unavailable",
         )
 
     @application.exception_handler(StreamContractError)

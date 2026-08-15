@@ -7,7 +7,10 @@ from typing import Final, Literal, Protocol
 from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import require_non_nil_uuid, require_utc
-from industry_platform.modules.conversations.domain import MAX_CONVERSATION_TITLE_LENGTH
+from industry_platform.modules.conversations.domain import (
+    MAX_CONVERSATION_TITLE_LENGTH,
+    TurnSearchMode,
+)
 from industry_platform.modules.files.domain import (
     AttachmentKind,
     AttachmentMediaType,
@@ -144,6 +147,9 @@ class ConversationMessage:
     status: ConversationMessageStatus
     content_markdown: str = field(repr=False)
     created_at: datetime
+    search_mode: TurnSearchMode
+    industry_id: UUID | None
+    knowledge_base_ids: tuple[UUID, ...]
     attachments: tuple[ConversationAttachment, ...] = ()
 
     def __post_init__(self) -> None:
@@ -162,6 +168,24 @@ class ConversationMessage:
         if not self.content_markdown.strip() or "\x00" in self.content_markdown:
             raise ValueError("Conversation Message content is invalid")
         require_utc(self.created_at, field_name="Conversation Message creation time")
+        if not isinstance(self.search_mode, TurnSearchMode):
+            raise ValueError("Conversation Message search mode is invalid")
+        if self.industry_id is not None:
+            require_non_nil_uuid(self.industry_id, field_name="Conversation Message industry ID")
+        knowledge_base_ids = tuple(self.knowledge_base_ids)
+        if len(set(knowledge_base_ids)) != len(knowledge_base_ids):
+            raise ValueError("Conversation Message knowledge-base IDs must be unique")
+        for knowledge_base_id in knowledge_base_ids:
+            require_non_nil_uuid(
+                knowledge_base_id,
+                field_name="Conversation Message knowledge-base ID",
+            )
+        if knowledge_base_ids and self.search_mode not in {
+            TurnSearchMode.LOCAL,
+            TurnSearchMode.BOTH,
+        }:
+            raise ValueError("Conversation Message knowledge bases require local search mode")
+        object.__setattr__(self, "knowledge_base_ids", knowledge_base_ids)
         attachments = tuple(self.attachments)
         if len({item.file_id for item in attachments}) != len(attachments):
             raise ValueError("Conversation Message attachments must be unique")

@@ -27,6 +27,7 @@ dependencies = [
 [project.scripts]
 industry-platform-api = "industry_platform.server:main"
 industry-platform-agent-harness = "industry_platform.modules.agent_harness.cli:main"
+industry-platform-backend-dev = "industry_platform.dev:main"
 industry-platform-celery-beat = "industry_platform.workers.beat:main"
 industry-platform-celery-worker = "industry_platform.workers.celery_app:main"
 industry-platform-outbox-dispatcher = "industry_platform.workers.dispatcher:main"

@@ -835,7 +835,7 @@ Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c
 
 新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2～Day 7 的 Agent Runtime/Harness、聊天、Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research、Evaluation Harness 与 Learning Workbench 尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE 与 Learning Workbench 基础实现已经写入，但仍是 `implemented_pending_verification`；Worker 中断后的 AgentRun 收敛、生产 snapshot/背压、可观测性和最终证据尚未通过。Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research 与后续 Evaluation 能力尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 

@@ -277,6 +277,7 @@ def test_celery_app_is_json_only_late_ack_broker_only(
         assert app.conf.enable_utc is True
         assert app.conf.timezone == "UTC"
         assert app.conf.task_default_queue == test_settings.job_default_queue
+        assert set(app.amqp.queues) == {test_settings.job_default_queue, "agents"}
         assert app.conf.task_soft_time_limit is None
         assert app.conf.task_time_limit == 1_800
         assert app.conf.broker_transport_options == {"visibility_timeout": 3_600}
@@ -284,5 +285,14 @@ def test_celery_app_is_json_only_late_ack_broker_only(
             "queue": test_settings.job_default_queue,
             "routing_key": test_settings.job_default_queue,
         }
+    finally:
+        app.close()
+
+
+def test_celery_app_deduplicates_the_direct_answer_queue(test_settings: Settings) -> None:
+    settings = test_settings.model_copy(update={"job_default_queue": "agents"})
+    app = create_celery_app(settings)
+    try:
+        assert set(app.amqp.queues) == {"agents"}
     finally:
         app.close()

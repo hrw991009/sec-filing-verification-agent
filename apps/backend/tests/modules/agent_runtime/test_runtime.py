@@ -378,6 +378,7 @@ async def test_success_uses_one_provider_call_and_commits_before_yielding() -> N
 @pytest.mark.parametrize(
     ("code", "reason"),
     [
+        (ModelProviderErrorCode.NOT_CONFIGURED, RunStopReason.PROVIDER_ERROR),
         (ModelProviderErrorCode.TIMEOUT, RunStopReason.PROVIDER_TIMEOUT),
         (ModelProviderErrorCode.RATE_LIMITED, RunStopReason.PROVIDER_RATE_LIMITED),
         (ModelProviderErrorCode.INVALID_RESPONSE, RunStopReason.INVALID_PROVIDER_RESPONSE),

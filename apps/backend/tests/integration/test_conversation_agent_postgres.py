@@ -17,7 +17,7 @@ from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyAgentRunControl,
     SqlAlchemyCommittedEventSource,
 )
-from industry_platform.modules.agent_runtime.domain import RunBudget, RunStopReason
+from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunBudget, RunStopReason
 from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
 from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
@@ -35,8 +35,12 @@ from industry_platform.modules.identity.models import (
     WorkspaceRole,
     WorkspaceStatus,
 )
-from industry_platform.modules.jobs.domain import JobIdempotencyConflictError
-from industry_platform.modules.jobs.models import Job, OutboxEvent
+from industry_platform.modules.jobs.domain import (
+    JobEventType,
+    JobIdempotencyConflictError,
+    JobStatus,
+)
+from industry_platform.modules.jobs.models import Job, JobEvent, OutboxEvent
 from industry_platform.server import create_selector_event_loop
 
 from .postgres import PostgresProbe
@@ -168,7 +172,7 @@ def test_atomic_turn_is_idempotent_and_survives_later_runtime_failure(
         runner.run(exercise())
 
 
-def test_cancellation_is_written_to_run_and_job_together(
+def test_queued_cancellation_terminalizes_run_and_job_together_once(
     migrated_postgres_probe: PostgresProbe,
 ) -> None:
     async def exercise() -> None:
@@ -187,22 +191,132 @@ def test_cancellation_is_written_to_run_and_job_together(
                 workspace_id=WORKSPACE_ID,
                 requested_at=NOW + timedelta(seconds=1),
             )
+            accepted_again = await control.request_cancel(
+                run_id=receipt.run_id,
+                workspace_id=WORKSPACE_ID,
+                requested_at=NOW + timedelta(seconds=2),
+            )
 
             assert accepted is True
+            assert accepted_again is True
             assert await control.is_cancel_requested(
                 run_id=receipt.run_id,
                 workspace_id=WORKSPACE_ID,
             )
             async with session_factory() as session:
-                run_cancelled_at = await session.scalar(
-                    select(AgentRunRecord.cancel_requested_at).where(
-                        AgentRunRecord.id == receipt.run_id
+                run = await session.scalar(
+                    select(AgentRunRecord).where(AgentRunRecord.id == receipt.run_id)
+                )
+                job = await session.scalar(select(Job).where(Job.id == receipt.job_id))
+                agent_events = tuple(
+                    await session.scalars(
+                        select(AgentEventRecord)
+                        .where(AgentEventRecord.run_id == receipt.run_id)
+                        .order_by(AgentEventRecord.sequence)
                     )
                 )
-                job_cancelled_at = await session.scalar(
-                    select(Job.cancel_requested_at).where(Job.id == receipt.job_id)
+                job_events = tuple(
+                    await session.scalars(
+                        select(JobEvent)
+                        .where(JobEvent.job_id == receipt.job_id)
+                        .order_by(JobEvent.event_sequence)
+                    )
                 )
-            assert run_cancelled_at == job_cancelled_at == NOW + timedelta(seconds=1)
+            assert run is not None
+            assert job is not None
+            assert run.cancel_requested_at == job.cancel_requested_at == NOW + timedelta(seconds=1)
+            assert run.status is AgentRunStatus.CANCELLED
+            assert run.stop_reason is RunStopReason.CANCELLED
+            assert run.terminal_at is not None
+            assert run.terminal_at == job.terminal_at
+            assert run.terminal_at >= NOW + timedelta(seconds=1)
+            assert run.event_count == 2
+            assert tuple(event.event_type for event in agent_events) == (
+                AgentEventType.RUN_QUEUED,
+                AgentEventType.RUN_CANCELLED,
+            )
+            assert job.status is JobStatus.CANCELLED
+            assert job_events[-1].event_type is JobEventType.CANCELLED
+            assert sum(event.event_type is JobEventType.CANCELLED for event in job_events) == 1
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
+def test_cancellation_repairs_a_previously_cancelled_job_with_a_queued_run(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(command())
+            async with session_factory.begin() as session:
+                job = await session.scalar(
+                    select(Job).where(Job.id == receipt.job_id).with_for_update()
+                )
+                database_now = await session.scalar(select(func.clock_timestamp()))
+                assert job is not None
+                assert database_now is not None
+                job.cancel_requested_at = NOW + timedelta(seconds=1)
+                job.status = JobStatus.CANCELLED
+                job.terminal_at = database_now
+                job.stage_name = JobStatus.CANCELLED.value
+                job.stage_sequence += 1
+                job.updated_at = database_now
+                session.add(
+                    JobEvent(
+                        id=uuid4(),
+                        job_id=job.id,
+                        event_type=JobEventType.CANCELLED,
+                        generation=job.generation,
+                        dispatch_generation=job.dispatch_generation,
+                        fencing_token=job.fencing_token,
+                        event_sequence=job.stage_sequence,
+                        occurred_at=database_now,
+                        details={"source": "legacy_reconciler"},
+                    )
+                )
+
+            accepted = await SqlAlchemyAgentRunControl(session_factory).request_cancel(
+                run_id=receipt.run_id,
+                workspace_id=WORKSPACE_ID,
+                requested_at=NOW + timedelta(seconds=2),
+            )
+
+            assert accepted is True
+            async with session_factory() as session:
+                run = await session.scalar(
+                    select(AgentRunRecord).where(AgentRunRecord.id == receipt.run_id)
+                )
+                agent_events = tuple(
+                    await session.scalars(
+                        select(AgentEventRecord)
+                        .where(AgentEventRecord.run_id == receipt.run_id)
+                        .order_by(AgentEventRecord.sequence)
+                    )
+                )
+                cancelled_job_event_count = await session.scalar(
+                    select(func.count())
+                    .select_from(JobEvent)
+                    .where(
+                        JobEvent.job_id == receipt.job_id,
+                        JobEvent.event_type == JobEventType.CANCELLED,
+                    )
+                )
+            assert run is not None
+            assert run.status is AgentRunStatus.CANCELLED
+            assert tuple(event.event_type for event in agent_events) == (
+                AgentEventType.RUN_QUEUED,
+                AgentEventType.RUN_CANCELLED,
+            )
+            assert cancelled_job_event_count == 1
         finally:
             await engine.dispose()
 

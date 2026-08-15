@@ -20,7 +20,14 @@ from industry_platform.modules.agent_runtime.delivery import (
 from industry_platform.modules.agent_runtime.events import TERMINAL_AGENT_EVENT_TYPES
 from industry_platform.modules.agent_runtime.resources import (
     AgentRunDeliveryResources,
+    AgentTraceQuery,
+    AgentTraceResources,
     get_agent_run_delivery_resources,
+    get_agent_trace_resources,
+)
+from industry_platform.modules.agent_runtime.schemas import (
+    AgentTraceResponse,
+    agent_trace_response,
 )
 from industry_platform.modules.agent_runtime.streaming import (
     DEFAULT_HEARTBEAT_SECONDS,
@@ -63,6 +70,18 @@ _STREAM_RESPONSES: OpenApiResponses = {
     status.HTTP_400_BAD_REQUEST: problem_openapi_response("Invalid Agent stream cursor"),
     status.HTTP_409_CONFLICT: problem_openapi_response("Agent stream recovery required"),
 }
+_TRACE_RESPONSES: OpenApiResponses = {
+    status.HTTP_401_UNAUTHORIZED: problem_openapi_response("Invalid authenticated session"),
+    status.HTTP_403_FORBIDDEN: problem_openapi_response("Workspace access denied"),
+    status.HTTP_404_NOT_FOUND: problem_openapi_response("Agent Run not found"),
+    status.HTTP_422_UNPROCESSABLE_CONTENT: problem_openapi_response("Request validation failed"),
+    status.HTTP_500_INTERNAL_SERVER_ERROR: problem_openapi_response(
+        "Persisted Agent Trace is inconsistent"
+    ),
+    status.HTTP_503_SERVICE_UNAVAILABLE: problem_openapi_response(
+        "Agent Trace temporarily unavailable"
+    ),
+}
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +93,31 @@ def get_agent_run_delivery_service(
     ],
 ) -> AgentRunDeliveryUseCase:
     return resources.service
+
+
+def get_agent_trace_query(
+    resources: Annotated[AgentTraceResources, Depends(get_agent_trace_resources)],
+) -> AgentTraceQuery:
+    return resources.query
+
+
+@router.get(
+    "/{run_id}/trace",
+    response_model=AgentTraceResponse,
+    responses=_TRACE_RESPONSES,
+)
+async def get_agent_run_trace(
+    workspace_id: UUID,
+    run_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    query: Annotated[AgentTraceQuery, Depends(get_agent_trace_query)],
+) -> AgentTraceResponse:
+    """Return the sanitized PostgreSQL Trace projection for one authorized Run."""
+
+    trace = await query.get(scope=_workspace_scope(principal, workspace_id), run_id=run_id)
+    set_no_store_headers(response)
+    return agent_trace_response(trace)
 
 
 @router.get(

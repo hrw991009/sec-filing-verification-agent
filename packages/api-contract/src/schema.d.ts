@@ -181,6 +181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/agent-runs/{run_id}/trace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Agent Run Trace
+         * @description Return the sanitized PostgreSQL Trace projection for one authorized Run.
+         */
+        get: operations["get_agent_run_trace_api_v1_workspaces__workspace_id__agent_runs__run_id__trace_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/conversations": {
         parameters: {
             query?: never;
@@ -390,6 +410,48 @@ export interface components {
             user_id: string;
         };
         /**
+         * AgentEventType
+         * @description Day 2 Event vocabulary shared by persistence, SSE, and Trace.
+         * @enum {string}
+         */
+        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.artifact.created" | "agent.checkpoint.saved";
+        /**
+         * AgentRunStatus
+         * @description Persisted lifecycle of one logical Agent run.
+         * @enum {string}
+         */
+        AgentRunStatus: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
+        /**
+         * AgentRunType
+         * @description Execution shape sharing the same public Runtime semantics.
+         * @enum {string}
+         */
+        AgentRunType: "direct_answer" | "tool_loop" | "research";
+        /**
+         * AgentStepKind
+         * @description Auditable kinds of work inside the unified Runtime.
+         * @enum {string}
+         */
+        AgentStepKind: "model" | "tool" | "approval" | "checkpoint" | "final";
+        /**
+         * AgentStepStatus
+         * @description Lifecycle of one persisted Agent step.
+         * @enum {string}
+         */
+        AgentStepStatus: "running" | "completed" | "failed" | "cancelled";
+        /** AgentTraceResponse */
+        AgentTraceResponse: {
+            /** Context Manifests */
+            context_manifests: components["schemas"]["ContextManifestResponse"][];
+            /** Events */
+            events: components["schemas"]["TraceEventResponse"][];
+            run: components["schemas"]["TraceRunResponse"];
+            /** Schema Version */
+            schema_version: number;
+            /** Steps */
+            steps: components["schemas"]["TraceStepResponse"][];
+        };
+        /**
          * AttachmentKind
          * @description The two attachment paths intentionally available on Day 2.
          * @enum {string}
@@ -436,6 +498,92 @@ export interface components {
         /** ChangeWorkspaceMemberRoleRequest */
         ChangeWorkspaceMemberRoleRequest: {
             role: components["schemas"]["WorkspaceRoleName"];
+        };
+        /** ContextBudgetResponse */
+        ContextBudgetResponse: {
+            /** Allowed Output Tokens */
+            allowed_output_tokens: number;
+            /** Estimated Input Tokens */
+            estimated_input_tokens: number;
+            /** Max Input Tokens */
+            max_input_tokens: number;
+            /** Run Max Total Tokens */
+            run_max_total_tokens: number;
+            /** Tokens Used Before Step */
+            tokens_used_before_step: number;
+            /** Unreserved Run Tokens */
+            unreserved_run_tokens: number;
+        };
+        /**
+         * ContextDecisionReason
+         * @description Why one declared input was or was not sent to the model.
+         * @enum {string}
+         */
+        ContextDecisionReason: "included" | "not_available" | "excluded_token_budget";
+        /** ContextManifestResponse */
+        ContextManifestResponse: {
+            budget: components["schemas"]["ContextBudgetResponse"];
+            /** Compiler Version */
+            compiler_version: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Manifest Id
+             * Format: uuid
+             */
+            manifest_id: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Runtime Projection Version */
+            runtime_projection_version: string;
+            /** Schema Version */
+            schema_version: number;
+            /** Sources */
+            sources: components["schemas"]["ContextSourceResponse"][];
+            /**
+             * Step Id
+             * Format: uuid
+             */
+            step_id: string;
+            /** Token Counter Version */
+            token_counter_version: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /**
+         * ContextSourceKind
+         * @description The base inputs plus each explicitly selected Day 2 attachment.
+         * @enum {string}
+         */
+        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "conversation_summary" | "attachment" | "user_question";
+        /** ContextSourceResponse */
+        ContextSourceResponse: {
+            decision_reason: components["schemas"]["ContextDecisionReason"];
+            /** Estimated Token Count */
+            estimated_token_count: number;
+            /** Included */
+            included: boolean;
+            message_role: components["schemas"]["ModelRole"] | null;
+            /** Ordinal */
+            ordinal: number;
+            /** Source Id */
+            source_id: string;
+            source_kind: components["schemas"]["ContextSourceKind"];
+            /** Source Sha256 */
+            source_sha256: string | null;
+            /** Source Version */
+            source_version: string;
         };
         /** ConversationAttachmentResponse */
         ConversationAttachmentResponse: {
@@ -513,7 +661,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Industry Id */
+            industry_id: string | null;
+            /** Knowledge Base Ids */
+            knowledge_base_ids: string[];
             role: components["schemas"]["ConversationMessageRole"];
+            search_mode: components["schemas"]["TurnSearchMode"];
             status: components["schemas"]["ConversationMessageStatus"];
             /**
              * Turn Id
@@ -701,6 +854,12 @@ export interface components {
             token_type: "Bearer";
             user: components["schemas"]["AuthenticatedUser"];
         };
+        /**
+         * ModelRole
+         * @description Provider-independent roles visible to the model.
+         * @enum {string}
+         */
+        ModelRole: "system" | "user" | "assistant";
         /** Format: uuid */
         NonNilUuid: string;
         /**
@@ -791,6 +950,12 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * RunStopReason
+         * @description Stable reason explaining why a run will no longer advance.
+         * @enum {string}
+         */
+        RunStopReason: "final" | "cancelled" | "provider_timeout" | "provider_rate_limited" | "provider_error" | "invalid_provider_response" | "incomplete_provider_response" | "max_steps" | "deadline_exceeded" | "token_budget_exceeded" | "cost_budget_exceeded" | "tool_denied" | "tool_error" | "no_progress" | "approval_required" | "runtime_error";
         /** StartConversationTurnRequest */
         StartConversationTurnRequest: {
             /** Attachment Ids */
@@ -835,6 +1000,124 @@ export interface components {
              * Format: uuid
              */
             user_message_id: string;
+        };
+        /** TraceEventResponse */
+        TraceEventResponse: {
+            /** Details */
+            details: {
+                [key: string]: string | number;
+            };
+            event_type: components["schemas"]["AgentEventType"];
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Schema Version */
+            schema_version: number;
+            /** Sequence */
+            sequence: number;
+        };
+        /** TraceRunResponse */
+        TraceRunResponse: {
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Deadline
+             * Format: date-time
+             */
+            deadline: string;
+            /** Event Count */
+            event_count: number;
+            /**
+             * Event Stream Id
+             * Format: uuid
+             */
+            event_stream_id: string;
+            /** Harness Version */
+            harness_version: string;
+            /** Max Cost Micro Usd */
+            max_cost_micro_usd: number;
+            /** Max Steps */
+            max_steps: number;
+            /** Max Total Tokens */
+            max_total_tokens: number;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            run_type: components["schemas"]["AgentRunType"];
+            /** Runtime Version */
+            runtime_version: string;
+            /** Schema Version */
+            schema_version: number;
+            /** Started At */
+            started_at: string | null;
+            /** State Revision */
+            state_revision: number;
+            status: components["schemas"]["AgentRunStatus"];
+            /** Step Count */
+            step_count: number;
+            stop_reason: components["schemas"]["RunStopReason"] | null;
+            /** Terminal At */
+            terminal_at: string | null;
+            /** Trace Id */
+            trace_id: string;
+            /**
+             * Turn Id
+             * Format: uuid
+             */
+            turn_id: string;
+            usage: components["schemas"]["TraceUsageResponse"];
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /** TraceStepResponse */
+        TraceStepResponse: {
+            /** Completed At */
+            completed_at: string | null;
+            /** Error Code */
+            error_code: string | null;
+            kind: components["schemas"]["AgentStepKind"];
+            /** Last Event Sequence */
+            last_event_sequence: number;
+            /** Sequence */
+            sequence: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["AgentStepStatus"];
+            /**
+             * Step Id
+             * Format: uuid
+             */
+            step_id: string;
+            usage: components["schemas"]["TraceUsageResponse"];
+        };
+        /** TraceUsageResponse */
+        TraceUsageResponse: {
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Cost Micro Usd */
+            cost_micro_usd: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
         };
         /**
          * TurnSearchMode
@@ -1986,6 +2269,161 @@ export interface operations {
                 };
             };
             /** @description Agent event delivery temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_agent_run_trace_api_v1_workspaces__workspace_id__agent_runs__run_id__trace_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTraceResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Agent Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Persisted Agent Trace is inconsistent */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Agent Trace temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

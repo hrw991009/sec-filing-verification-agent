@@ -46,9 +46,14 @@ class MinioPrivateFileObjectStore:
         self._origin = f"{'https' if secure else 'http'}://{public_endpoint}"
         self._clock = clock
 
-    async def _call(self, operation: Callable[[], _ResultT]) -> _ResultT:
+    async def _call(
+        self,
+        operation: Callable[[], _ResultT],
+        *,
+        abandon_on_cancel: bool = False,
+    ) -> _ResultT:
         try:
-            return await to_thread.run_sync(operation)
+            return await to_thread.run_sync(operation, abandon_on_cancel=abandon_on_cancel)
         except S3Error as error:
             if error.code in _NOT_FOUND_CODES:
                 raise FileObjectNotFoundError from None
@@ -86,6 +91,14 @@ class MinioPrivateFileObjectStore:
             size=result.size,
             etag=result.etag,
             content_type=result.content_type,
+        )
+
+    async def bucket_exists(self, *, bucket: str) -> bool:
+        """Probe the configured private bucket without exposing its contents."""
+
+        return await self._call(
+            partial(self._client.bucket_exists, bucket),
+            abandon_on_cancel=True,
         )
 
     async def read_bounded(

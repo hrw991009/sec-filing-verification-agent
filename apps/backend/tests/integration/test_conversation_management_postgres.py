@@ -15,7 +15,7 @@ from industry_platform.modules.conversations.adapters.management import (
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,
 )
-from industry_platform.modules.conversations.domain import StartDirectAnswerTurn
+from industry_platform.modules.conversations.domain import StartDirectAnswerTurn, TurnSearchMode
 from industry_platform.modules.conversations.management import (
     ConversationManagementService,
     RenameConversation,
@@ -72,6 +72,14 @@ def test_management_is_paginated_workspace_scoped_and_soft_deletes(
                     conversation_id=first.conversation_id,
                 )
             )
+            mode_industry_id = uuid4()
+            knowledge_base_ids = [uuid4(), uuid4()]
+            async with session_factory.begin() as session:
+                persisted_turn = await session.get(Turn, first.turn_id)
+                assert persisted_turn is not None
+                persisted_turn.search_mode = TurnSearchMode.BOTH
+                persisted_turn.industry_id = mode_industry_id
+                persisted_turn.knowledge_base_ids = knowledge_base_ids
             second = await writer.start_direct_answer(
                 _command(
                     key="management-3",
@@ -114,6 +122,13 @@ def test_management_is_paginated_workspace_scoped_and_soft_deletes(
             assert tuple(
                 message.content_markdown for message in (*messages_one.items, *messages_two.items)
             ) == ("Explain the first risk.", "Explain the second risk.")
+            restored_messages = (*messages_one.items, *messages_two.items)
+            assert restored_messages[0].search_mode is TurnSearchMode.BOTH
+            assert restored_messages[0].industry_id == mode_industry_id
+            assert restored_messages[0].knowledge_base_ids == tuple(knowledge_base_ids)
+            assert restored_messages[1].search_mode is TurnSearchMode.NONE
+            assert restored_messages[1].industry_id is None
+            assert restored_messages[1].knowledge_base_ids == ()
             assert "Explain the first risk." not in repr(messages_one)
 
             renamed = await service.rename(

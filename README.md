@@ -25,7 +25,7 @@
 - PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
-Day 2～Day 7 的 Agent Runtime/Harness、Tool Use、Short/Long-term Memory、Deep Research、Agent Knowledge/RAG、Eval 与 Learning Workbench 尚未实现，后续严格按主计划和能力矩阵的单一正式链路推进。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE 与 Learning Workbench 基础实现已经写入，但仍处于 `implemented_pending_verification`：Worker 中断后的 AgentRun 收敛、生产 snapshot/背压、可观测性与最终证据尚未达到主计划门禁。Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Deep Research、Agent Knowledge/RAG 与后续 Eval 能力尚未实现。
 
 ## 执行基线与安装
 
@@ -118,8 +118,11 @@ print(
 $composeFile = 'infra/compose/compose.yaml'
 docker compose --env-file '.env' -f $composeFile config --quiet
 docker compose --env-file '.env' -f $composeFile up -d --wait postgres redis minio
+docker compose --env-file '.env' -f $composeFile run --rm --no-deps minio-init
 docker compose --env-file '.env' -f $composeFile ps
 ```
+
+`minio-init` 是一次性初始化任务：它创建私有附件桶并配置 `staging/` 清理规则，成功后显示 `Exited (0)` 属于正常完成，不是服务启动失败。命令可以重复执行，不会重复创建桶。
 
 需要时按职责启用可选 profile：
 
@@ -142,7 +145,15 @@ uv run --env-file '.env' --locked --package industry-platform-backend alembic -c
 
 ## 启动应用与后台进程
 
-每条长运行命令各占一个 PowerShell 终端，并从仓库根目录执行：
+本地开发默认使用一个受控的 Python 进程管理器启动完整后端。它先检查 PostgreSQL、Redis、MinIO 私有桶和 Alembic 版本，然后分别启动 API、Outbox Dispatcher、Celery Worker、Job Reconciler 与 Celery Beat；这些仍是五个独立子进程，不会把生产职责合并到同一个 Runtime：
+
+```powershell
+uv run --locked industry-platform-backend-dev
+```
+
+请从仓库根目录执行该命令；后端 Settings 会自动读取根目录的 `.env`，因此日常启动不需要重复填写 `--env-file` 或 `--package`。如果依赖未启动，命令会直接给出 Compose 修复命令，而不是让 Worker 无限打印连接重试。如果数据库没有到最新 Alembic head，命令只提示正式迁移命令，不会在每次启动时静默修改数据库。Windows 本地 Worker 默认使用 `solo`、单并发；Linux 的独立 Worker 仍保留 Celery 默认进程池。按 `Ctrl+C` 会统一停止这一组开发进程。
+
+需要单独排障或模拟生产进程边界时，仍可让每条长运行命令各占一个 PowerShell 终端：
 
 ```powershell
 uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-api
