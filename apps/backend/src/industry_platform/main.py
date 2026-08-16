@@ -39,6 +39,50 @@ from industry_platform.core.redis_client import (
     check_redis_connection,
     create_redis_client,
 )
+from industry_platform.modules.agent_runtime.adapters.trace_query import (
+    AgentTraceDataError,
+    AgentTraceNotFoundError,
+    AgentTraceQueryError,
+)
+from industry_platform.modules.agent_runtime.delivery import (
+    AgentRunDeliveryStateError,
+    AgentRunDeliveryUnavailableError,
+    AgentRunNotFoundError,
+)
+from industry_platform.modules.agent_runtime.resources import (
+    create_agent_run_delivery_resources,
+    create_agent_trace_resources,
+)
+from industry_platform.modules.agent_runtime.router import router as agent_run_router
+from industry_platform.modules.agent_runtime.streaming import (
+    StreamContractError,
+    StreamErrorCode,
+)
+from industry_platform.modules.conversations.resources import (
+    create_conversation_resources,
+)
+from industry_platform.modules.conversations.router import router as conversation_router
+from industry_platform.modules.conversations.schemas import InvalidConversationCursorError
+from industry_platform.modules.conversations.service import (
+    ConversationAttachmentNotReadyError,
+    ConversationAttachmentNotSupportedError,
+    ConversationNotFoundError,
+    ConversationPersistenceError,
+)
+from industry_platform.modules.conversations.submission import (
+    ConversationIdempotencyConflictError,
+    ConversationModeNotReadyError,
+)
+from industry_platform.modules.files.resources import create_file_resources
+from industry_platform.modules.files.router import router as file_router
+from industry_platform.modules.files.service import (
+    FileNotFoundError,
+    FileServiceUnavailableError,
+    FileStateConflictError,
+    FileStorageConfigurationError,
+    FileUploadExpiredError,
+    FileValidationRejectedError,
+)
 from industry_platform.modules.identity.domain import (
     AccessTokenGenerationError,
     AuthenticatedSessionPersistenceError,
@@ -130,6 +174,21 @@ def create_app(
                 redis_client,
             )
             workspace_resources = create_workspace_resources(database_session_factory)
+            conversation_resources = create_conversation_resources(
+                database_session_factory,
+                supports_image_input=(
+                    active_settings.agent_model_route is not None
+                    and active_settings.agent_model_route.supports_image_input
+                ),
+            )
+            file_resources = create_file_resources(
+                active_settings,
+                database_session_factory,
+            )
+            agent_run_delivery_resources = create_agent_run_delivery_resources(
+                database_session_factory
+            )
+            agent_trace_resources = create_agent_trace_resources(database_session_factory)
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
@@ -142,6 +201,10 @@ def create_app(
             )
             application.state.identity_resources = identity_resources
             application.state.workspace_resources = workspace_resources
+            application.state.conversation_resources = conversation_resources
+            application.state.file_resources = file_resources
+            application.state.agent_run_delivery_resources = agent_run_delivery_resources
+            application.state.agent_trace_resources = agent_trace_resources
             application.state.job_resources = job_resources
 
             yield
@@ -164,12 +227,21 @@ def create_app(
         allow_origins=list(active_settings.browser_trusted_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", CSRF_PROOF_HEADER_NAME],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "Last-Event-ID",
+            CSRF_PROOF_HEADER_NAME,
+        ],
         expose_headers=[TRACE_ID_HEADER],
         max_age=600,
     )
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(workspace_router, prefix="/api/v1")
+    application.include_router(conversation_router, prefix="/api/v1")
+    application.include_router(agent_run_router, prefix="/api/v1")
+    application.include_router(file_router, prefix="/api/v1")
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -511,6 +583,296 @@ def create_app(
             code="PASSWORD_CHANGE_UNAVAILABLE",
             detail="The password could not be changed. Please try again.",
             problem_type="urn:iip:problem:password-change-unavailable",
+        )
+
+    @application.exception_handler(InvalidConversationCursorError)
+    async def handle_invalid_conversation_cursor(
+        request: Request,
+        _error: InvalidConversationCursorError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title="Invalid conversation cursor",
+            code="INVALID_CONVERSATION_CURSOR",
+            detail="The conversation page cursor is invalid or no longer supported.",
+            problem_type="urn:iip:problem:invalid-conversation-cursor",
+        )
+
+    @application.exception_handler(ConversationNotFoundError)
+    async def handle_conversation_not_found(
+        request: Request,
+        _error: ConversationNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Conversation not found",
+            code="CONVERSATION_NOT_FOUND",
+            detail="The requested conversation does not exist in this workspace.",
+            problem_type="urn:iip:problem:conversation-not-found",
+        )
+
+    @application.exception_handler(ConversationModeNotReadyError)
+    async def handle_conversation_mode_not_ready(
+        request: Request,
+        _error: ConversationModeNotReadyError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation mode not ready",
+            code="CONVERSATION_MODE_NOT_READY",
+            detail="Only direct answers without search are available right now.",
+            problem_type="urn:iip:problem:conversation-mode-not-ready",
+        )
+
+    @application.exception_handler(ConversationIdempotencyConflictError)
+    async def handle_conversation_idempotency_conflict(
+        request: Request,
+        _error: ConversationIdempotencyConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation request conflict",
+            code="CONVERSATION_IDEMPOTENCY_CONFLICT",
+            detail="This idempotency key was already used for a different request.",
+            problem_type="urn:iip:problem:conversation-idempotency-conflict",
+        )
+
+    @application.exception_handler(ConversationAttachmentNotReadyError)
+    async def handle_conversation_attachment_not_ready(
+        request: Request,
+        _error: ConversationAttachmentNotReadyError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation attachment not ready",
+            code="CONVERSATION_ATTACHMENT_NOT_READY",
+            detail="Every selected attachment must be ready and unused in this workspace.",
+            problem_type="urn:iip:problem:conversation-attachment-not-ready",
+        )
+
+    @application.exception_handler(ConversationAttachmentNotSupportedError)
+    async def handle_conversation_attachment_not_supported(
+        request: Request,
+        _error: ConversationAttachmentNotSupportedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Conversation attachment not supported",
+            code="CONVERSATION_ATTACHMENT_NOT_SUPPORTED",
+            detail="The active model route does not support the selected attachment type.",
+            problem_type="urn:iip:problem:conversation-attachment-not-supported",
+        )
+
+    @application.exception_handler(ConversationPersistenceError)
+    async def handle_conversation_unavailable(
+        request: Request,
+        error: ConversationPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Conversation persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Conversation service unavailable",
+            code="CONVERSATION_UNAVAILABLE",
+            detail="Conversation data is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:conversation-unavailable",
+        )
+
+    @application.exception_handler(FileNotFoundError)
+    async def handle_file_not_found(
+        request: Request,
+        _error: FileNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="File not found",
+            code="FILE_NOT_FOUND",
+            detail="The requested file does not exist in this workspace.",
+            problem_type="urn:iip:problem:file-not-found",
+        )
+
+    @application.exception_handler(FileUploadExpiredError)
+    async def handle_file_upload_expired(
+        request: Request,
+        _error: FileUploadExpiredError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="File upload expired",
+            code="FILE_UPLOAD_EXPIRED",
+            detail="Create a new upload before sending this attachment.",
+            problem_type="urn:iip:problem:file-upload-expired",
+        )
+
+    @application.exception_handler(FileStateConflictError)
+    async def handle_file_state_conflict(
+        request: Request,
+        _error: FileStateConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="File state conflict",
+            code="FILE_STATE_CONFLICT",
+            detail="The file cannot perform that operation in its current state.",
+            problem_type="urn:iip:problem:file-state-conflict",
+        )
+
+    @application.exception_handler(FileValidationRejectedError)
+    async def handle_file_validation_rejected(
+        request: Request,
+        error: FileValidationRejectedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="File rejected",
+            code=f"FILE_{error.code.value.upper()}",
+            detail="The uploaded attachment did not pass the required safety checks.",
+            problem_type="urn:iip:problem:file-validation-rejected",
+        )
+
+    @application.exception_handler(FileStorageConfigurationError)
+    async def handle_file_storage_configuration_required(
+        request: Request,
+        _error: FileStorageConfigurationError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="File storage not configured",
+            code="FILE_STORAGE_CONFIGURATION_REQUIRED",
+            detail="Private file storage is not configured for this deployment.",
+            problem_type="urn:iip:problem:file-storage-configuration-required",
+        )
+
+    @application.exception_handler(FileServiceUnavailableError)
+    async def handle_file_service_unavailable(
+        request: Request,
+        error: FileServiceUnavailableError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "File service unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "not-applicable",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="File service unavailable",
+            code="FILE_SERVICE_UNAVAILABLE",
+            detail="File storage is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:file-service-unavailable",
+        )
+
+    @application.exception_handler(AgentTraceNotFoundError)
+    @application.exception_handler(AgentRunNotFoundError)
+    async def handle_agent_run_not_found(
+        request: Request,
+        _error: AgentRunNotFoundError | AgentTraceNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Agent Run not found",
+            code="AGENT_RUN_NOT_FOUND",
+            detail="The requested Agent Run does not exist in this workspace.",
+            problem_type="urn:iip:problem:agent-run-not-found",
+        )
+
+    @application.exception_handler(AgentTraceDataError)
+    async def handle_agent_trace_data_error(
+        request: Request,
+        _error: AgentTraceDataError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error("Persisted Agent Trace is inconsistent trace_id=%s", trace_id)
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            title="Agent Trace data invalid",
+            code="AGENT_TRACE_DATA_INVALID",
+            detail="The Agent Trace could not be reconstructed from persisted data.",
+            problem_type="urn:iip:problem:agent-trace-data-invalid",
+        )
+
+    @application.exception_handler(AgentTraceQueryError)
+    async def handle_agent_trace_unavailable(
+        request: Request,
+        error: AgentTraceQueryError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Agent Trace unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Agent Trace unavailable",
+            code="AGENT_TRACE_UNAVAILABLE",
+            detail="Agent Trace data is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:agent-trace-unavailable",
+        )
+
+    @application.exception_handler(StreamContractError)
+    async def handle_agent_stream_contract_error(
+        request: Request,
+        error: StreamContractError,
+    ) -> JSONResponse:
+        invalid_cursor = error.code is StreamErrorCode.INVALID_CURSOR
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=(
+                status.HTTP_400_BAD_REQUEST if invalid_cursor else status.HTTP_409_CONFLICT
+            ),
+            title="Invalid Agent stream cursor"
+            if invalid_cursor
+            else "Agent stream reset required",
+            code=error.code.value,
+            detail=(
+                "Last-Event-ID must be a non-negative decimal sequence."
+                if invalid_cursor
+                else "Reconnect using a cursor from this Agent Run's committed stream."
+            ),
+            problem_type=f"urn:iip:problem:{error.code.value.lower().replace('_', '-')}",
+        )
+
+    @application.exception_handler(AgentRunDeliveryStateError)
+    @application.exception_handler(AgentRunDeliveryUnavailableError)
+    async def handle_agent_delivery_unavailable(
+        request: Request,
+        error: AgentRunDeliveryUnavailableError | AgentRunDeliveryStateError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        sqlstate = error.sqlstate if isinstance(error, AgentRunDeliveryUnavailableError) else None
+        logger.error(
+            "Agent event delivery unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Agent event delivery unavailable",
+            code="AGENT_EVENT_DELIVERY_UNAVAILABLE",
+            detail="Agent events are temporarily unavailable. Please reconnect shortly.",
+            problem_type="urn:iip:problem:agent-event-delivery-unavailable",
         )
 
     @application.exception_handler(WorkspaceAccessDeniedError)

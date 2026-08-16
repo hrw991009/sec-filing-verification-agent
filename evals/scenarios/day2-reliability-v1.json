@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day2-runtime-reliability",
+  "dataset_version": "v1",
+  "dataset_kind": "executable-reliability-scenarios",
+  "runtime_entrypoint_policy": "Each case exercises the production DirectAnswerRuntime or the application and persistence services that surround that same Runtime; this dataset does not define another execution loop.",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day2-cost-budget-exhaustion",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day2-cost-budget-exhaustion",
+        "scenario_version": "v1",
+        "category": "budget_exhaustion",
+        "execution_boundary": "direct_answer_runtime",
+        "fault": "provider_usage_exceeds_trusted_cost_budget"
+      },
+      "expected_terminal_status": "failed",
+      "expected_stop_reason": "cost_budget_exceeded",
+      "expected_facts": ["no_final_output_is_committed", "run_ends_with_run_failed"],
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "budget-stop-reason",
+          "version": "v1"
+        }
+      ],
+      "executable_test_refs": [
+        "apps/backend/tests/modules/agent_runtime/test_runtime.py::test_length_finish_and_cost_overrun_do_not_create_final_output"
+      ],
+      "human_notes": "The budget is supplied by trusted Runtime Context. The Provider cannot enlarge it, and exhausted cost never becomes a successful final answer."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day2-unrecoverable-worker-interruption",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day2-unrecoverable-worker-interruption",
+        "scenario_version": "v1",
+        "category": "worker_interruption",
+        "execution_boundary": "postgres_runtime_terminalizer",
+        "fault": "worker_stops_after_run_and_model_step_started"
+      },
+      "expected_terminal_status": "failed",
+      "expected_stop_reason": "runtime_error",
+      "expected_facts": [
+        "running_step_is_failed",
+        "exactly_one_terminal_event_is_committed",
+        "repeated_settlement_is_idempotent",
+        "retrying_job_and_run_converge_atomically",
+        "remaining_attempts_do_not_create_a_doomed_retry"
+      ],
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "unique-terminal-convergence",
+          "version": "v1"
+        }
+      ],
+      "executable_test_refs": [
+        "apps/backend/tests/integration/test_agent_run_reliability_postgres.py::test_unrecoverable_execution_and_dead_letter_each_commit_one_terminal_event",
+        "apps/backend/tests/integration/test_agent_run_reliability_postgres.py::test_orphan_reconciliation_atomically_settles_retry_and_cancelled_jobs"
+      ],
+      "human_notes": "Day 2 cannot safely resume an in-flight model call. The formal recovery behavior is atomic Run/Job convergence to one explainable terminal state, including a Job already waiting to retry; durable graph resume remains a Day 5 obligation."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day2-duplicate-turn-request",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day2-duplicate-turn-request",
+        "scenario_version": "v1",
+        "category": "duplicate_request",
+        "execution_boundary": "conversation_application_service",
+        "fault": "same_idempotency_key_is_submitted_more_than_once"
+      },
+      "expected_terminal_status": null,
+      "expected_stop_reason": null,
+      "expected_facts": [
+        "same_payload_reuses_run_job_and_outbox",
+        "changed_payload_with_same_key_is_rejected",
+        "user_input_is_not_duplicated"
+      ],
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "request-idempotency",
+          "version": "v1"
+        }
+      ],
+      "executable_test_refs": [
+        "apps/backend/tests/integration/test_conversation_agent_postgres.py::test_atomic_turn_is_idempotent_and_survives_later_runtime_failure"
+      ],
+      "human_notes": "The duplicate is absorbed before Worker execution. It reuses the original Run, Job and Outbox event instead of invoking the Runtime twice; a changed payload conflicts explicitly."
+    }
+  ]
+}

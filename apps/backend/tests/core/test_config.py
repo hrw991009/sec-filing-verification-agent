@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from pydantic import ValidationError
 
-from industry_platform.core.config import AppEnvironment, Settings
+from industry_platform.core.config import AgentModelRouteSettings, AppEnvironment, Settings
 
 REFRESH_TOKEN_HMAC_KEY_BYTES = b"r" * 32
 CSRF_TOKEN_HMAC_KEY_BYTES = b"c" * 32
@@ -147,6 +147,95 @@ def test_settings_hide_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
     assert VALID_ENVIRONMENT["REFRESH_RECOVERY_AEAD_KEY_B64"] not in repr(settings)
     assert VALID_ENVIRONMENT["ACCESS_TOKEN_PRIVATE_KEY_B64"] not in repr(settings)
     assert SIGNING_SEED.hex() not in repr(settings)
+
+
+def test_optional_agent_model_configuration_is_strict_and_secret_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    provider_key = "provider-secret-value"
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER_API_KEY", provider_key)
+    monkeypatch.setenv(
+        "AGENT_MODEL_ROUTE_JSON",
+        json.dumps(
+            {
+                "model": "openai-compatible/example-model",
+                "upstream_model": "example-model-2026-08-14",
+                "response_models": ["example-model-2026-08-14"],
+                "pricing_version": "example-pricing-v1",
+                "input_micro_usd_per_million": 1_000_000,
+                "cached_input_micro_usd_per_million": 100_000,
+                "output_micro_usd_per_million": 2_000_000,
+                "supports_image_input": True,
+            }
+        ),
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.agent_model_provider_configured is True
+    assert settings.agent_model_route == AgentModelRouteSettings(
+        model="openai-compatible/example-model",
+        upstream_model="example-model-2026-08-14",
+        response_models=("example-model-2026-08-14",),
+        pricing_version="example-pricing-v1",
+        input_micro_usd_per_million=1_000_000,
+        cached_input_micro_usd_per_million=100_000,
+        output_micro_usd_per_million=2_000_000,
+        supports_image_input=True,
+    )
+    assert provider_key not in repr(settings)
+
+
+def test_partial_agent_model_configuration_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER_BASE_URL", "https://api.example.com/v1")
+
+    with pytest.raises(ValidationError, match="must be complete"):
+        Settings(_env_file=None)
+
+
+def test_optional_minio_configuration_is_complete_and_secret_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    sensitive_storage_value = "local-object-store-secret"
+    monkeypatch.setenv("MINIO_ENDPOINT", "127.0.0.1:19000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "industry-platform-files")
+    monkeypatch.setenv("MINIO_SECRET_KEY", sensitive_storage_value)
+    monkeypatch.setenv("MINIO_BUCKET", "industry-platform-private")
+    monkeypatch.setenv("MINIO_REGION", "us-east-1")
+    monkeypatch.setenv("MINIO_SECURE", "false")
+    monkeypatch.setenv("MINIO_PRESIGN_EXPIRY_SECONDS", "600")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.minio_configured is True
+    assert settings.minio_endpoint == "127.0.0.1:19000"
+    assert settings.minio_bucket == "industry-platform-private"
+    assert settings.minio_presign_expiry_seconds == 600
+    assert sensitive_storage_value not in repr(settings)
+
+
+def test_partial_or_url_shaped_minio_configuration_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("MINIO_ENDPOINT", "https://127.0.0.1:19000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "industry-platform-files")
+    monkeypatch.setenv("MINIO_SECRET_KEY", "local-object-store-secret")
+    monkeypatch.setenv("MINIO_BUCKET", "industry-platform-private")
+
+    with pytest.raises(ValidationError, match="host and port"):
+        Settings(_env_file=None)
+
+    monkeypatch.setenv("MINIO_ENDPOINT", "127.0.0.1:19000")
+    monkeypatch.delenv("MINIO_BUCKET")
+    with pytest.raises(ValidationError, match="must be complete"):
+        Settings(_env_file=None)
 
 
 @pytest.mark.parametrize(

@@ -26,7 +26,7 @@ interface ProblemLike {
 
 const CSRF_COOKIE_NAME = "__Host-iip_csrf";
 const CSRF_HEADER_NAME = "X-CSRF-Token";
-const client = createIndustryPlatformApiClient({
+export const apiClient = createIndustryPlatformApiClient({
   baseUrl: window.location.origin,
 });
 
@@ -52,7 +52,7 @@ function problemFrom(value: unknown): ProblemLike | null {
   return typeof value === "object" && value !== null ? value : null;
 }
 
-function unwrapData<T>(result: ApiResult<T>): T {
+export function unwrapData<T>(result: ApiResult<T>): T {
   if (result.response.ok && result.data !== undefined) {
     return result.data;
   }
@@ -60,7 +60,10 @@ function unwrapData<T>(result: ApiResult<T>): T {
   throw new ApiProblem(result.response.status, problemFrom(result.error));
 }
 
-function assertNoContent(result: { readonly error?: unknown; readonly response: Response }): void {
+export function assertNoContent(result: {
+  readonly error?: unknown;
+  readonly response: Response;
+}): void {
   if (!result.response.ok) {
     throw new ApiProblem(result.response.status, problemFrom(result.error));
   }
@@ -92,7 +95,7 @@ function csrfHeaders(): Record<string, string> {
 }
 
 function requestRefresh() {
-  return client.POST("/api/v1/auth/refresh", {
+  return apiClient.POST("/api/v1/auth/refresh", {
     headers: csrfHeaders(),
   });
 }
@@ -131,7 +134,7 @@ export function refreshAccessSession(): Promise<RefreshResponse> {
   return refreshInFlight;
 }
 
-async function withAccessToken<T>(request: (accessToken: string) => Promise<T>): Promise<T> {
+export async function withAccessToken<T>(request: (accessToken: string) => Promise<T>): Promise<T> {
   let attemptedSession = getAccessSession();
   if (attemptedSession === null) {
     await refreshAccessSession();
@@ -160,9 +163,38 @@ async function withAccessToken<T>(request: (accessToken: string) => Promise<T>):
   }
 }
 
+async function problemFromResponse(response: Response): Promise<ProblemLike | null> {
+  try {
+    return problemFrom(await response.json());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Run a same-origin fetch with the in-memory access token and the same single-refresh
+ * behavior used by the generated REST client. This is intentionally narrow: callers
+ * still own response-body parsing for protocols such as SSE.
+ */
+export function authenticatedFetch(input: string | URL, init: RequestInit = {}): Promise<Response> {
+  return withAccessToken(async (accessToken) => {
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${accessToken}`);
+    const response = await fetch(input, {
+      ...init,
+      credentials: init.credentials ?? "same-origin",
+      headers,
+    });
+    if (!response.ok) {
+      throw new ApiProblem(response.status, await problemFromResponse(response));
+    }
+    return response;
+  });
+}
+
 export async function registerAccount(email: string, password: string): Promise<RegisterResponse> {
   return unwrapData<RegisterResponse>(
-    await client.POST("/api/v1/auth/register", {
+    await apiClient.POST("/api/v1/auth/register", {
       body: { email, password },
     }),
   );
@@ -170,7 +202,7 @@ export async function registerAccount(email: string, password: string): Promise<
 
 export async function loginAccount(email: string, password: string): Promise<LoginResponse> {
   const loggedIn = unwrapData<LoginResponse>(
-    await client.POST("/api/v1/auth/login", {
+    await apiClient.POST("/api/v1/auth/login", {
       body: { email, password },
     }),
   );
@@ -184,7 +216,7 @@ export async function loginAccount(email: string, password: string): Promise<Log
 export async function getCurrentUser(): Promise<CurrentUser> {
   return withAccessToken(async (accessToken) =>
     unwrapData<CurrentUser>(
-      await client.GET("/api/v1/auth/me", {
+      await apiClient.GET("/api/v1/auth/me", {
         headers: { Authorization: `Bearer ${accessToken}` },
       }),
     ),
@@ -192,7 +224,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
 }
 
 export async function logoutAccount(): Promise<void> {
-  const result = await client.POST("/api/v1/auth/logout", {
+  const result = await apiClient.POST("/api/v1/auth/logout", {
     headers: csrfHeaders(),
   });
 
@@ -208,7 +240,7 @@ export async function changeAccountPassword(
   newPassword: string,
 ): Promise<void> {
   await withAccessToken(async (accessToken) => {
-    const result = await client.POST("/api/v1/auth/change-password", {
+    const result = await apiClient.POST("/api/v1/auth/change-password", {
       body: {
         current_password: currentPassword,
         new_password: newPassword,

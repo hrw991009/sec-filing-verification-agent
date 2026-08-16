@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day2-direct-answer",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day2-direct-answer-basic",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day2-direct-answer-basic",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": {
+          "name": "direct-answer",
+          "version": "v0"
+        },
+        "input": {
+          "question": "What is the purpose of an Agent Runtime?"
+        },
+        "runtime_version": "runtime-v0",
+        "harness_version": "harness-v0",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v0",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          {
+            "name": "fake-model/direct-answer-basic",
+            "version": "v1"
+          }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The Runtime advances a run under typed state, budget, event, and stop-reason rules."
+      },
+      "scorers": [
+        {
+          "category": "result",
+          "name": "exact-final-output",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Contract seed only; execution starts after its fixture registry and the concrete unified Runtime are composed."
+    }
+  ]
+}

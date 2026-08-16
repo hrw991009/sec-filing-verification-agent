@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-12
+> 更新日期：2026-08-15
 >
 > 权威来源：`docs/master-plan.md` 1.7.0
 
@@ -107,15 +107,33 @@ D1-09 的参考仓历史凭据处置需要 Provider 侧外部操作。它不否�
 
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
-| D2-01 | 可替换 Model Provider | R1 + R2 + NEW | `stream/complete`；确定性 Fake 仅测试；一个服务端 OpenAI-compatible Adapter。Embedding 使用 Day 5 的独立 Port | Provider contract、超时、429、半截响应、Token/费用 | `planned` | `complete` |
-| D2-02 | 完整会话管理 | R1 + R2 | 新建、列表、详情、消息分页、重命名、删除、自动标题 | 正常/空/分页/刷新/删除 E2E，删除真实调用后端 | `planned` | `complete` |
-| D2-03 | 单轮搜索模式 | R2 | 每个 Turn 明确保存 `none/web/local/both`、行业和一个或多个知识库；Day 2 启用 none，Day 3 启用 web，Day 5 启用 local/both，未就绪时返回稳定 readiness 错误 | 四种模式快照/恢复与分阶段 readiness 测试；禁止 Mock 搜索成功 | `planned` | `complete` |
-| D2-04 | 聊天附件生命周期 | R1 + R2 + NEW | 上传、处理状态、关联消息、列表、删除；文本/图片真实解析，其他格式不伪装支持 | 文件类型真值表、越权/删除/失败测试 | `planned` | `complete` |
-| D2-05 | 可恢复流式回答 | R1 + R2 + NEW | 202 + Job；固定 `id: sequence`/`event: type`/`data: envelope`；不推进游标的 comment 心跳；停止/重试、Last-Event-ID、snapshot、唯一终态、有界缓冲与慢客户端背压 | wire contract、非法/跨流/超前游标、断开/重连/重复/缺口/过期、慢客户端、Redis 丢失、取消测试 | `planned` | `complete` |
-| D2-06 | 失败不丢用户工作 | NEW | 保存用户消息、partial、Citation、错误码和可重试状态 | Provider 失败和 Worker 中断后刷新仍可解释 | `planned` | `complete` |
-| D2-07 | 安全 Markdown 与可见步骤 | R2 + NEW | 消毒 Markdown；只展示 Tool/Research 的审计摘要，不展示原始 CoT | XSS、恶意链接、Prompt 注入和日志检查 | `planned` | `complete` |
-| D2-08 | Agent Runtime v0 与唯一执行入口 | NEW | 版本化 AgentRun/Step/Event/State/Artifact/Budget、Provider-neutral Ports、唯一终态/stop reason、ContextCompiler v0/manifest，以及 Checkpoint envelope/schema/CAS 基础；Runtime Context 不原样入模，Celery 只承载正式 Runtime | 领域不变量、Context manifest、Checkpoint 版本/CAS、生产/Harness 同入口、原子创建/可靠投递、SSE 重连不重复当前 Model Step | `planned` | `complete` |
-| D2-09 | Harness Scenario、Fake 与 Trace 基座 | NEW | 版本化 Scenario/EvalCase v1、runtime/harness/model/prompt/context/available-tools version、Fake Model、record/replay、Provider fault injection、最小 CLI、依赖文档 | 固定 Scenario 两次 Event 骨架一致；格式错误/timeout/取消可重现；L0 toolset 可为空；Trace 无 Secret、敏感原文和原始 CoT | `planned` | `complete` |
+| D2-01 | 可替换 Model Provider | R1 + R2 + NEW | `stream/complete`；确定性 Fake 仅测试；一个服务端 OpenAI-compatible Adapter。Embedding 使用 Day 5 的独立 Port | Provider contract、超时、429、半截响应、Token/费用 | `implemented_pending_verification` | `complete` |
+| D2-02 | 完整会话管理 | R1 + R2 | 新建、列表、详情、消息分页、重命名、删除、自动标题 | 正常/空/分页/刷新/删除 E2E，删除真实调用后端 | `implemented_pending_verification` | `complete` |
+| D2-03 | 单轮搜索模式 | R2 | 每个 Turn 明确保存 `none/web/local/both`、行业和一个或多个知识库；Day 2 启用 none，Day 3 启用 web，Day 5 启用 local/both，未就绪时返回稳定 readiness 错误 | 四种模式快照/恢复与分阶段 readiness 测试；禁止 Mock 搜索成功 | `implemented_pending_verification` | `complete` |
+| D2-04 | 聊天附件生命周期 | R1 + R2 + NEW | 上传、处理状态、关联消息、列表、删除；文本/图片真实解析，其他格式不伪装支持 | 文件类型真值表、越权/删除/失败测试 | `implemented_pending_verification` | `complete` |
+| D2-05 | 可恢复流式回答 | R1 + R2 + NEW | 202 + Job；固定 `id: sequence`/`event: type`/`data: envelope`；不推进游标的 comment 心跳；停止/重试、Last-Event-ID、snapshot、唯一终态、有界缓冲与慢客户端背压 | wire contract、非法/跨流/超前游标、断开/重连/重复/缺口/过期、慢客户端、Redis 丢失、取消测试 | `implemented_pending_verification` | `complete` |
+| D2-06 | 失败不丢用户工作 | NEW | 保存用户消息、partial、错误码和可重试状态；已有 Evidence locator 后再保存 Citation | Provider 失败和 Worker 中断后刷新仍可解释；Day 2 L0 没有 Evidence 来源，Citation 按主计划在 Day 6 接入 | `implemented_pending_verification` | `complete` |
+| D2-07 | 安全 Markdown 与可见步骤 | R2 + NEW | 消毒 Markdown；只展示 Tool/Research 的审计摘要，不展示原始 CoT | XSS、恶意链接、Prompt 注入和日志检查 | `implemented_pending_verification` | `complete` |
+| D2-08 | Agent Runtime v0 与唯一执行入口 | NEW | 版本化 AgentRun/Step/Event/State/Artifact/Budget、Provider-neutral Ports、唯一终态/stop reason、ContextCompiler v0/manifest，以及 Checkpoint envelope/schema/CAS 基础；Runtime Context 不原样入模，Celery 只承载正式 Runtime | 领域不变量、Context manifest、Checkpoint 版本/CAS、生产/Harness 同入口、原子创建/可靠投递、SSE 重连不重复当前 Model Step | `implemented_pending_verification` | `complete` |
+| D2-09 | Harness Scenario、Fake 与 Trace 基座 | NEW | 版本化 Scenario/EvalCase v1、runtime/harness/model/prompt/context/available-tools version、Fake Model、record/replay、Provider fault injection、预算/中断/重复请求可靠性 Scenario、最小 CLI、依赖文档 | 固定 Provider Scenario 两次 Event 骨架一致；格式错误/timeout/取消可重现；可靠性 Scenario 绑定正式 Runtime/Application/PostgreSQL 测试；L0 toolset 可为空；Trace 无 Secret、敏感原文和原始 CoT | `implemented_pending_verification` | `complete` |
+
+### 4.1 Day 2 当前证据与保留门禁
+
+当前仓库已经写入正式实现，而不再是 `planned`：
+
+- `modules/agent_runtime/` 包含版本化 Run/Step/Event/State/Budget、Checkpoint 基础契约、Context Compiler、Direct Answer Runtime、PostgreSQL 持久化、有界 SSE/snapshot/取消、不可恢复执行终态收敛和脱敏 Trace 查询；`modules/agent_harness/` 通过同一 Runtime 运行 Scenario/Fake/Replay，不另写生产 loop。
+- `modules/conversations/`、`modules/files/` 和 `workers/` 已连接 Conversation/Turn/Message、Run、Job/Outbox、私有 MinIO 附件和 Worker 执行；Turn 的模式、行业和知识库选择是持久快照。Day 2 只接受 `none`，其余模式返回明确的 readiness 错误。
+- `test_agent_fake_success_postgres.py` 使用真实 Conversation、Outbox、JobExecutionRuntime、唯一 DirectAnswerRuntime、PostgreSQL Message/Event 与 committed replay 证明正式成功链；确定性 Fake 只替换外部 Provider Port，Provider 只调用一次。`test_agent_unconfigured_provider_postgres.py` 则证明正式失败链不会暗中回退 Fake。
+- `evals/scenarios/day2-v2.json` 有 6 个版本化 Provider 用例：正常、格式错误、超时、429、半截响应和取消；`evals/scenarios/day2-reliability-v1.json` 另有费用预算耗尽、Worker 不可恢复中断收敛和重复 Turn 请求 3 个版本化场景，它们绑定正式 Runtime/Application/PostgreSQL 测试，不另建执行 loop。`evals/fixtures/day2-model-v1.json` 是有界回放数据，`evals/snapshots/day2-traces-v1.json` 是不含问题、答案和 Secret 的 Event 骨架快照，`evals/reports/day2-v1.json` 保存可比较结论、可靠性覆盖与测量限制。
+- Web 聊天工作台消费生成的 OpenAPI 类型与正式 HTTP/SSE：会话、分页消息、模式、附件、停止、重连、错误/partial 状态、安全 Markdown 和脱敏 Run/Context Trace；万能 Page 已拆成独立会话侧栏、消息、输入、Trace 和状态模块。相关组件测试位于 `apps/web/src/chat/`，浏览器旅程位于 `tests/e2e/`。
+
+D2-01～D2-09 的正式实现均已写入，当前统一标为 `implemented_pending_verification`，但还不足以写成 `complete`。D2-06 中的 Citation 在 Day 2 L0 明确为不适用：`master-plan.md` 把 Day 2 定义为一次无工具的直接回答，把 Evidence/Claim 放在 Day 4，把基于真实 Evidence locator 的 Citation gate 放在 Day 6。Day 2 没有可引用的 Evidence 来源，生成空引用或伪引用反而违反计划；本次只校正矩阵的执行日归属，不删除 Day 6 的 Citation 能力。复核：执行代理，2026-08-15；Day 7 完成状态前仍需项目所有者复核。
+
+2026-08-15 已针对当前工作树完成最终本地收口：245 份 Python 文件通过 Ruff format/check，mypy 检查 240 个文件无问题；在 `POSTGRES_TESTS_REQUIRED=1`、`REDIS_TESTS_REQUIRED=1`、`MINIO_TESTS_REQUIRED=1` 下 708 个 pytest 全部通过且无 skip，fresh migration、真实 PostgreSQL/Redis/MinIO、wheel/sdist 构建和 Python audit 同时通过。Web 的 format/lint/typecheck、10 个 Vitest 文件共 42 个测试、生产构建、OpenAPI 确定性、Node audit 和 3 条 Playwright 浏览器旅程通过；其中成功旅程从页面 POST 经 PostgreSQL Outbox/Job、正式 JobExecutionRuntime 和唯一 DirectAnswerRuntime，在只替换 ModelProvider 测试边界的前提下验证两段 committed SSE、final Message 与刷新恢复。受控路径与 39 个 Git 提交的 Gitleaks 扫描未发现 Secret。
+
+Agent 追加 DoD 的适用性已单独复核：Day 2 的成功、Provider 失败、取消、预算耗尽、不可恢复中断收敛和重复请求都有版本化 Scenario。Tool 失败因 L0 明确没有 Tool Action/Observation，阶段性 `N/A`，复核人为执行代理、日期 2026-08-15；该义务在 Day 3 L1/L2 恢复为适用。Day 2 对不可恢复中断必须收敛为唯一 failed 终态，只有“同一次模型调用的 durable graph resume”因主计划明确归属 D5-09 而阶段性 `N/A`，复核人为执行代理、日期 2026-08-15，不能据此豁免 Day 5。
+
+状态仍不能提升为 `complete`；逐项 Definition of Done/N/A 复核见 `docs/agent-runtime.md`。仓库内实现和本地门禁已经收口，尚需当前提交的干净 GitHub CI，以及学习者用自己的话完成 Runtime、Harness、Worker、Checkpoint 与 Trace 的职责复盘。真实 OpenAI-compatible Provider smoke 可以补充信心，但没有配置 Provider 时，Fake/冻结回归只能证明契约，正式 `provider_not_configured` 链路只能证明不会回退 Fake，绝不能把两者写成真实模型质量成功。
 
 ## 5. Day 3：Agent Harness v1、有界 Tool Use、行业与 Text2SQL
 

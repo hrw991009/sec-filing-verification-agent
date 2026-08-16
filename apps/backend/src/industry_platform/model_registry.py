@@ -3,6 +3,21 @@
 from sqlalchemy import MetaData
 
 from industry_platform.core.database import Base
+from industry_platform.modules.agent_runtime.models import (
+    AgentCheckpointRecord,
+    AgentEventRecord,
+    AgentRunRecord,
+    AgentStepRecord,
+    ContextManifestRecord,
+    RunArtifactRecord,
+)
+from industry_platform.modules.conversations.models import (
+    Conversation,
+    Message,
+    MessageAttachment,
+    Turn,
+)
+from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.identity.models import (
     AuditLog,
     RefreshSession,
@@ -31,6 +46,17 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     OutboxEvent,
     Schedule,
     ScheduleOccurrence,
+    Conversation,
+    Turn,
+    FileObject,
+    AgentRunRecord,
+    Message,
+    MessageAttachment,
+    AgentStepRecord,
+    AgentEventRecord,
+    ContextManifestRecord,
+    RunArtifactRecord,
+    AgentCheckpointRecord,
 )
 
 metadata: MetaData = Base.metadata

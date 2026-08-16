@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "report_id": "day2-direct-answer-contract-regression",
+  "report_version": "v1",
+  "dataset": {
+    "id": "day2-direct-answer",
+    "version": "v2"
+  },
+  "fixtures": {
+    "id": "day2-direct-answer-model",
+    "version": "v1"
+  },
+  "trace_snapshots": {
+    "id": "day2-direct-answer-traces",
+    "version": "v1"
+  },
+  "reliability_scenarios": {
+    "dataset": {
+      "id": "day2-runtime-reliability",
+      "version": "v1"
+    },
+    "case_count": 3,
+    "required_categories": ["budget_exhaustion", "worker_interruption", "duplicate_request"],
+    "test_binding_status": "validated_by_repository_test_discovery",
+    "execution_evidence": "Each referenced test exercises the production Runtime or its formal application and PostgreSQL persistence boundary. The repository test suite, not this report file, is the pass/fail authority."
+  },
+  "scenario_inventory": {
+    "direct_answer_replay_case_count": 6,
+    "reliability_case_count": 3,
+    "day2_versioned_scenario_count": 9
+  },
+  "applicability_review": {
+    "reviewed_by": "execution_agent",
+    "reviewed_on": "2026-08-15",
+    "tool_failure": {
+      "status": "not_applicable_in_day2_l0",
+      "reason": "The Day 2 profile has available_tools=[] and therefore cannot produce a Tool Action, Observation or Tool side effect.",
+      "deferred_obligation": "Day 3 L1/L2 must add executable Tool failure scenarios. This review does not waive that obligation."
+    },
+    "durable_graph_resume": {
+      "status": "not_applicable_in_day2_l0",
+      "reason": "Day 2 freezes the Checkpoint envelope and CAS contract but does not claim that an in-flight model call can resume.",
+      "deferred_obligation": "Day 5 D5-09 must prove LangGraph state mapping, interrupt/resume and zero duplicate side effects."
+    },
+    "unrecoverable_worker_interruption": {
+      "status": "applicable",
+      "scenario_id": "day2-unrecoverable-worker-interruption"
+    }
+  },
+  "production_path_evidence": {
+    "execution_boundary": "conversation_outbox_job_execution_runtime_postgres_replay",
+    "provider_boundary": "ScriptedModelProvider replaces only the external Provider port; application, Job runtime, DirectAnswerRuntime and PostgreSQL persistence remain formal production components.",
+    "executable_test_ref": "apps/backend/tests/integration/test_agent_fake_success_postgres.py::test_success_uses_the_durable_job_runtime_and_replays_without_model_reexecution",
+    "verified_facts": [
+      "one_provider_call",
+      "final_message_and_events_are_persisted",
+      "committed_replay_does_not_reexecute_model"
+    ]
+  },
+  "execution": {
+    "runtime": "DirectAnswerRuntime",
+    "repetitions_per_case": 2,
+    "provider": "ScriptedModelProvider",
+    "provider_calls_per_execution": 1,
+    "evidence_kind": "deterministic_contract_regression"
+  },
+  "aggregate": {
+    "case_count": 6,
+    "passed_case_count": 6,
+    "expected_stop_reason_match_rate": 1.0,
+    "event_skeleton_consistency_rate": 1.0,
+    "provider_fault_case_count": 4,
+    "cancellation_case_count": 1,
+    "client_reconnect_model_reexecution_count": 0
+  },
+  "cases": [
+    {
+      "case_id": "day2-direct-answer-basic",
+      "case_version": "v1",
+      "expected_stop_reason": "final",
+      "observed_stop_reason": "final",
+      "event_skeleton_stable": true,
+      "provider_calls_per_execution": 1,
+      "scorers": [
+        { "category": "result", "name": "exact-final-output", "version": "v1", "status": "passed" },
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "status": "passed" },
+        {
+          "category": "runtime_recovery",
+          "name": "committed-event-replay",
+          "version": "v1",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "case_id": "day2-direct-answer-invalid-format",
+      "case_version": "v1",
+      "expected_stop_reason": "invalid_provider_response",
+      "observed_stop_reason": "invalid_provider_response",
+      "event_skeleton_stable": true,
+      "provider_calls_per_execution": 1,
+      "scorers": [
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "status": "passed" }
+      ]
+    },
+    {
+      "case_id": "day2-direct-answer-timeout",
+      "case_version": "v1",
+      "expected_stop_reason": "provider_timeout",
+      "observed_stop_reason": "provider_timeout",
+      "event_skeleton_stable": true,
+      "provider_calls_per_execution": 1,
+      "scorers": [
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "status": "passed" }
+      ]
+    },
+    {
+      "case_id": "day2-direct-answer-rate-limited",
+      "case_version": "v1",
+      "expected_stop_reason": "provider_rate_limited",
+      "observed_stop_reason": "provider_rate_limited",
+      "event_skeleton_stable": true,
+      "provider_calls_per_execution": 1,
+      "scorers": [
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "status": "passed" }
+      ]
+    },
+    {
+      "case_id": "day2-direct-answer-half-response",
+      "case_version": "v1",
+      "expected_stop_reason": "incomplete_provider_response",
+      "observed_stop_reason": "incomplete_provider_response",
+      "event_skeleton_stable": true,
+      "provider_calls_per_execution": 1,
+      "scorers": [
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "status": "passed" }
+      ]
+    },
+    {
+      "case_id": "day2-direct-answer-cancelled",
+      "case_version": "v1",
+      "expected_stop_reason": "cancelled",
+      "observed_stop_reason": "cancelled",
+      "event_skeleton_stable": true,
+      "provider_calls_per_execution": 1,
+      "scorers": [
+        { "category": "trajectory", "name": "event-snapshot", "version": "v1", "status": "passed" }
+      ]
+    }
+  ],
+  "measurement_limits": {
+    "real_provider_quality_claim": false,
+    "latency_comparison": "not_applicable_to_in_process_fake",
+    "token_and_cost_scope": "fixture_values_only_not_real_provider_pricing",
+    "tool_evidence_and_citation": "not_applicable_to_day2_l0_no_tool_profile"
+  },
+  "decision": "retain_runtime_v0_contract_and_continue_to_bounded_tool_use_only_after_day2_gates"
+}

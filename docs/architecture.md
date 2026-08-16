@@ -273,8 +273,8 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 文件与知识库 | `file_objects`、`knowledge_bases`、`documents`、`document_versions` | 文件对象私有；Document 指向唯一 current version；每个版本固定 parser/chunker 配置与状态 |
 | 解析资产 | `chunks`、`assets`、`chunk_asset_links`、`search_index_records` | Chunk 保留页码、标题路径、token、bbox 和内容哈希；资产保留图/表/page 类型与私有文件关系；索引外部 ID 唯一 |
 | 任务与投递 | `schedules`、`schedule_occurrences`、`jobs`、`job_events`、`outbox_events` | occurrence `(schedule_id, scheduled_for)` 唯一；Job 保存 dispatch/start、lease、fencing token、heartbeat 并是业务状态真相；事件序列单调；Outbox 具有抢占、尝试、下次投递与 dead-letter 状态 |
-| 会话 | `chat_sessions`、`session_knowledge_bases`、`turns`、`messages`、`message_parts`、`message_attachments`、`message_feedback` | Turn 绑定客户端幂等 ID；搜索模式为 `none/web/local/both`；附件使用统一 FileObject；一个 Turn 可关联多个 AgentRun attempt，但只能选择一个当前正式结果 |
-| Agent 执行 | `agent_runs`、`agent_steps`、`agent_events`、`agent_checkpoints`、`run_artifacts`、`tool_calls`、`context_manifests` | 普通回答、Tool Use 与 Research 共用 Run/Step/Event/Checkpoint；sequence 单调、终态唯一、Budget/stop reason/version 完整；Context manifest 记录实际注入与裁剪决定 |
+| 会话 | `conversations`、`conversation_turns`、`conversation_messages`、`message_attachments` | Turn 绑定幂等提交与 `none/web/local/both` 模式快照；附件引用同 Workspace 的 READY FileObject；Day 2 的显式“重新提问”创建新 Turn/Run，不篡改旧 Run |
+| Agent 执行 | `agent_runs`、`agent_steps`、`agent_events`、`agent_checkpoints`、`run_artifacts`、`context_manifests`；Day 3 再增加 Tool 执行事实 | 普通回答、未来 Tool Use 与 Research 共用 Run/Step/Event/Checkpoint；sequence 单调、终态唯一、Budget/stop reason/version 完整；Context manifest 记录实际注入与裁剪决定 |
 | 证据与引用 | `evidence`、`message_citations` | locator 是版本化判别联合；Citation 必须指向真实 Evidence；读取底层资源时再次授权 |
 | 记忆 | `thread_memory_states`、`memories`、`memory_revisions` | Short-term 保存 Thread 消息引用、摘要、compaction revision 与 freshness；Long-term 当前投影和版本修订保存 provenance、scope、confidence、写入原因、策略/用户决定、停用、过期和删除 |
 | Research | `research_runs`、`research_plans`、`research_reports`、`research_claims`、`claim_evidence` | `research_runs.agent_run_id` 是统一执行事实的领域扩展；计划显式版本化；关键 Claim 关联 Evidence；不得再建立 research_steps/research_checkpoints 第二套执行历史 |
@@ -328,10 +328,10 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 | 身份 | `/auth/register`、`/auth/login`、`/auth/refresh`、`/auth/logout`、`/auth/me`、`/auth/change-password` |
 | Workspace | `/workspaces`、`/workspaces/{id}`、`/workspaces/{id}/members` |
 | 行业上下文 | `/industries`、`/me/industry-preference`；当前行业作为显式查询/会话作用域，不从 LocalStorage 直接决定服务端数据权限 |
-| 私有文件 | `/files/presign`、`/files/{id}/complete`、`/files/{id}/download-url` |
+| 私有文件 | `/workspaces/{workspace_id}/files/presign`、`/workspaces/{workspace_id}/files/{id}/complete`、`download-url` 与删除 |
 | 知识库与文档 | `/knowledge-bases`、`/knowledge-bases/{id}/documents`、`/documents/{id}/chunks`、`assets`、`retry`、`reindex` |
-| 会话与附件 | `/sessions`、`/sessions/{id}/messages`、`turns`、`attachments`；会话支持标题、搜索模式和多知识库关系 |
-| Agent Run 与 SSE | `/agent-runs`、`/agent-runs/{id}`、`events`、`cancel`、`resume`、`artifacts`、`trace`；重试创建可关联的新 AgentRun attempt，不篡改旧 Run |
+| 会话与附件 | `/workspaces/{workspace_id}/conversations`、`/conversations/{id}`、`/conversations/{id}/messages`；创建接口原子写 Turn、Message、附件关系、AgentRun、Job 与 Outbox |
+| Agent Run 与 SSE | `/workspaces/{workspace_id}/agent-runs/{id}/events`、`cancel`、`trace`；Day 2 重试创建新 Turn/Run，Day 5 才增加 Checkpoint resume |
 | 检索 | `/search/hybrid`、`/search/web`；调试响应区分 Dense、BM25、RRF 与 Rerank 排名和分数 |
 | 记忆 | `/memories`、`/memories/search`、`/memories/from-session`、`confirm`、`disable`；删除走正式资源接口 |
 | Research | `/research-runs`、`/research-runs/{id}/report`、`graph`、`charts`；其 events/cancel/resume/checkpoints 若保留，只能是对应 `/agent-runs/{agent_run_id}` 的授权兼容视图 |
@@ -398,15 +398,15 @@ stream.snapshot | stream.reset_required
 
 1. 浏览器断开或 `AbortController.abort()` 只关闭本次订阅，不自动取消 AgentRun 或 Ingestion；Research 的执行状态属于其关联 AgentRun。
 2. 取消必须显式调用对应 `cancel` API；服务端写入 `cancel_requested_at`，Worker 在安全点协作式取消，并最终发出唯一 `cancelled` 终态。
-3. 客户端重连发送 `Last-Event-ID`。它必须是当前资源端点内已经观察到的非负十进制 sequence；`0` 表示从可用起点开始。语法非法返回 HTTP 400 与 `INVALID_STREAM_CURSOR`，大于当前已分配 sequence 返回 HTTP 409 与 `STREAM_CURSOR_AHEAD`。若 Redis 中仍有后续事件，服务端从下一 sequence 继续；客户端按 `(stream_id, sequence)` 去重。
+3. 客户端重连发送 `Last-Event-ID`。它必须是当前资源端点内已经观察到的非负十进制 sequence；`0` 表示从可用起点开始。语法非法返回 HTTP 400 与 `INVALID_STREAM_CURSOR`，大于当前已提交 sequence 返回 HTTP 409 与 `STREAM_CURSOR_AHEAD`。Day 2 从 PostgreSQL 的下一条已提交 Event 继续；客户端按 `(stream_id, sequence)` 去重。
 4. 客户端发现 sequence 缺口时停止拼接 delta，并请求恢复，不能猜测缺失文本。
-5. Redis Stream 七天配置保留 24 小时并受最大长度限制。PostgreSQL 持久保存已组装的 partial/final 内容、Citation、关键阶段、最后持久 sequence 和终态。
+5. Day 2 以 PostgreSQL AgentEvent 和 Message 为恢复事实源，并对每次查询采用有界窗口。以后若增加 Redis Stream，只能作为带 TTL/最大长度的加速层，不能取代 PostgreSQL 的 partial/final、Citation、sequence 和终态。
 6. 如果请求序号已经过期，但 PostgreSQL 有权威快照，服务端先发送 `stream.snapshot`，客户端替换而不是追加现有内容，再订阅仍可用的新事件。
-7. 如果 Redis 丢失且正在运行的流无法保证 sequence 连续，服务端将运行标记为 `failed`，错误码为 `STREAM_STATE_LOST`，保留部分结果并允许用户显式重试为新的 stream；禁止从 1 重新编号后继续旧 stream。
+7. 如果未来的 Redis 加速层丢失，服务端先从 PostgreSQL 已提交 Event/snapshot 恢复。只有 PostgreSQL 事实本身无法证明连续性时才稳定失败；禁止从 1 重新编号后继续旧 stream。
 8. 已终止的流重连时，从 PostgreSQL 返回权威 snapshot、Citation 和同一唯一终态；客户端不会永久等待已经结束的流。
 9. 每次连接、重连和 snapshot 读取都重新执行用户与 Workspace 授权，不能因为知道 stream ID 就访问事件。游标只在 URL 已指定的 stream 内解释；把另一个 stream 的数字游标带到当前端点既不能读取另一个 stream，也不能绕过当前 stream 的授权，仍按本节的超前、可恢复或过期规则处理。
 
-慢客户端使用有界缓冲和 delta 合并。超过缓冲预算时服务端关闭订阅并要求按 `Last-Event-ID` 重连，不能无限占用 API 内存。事件顺序、重复、缺口、TTL 过期、Redis 丢失、用户取消和单纯断开必须分别具有契约测试。
+慢客户端必须使用有界分页拉取或有界缓冲。Day 2 的 ASGI 生成器只有在上一批 Event 已交给 socket 后才查询下一批，单批最多 256 条，因此慢发送不会形成无限应用内队列，也不会丢编号事件；未来若改成独立 producer/queue，超过缓冲预算时必须关闭订阅并要求按 `Last-Event-ID` 重连。事件顺序、重复、缺口、过期游标、加速层丢失、用户取消和单纯断开必须分别具有契约测试。
 
 ## 10. 异步任务与一致性
 
@@ -829,13 +829,13 @@ Day 7 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application �
 
 Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
-本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。正式表结构来自两份线性 Alembic migration；PostgreSQL 是身份、Workspace、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态。
+本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前正式表结构来自 4 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
 
 Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-02～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
 新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2～Day 7 的 Agent Runtime/Harness、聊天、Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research、Evaluation Harness 与 Learning Workbench 尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过当前工作树的本地门禁。D2-01～D2-09 仍是 `implemented_pending_verification`，等待当前提交的干净 GitHub CI 和学习者职责复盘；Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research 与后续 Evaluation 能力尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 

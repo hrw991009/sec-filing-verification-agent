@@ -12,6 +12,9 @@ dependencies = [
     "cryptography>=50.0.0,<51.0.0",
     "email-validator>=2.3.0,<3.0.0",
     "fastapi>=0.141.1,<0.142.0",
+    "httpx2>=2.9.1,<3.0.0",
+    "minio>=7.2.20,<8.0.0",
+    "pillow>=12.3.0,<13.0.0",
     "psycopg[binary]>=3.3.4,<4.0.0",
     "pydantic>=2.13.4,<3.0.0",
     "pydantic-settings>=2.14.2,<3.0.0",
@@ -23,6 +26,8 @@ dependencies = [
 
 [project.scripts]
 industry-platform-api = "industry_platform.server:main"
+industry-platform-agent-harness = "industry_platform.modules.agent_harness.cli:main"
+industry-platform-backend-dev = "industry_platform.dev:main"
 industry-platform-celery-beat = "industry_platform.workers.beat:main"
 industry-platform-celery-worker = "industry_platform.workers.celery_app:main"
 industry-platform-outbox-dispatcher = "industry_platform.workers.dispatcher:main"

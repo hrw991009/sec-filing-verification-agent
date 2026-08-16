@@ -5,6 +5,20 @@ import { describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "../auth/auth-context";
 import { App } from "./App";
 
+vi.mock("../chat/chat-api", () => ({
+  cancelRun: vi.fn(() => Promise.resolve()),
+  deleteConversation: vi.fn(() => Promise.resolve()),
+  deleteFile: vi.fn(() => Promise.resolve()),
+  followAgentRunEvents: vi.fn(() => Promise.resolve(0)),
+  getAgentTrace: vi.fn(() => Promise.reject(new Error("No run selected"))),
+  getDownloadUrl: vi.fn(() => Promise.reject(new Error("No attachment selected"))),
+  listConversations: vi.fn(() => Promise.resolve({ conversations: [], next_cursor: null })),
+  listMessages: vi.fn(() => Promise.resolve({ messages: [], next_cursor: null })),
+  renameConversation: vi.fn(() => Promise.reject(new Error("No conversation selected"))),
+  startTurn: vi.fn(() => Promise.reject(new Error("No question submitted"))),
+  uploadFile: vi.fn(() => Promise.reject(new Error("No file selected"))),
+}));
+
 const currentUser = {
   user: {
     email: "learner@example.com",
@@ -66,11 +80,11 @@ describe("application authentication shell", () => {
       </AuthContext>,
     );
 
-    expect(screen.getByRole("heading", { name: "你的 Workspace" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
     expect(screen.getByText("行业研究 Workspace")).toBeVisible();
     expect(screen.getByText("所有者")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "退出" }));
+    await user.click(screen.getByRole("button", { name: "退出登录" }));
     expect(logout).toHaveBeenCalledOnce();
   });
 });

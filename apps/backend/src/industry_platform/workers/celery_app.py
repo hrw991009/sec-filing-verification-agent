@@ -1,12 +1,15 @@
 """JSON-only Celery application factory and worker process entry point."""
 
 import sys
+from collections.abc import Sequence
 from functools import partial
 from urllib.parse import quote
 
 from celery import Celery
+from kombu import Exchange, Queue
 
 from industry_platform.core.config import Settings, get_settings
+from industry_platform.modules.conversations.domain import DIRECT_ANSWER_QUEUE_NAME
 from industry_platform.modules.jobs.domain import CELERY_JOB_DISPATCH_TASK_NAME
 from industry_platform.workers.runtime import run_job_delivery
 from industry_platform.workers.tasks import register_job_execution_task
@@ -26,6 +29,7 @@ def create_celery_app(settings: Settings) -> Celery:
     """Create the broker-only app; PostgreSQL remains the result source of truth."""
 
     default_queue = settings.job_default_queue
+    queue_names = tuple(dict.fromkeys((default_queue, DIRECT_ANSWER_QUEUE_NAME)))
     app = Celery(
         "industry_platform",
         broker=build_celery_broker_url(settings),
@@ -59,6 +63,14 @@ def create_celery_app(settings: Settings) -> Celery:
         task_default_exchange=default_queue,
         task_default_exchange_type="direct",
         task_default_routing_key=default_queue,
+        task_queues=tuple(
+            Queue(
+                queue_name,
+                exchange=Exchange(queue_name, type="direct"),
+                routing_key=queue_name,
+            )
+            for queue_name in queue_names
+        ),
         task_routes={
             CELERY_JOB_DISPATCH_TASK_NAME: {
                 "queue": default_queue,
@@ -80,12 +92,23 @@ def create_worker_celery_app(settings: Settings) -> Celery:
     return app
 
 
+def build_worker_cli_args(arguments: Sequence[str], platform_name: str) -> list[str]:
+    """Prepend safe Windows defaults while allowing later user options to override them."""
+
+    forwarded = list(arguments)
+    if platform_name != "win32":
+        return ["worker", *forwarded]
+    # Click applies the last occurrence of an option. Keeping defaults before the
+    # original arguments avoids misreading values such as ``-Process.log`` as ``-P``.
+    return ["worker", "--pool=solo", "--concurrency=1", *forwarded]
+
+
 def main() -> None:
     """Run a Celery worker with explicit, side-effect-free task registration."""
 
     app = create_worker_celery_app(get_settings())
     try:
-        app.worker_main(["worker", *sys.argv[1:]])
+        app.worker_main(build_worker_cli_args(sys.argv[1:], sys.platform))
     finally:
         app.close()
 

@@ -11,7 +11,15 @@ from typing import Annotated, Self
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-from pydantic import Field, SecretBytes, SecretStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretBytes,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from industry_platform.core.origins import (
@@ -41,6 +49,8 @@ _CANONICAL_SESSION_TOKEN_HMAC_KEY_PATTERN = re.compile(
 _CANONICAL_ED25519_KEY_PATTERN = re.compile(rf"^[A-Za-z0-9_-]{{{ED25519_KEY_TEXT_LENGTH}}}$")
 _ACCESS_KEY_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _QUEUE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_MODEL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
+_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+-]{0,127}$")
 _INVALID_HMAC_CONFIGURATION_MESSAGE = (
     "Authentication HMAC key must be canonical unpadded base64url for 32 bytes"
 )
@@ -188,6 +198,48 @@ def _decode_access_public_keys(value: object) -> AccessTokenPublicKeys:
     return tuple(sorted(decoded.items()))
 
 
+class AgentModelRouteSettings(BaseModel):
+    """One trusted canonical model, upstream name, and auditable price table."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
+
+    model: str = Field(pattern=_MODEL_NAME_PATTERN.pattern)
+    upstream_model: str = Field(pattern=_MODEL_NAME_PATTERN.pattern)
+    response_models: tuple[str, ...] = Field(min_length=1, max_length=10)
+    pricing_version: str = Field(pattern=_VERSION_PATTERN.pattern)
+    input_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
+    cached_input_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
+    output_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
+    supports_image_input: bool = False
+
+    @field_validator("response_models")
+    @classmethod
+    def validate_response_models(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        snapshot = tuple(values)
+        if len(snapshot) != len(set(snapshot)) or any(
+            not _MODEL_NAME_PATTERN.fullmatch(value) for value in snapshot
+        ):
+            raise ValueError("Agent model response names are invalid")
+        return snapshot
+
+
+def _decode_agent_model_route(value: object) -> AgentModelRouteSettings | None:
+    if value is None or isinstance(value, AgentModelRouteSettings):
+        return value
+    if isinstance(value, str):
+        try:
+            document = json.loads(value, object_pairs_hook=_unique_json_object)
+        except (TypeError, ValueError):
+            raise ValueError("Agent model route JSON is invalid") from None
+    elif isinstance(value, dict):
+        document = value
+    else:
+        raise ValueError("Agent model route JSON is invalid")
+    if not isinstance(document, dict):
+        raise ValueError("Agent model route JSON is invalid")
+    return AgentModelRouteSettings.model_validate(document)
+
+
 class Settings(BaseSettings):
     """Validated configuration for one backend process."""
 
@@ -286,6 +338,22 @@ class Settings(BaseSettings):
         Field(ge=1, le=300),
     ] = 15
 
+    agent_model_provider_base_url: str | None = None
+    agent_model_provider_api_key: SecretStr | None = None
+    agent_model_route: Annotated[AgentModelRouteSettings | None, NoDecode] = Field(
+        default=None,
+        validation_alias="AGENT_MODEL_ROUTE_JSON",
+    )
+    agent_model_request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
+
+    minio_endpoint: str | None = None
+    minio_access_key: str | None = None
+    minio_secret_key: SecretStr | None = None
+    minio_bucket: str | None = None
+    minio_region: str = "us-east-1"
+    minio_secure: bool = False
+    minio_presign_expiry_seconds: Annotated[int, Field(ge=300, le=900)] = 600
+
     @field_validator(
         "refresh_token_hmac_key",
         "csrf_token_hmac_key",
@@ -327,6 +395,13 @@ class Settings(BaseSettings):
 
         return _decode_access_public_keys(value)
 
+    @field_validator("agent_model_route", mode="before")
+    @classmethod
+    def decode_agent_model_route(cls, value: object) -> AgentModelRouteSettings | None:
+        """Parse one strict route without logging rejected model configuration."""
+
+        return _decode_agent_model_route(value)
+
     @model_validator(mode="after")
     def validate_argon2_process_memory_budget(self) -> Self:
         """Reject Argon2 settings that could reserve over 1 GiB per process."""
@@ -337,6 +412,60 @@ class Settings(BaseSettings):
             raise ValueError("Argon2 process memory budget exceeds the allowed maximum")
 
         return self
+
+    @model_validator(mode="after")
+    def validate_agent_model_configuration(self) -> Self:
+        """Allow a fully configured Provider or a deliberate not-configured state."""
+
+        values = (
+            self.agent_model_provider_base_url,
+            self.agent_model_provider_api_key,
+            self.agent_model_route,
+        )
+        if any(value is not None for value in values) and not all(
+            value is not None for value in values
+        ):
+            raise ValueError("Agent model Provider configuration must be complete")
+        return self
+
+    @model_validator(mode="after")
+    def validate_minio_configuration(self) -> Self:
+        """Allow an explicitly absent store or one complete private-store configuration."""
+
+        values = (
+            self.minio_endpoint,
+            self.minio_access_key,
+            self.minio_secret_key,
+            self.minio_bucket,
+        )
+        if any(value is not None for value in values) and not all(
+            value is not None for value in values
+        ):
+            raise ValueError("MinIO configuration must be complete")
+        if self.minio_endpoint is not None:
+            if (
+                "://" in self.minio_endpoint
+                or "/" in self.minio_endpoint
+                or not self.minio_endpoint.strip()
+            ):
+                raise ValueError("MinIO endpoint must be a host and port")
+            if not self.minio_access_key or not self.minio_access_key.strip():
+                raise ValueError("MinIO access key is invalid")
+            if not self.minio_secret_key or not self.minio_secret_key.get_secret_value().strip():
+                raise ValueError("MinIO secret key is invalid")
+            if not self.minio_bucket or not re.fullmatch(
+                r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.minio_bucket
+            ):
+                raise ValueError("MinIO bucket name is invalid")
+        return self
+
+    @property
+    def agent_model_provider_configured(self) -> bool:
+        return self.agent_model_route is not None
+
+    @property
+    def minio_configured(self) -> bool:
+        return self.minio_bucket is not None
 
     @model_validator(mode="after")
     def validate_reliable_job_timing(self) -> Self:

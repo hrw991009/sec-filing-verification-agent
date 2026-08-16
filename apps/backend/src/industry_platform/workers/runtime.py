@@ -1,18 +1,31 @@
 """Fenced execution runtime and the fixed production job-handler registry."""
 
 import asyncio
-from collections.abc import Mapping
+import logging
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from time import monotonic
 from types import MappingProxyType
 from typing import Protocol
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import httpx2
+
+from industry_platform.adapters.public_egress import create_public_egress_http_client
 from industry_platform.core.config import Settings
 from industry_platform.core.database import (
+    AsyncSessionFactory,
     create_database_engine,
     create_database_session_factory,
 )
+from industry_platform.modules.agent_runtime.execution import (
+    DirectAnswerRunExecutionUseCase,
+)
+from industry_platform.modules.agent_runtime.resources import (
+    create_direct_answer_runtime_resources,
+)
+from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
 )
@@ -41,6 +54,7 @@ from industry_platform.modules.jobs.ports import JobApplicationUseCase
 from industry_platform.modules.jobs.resources import create_job_resources
 
 IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER = "identity.refresh_recovery.cleanup.v1"
+logger = logging.getLogger(__name__)
 
 
 class JobExecutionDisposition(StrEnum):
@@ -115,6 +129,39 @@ class IdentityRefreshRecoveryCleanupHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class DirectAnswerJobHandler:
+    """Parse one bounded Run reference and delegate all execution to Agent Runtime."""
+
+    execution_use_case: DirectAnswerRunExecutionUseCase = field(repr=False)
+
+    async def execute(self, payload: Mapping[str, object]) -> Mapping[str, object]:
+        if set(payload) != {"schema_version", "agent_run_id"}:
+            raise InvalidJobPayloadError
+        schema_version = payload["schema_version"]
+        raw_run_id = payload["agent_run_id"]
+        if (
+            schema_version != 1
+            or isinstance(schema_version, bool)
+            or not isinstance(raw_run_id, str)
+        ):
+            raise InvalidJobPayloadError
+        try:
+            run_id = UUID(raw_run_id)
+        except ValueError:
+            raise InvalidJobPayloadError from None
+        if run_id.int == 0:
+            raise InvalidJobPayloadError
+
+        result = await self.execution_use_case.execute_run(run_id)
+        return {
+            "agent_run_id": str(result.run_id),
+            "run_status": result.status.value,
+            "stop_reason": result.stop_reason.value,
+            "terminal_event_sequence": result.terminal_event_sequence,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FixedJobHandlerRegistry:
     """Immutable allowlist; persisted names never trigger dynamic imports."""
 
@@ -127,14 +174,16 @@ class FixedJobHandlerRegistry:
     def production(
         cls,
         cleanup_use_case: RefreshRecoveryCleanupUseCase,
+        direct_answer_use_case: DirectAnswerRunExecutionUseCase | None = None,
     ) -> "FixedJobHandlerRegistry":
-        return cls(
-            {
-                IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
-                    IdentityRefreshRecoveryCleanupHandler(cleanup_use_case)
-                )
-            }
-        )
+        handlers: dict[str, JobHandler] = {
+            IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
+                IdentityRefreshRecoveryCleanupHandler(cleanup_use_case)
+            )
+        }
+        if direct_answer_use_case is not None:
+            handlers[DIRECT_ANSWER_TASK_NAME] = DirectAnswerJobHandler(direct_answer_use_case)
+        return cls(handlers)
 
     def resolve(self, task_name: str) -> JobHandler:
         handler = self._handlers.get(task_name)
@@ -157,6 +206,30 @@ class JobExecutionRuntime:
             raise ValueError("Job heartbeat interval must be positive")
 
     async def execute(
+        self,
+        delivery: JobDispatchMessage,
+    ) -> JobExecutionDisposition:
+        started_at = monotonic()
+        try:
+            disposition = await self._execute_delivery(delivery)
+        except Exception:
+            logger.exception(
+                "job_execution_unsettled job_id=%s trace_id=%s status=error duration_ms=%d",
+                delivery.job_id,
+                delivery.trace_id,
+                max(0, int((monotonic() - started_at) * 1_000)),
+            )
+            raise
+        logger.info(
+            "job_execution_terminal job_id=%s trace_id=%s status=%s duration_ms=%d",
+            delivery.job_id,
+            delivery.trace_id,
+            disposition.value,
+            max(0, int((monotonic() - started_at) * 1_000)),
+        )
+        return disposition
+
+    async def _execute_delivery(
         self,
         delivery: JobDispatchMessage,
     ) -> JobExecutionDisposition:
@@ -309,24 +382,50 @@ async def run_job_delivery(
     delivery: JobDispatchMessage,
     *,
     settings: Settings,
+    provider_http_client_factory: Callable[[], httpx2.AsyncClient] = (
+        create_public_egress_http_client
+    ),
 ) -> JobExecutionDisposition:
     """Compose fresh task resources; every operation borrows its own session."""
 
     engine = create_database_engine(settings)
     try:
         session_factory = create_database_session_factory(engine)
-        cleanup_service = RefreshRecoveryCleanupService(
-            transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory)
-        )
-        runtime = JobExecutionRuntime(
-            jobs=create_job_resources(
+        async with provider_http_client_factory() as provider_http_client:
+            runtime = create_job_delivery_runtime(
                 settings,
                 session_factory,
-            ).application_service,
-            handlers=FixedJobHandlerRegistry.production(cleanup_service),
-            worker_id=f"celery-{uuid4().hex}",
-            heartbeat_seconds=settings.job_heartbeat_seconds,
-        )
-        return await runtime.execute(delivery)
+                provider_http_client,
+            )
+            return await runtime.execute(delivery)
     finally:
         await engine.dispose()
+
+
+def create_job_delivery_runtime(
+    settings: Settings,
+    session_factory: AsyncSessionFactory,
+    provider_http_client: httpx2.AsyncClient,
+) -> JobExecutionRuntime:
+    """Compose every fixed production handler, including the unified Agent Runtime."""
+
+    cleanup_service = RefreshRecoveryCleanupService(
+        transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory)
+    )
+    direct_answer = create_direct_answer_runtime_resources(
+        settings,
+        session_factory,
+        provider_http_client,
+    )
+    return JobExecutionRuntime(
+        jobs=create_job_resources(
+            settings,
+            session_factory,
+        ).application_service,
+        handlers=FixedJobHandlerRegistry.production(
+            cleanup_service,
+            direct_answer.execution_service,
+        ),
+        worker_id=f"celery-{uuid4().hex}",
+        heartbeat_seconds=settings.job_heartbeat_seconds,
+    )
