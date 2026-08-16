@@ -31,8 +31,10 @@ from industry_platform.modules.agent_runtime.streaming import (
     StreamCursorAheadError,
     StreamReplay,
     StreamResetRequiredError,
+    StreamSnapshot,
     encode_agent_event_sse,
     encode_heartbeat_sse,
+    encode_snapshot_sse,
 )
 from industry_platform.modules.identity.domain import (
     AccessToken,
@@ -66,6 +68,7 @@ class StubPrincipalResolver:
 @dataclass(slots=True)
 class StubDeliveryService:
     failure: Exception | None = None
+    prepared_value: PreparedAgentEventStream | None = None
     follow_batches: list[tuple[AgentEvent, ...]] = field(default_factory=list)
     calls: list[tuple[str, object]] = field(default_factory=list)
 
@@ -79,6 +82,8 @@ class StubDeliveryService:
         self.calls.append(("prepare", (scope, run_id, last_event_id)))
         if self.failure is not None:
             raise self.failure
+        if self.prepared_value is not None:
+            return self.prepared_value
         events = terminal_events()
         cursor = int(last_event_id) if last_event_id is not None else 0
         return PreparedAgentEventStream(
@@ -212,6 +217,58 @@ def test_fetch_sse_replays_committed_events_and_honors_last_event_id(
     assert [call[0] for call in service.calls] == ["prepare", "prepare", "prepare"]
 
 
+def test_expired_cursor_receives_authoritative_snapshot_and_terminal_stream_closes(
+    test_settings: Settings,
+) -> None:
+    snapshot = StreamSnapshot(
+        schema_version=1,
+        stream_id=STREAM_ID,
+        workspace_id=WORKSPACE_ID,
+        trace_id=TRACE_ID,
+        last_sequence=24,
+        occurred_at=NOW,
+        payload={
+            "run_id": str(RUN_ID),
+            "status": "failed",
+            "stop_reason": "runtime_error",
+            "terminal": True,
+            "content_markdown": "已提交的回答片段",
+        },
+    )
+    fallback_terminal = AgentEvent(
+        schema_version=1,
+        stream_id=STREAM_ID,
+        run_id=RUN_ID,
+        workspace_id=WORKSPACE_ID,
+        sequence=25,
+        occurred_at=NOW,
+        trace_id=TRACE_ID,
+        event_type=AgentEventType.RUN_FAILED,
+        payload={"stop_reason": "runtime_error"},
+    )
+    service = StubDeliveryService(
+        prepared_value=PreparedAgentEventStream(
+            descriptor=descriptor(
+                status=AgentRunStatus.RUNNING,
+                latest_committed_sequence=23,
+            ),
+            replay=StreamReplay(cursor=1, snapshot=snapshot, events=()),
+        ),
+        follow_batches=[(fallback_terminal,)],
+    )
+    url = f"/api/v1/workspaces/{WORKSPACE_ID}/agent-runs/{RUN_ID}/events"
+
+    with delivery_client(test_settings, service) as client:
+        response = client.get(
+            url,
+            headers={**bearer_header(), "Last-Event-ID": "1"},
+        )
+
+    assert response.status_code == 200
+    assert response.content == encode_snapshot_sse(snapshot)
+    assert [call[0] for call in service.calls] == ["prepare"]
+
+
 def test_cancel_is_explicit_idempotent_http_202(test_settings: Settings) -> None:
     service = StubDeliveryService()
     url = f"/api/v1/workspaces/{WORKSPACE_ID}/agent-runs/{RUN_ID}/cancel"
@@ -260,6 +317,74 @@ async def test_live_stream_heartbeats_without_advancing_cursor_then_closes_on_te
         encode_agent_event_sse(failed),
     ]
     assert all(call[0] != "cancel" for call in service.calls)
+
+
+@pytest.mark.asyncio
+async def test_live_stream_pulls_next_bounded_batch_only_after_current_batch_is_consumed() -> None:
+    queued, _ = terminal_events()
+    delta_two = AgentEvent(
+        schema_version=1,
+        stream_id=STREAM_ID,
+        run_id=RUN_ID,
+        workspace_id=WORKSPACE_ID,
+        sequence=2,
+        occurred_at=NOW,
+        trace_id=TRACE_ID,
+        event_type=AgentEventType.MODEL_DELTA,
+        payload={"delta": "慢"},
+    )
+    delta_three = AgentEvent(
+        schema_version=1,
+        stream_id=STREAM_ID,
+        run_id=RUN_ID,
+        workspace_id=WORKSPACE_ID,
+        sequence=3,
+        occurred_at=NOW,
+        trace_id=TRACE_ID,
+        event_type=AgentEventType.MODEL_DELTA,
+        payload={"delta": "客户端"},
+    )
+    failed = AgentEvent(
+        schema_version=1,
+        stream_id=STREAM_ID,
+        run_id=RUN_ID,
+        workspace_id=WORKSPACE_ID,
+        sequence=4,
+        occurred_at=NOW,
+        trace_id=TRACE_ID,
+        event_type=AgentEventType.RUN_FAILED,
+        payload={"stop_reason": "runtime_error"},
+    )
+    service = StubDeliveryService(follow_batches=[(delta_two, delta_three), (failed,)])
+    prepared = PreparedAgentEventStream(
+        descriptor=descriptor(
+            status=AgentRunStatus.RUNNING,
+            latest_committed_sequence=1,
+        ),
+        replay=StreamReplay(cursor=0, snapshot=None, events=(queued,)),
+    )
+
+    class ConnectedRequest:
+        async def is_disconnected(self) -> bool:
+            return False
+
+    frames = delivery_router._committed_event_frames(
+        cast(Request, ConnectedRequest()),
+        service,
+        WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+        prepared,
+    )
+
+    assert await anext(frames) == encode_agent_event_sse(queued)
+    assert [call[0] for call in service.calls] == []
+    assert await anext(frames) == encode_agent_event_sse(delta_two)
+    assert [call[0] for call in service.calls] == ["follow"]
+    assert await anext(frames) == encode_agent_event_sse(delta_three)
+    assert [call[0] for call in service.calls] == ["follow"]
+    assert await anext(frames) == encode_agent_event_sse(failed)
+    assert [call[0] for call in service.calls] == ["follow", "follow"]
+    with pytest.raises(StopAsyncIteration):
+        await anext(frames)
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,7 @@
 """Tests for the application boundary that invokes the unified Agent Runtime."""
 
+import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -62,6 +64,32 @@ class RecordingRuntime:
             yield event
 
 
+class BlockingRuntime(RecordingRuntime):
+    def __init__(self) -> None:
+        super().__init__(())
+        self.started = asyncio.Event()
+
+    async def run(
+        self,
+        command: DirectAnswerRunCommand,
+        runtime_context: TrustedRuntimeContext,
+    ) -> AsyncGenerator[AgentEvent]:
+        self.calls.append((command, runtime_context))
+        self.started.set()
+        blocker = asyncio.Event()
+        await blocker.wait()
+        yield event(1, AgentEventType.RUN_QUEUED)
+
+
+class RecordingTerminalizer:
+    def __init__(self) -> None:
+        self.calls: list[tuple[UUID, str]] = []
+
+    async def settle_unrecoverable(self, run_id: UUID, *, error_code: str) -> bool:
+        self.calls.append((run_id, error_code))
+        return True
+
+
 def queued_run() -> AgentRun:
     return AgentRun(
         schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
@@ -115,7 +143,10 @@ def execution_input(run: AgentRun) -> DirectAnswerExecutionInput:
 
 
 @pytest.mark.asyncio
-async def test_service_loads_once_and_consumes_the_single_runtime_to_terminal() -> None:
+async def test_service_loads_once_and_consumes_the_single_runtime_to_terminal(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
     loader = RecordingLoader(execution_input(queued_run()))
     runtime = RecordingRuntime(
         (
@@ -133,14 +164,42 @@ async def test_service_loads_once_and_consumes_the_single_runtime_to_terminal() 
     assert result.status is AgentRunStatus.FAILED
     assert result.stop_reason is RunStopReason.RUNTIME_ERROR
     assert result.terminal_event_sequence == 2
+    assert f"run_id={RUN_ID}" in caplog.text
+    assert "status=failed" in caplog.text
+    assert "stop_reason=runtime_error" in caplog.text
+    assert "duration_ms=1000" in caplog.text
+    assert "input_tokens=0 output_tokens=0 cost_micro_usd=0" in caplog.text
 
 
 @pytest.mark.asyncio
 async def test_service_rejects_a_runtime_that_ends_without_a_terminal_event() -> None:
+    terminalizer = RecordingTerminalizer()
     service = DirectAnswerRunExecutionService(
         loader=RecordingLoader(execution_input(queued_run())),
         runtime=RecordingRuntime((event(1, AgentEventType.RUN_QUEUED),)),
+        terminalizer=terminalizer,
     )
 
     with pytest.raises(ValueError, match="without one terminal Event"):
         await service.execute_run(RUN_ID)
+
+    assert terminalizer.calls == [(RUN_ID, "execution_failed")]
+
+
+@pytest.mark.asyncio
+async def test_worker_cancellation_terminalizes_before_execution_task_exits() -> None:
+    runtime = BlockingRuntime()
+    terminalizer = RecordingTerminalizer()
+    service = DirectAnswerRunExecutionService(
+        loader=RecordingLoader(execution_input(queued_run())),
+        runtime=runtime,
+        terminalizer=terminalizer,
+    )
+    task = asyncio.create_task(service.execute_run(RUN_ID))
+    await runtime.started.wait()
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert terminalizer.calls == [(RUN_ID, "execution_cancelled")]

@@ -124,7 +124,7 @@ const historicalMessages: ConversationMessage[] = [
 function streamEvent(
   sequence: number,
   type: AgentStreamEvent["type"],
-  payload: Record<string, string | number> = {},
+  payload: Record<string, string | number | boolean | null> = {},
 ): AgentStreamEvent {
   return {
     occurred_at: "2026-08-14T06:10:00Z",
@@ -296,6 +296,10 @@ describe("Chat Workbench", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "新能源汽车季度分析" }),
     ).toBeVisible();
+    expect(screen.getByRole("button", { name: /新能源汽车季度分析/u })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(screen.getByText("Web 搜索")).toBeVisible();
     expect(screen.getByRole("heading", { name: "安全答案" })).toBeVisible();
     const safeLink = screen.getByRole("link", { name: "安全链接" });
@@ -441,6 +445,34 @@ describe("Chat Workbench", () => {
     expect(await screen.findByText(/本次回答已停止，已经生成的片段仍然保留/u)).toBeVisible();
     expect(captured.signal?.aborted).toBe(true);
     expect(screen.queryByRole("button", { name: "正在停止" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重新提问" }));
+    expect(screen.getByLabelText("输入问题")).toHaveValue("请给我实时回答");
+  });
+
+  it("restores content and terminal status from an authoritative snapshot alone", async () => {
+    const captured = await startActiveRun();
+
+    await act(async () => {
+      await captured.onEvent(
+        streamEvent(257, "stream.snapshot", {
+          cached_input_tokens: 0,
+          content_markdown: "**从快照恢复的完整片段**",
+          cost_micro_usd: 0,
+          input_tokens: 0,
+          output_tokens: 0,
+          run_id: activeRunId,
+          status: "cancelled",
+          stop_reason: "cancelled",
+          terminal: true,
+        }),
+      );
+    });
+
+    expect(await screen.findByText("从快照恢复的完整片段")).toBeVisible();
+    expect(await screen.findByText(/本次回答已停止，已经生成的片段仍然保留/u)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "停止" })).not.toBeInTheDocument();
+    expect(mocks.getAgentTrace).toHaveBeenCalledWith(workspaceId, activeRunId);
   });
 
   it("keeps an unconfirmed cancellation busy while allowing an idempotent status retry", async () => {

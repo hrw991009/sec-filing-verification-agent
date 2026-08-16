@@ -1,6 +1,7 @@
 """The single concrete Day 2 L0 Runtime used by production and Harness callers."""
 
-from collections.abc import AsyncGenerator, Callable
+import asyncio
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
@@ -51,6 +52,26 @@ from industry_platform.modules.agent_runtime.state import (
     validate_run_state,
     validate_state_transition,
 )
+
+MODEL_STREAM_CANCEL_POLL_SECONDS = 0.1
+MODEL_STREAM_CLOSE_TIMEOUT_SECONDS = 1.0
+
+
+async def _next_model_item(iterator: AsyncIterator[ModelStreamItem]) -> ModelStreamItem:
+    return await iterator.__anext__()
+
+
+async def _close_model_stream(stream: AsyncIterator[ModelStreamItem] | None) -> bool:
+    """Close Provider resources without allowing cleanup to hang the Runtime."""
+
+    close = None if stream is None else getattr(stream, "aclose", None)
+    if close is None:
+        return True
+    try:
+        await asyncio.wait_for(close(), timeout=MODEL_STREAM_CLOSE_TIMEOUT_SECONDS)
+    except Exception:
+        return False
+    return True
 
 
 class DirectAnswerRuntime(RuntimeTransitionSupport):
@@ -474,18 +495,52 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
         model_items: list[ModelStreamItem] = []
         provider_error: ModelProviderError | None = None
         cancelled_during_stream = False
-        stream = None
+        deadline_exceeded_during_stream = False
+        stream: AsyncIterator[ModelStreamItem] | None = None
+        pending_item: asyncio.Task[ModelStreamItem] | None = None
+        stream_closed_cleanly = True
         try:
             stream = self._model_provider.stream(compiled.request)
-            async for item in stream:
+            iterator = stream.__aiter__()
+            while True:
+                pending_item = asyncio.create_task(_next_model_item(iterator))
+                while not pending_item.done():
+                    await asyncio.wait(
+                        (pending_item,),
+                        timeout=MODEL_STREAM_CANCEL_POLL_SECONDS,
+                    )
+                    if pending_item.done():
+                        break
+                    if await self._cancel_requested(run):
+                        cancelled_during_stream = True
+                        pending_item.cancel()
+                        await asyncio.gather(pending_item, return_exceptions=True)
+                        break
+                    try:
+                        self._before_deadline(run, not_before=events[-1].occurred_at)
+                    except RuntimeDeadlineExceeded:
+                        deadline_exceeded_during_stream = True
+                        pending_item.cancel()
+                        await asyncio.gather(pending_item, return_exceptions=True)
+                        break
+                if cancelled_during_stream or deadline_exceeded_during_stream:
+                    break
+                try:
+                    item = pending_item.result()
+                except StopAsyncIteration:
+                    break
+                try:
+                    item_at = self._before_deadline(run, not_before=events[-1].occurred_at)
+                except RuntimeDeadlineExceeded:
+                    deadline_exceeded_during_stream = True
+                    break
                 model_items.append(item)
                 if isinstance(item, ModelStreamDelta):
-                    delta_at = self._time(not_before=events[-1].occurred_at)
                     delta = self._event(
                         run,
                         events,
                         event_type=AgentEventType.MODEL_DELTA,
-                        occurred_at=delta_at,
+                        occurred_at=item_at,
                         payload={
                             "step_id": str(model_step.step_id),
                             "model_sequence": item.sequence,
@@ -500,9 +555,44 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
         except ModelProviderError as error:
             provider_error = error
         finally:
-            close = None if stream is None else getattr(stream, "aclose", None)
-            if close is not None:
-                await close()
+            if pending_item is not None and not pending_item.done():
+                pending_item.cancel()
+                await asyncio.gather(pending_item, return_exceptions=True)
+            stream_closed_cleanly = await _close_model_stream(stream)
+
+        if deadline_exceeded_during_stream:
+            failed_at = max(events[-1].occurred_at, run.budget.deadline)
+            failed_step = self._settled_step(
+                model_step,
+                status=AgentStepStatus.FAILED,
+                revision=3,
+                completed_at=failed_at,
+                error_code=RunStopReason.DEADLINE_EXCEEDED.value,
+            )
+            step_failed = self._event(
+                run,
+                events,
+                event_type=AgentEventType.STEP_FAILED,
+                occurred_at=failed_at,
+                payload={
+                    "step_id": str(model_step.step_id),
+                    "error_code": RunStopReason.DEADLINE_EXCEEDED.value,
+                },
+            )
+            await self._commit(events, step_failed)
+            yield step_failed
+            terminal = self._terminal_event(
+                run=run,
+                state=state,
+                events=events,
+                steps=(failed_step,),
+                status=AgentRunStatus.FAILED,
+                stop_reason=RunStopReason.DEADLINE_EXCEEDED,
+                occurred_at=failed_at,
+            )
+            await self._commit(events, terminal)
+            yield terminal
+            return
 
         if cancelled_during_stream:
             cancelled_at = self._time(not_before=events[-1].occurred_at)
@@ -528,6 +618,9 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
             await self._commit(events, terminal)
             yield terminal
             return
+
+        if not stream_closed_cleanly and provider_error is None:
+            provider_error = ModelProviderError(ModelProviderErrorCode.INVALID_RESPONSE)
 
         response: ModelResponse | None = None
         if provider_error is None:
@@ -574,6 +667,16 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
                     "step_id": str(model_step.step_id),
                     "error_code": provider_error.code.value,
                     "partial_response": provider_error.partial_response,
+                    **(
+                        {}
+                        if provider_error.usage is None
+                        else {
+                            "input_tokens": provider_error.usage.input_tokens,
+                            "output_tokens": provider_error.usage.output_tokens,
+                            "cached_input_tokens": provider_error.usage.cached_input_tokens,
+                            "cost_micro_usd": provider_error.usage.cost_micro_usd,
+                        }
+                    ),
                 },
             )
             await self._commit(events, step_failed)

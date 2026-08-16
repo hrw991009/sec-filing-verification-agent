@@ -1,6 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = "https://localhost:5173";
+const backendUv =
+  process.env.CI === "true"
+    ? "uv run --locked --package industry-platform-backend"
+    : "uv run --env-file .env --locked --package industry-platform-backend";
 
 export default defineConfig({
   expect: {
@@ -31,8 +35,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command:
-        "uv run --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head && uv run --package industry-platform-backend industry-platform-api",
+      command: `${backendUv} alembic -c apps/backend/alembic.ini upgrade head && ${backendUv} industry-platform-api`,
       reuseExistingServer: process.env.CI !== "true",
       stderr: "pipe",
       stdout: "pipe",

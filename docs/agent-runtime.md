@@ -1,10 +1,10 @@
 # Agent Runtime v0
 
-> 更新日期：2026-08-14
+> 更新日期：2026-08-15
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 2
 >
-> 当前状态：D2-01～D2-09 的正式实现已经写入，统一本地门禁、真实 PostgreSQL/Redis/MinIO 和浏览器 E2E 已通过，均为 `implemented_pending_verification`。恢复收敛、生产 SSE snapshot/背压、可观测性、部分端到端证据、干净 CI 与学习者复核仍未关闭，因此不能标为 `complete`。
+> 当前状态：D2-01～D2-09 的仓库内实现和版本化 Eval 已收口，均为 `implemented_pending_verification`。可靠性修复后的最终全量本地门禁、当前提交的干净 GitHub CI 与学习者职责复盘尚未全部关闭；在这些门禁通过前不能标为 `complete`。
 
 ## 1. Day 2 的边界
 
@@ -111,7 +111,9 @@ Adapter 把超时、429、无效 JSON/Schema、响应 model 不匹配、半截 s
 
 每个业务帧固定为 `id: <sequence>`、`event: <agent.* type>` 和 `data: <versioned envelope>`。心跳是 comment，不推进游标。客户端保存最后成功处理的 sequence，并在重连时发送 `Last-Event-ID`；服务端只查询已提交 Event，不会因为浏览器断线而再次调用 Runtime 或重复当前 Model Step。
 
-非法、超前或已过期的 cursor 会返回稳定错误；需要时服务端先返回 snapshot，再继续连续 Event。取消端点只持久化幂等取消请求，不提前声称 Run 已终止；Runtime/Worker 在正式边界观察取消并写唯一终态。
+非法或超前 cursor 返回稳定错误。首次 PostgreSQL 回放只读取最新 256 条 Event；游标早于窗口时，数据库按已提交 delta 聚合出与最新 sequence 对齐的权威 snapshot，随后只拉取新 Event。每批最多 256 条，ASGI 只有在上一批已经交给 socket 后才查询下一批，所以慢客户端不会形成无限应用内队列，也不会丢编号事件。
+
+取消端点只持久化幂等取消请求，不提前声称 Run 已终止。排队 Run 与 Job 在同一事务终止；运行中的 Runtime 即使还在等待 Provider 的首个 delta，也会轮询持久取消、取消 pending read、关闭 Provider stream 并写唯一终态。Worker/loader/Runtime 不可恢复异常和 Job dead-letter/lease 放弃由 Terminalizer/Reconciler 收敛为一个 `failed` 或 `cancelled` Event；Day 2 不伪装成从中断位置 resume。
 
 用户问题在 Run 创建前已持久化。模型 delta 也是已提交 Event，因此超时、半截响应或断线后能够重放已收到片段；成功 final 另外保存为 assistant Message。当前前端的“重试”会把最近一次用户文本作为一个新的 Turn 再提交，并且不会静默复用旧附件。
 
@@ -130,11 +132,15 @@ Trace 不返回问题、回答正文、附件原文、object key、Secret 或原
 
 Day 2 数据位于：
 
-- Scenario：`evals/scenarios/day2-v2.json`；
+- Provider 边界 Scenario：`evals/scenarios/day2-v2.json`；
+- Runtime/Application 可靠性 Scenario：`evals/scenarios/day2-reliability-v1.json`；
 - Provider 回放：`evals/fixtures/day2-model-v1.json`；
-- Trace 骨架：`evals/snapshots/day2-traces-v1.json`。
+- Trace 骨架：`evals/snapshots/day2-traces-v1.json`；
+- 可比较 Eval 报告：`evals/reports/day2-v1.json`。
 
-v2 数据集包含 6 个用例：正常 final、格式错误、timeout、429 rate limit、半截响应和取消。回归测试将每个用例通过同一 `DirectAnswerRuntime` 执行两次，比较 Event 类型/顺序、final 或 stop reason，并验证断线重放不会再次调用 Provider。
+v2 Provider 数据集包含 6 个用例：正常 final、格式错误、timeout、429 rate limit、半截响应和取消。回归测试将每个用例通过同一 `DirectAnswerRuntime` 执行两次，比较 Event 类型/顺序、final 或 stop reason，并验证断线重放不会再次调用 Provider。
+
+可靠性数据集另外登记 3 个版本化场景：费用预算耗尽、Worker 不可恢复中断收敛、重复 Turn 请求幂等。它不实现另一套 Runner：预算场景直接调用正式 `DirectAnswerRuntime`；中断场景调用正式 PostgreSQL Terminalizer/Reconciler，并验证已进入 `retry_wait` 的 Job 与 Run 原子收敛而不会安排一个注定失败的重试；重复请求场景调用 Conversation Application Service。每个场景绑定仓库内实际执行这些边界的测试函数。这样既保留 Scenario 版本和预期事实，又不会用 Fake Provider 假装覆盖 Worker/PostgreSQL 行为。
 
 CLI 只输出不敏感的元数据：
 
@@ -142,6 +148,8 @@ CLI 只输出不敏感的元数据：
 uv run --locked --package industry-platform-backend industry-platform-agent-harness validate --dataset evals/scenarios/day2-v2.json
 uv run --locked --package industry-platform-backend industry-platform-agent-harness list --dataset evals/scenarios/day2-v2.json
 ```
+
+可靠性数据集的 Schema、测试引用和 DoD 类别覆盖由 `test_day2_replay.py` 校验；被引用的 Runtime/Application/PostgreSQL 测试仍由 pytest 真正执行，JSON 报告不是测试通过与否的事实源。
 
 ## 10. HTTP 产品切片
 
@@ -159,22 +167,45 @@ Turn 持久化 `search_mode`、`industry_id` 和 `knowledge_base_ids`，消息�
 
 针对性证据包括：
 
-- `apps/backend/tests/modules/agent_runtime/` 与 `agent_harness/`：领域不变量、Checkpoint、Context、Runtime、SSE、Trace、6 个 Scenario 双次回放；
+- `apps/backend/tests/modules/agent_runtime/` 与 `agent_harness/`：领域不变量、Checkpoint、Context、Runtime、SSE、Trace、6 个 Provider Scenario 双次回放和 3 个可靠性 Scenario 的严格引用校验；
 - `apps/backend/tests/adapters/test_openai_compatible.py`：complete/stream、usage/费用、timeout、429、格式和半截响应；
 - `apps/backend/tests/integration/test_conversation_agent_postgres.py`、`test_agent_execution_loader_postgres.py`、`test_agent_trace_postgres.py`：原子提交、附件入模和正式 Trace；
+- `test_agent_run_reliability_postgres.py`：Worker 中断、运行 Step 和 dead-letter 的唯一终态补偿；
+- `test_agent_fake_success_postgres.py`：Conversation → Outbox → JobExecutionRuntime → 唯一 `DirectAnswerRuntime` → PostgreSQL final Message/Event → committed replay 的正式成功链；只有外部 Provider Port 使用确定性 Fake，重放不再次调用模型；
+- `test_agent_unconfigured_provider_postgres.py`：使用真实生产 composition 验证未配置 Provider 不出网、不回退 Fake、保留用户消息并写一个可解释失败终态；
 - `apps/backend/tests/integration/test_file_lifecycle_postgres_minio.py` 与 `test_file_attachments_minio.py`：真实私有 MinIO；
 - `apps/web/src/chat/*.test.ts(x)` 与 `tests/e2e/app-shell.spec.ts`：聊天 API、fetch-SSE、安全 Markdown 与浏览器旅程。
 
 真实 MinIO 测试需要服务运行并设置 `MINIO_TESTS_REQUIRED=1`；PostgreSQL/Redis 对应使用 `POSTGRES_TESTS_REQUIRED=1` 和 `REDIS_TESTS_REQUIRED=1`。
 
-本轮最终工作树已实际通过：
+2026-08-15 的最终本地收口结果为：Ruff format/check 覆盖 245 份 Python 文件，mypy 覆盖 240 个文件；真实 PostgreSQL、Redis、MinIO 门禁全部强制开启时 708 个 pytest 全部通过且无 skip，fresh migration、Python build/audit 同时通过。Web format/lint/typecheck、10 个 Vitest 文件共 42 个测试、生产构建、OpenAPI 确定性、Node audit 和 3 条 Playwright 浏览器旅程通过；受控源码/配置路径与 39 个 Git 提交的 Gitleaks 扫描未发现 Secret。版本化报告只保存可重复测量和测试绑定，不冒充这些命令的事实来源。
 
-- Ruff format/check：238 个 Python 文件；mypy：233 个 source files；
-- pytest 快速集：624 passed、51 skipped；这些 skip 全部是受环境开关保护的真实依赖测试，随后已强制开启并单独通过 51 个；
-- 真实 PostgreSQL `alembic upgrade head`，以及 PostgreSQL/Redis/MinIO integration：51 passed；
-- Web：Prettier、ESLint、TypeScript、22 个 Vitest、production build；
-- OpenAPI 与 `schema.d.ts` 重新生成后 SHA-256 不变；
-- Playwright：2 passed，其中 Day 2 旅程真实调用 Conversation 202、committed SSE、cancel 202，并在刷新后恢复消息；
-- `uv audit`、`pnpm audit --audit-level high`、本次改动目录和完整 Git 历史的 Gitleaks 均通过。
+当前仍不把任何 Day 2 项标为 `complete`：仓库内实现与最终全量本地门禁已经通过，但当前工作树尚未形成可验证提交，因此还没有对应提交的干净 GitHub CI；学习者也要用自己的话完成 Runtime、Harness、Worker、Checkpoint 与 Trace 的职责复盘。真实 Provider smoke 可以补充信心，但没有配置 Provider 时只能使用 Fake/冻结回归证明契约，并用正式 `provider_not_configured` 链路证明不会回退到 Fake，不能把它写成真实模型质量成功。D2-06 的 Citation 对 Day 2 L0 明确不适用，因为主计划把 Evidence/Claim 放在 Day 4、把真实 Citation gate 放在 Day 6；Day 2 不生成没有 Evidence locator 的空引用或伪引用。
 
-当前仍不把任何 Day 2 项标为 `complete`：Worker 中断后的 AgentRun 唯一终态收敛、首个 delta 前取消、生产 SSE snapshot/背压、结构化日志/指标、部分端到端证据、当前提交的干净 GitHub CI 与学习者复核尚未关闭。真实 Provider smoke 可补充验证；若没有付费 Provider，则必须用正式 `provider_not_configured` 全链路失败证据替代，不能让 Fake 冒充生产成功。D2-06 的 Citation 对 Day 2 L0 明确不适用，因为主计划把 Evidence/Claim 放在 Day 4、把真实 Citation gate 放在 Day 6；Day 2 不生成没有 Evidence locator 的空引用或伪引用。
+### 11.1 Day 2 Definition of Done 复核
+
+| 条目 | Day 2 结论 | 证据或边界 |
+|---|---|---|
+| 真实用户旅程 | 通过（本地） | 3 条 Playwright 旅程覆盖身份、真实附件、停止/重试、会话管理，以及浏览器 POST → PostgreSQL Outbox/Job → 正式 JobExecutionRuntime → 唯一 DirectAnswerRuntime（仅 ModelProvider 使用测试 Fake）→ 两段 committed SSE → final Message → 刷新恢复的成功链 |
+| 正常/边界/失败/权限/恢复 | 通过（本地） | 6 个 Provider Scenario、3 个可靠性 Scenario、SSE snapshot/慢客户端、deadline、partial 历史和 Worker 中断收敛均包含在 708 个无 skip 的 pytest 与 42 个 Vitest 中 |
+| Migration、OpenAPI/SSE、兼容 | 通过 | 4 份线性 Alembic migration、OpenAPI 无漂移、SSE v1/游标/snapshot 测试 |
+| 日志、指标、Trace、错误码 | 通过（Day 2 范围） | Runtime/Worker 终态输出不含正文的可聚合字段；Run/Step 持久 usage、费用、耗时和 stop reason 并由 Trace/Workbench 展示；完整 OTLP 聚合栈留 Day 7 |
+| 数据所有权、删除、补偿、备份策略 | 通过 | PostgreSQL/MinIO 所有权、删除/故障补偿测试和 Day 2 Runbook；真正恢复演练仍是 Day 7 发布门禁，不冒充已演练 |
+| 威胁、隐私、Secret | 通过 | Context/附件/Markdown/egress 负向测试、[Day 2 安全复核](security/day-2-third-party-review.md) 与 Gitleaks |
+| 第三方许可和条款 | 通过（当前使用范围） | httpx2、MinIO SDK/Pillow、MinIO 镜像和 Provider 数据边界已人工记录；真实 Provider 启用前需复核其具体条款 |
+| 可重复 Eval | 通过（本地） | 6 个 Provider Scenario、3 个绑定可执行测试的可靠性 Scenario、冻结 fixture/Trace 与版本化报告全部通过；不声称 Fake 代表真实模型质量 |
+| README/Runbook/回滚 | 通过 | 根 README、本文和 [Day 2 Runbook](runbooks/day-2-agent-runtime.md) |
+| 干净环境演示 | 等待外部门禁 | 本地真实依赖/E2E 已过；仍需把当前提交推送并取得对应 GitHub CI |
+| 学习复盘 | 等待学习者 | 必须回答主计划第 664 行的职责问题后，才能进入 Day 3 |
+
+### 11.2 Agent 追加 DoD 的适用性复核
+
+| 主计划要求的路径 | Day 2 结论 | 版本化 Scenario 或边界 | 复核记录 |
+|---|---|---|---|
+| 成功 | 适用 | `day2-direct-answer-basic` | 执行代理，2026-08-15 |
+| Provider 失败 | 适用 | invalid format、timeout、429、half response 四个 v2 场景 | 执行代理，2026-08-15 |
+| 取消 | 适用 | `day2-direct-answer-cancelled` | 执行代理，2026-08-15 |
+| 预算耗尽 | 适用 | `day2-cost-budget-exhaustion`，绑定正式 Runtime 测试 | 执行代理，2026-08-15 |
+| 中断/恢复 | Day 2 的失败收敛适用；同一次模型调用的 durable resume 阶段性 `N/A` | `day2-unrecoverable-worker-interruption` 证明不可安全恢复时 Run/Job 原子收敛且各自只有一个终态；即使 Job 已进入 retry_wait 且仍有次数，也不会留下一个注定失败的重试。LangGraph graph state、Checkpoint resume 和幂等副作用恢复由主计划 D5-09 验收，Day 2 不能提前冒充 | 执行代理，2026-08-15；进入 Day 5 前由项目所有者复核范围仍未降级 |
+| 重复请求 | 适用 | `day2-duplicate-turn-request`，证明相同 payload 复用 Run/Job/Outbox，变更 payload 明确冲突 | 执行代理，2026-08-15 |
+| Tool 失败 | 阶段性 `N/A` | Day 2 是 `available_tools=[]` 的 L0 单模型调用，没有 Tool Action/Observation 或 Tool 副作用。主计划 D3 的 L1/L2 必须新增工具失败 Scenario，本结论不豁免或提前完成 Day 3 | 执行代理，2026-08-15；进入 Day 3 后由项目所有者复核对应义务已经恢复为适用 |

@@ -241,7 +241,10 @@ async def test_successful_cleanup_uses_pg_payload_shape_and_duplicate_is_no_op()
 
 
 @pytest.mark.asyncio
-async def test_direct_answer_job_delegates_only_the_run_id_to_agent_runtime() -> None:
+async def test_direct_answer_job_delegates_only_the_run_id_to_agent_runtime(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
     execution = RecordingDirectAnswerUseCase()
     jobs = RecordingJobUseCase(
         acquired_job(
@@ -262,6 +265,10 @@ async def test_direct_answer_job_delegates_only_the_run_id_to_agent_runtime() ->
         "stop_reason": "final",
         "terminal_event_sequence": 11,
     }
+    assert f"job_id={JOB_ID}" in caplog.text
+    assert f"trace_id={TRACE_ID}" in caplog.text
+    assert "status=succeeded" in caplog.text
+    assert "duration_ms=" in caplog.text
 
 
 @pytest.mark.asyncio

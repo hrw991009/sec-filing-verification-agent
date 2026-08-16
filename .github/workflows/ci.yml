@@ -72,12 +72,19 @@ jobs:
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: "6379"
       REDIS_PASSWORD: migration-ci-redis-password
+      MINIO_ENDPOINT: 127.0.0.1:9000
+      MINIO_ACCESS_KEY: migration-ci-minio
+      MINIO_SECRET_KEY: migration-ci-minio-password
+      MINIO_BUCKET: migration-ci-private
+      MINIO_REGION: us-east-1
+      MINIO_SECURE: "false"
       REFRESH_TOKEN_HMAC_KEY_B64: cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnI
       CSRF_TOKEN_HMAC_KEY_B64: Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M
       DEVICE_TOKEN_HMAC_KEY_B64: ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ
       BROWSER_TRUSTED_ORIGINS_JSON: '["https://localhost:5173"]'
       POSTGRES_TESTS_REQUIRED: "1"
       REDIS_TESTS_REQUIRED: "1"
+      MINIO_TESTS_REQUIRED: "1"
     services:
       postgres:
         image: postgres:16.14-bookworm
@@ -172,7 +179,32 @@ jobs:
           docker exec "${{ job.services.redis.id }}" \
             redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping
 
-      - name: Exercise PostgreSQL and Redis integration paths
+      - name: Start and initialize private MinIO
+        run: |
+          docker run --detach --rm --name day2-minio \
+            --publish 127.0.0.1:9000:9000 \
+            --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z \
+            server /data
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs day2-minio
+              exit 1
+            fi
+            sleep 1
+          done
+          docker run --rm --network host --entrypoint /bin/sh \
+            --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            --env MINIO_BUCKET="$MINIO_BUCKET" \
+            quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z \
+            -c 'set -eu; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; mc mb --ignore-existing "local/$MINIO_BUCKET"; mc anonymous set none "local/$MINIO_BUCKET"'
+
+      - name: Exercise PostgreSQL, Redis, and MinIO integration paths
         run: >-
           uv run --locked --all-packages pytest
           apps/backend/tests/integration
@@ -249,6 +281,12 @@ jobs:
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: "6379"
       REDIS_PASSWORD: browser-ci-redis-password
+      MINIO_ENDPOINT: 127.0.0.1:9000
+      MINIO_ACCESS_KEY: browser-ci-minio
+      MINIO_SECRET_KEY: browser-ci-minio-password
+      MINIO_BUCKET: browser-ci-private
+      MINIO_REGION: us-east-1
+      MINIO_SECURE: "false"
       REFRESH_TOKEN_HMAC_KEY_B64: cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnI
       CSRF_TOKEN_HMAC_KEY_B64: Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M
       DEVICE_TOKEN_HMAC_KEY_B64: ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ
@@ -358,6 +396,32 @@ jobs:
             redis-cli CONFIG SET requirepass "$REDIS_PASSWORD"
           docker exec "${{ job.services.redis.id }}" \
             redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping
+
+      - name: Start and initialize private MinIO
+        run: |
+          docker run --detach --rm --name browser-day2-minio \
+            --publish 127.0.0.1:9000:9000 \
+            --env MINIO_API_CORS_ALLOW_ORIGIN=https://localhost:5173 \
+            --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z \
+            server /data
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs browser-day2-minio
+              exit 1
+            fi
+            sleep 1
+          done
+          docker run --rm --network host --entrypoint /bin/sh \
+            --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            --env MINIO_BUCKET="$MINIO_BUCKET" \
+            quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z \
+            -c 'set -eu; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; mc mb --ignore-existing "local/$MINIO_BUCKET"; mc anonymous set none "local/$MINIO_BUCKET"'
 
       - name: Install Chromium and system dependencies
         run: pnpm exec playwright install --with-deps chromium

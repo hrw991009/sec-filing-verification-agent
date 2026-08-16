@@ -116,6 +116,15 @@ class PreparedAgentEventStream:
     descriptor: AgentRunStreamDescriptor
     replay: StreamReplay
 
+    @property
+    def is_terminal(self) -> bool:
+        """Use the newer authoritative snapshot when the metadata read raced completion."""
+
+        snapshot = self.replay.snapshot
+        return self.descriptor.is_terminal or (
+            snapshot is not None and snapshot.payload.get("terminal") is True
+        )
+
 
 class AgentRunDeliveryUseCase(Protocol):
     """Operations used by the HTTP adapter without invoking AgentRuntime."""

@@ -20,6 +20,7 @@ from industry_platform.modules.agent_runtime.adapters.execution import (
 from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyAgentEventCommitter,
     SqlAlchemyAgentRunControl,
+    SqlAlchemyAgentRunTerminalizer,
     SqlAlchemyCommittedEventSource,
     SqlAlchemyContextManifestStore,
 )
@@ -151,6 +152,7 @@ def create_direct_answer_runtime_resources(
             attachment_object_reader=create_private_file_object_store(settings),
         ),
         runtime=runtime,
+        terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),
     )
     return DirectAnswerRuntimeResources(
         execution_service=execution_service,

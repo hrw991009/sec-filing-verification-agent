@@ -11,6 +11,10 @@
 - [七天目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
 - [Day 1 学习日志](docs/learning-log/day-1.md)
+- [Day 2 Agent Runtime v0](docs/agent-runtime.md)
+- [Day 2 学习日志](docs/learning-log/day-2.md)
+- [Day 2 运行与故障手册](docs/runbooks/day-2-agent-runtime.md)
+- [Day 2 第三方依赖与使用边界复核](docs/security/day-2-third-party-review.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围
@@ -25,7 +29,7 @@
 - PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE 与 Learning Workbench 基础实现已经写入，但仍处于 `implemented_pending_verification`：Worker 中断后的 AgentRun 收敛、生产 snapshot/背压、可观测性与最终证据尚未达到主计划门禁。Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Deep Research、Agent Knowledge/RAG 与后续 Eval 能力尚未实现。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现并通过当前工作树的全量本地门禁。D2-01～D2-09 仍保持 `implemented_pending_verification`，只等待当前提交的干净 GitHub CI 和学习者按主计划完成职责复盘；在这两项外部门禁通过前不提前写成 `complete`。Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Deep Research、Agent Knowledge/RAG 与后续 Eval 能力尚未实现。
 
 ## 执行基线与安装
 
@@ -214,6 +218,7 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $env:POSTGRES_TESTS_REQUIRED = '1'
 $env:REDIS_TESTS_REQUIRED = '1'
+$env:MINIO_TESTS_REQUIRED = '1'
 
 try {
     uv sync --locked --all-packages
@@ -237,8 +242,10 @@ try {
     gitleaks dir --redact --verbose apps
     gitleaks dir --redact --verbose packages
     gitleaks dir --redact --verbose docs
+    gitleaks dir --redact --verbose evals
     gitleaks dir --redact --verbose .github
     gitleaks dir --redact --verbose infra
+    gitleaks dir --redact --verbose tests
     gitleaks dir --redact --verbose .env.example
     gitleaks dir --redact --verbose package.json
     gitleaks dir --redact --verbose pnpm-workspace.yaml
@@ -252,10 +259,11 @@ try {
 finally {
     Remove-Item Env:POSTGRES_TESTS_REQUIRED -ErrorAction SilentlyContinue
     Remove-Item Env:REDIS_TESTS_REQUIRED -ErrorAction SilentlyContinue
+    Remove-Item Env:MINIO_TESTS_REQUIRED -ErrorAction SilentlyContinue
 }
 ```
 
-上述命令仍是后续变更必须重复执行的统一验证方法。Day 1 当前基线已在本地完整执行，并由提交 [`2c4e6e9`](https://github.com/hrw991009/industry-intelligence-platform/commit/2c4e6e92237584bbac2816577e1509286f08b14b) 的 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339) 在干净环境通过；D1-01～D1-08、D1-10～D1-12 已按能力矩阵复核为 `complete`。
+上述命令仍是后续变更必须重复执行的统一验证方法。Day 1 当前基线已在本地完整执行，并由提交 [`2c4e6e9`](https://github.com/hrw991009/industry-intelligence-platform/commit/2c4e6e92237584bbac2816577e1509286f08b14b) 的 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339) 在干净环境通过；D1-01～D1-08、D1-10～D1-12 已按能力矩阵复核为 `complete`。Day 2 当前工作树的本地证据见 [Agent Runtime v0](docs/agent-runtime.md) 和 [Day 2 学习日志](docs/learning-log/day-2.md)；对应提交尚未产生干净 GitHub CI，因此 D2 状态不能仅凭本地结果改成 `complete`。
 
 D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 7 发布标签。后续开发以 [七天主计划 v1.7.0](docs/master-plan.md) 为权威执行基线。
 

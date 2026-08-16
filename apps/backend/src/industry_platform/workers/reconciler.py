@@ -9,6 +9,11 @@ from industry_platform.core.database import (
     create_database_engine,
     create_database_session_factory,
 )
+from industry_platform.modules.agent_runtime.adapters.persistence import (
+    AgentEventPersistenceError,
+    SqlAlchemyAgentRunTerminalizer,
+)
+from industry_platform.modules.agent_runtime.execution import AgentRunOrphanReconciler
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyJobTransactionFactory,
 )
@@ -28,9 +33,20 @@ class JobReconciler:
     """Continuously execute short, skip-locked recovery transactions."""
 
     service: JobReconciliationUseCase
+    agent_runs: AgentRunOrphanReconciler | None = None
+    agent_batch_size: int = 100
+
+    def __post_init__(self) -> None:
+        if isinstance(self.agent_batch_size, bool) or not 1 <= self.agent_batch_size <= 1_000:
+            raise ValueError("Agent reconciliation batch size is invalid")
 
     async def reconcile_once(self) -> JobReconciliationResult:
-        return await self.service.reconcile_once()
+        result = await self.service.reconcile_once()
+        if self.agent_runs is not None:
+            terminalized = await self.agent_runs.reconcile_orphans(batch_size=self.agent_batch_size)
+            if terminalized:
+                logger.info("agent_run_reconciliation terminalized=%d", terminalized)
+        return result
 
     async def run_forever(self, *, idle_sleep_seconds: float = 1.0) -> None:
         if idle_sleep_seconds <= 0:
@@ -39,9 +55,9 @@ class JobReconciler:
         while True:
             try:
                 result = await self.reconcile_once()
-            except JobPersistenceError as error:
+            except (AgentEventPersistenceError, JobPersistenceError) as error:
                 logger.error(
-                    "Job reconciliation persistence unavailable sqlstate=%s",
+                    "Job or Agent Run reconciliation persistence unavailable sqlstate=%s",
                     error.sqlstate or "unknown",
                 )
                 await asyncio.sleep(idle_sleep_seconds)
@@ -72,7 +88,11 @@ async def run_reconciler(settings: Settings) -> None:
             unstarted_timeout_seconds=settings.job_unstarted_timeout_seconds,
             batch_size=settings.job_reconcile_batch_size,
         )
-        await JobReconciler(service).run_forever()
+        await JobReconciler(
+            service,
+            agent_runs=SqlAlchemyAgentRunTerminalizer(session_factory),
+            agent_batch_size=settings.job_reconcile_batch_size,
+        ).run_forever()
     finally:
         await engine.dispose()
 

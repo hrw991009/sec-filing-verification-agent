@@ -58,6 +58,23 @@ function frame(
   ].join("\n");
 }
 
+function snapshotPayload(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    cached_input_tokens: 0,
+    content_markdown: "已恢复",
+    cost_micro_usd: 0,
+    input_tokens: 0,
+    output_tokens: 0,
+    run_id: runId,
+    status: "running",
+    stop_reason: null,
+    terminal: false,
+    ...overrides,
+  };
+}
+
 function responseFromBytes(chunks: readonly Uint8Array[]): Response {
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -154,7 +171,7 @@ describe("Agent fetch-SSE follower", () => {
   it("delivers an authoritative snapshot even when it is aligned to cursor zero", async () => {
     mocks.authenticatedFetch.mockResolvedValueOnce(
       responseFromText(
-        frame(0, "stream.snapshot", { content_markdown: "已恢复" }) +
+        frame(0, "stream.snapshot", snapshotPayload()) +
           frame(1, "agent.run.completed", { stop_reason: "final" }),
       ),
     );
@@ -171,6 +188,46 @@ describe("Agent fetch-SSE follower", () => {
     });
 
     expect(events[0]).toMatchObject({ sequence: 0, type: "stream.snapshot" });
+  });
+
+  it("treats a terminal snapshot as the authoritative end of the stream", async () => {
+    mocks.authenticatedFetch.mockResolvedValueOnce(
+      responseFromText(
+        frame(
+          257,
+          "stream.snapshot",
+          snapshotPayload({
+            content_markdown: "已恢复的完整片段",
+            status: "cancelled",
+            stop_reason: "cancelled",
+            terminal: true,
+          }),
+        ),
+      ),
+    );
+    const events: AgentStreamEvent[] = [];
+    const states: AgentStreamConnectionState[] = [];
+
+    const cursor = await followAgentRunEvents({
+      cursor: 1,
+      onConnectionState: (state) => states.push(state),
+      onEvent: (event) => {
+        events.push(event);
+      },
+      retryDelayMs: 0,
+      runId,
+      workspaceId,
+    });
+
+    expect(cursor).toBe(257);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      payload: { content_markdown: "已恢复的完整片段", terminal: true },
+      sequence: 257,
+      type: "stream.snapshot",
+    });
+    expect(states).toEqual(["connecting", "open", "closed"]);
+    expect(mocks.authenticatedFetch).toHaveBeenCalledOnce();
   });
 
   it("rejects a sequence gap instead of guessing or reconnecting past it", async () => {

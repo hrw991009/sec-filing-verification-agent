@@ -1,6 +1,7 @@
 """End-to-end component tests for the single concrete Direct Answer Runtime."""
 
-from collections.abc import AsyncGenerator
+import asyncio
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import FrozenInstanceError, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -17,7 +18,11 @@ from industry_platform.modules.agent_runtime.domain import (
     RunBudget,
     RunStopReason,
 )
-from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
+from industry_platform.modules.agent_runtime.events import (
+    TERMINAL_AGENT_EVENT_TYPES,
+    AgentEvent,
+    AgentEventType,
+)
 from industry_platform.modules.agent_runtime.final_output import (
     FINAL_MARKDOWN_CONTRACT_VERSION,
     DirectAnswerFinalOutput,
@@ -133,6 +138,22 @@ class ScriptedProvider:
 
     async def complete(self, request: ModelRequest) -> ModelResponse:
         raise AssertionError("Direct Answer Runtime must use the streaming Provider boundary")
+
+
+class HungProvider(ScriptedProvider):
+    async def stream(self, request: ModelRequest) -> AsyncGenerator[ModelStreamItem]:
+        self.timeline.append("provider")
+        self.requests.append(request)
+        try:
+            blocker = asyncio.Event()
+            await blocker.wait()
+            yield ModelStreamDelta(
+                schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+                sequence=1,
+                text="unreachable",
+            )
+        finally:
+            self.closed = True
 
 
 @dataclass
@@ -318,6 +339,7 @@ def build_runtime(
     *,
     cancellation: ScriptedCancellationProbe | None = None,
     manifest_failure: bool = False,
+    clock: Callable[[], datetime] | None = None,
 ) -> tuple[DirectAnswerRuntime, RecordingManifestStore, RecordingEventCommitter]:
     manifests = RecordingManifestStore(timeline, fail=manifest_failure)
     committer = RecordingEventCommitter()
@@ -328,7 +350,7 @@ def build_runtime(
             model_provider=provider,
             event_committer=committer,
             cancellation_probe=cancellation or ScriptedCancellationProbe(),
-            clock=IncrementingClock(),
+            clock=clock or IncrementingClock(),
         ),
         manifests,
         committer,
@@ -460,6 +482,49 @@ async def test_cancel_after_one_delta_closes_stream_and_keeps_one_terminal() -> 
     assert events[-1].payload["cancelled_step_status"] == "cancelled"
     assert events[-1].event_type is AgentEventType.RUN_CANCELLED
     assert AgentEventType.RUN_COMPLETED not in {event.event_type for event in events}
+
+
+@pytest.mark.asyncio
+async def test_cancel_before_first_delta_interrupts_and_closes_hung_provider() -> None:
+    timeline: list[str] = []
+    provider = HungProvider(timeline)
+    cancellation = ScriptedCancellationProbe((False, False, True))
+    runtime, _, _ = build_runtime(provider, timeline, cancellation=cancellation)
+
+    async def collect_events() -> list[AgentEvent]:
+        return [event async for event in runtime.run(command(), runtime_context())]
+
+    events = await asyncio.wait_for(collect_events(), timeout=1)
+
+    assert provider.closed is True
+    assert events[-1].event_type is AgentEventType.RUN_CANCELLED
+    assert sum(event.event_type in TERMINAL_AGENT_EVENT_TYPES for event in events) == 1
+
+
+@pytest.mark.asyncio
+async def test_deadline_interrupts_hung_provider_and_commits_one_failed_terminal() -> None:
+    selected_budget = budget(deadline=NOW + timedelta(milliseconds=1_055))
+    timeline: list[str] = []
+    provider = HungProvider(timeline)
+    runtime, _, _ = build_runtime(provider, timeline, clock=IncrementingClock())
+
+    async def collect_events() -> list[AgentEvent]:
+        return [
+            event
+            async for event in runtime.run(
+                command(selected_budget=selected_budget),
+                runtime_context(selected_budget=selected_budget),
+            )
+        ]
+
+    events = await asyncio.wait_for(collect_events(), timeout=1)
+
+    assert provider.closed is True
+    assert events[-2].event_type is AgentEventType.STEP_FAILED
+    assert events[-2].payload["error_code"] == RunStopReason.DEADLINE_EXCEEDED.value
+    assert events[-1].event_type is AgentEventType.RUN_FAILED
+    assert events[-1].payload["stop_reason"] == RunStopReason.DEADLINE_EXCEEDED.value
+    assert sum(event.event_type in TERMINAL_AGENT_EVENT_TYPES for event in events) == 1
 
 
 @pytest.mark.asyncio

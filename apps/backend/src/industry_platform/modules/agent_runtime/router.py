@@ -184,11 +184,14 @@ async def _committed_event_frames(
         yield encode_agent_event_sse(event)
         if event.event_type in TERMINAL_AGENT_EVENT_TYPES:
             return
-    if prepared.descriptor.is_terminal:
+    if prepared.is_terminal:
         return
 
     next_heartbeat = monotonic() + DEFAULT_HEARTBEAT_SECONDS
     while not await request.is_disconnected():
+        # Deliberately pull one bounded committed batch only after the previous
+        # batch has been yielded. A slow socket therefore pauses database reads;
+        # numbered Events are never queued without a bound or silently dropped.
         try:
             events = await service.load_events_after(
                 scope,

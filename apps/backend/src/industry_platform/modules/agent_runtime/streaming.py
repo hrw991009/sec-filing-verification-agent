@@ -20,6 +20,8 @@ from industry_platform.modules.identity.domain import TraceId
 
 MAX_STREAM_CURSOR: Final = 9_223_372_036_854_775_807
 DEFAULT_HEARTBEAT_SECONDS: Final = 15
+DEFAULT_COMMITTED_EVENT_WINDOW: Final = 256
+MAX_COMMITTED_EVENT_WINDOW: Final = 10_000
 
 
 class StreamErrorCode(StrEnum):

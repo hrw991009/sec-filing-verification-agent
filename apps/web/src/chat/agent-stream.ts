@@ -29,6 +29,8 @@ const terminalAgentEventTypes = new Set<string>([
   "agent.run.failed",
   "agent.run.cancelled",
 ]);
+const agentRunStatuses = new Set<string>(["queued", "running", "completed", "failed", "cancelled"]);
+const terminalAgentRunStatuses = new Set<string>(["completed", "failed", "cancelled"]);
 
 export type AgentEventType = (typeof KNOWN_AGENT_EVENT_TYPES)[number];
 export type JsonValue =
@@ -269,8 +271,57 @@ function parseEnvelope(frame: SseFrame): ParsedEnvelope {
   };
 }
 
+function requireSnapshotNonNegativeInteger(
+  payload: Readonly<Record<string, JsonValue>>,
+  fieldName: string,
+): number {
+  const value = payload[fieldName];
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new AgentStreamContractError(`Agent snapshot field ${fieldName} is invalid.`);
+  }
+  return value;
+}
+
+function validateSnapshotPayload(payload: Readonly<Record<string, JsonValue>>): void {
+  const runId = payload.run_id;
+  const status = payload.status;
+  const stopReason = payload.stop_reason;
+  const terminal = payload.terminal;
+  const contentMarkdown = payload.content_markdown;
+  if (typeof runId !== "string" || !UUID_PATTERN.test(runId)) {
+    throw new AgentStreamContractError("Agent snapshot Run ID is invalid.");
+  }
+  if (typeof status !== "string" || !agentRunStatuses.has(status)) {
+    throw new AgentStreamContractError("Agent snapshot status is invalid.");
+  }
+  if (typeof terminal !== "boolean" || terminal !== terminalAgentRunStatuses.has(status)) {
+    throw new AgentStreamContractError("Agent snapshot terminal state is inconsistent.");
+  }
+  if (
+    (stopReason !== null &&
+      (typeof stopReason !== "string" || stopReason.length === 0 || stopReason.length > 128)) ||
+    (terminal && stopReason === null) ||
+    (!terminal && stopReason !== null) ||
+    (status === "completed" && stopReason !== "final") ||
+    (status === "cancelled" && stopReason !== "cancelled")
+  ) {
+    throw new AgentStreamContractError("Agent snapshot stop reason is inconsistent.");
+  }
+  if (typeof contentMarkdown !== "string" || contentMarkdown.length > MAX_SSE_FRAME_CHARACTERS) {
+    throw new AgentStreamContractError("Agent snapshot content is invalid.");
+  }
+  const inputTokens = requireSnapshotNonNegativeInteger(payload, "input_tokens");
+  const cachedInputTokens = requireSnapshotNonNegativeInteger(payload, "cached_input_tokens");
+  requireSnapshotNonNegativeInteger(payload, "output_tokens");
+  requireSnapshotNonNegativeInteger(payload, "cost_micro_usd");
+  if (cachedInputTokens > inputTokens) {
+    throw new AgentStreamContractError("Agent snapshot cached usage is inconsistent.");
+  }
+}
+
 function publicEvent(envelope: ParsedEnvelope): AgentStreamEvent | null {
   if (envelope.type === "stream.snapshot") {
+    validateSnapshotPayload(envelope.payload);
     return { ...envelope, type: "stream.snapshot" };
   }
   if (!knownAgentEventTypes.has(envelope.type)) {
@@ -380,7 +431,10 @@ async function consumeResponse(
             throw new AgentStreamConsumerError(error);
           }
         }
-        if (terminalAgentEventTypes.has(envelope.type)) {
+        if (
+          terminalAgentEventTypes.has(envelope.type) ||
+          (envelope.type === "stream.snapshot" && envelope.payload.terminal === true)
+        ) {
           await reader.cancel();
           return true;
         }

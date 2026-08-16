@@ -20,6 +20,7 @@ from industry_platform.modules.agent_runtime.adapters.persistence import (
 from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunBudget, RunStopReason
 from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
 from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
+from industry_platform.modules.agent_runtime.streaming import select_committed_replay
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,
 )
@@ -363,6 +364,76 @@ def test_committed_event_reader_resolves_run_inside_workspace_and_reads_bounded_
             assert len(events) == 1
             assert events[0].event_type is AgentEventType.RUN_QUEUED
             assert events[0].sequence == 1
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
+def test_committed_event_reader_bounds_initial_replay_and_builds_authoritative_snapshot(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(command())
+            stream_id = await _stream_id(session_factory, receipt.run_id)
+            event_time = datetime.now(UTC) + timedelta(minutes=1)
+            committer = SqlAlchemyAgentEventCommitter(session_factory)
+            declared_events: tuple[tuple[AgentEventType, dict[str, object]], ...] = (
+                (AgentEventType.RUN_STARTED, {"state_revision": 1}),
+                (AgentEventType.MODEL_DELTA, {"delta": "A"}),
+                (AgentEventType.MODEL_DELTA, {"delta": "B"}),
+                (AgentEventType.MODEL_DELTA, {"delta": "C"}),
+                (
+                    AgentEventType.RUN_FAILED,
+                    {"stop_reason": RunStopReason.RUNTIME_ERROR.value},
+                ),
+            )
+            for sequence, (event_type, payload) in enumerate(declared_events, start=2):
+                await committer.append(
+                    AgentEvent(
+                        schema_version=1,
+                        stream_id=stream_id,
+                        run_id=receipt.run_id,
+                        workspace_id=WORKSPACE_ID,
+                        sequence=sequence,
+                        occurred_at=event_time + timedelta(seconds=sequence),
+                        trace_id=TraceId("postgres-agent-turn"),
+                        event_type=event_type,
+                        payload=payload,
+                    )
+                )
+
+            window = await SqlAlchemyCommittedEventSource(
+                session_factory,
+                window_size=2,
+            ).load_window(stream_id=stream_id, workspace_id=WORKSPACE_ID)
+            replay = select_committed_replay(window, cursor=1)
+
+            assert window.earliest_available_sequence == 5
+            assert window.latest_committed_sequence == 6
+            assert tuple(event.sequence for event in window.events) == (5, 6)
+            assert replay.events == ()
+            assert replay.snapshot is not None
+            assert replay.snapshot.last_sequence == 6
+            assert replay.snapshot.payload == {
+                "run_id": str(receipt.run_id),
+                "status": "failed",
+                "stop_reason": "runtime_error",
+                "terminal": True,
+                "content_markdown": "ABC",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cached_input_tokens": 0,
+                "cost_micro_usd": 0,
+            }
         finally:
             await engine.dispose()
 

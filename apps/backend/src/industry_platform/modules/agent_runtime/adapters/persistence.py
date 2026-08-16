@@ -6,7 +6,8 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, literal, or_, select
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +18,7 @@ from industry_platform.modules.agent_runtime.delivery import (
     AgentRunStreamDescriptor,
 )
 from industry_platform.modules.agent_runtime.domain import (
+    TERMINAL_RUN_STATUSES,
     AgentRunStatus,
     AgentStepKind,
     AgentStepStatus,
@@ -31,7 +33,12 @@ from industry_platform.modules.agent_runtime.models import (
     ContextManifestRecord,
 )
 from industry_platform.modules.agent_runtime.ports import ContextManifestStoreError
-from industry_platform.modules.agent_runtime.streaming import CommittedEventWindow
+from industry_platform.modules.agent_runtime.streaming import (
+    DEFAULT_COMMITTED_EVENT_WINDOW,
+    MAX_COMMITTED_EVENT_WINDOW,
+    CommittedEventWindow,
+    StreamSnapshot,
+)
 from industry_platform.modules.conversations.models import Message, MessageRole, MessageStatus
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.domain import TERMINAL_JOB_STATUSES, JobEventType, JobStatus
@@ -180,6 +187,117 @@ class SqlAlchemyAgentEventCommitter:
                 await _settle_cancelled_step(session, run, event)
             if event.event_type is AgentEventType.RUN_COMPLETED:
                 await _persist_final_message(session, run, event.occurred_at)
+            else:
+                await _persist_partial_message(session, run, event)
+
+
+@dataclass(frozen=True, slots=True)
+class SqlAlchemyAgentRunTerminalizer:
+    """Close non-resumable Day 2 Runs after execution or Job infrastructure failure."""
+
+    session_factory: AsyncSessionFactory
+
+    async def settle_unrecoverable(self, run_id: UUID, *, error_code: str) -> bool:
+        if run_id.int == 0 or not _valid_error_code(error_code):
+            raise ValueError("Agent Run terminalization input is invalid")
+        try:
+            async with self.session_factory.begin() as session:
+                run = await session.scalar(
+                    select(AgentRunRecord).where(AgentRunRecord.id == run_id).with_for_update()
+                )
+                if run is None:
+                    return False
+                if run.status in TERMINAL_RUN_STATUSES:
+                    return True
+                database_now = await _database_now(session)
+                await _terminalize_unrecoverable_run(
+                    session,
+                    run,
+                    occurred_at=max(
+                        database_now,
+                        run.updated_at,
+                        run.cancel_requested_at or run.updated_at,
+                    ),
+                    error_code=error_code,
+                    cancelled=run.cancel_requested_at is not None,
+                )
+                return True
+        except AgentEventPersistenceError:
+            raise
+        except (TypeError, ValueError):
+            raise AgentEventPersistenceError() from None
+        except SQLAlchemyError as error:
+            raise AgentEventPersistenceError(sqlstate=safe_sqlstate(error)) from None
+
+    async def reconcile_orphans(self, *, batch_size: int) -> int:
+        if isinstance(batch_size, bool) or not 1 <= batch_size <= 1_000:
+            raise ValueError("Agent Run reconciliation batch size is invalid")
+        stranded_after_lease = (
+            JobStatus.PENDING,
+            JobStatus.DISPATCHED,
+            JobStatus.RETRY_WAIT,
+        )
+        try:
+            async with self.session_factory.begin() as session:
+                rows = tuple(
+                    (
+                        await session.execute(
+                            select(AgentRunRecord, Job)
+                            .join(Job, Job.id == AgentRunRecord.job_id)
+                            .where(
+                                AgentRunRecord.status.not_in(tuple(TERMINAL_RUN_STATUSES)),
+                                or_(
+                                    Job.status.in_(tuple(TERMINAL_JOB_STATUSES)),
+                                    and_(
+                                        AgentRunRecord.status == AgentRunStatus.RUNNING,
+                                        Job.status.in_(stranded_after_lease),
+                                    ),
+                                ),
+                            )
+                            .order_by(AgentRunRecord.updated_at, AgentRunRecord.id)
+                            .limit(batch_size)
+                            .with_for_update(of=(AgentRunRecord, Job), skip_locked=True)
+                        )
+                    ).all()
+                )
+                if not rows:
+                    return 0
+                database_now = await _database_now(session)
+                for run, job in rows:
+                    cancelled = (
+                        run.cancel_requested_at is not None
+                        or job.cancel_requested_at is not None
+                        or job.status is JobStatus.CANCELLED
+                    )
+                    occurred_at = max(
+                        database_now,
+                        run.updated_at,
+                        job.updated_at,
+                        run.cancel_requested_at or run.updated_at,
+                        job.cancel_requested_at or job.updated_at,
+                    )
+                    if job.status not in TERMINAL_JOB_STATUSES:
+                        _terminalize_stranded_job(
+                            session,
+                            job,
+                            occurred_at=occurred_at,
+                            error_code="job_execution_abandoned",
+                            cancelled=cancelled,
+                        )
+                    await _terminalize_unrecoverable_run(
+                        session,
+                        run,
+                        occurred_at=occurred_at,
+                        error_code="job_execution_abandoned",
+                        cancelled=cancelled,
+                    )
+                return len(rows)
+        except AgentEventPersistenceError:
+            raise
+        except (TypeError, ValueError):
+            raise AgentEventPersistenceError() from None
+        except SQLAlchemyError as error:
+            raise AgentEventPersistenceError(sqlstate=safe_sqlstate(error)) from None
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,6 +395,14 @@ class SqlAlchemyCommittedEventSource:
     """Replay only PostgreSQL-committed Events; never call Runtime or Provider."""
 
     session_factory: AsyncSessionFactory
+    window_size: int = DEFAULT_COMMITTED_EVENT_WINDOW
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.window_size, bool)
+            or not 1 <= self.window_size <= MAX_COMMITTED_EVENT_WINDOW
+        ):
+            raise ValueError("Committed Event window size is invalid")
 
     async def find_run(
         self, *, run_id: UUID, workspace_id: UUID
@@ -308,25 +434,49 @@ class SqlAlchemyCommittedEventSource:
     async def load_window(self, *, stream_id: UUID, workspace_id: UUID) -> CommittedEventWindow:
         try:
             async with self.session_factory() as session:
-                records = tuple(
+                run = await session.scalar(
+                    select(AgentRunRecord).where(
+                        AgentRunRecord.event_stream_id == stream_id,
+                        AgentRunRecord.workspace_id == workspace_id,
+                    )
+                )
+                if run is None:
+                    raise AgentRunDeliveryUnavailableError()
+                descending_records = tuple(
                     await session.scalars(
                         select(AgentEventRecord)
                         .where(
                             AgentEventRecord.stream_id == stream_id,
                             AgentEventRecord.workspace_id == workspace_id,
+                            AgentEventRecord.sequence <= run.event_count,
                         )
-                        .order_by(AgentEventRecord.sequence)
+                        .order_by(AgentEventRecord.sequence.desc())
+                        .limit(self.window_size)
                     )
                 )
+                records = tuple(reversed(descending_records))
+                if not records or records[-1].sequence != run.event_count:
+                    raise AgentRunDeliveryUnavailableError()
+                snapshot = (
+                    await _load_authoritative_stream_snapshot(
+                        session,
+                        run=run,
+                        aligned_event=records[-1],
+                    )
+                    if records[0].sequence > 1
+                    else None
+                )
             events = tuple(_to_domain_event(record) for record in records)
-            latest = events[-1].sequence if events else 0
             return CommittedEventWindow(
                 stream_id=stream_id,
                 workspace_id=workspace_id,
-                earliest_available_sequence=1 if events else 0,
-                latest_committed_sequence=latest,
+                earliest_available_sequence=events[0].sequence,
+                latest_committed_sequence=run.event_count,
                 events=events,
+                snapshot=snapshot,
             )
+        except AgentRunDeliveryUnavailableError:
+            raise
         except (TypeError, ValueError):
             raise AgentRunDeliveryUnavailableError() from None
         except SQLAlchemyError as error:
@@ -367,6 +517,122 @@ class SqlAlchemyCommittedEventSource:
             raise AgentRunDeliveryUnavailableError(sqlstate=safe_sqlstate(error)) from None
 
 
+async def _load_authoritative_stream_snapshot(
+    session: AsyncSession,
+    *,
+    run: AgentRunRecord,
+    aligned_event: AgentEventRecord,
+) -> StreamSnapshot:
+    """Build current client state in PostgreSQL without loading every Event row."""
+
+    content_markdown = await session.scalar(
+        select(
+            func.string_agg(
+                AgentEventRecord.payload["delta"].astext,
+                aggregate_order_by(literal(""), AgentEventRecord.sequence),
+            )
+        ).where(
+            AgentEventRecord.run_id == run.id,
+            AgentEventRecord.workspace_id == run.workspace_id,
+            AgentEventRecord.sequence <= run.event_count,
+            AgentEventRecord.event_type == AgentEventType.MODEL_DELTA,
+        )
+    )
+    if content_markdown is None:
+        content_markdown = ""
+    if not isinstance(content_markdown, str):
+        raise AgentRunDeliveryUnavailableError()
+    return StreamSnapshot(
+        schema_version=run.schema_version,
+        stream_id=run.event_stream_id,
+        workspace_id=run.workspace_id,
+        trace_id=TraceId(run.trace_id),
+        last_sequence=run.event_count,
+        occurred_at=aligned_event.occurred_at,
+        payload={
+            "run_id": str(run.id),
+            "status": run.status.value,
+            "stop_reason": run.stop_reason.value if run.stop_reason is not None else None,
+            "terminal": run.status in TERMINAL_RUN_STATUSES,
+            "content_markdown": content_markdown,
+            "input_tokens": run.input_tokens_used,
+            "output_tokens": run.output_tokens_used,
+            "cached_input_tokens": run.cached_input_tokens_used,
+            "cost_micro_usd": run.cost_micro_usd,
+        },
+    )
+
+
+async def _database_now(session: AsyncSession) -> datetime:
+    value = await session.scalar(select(func.clock_timestamp()))
+    if not isinstance(value, datetime):
+        raise AgentEventPersistenceError()
+    require_utc(value, field_name="Agent Run terminal time")
+    return value
+
+
+async def _terminalize_unrecoverable_run(
+    session: AsyncSession,
+    run: AgentRunRecord,
+    *,
+    occurred_at: datetime,
+    error_code: str,
+    cancelled: bool,
+) -> None:
+    """Append one terminal Event and settle any interrupted Step under the Run lock."""
+
+    running_steps = tuple(
+        await session.scalars(
+            select(AgentStepRecord)
+            .where(
+                AgentStepRecord.run_id == run.id,
+                AgentStepRecord.workspace_id == run.workspace_id,
+                AgentStepRecord.status == AgentStepStatus.RUNNING,
+            )
+            .order_by(AgentStepRecord.sequence)
+            .with_for_update()
+        )
+    )
+    terminal_sequence = run.event_count + 1
+    for step in running_steps:
+        step.status = AgentStepStatus.CANCELLED if cancelled else AgentStepStatus.FAILED
+        step.completed_at = occurred_at
+        step.last_event_sequence = terminal_sequence
+        step.error_code = None if cancelled else error_code
+
+    event_type = AgentEventType.RUN_CANCELLED if cancelled else AgentEventType.RUN_FAILED
+    stop_reason = RunStopReason.CANCELLED if cancelled else RunStopReason.RUNTIME_ERROR
+    await _append_locked_agent_event(
+        session,
+        run,
+        AgentEvent(
+            schema_version=run.schema_version,
+            stream_id=run.event_stream_id,
+            run_id=run.id,
+            workspace_id=run.workspace_id,
+            sequence=terminal_sequence,
+            occurred_at=occurred_at,
+            trace_id=TraceId(run.trace_id),
+            event_type=event_type,
+            payload={
+                "stop_reason": stop_reason.value,
+                "error_code": error_code,
+                "settled_step_ids": [str(step.id) for step in running_steps],
+            },
+        ),
+    )
+
+
+def _valid_error_code(value: str) -> bool:
+    allowed = "abcdefghijklmnopqrstuvwxyz0123456789._-"
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= 100
+        and value[0] in allowed[:36]
+        and all(character in allowed for character in value)
+    )
+
+
 async def _append_locked_agent_event(
     session: AsyncSession,
     run: AgentRunRecord,
@@ -393,6 +659,8 @@ async def _append_locked_agent_event(
         if not _same_event(existing, event):
             raise AgentEventPersistenceError()
         return
+    if run.status in TERMINAL_RUN_STATUSES:
+        raise AgentEventPersistenceError()
     if event.sequence != run.event_count + 1 or event.occurred_at < run.updated_at:
         raise AgentEventPersistenceError()
 
@@ -439,6 +707,46 @@ def _cancel_unstarted_job(
             event_sequence=job.stage_sequence,
             occurred_at=terminal_at,
             details={"source": "agent_run_cancel"},
+        )
+    )
+
+
+def _terminalize_stranded_job(
+    session: AsyncSession,
+    job: Job,
+    *,
+    occurred_at: datetime,
+    error_code: str,
+    cancelled: bool,
+) -> None:
+    """Settle a non-terminal Job whose Day 2 Run cannot be resumed."""
+
+    outcome = JobStatus.CANCELLED if cancelled else JobStatus.FAILED
+    job.status = outcome
+    job.terminal_at = occurred_at
+    job.stage_name = outcome.value
+    job.stage_sequence += 1
+    job.last_error_code = None if cancelled else error_code
+    job.lease_owner = None
+    job.lease_token = None
+    job.lease_expires_at = None
+    job.heartbeat_at = None
+    job.result = None
+    job.updated_at = occurred_at
+    session.add(
+        JobEvent(
+            id=uuid4(),
+            job_id=job.id,
+            event_type=JobEventType(outcome.value),
+            generation=job.generation,
+            dispatch_generation=job.dispatch_generation,
+            fencing_token=job.fencing_token,
+            event_sequence=job.stage_sequence,
+            occurred_at=occurred_at,
+            details={
+                "source": "agent_run_reconciler",
+                **({} if cancelled else {"error_code": error_code}),
+            },
         )
     )
 
@@ -522,6 +830,69 @@ async def _persist_final_message(
             content_markdown=content,
             created_at=completed_at,
             updated_at=completed_at,
+        )
+    )
+
+
+async def _persist_partial_message(
+    session: object,
+    run: AgentRunRecord,
+    terminal_event: AgentEvent,
+) -> None:
+    """Preserve committed Provider text when a Run fails or is cancelled."""
+
+    if not isinstance(session, AsyncSession):
+        raise AgentEventPersistenceError()
+    content = await session.scalar(
+        select(
+            func.string_agg(
+                AgentEventRecord.payload["delta"].astext,
+                aggregate_order_by(literal(""), AgentEventRecord.sequence),
+            )
+        ).where(
+            AgentEventRecord.run_id == run.id,
+            AgentEventRecord.workspace_id == run.workspace_id,
+            AgentEventRecord.sequence < terminal_event.sequence,
+            AgentEventRecord.event_type == AgentEventType.MODEL_DELTA,
+        )
+    )
+    if content is None or (isinstance(content, str) and not content.strip()):
+        return
+    if not isinstance(content, str):
+        raise AgentEventPersistenceError()
+
+    existing = tuple(
+        await session.scalars(
+            select(Message)
+            .where(
+                Message.agent_run_id == run.id,
+                Message.workspace_id == run.workspace_id,
+                Message.role == MessageRole.ASSISTANT,
+            )
+            .order_by(Message.created_at, Message.id)
+            .with_for_update()
+        )
+    )
+    if existing:
+        if (
+            len(existing) == 1
+            and existing[0].status is MessageStatus.PARTIAL
+            and existing[0].content_markdown == content
+        ):
+            return
+        raise AgentEventPersistenceError()
+
+    session.add(
+        Message(
+            workspace_id=run.workspace_id,
+            turn_id=run.turn_id,
+            agent_run_id=run.id,
+            created_by_user_id=None,
+            role=MessageRole.ASSISTANT,
+            status=MessageStatus.PARTIAL,
+            content_markdown=content,
+            created_at=terminal_event.occurred_at,
+            updated_at=terminal_event.occurred_at,
         )
     )
 

@@ -1,9 +1,11 @@
 """Fenced execution runtime and the fixed production job-handler registry."""
 
 import asyncio
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from time import monotonic
 from types import MappingProxyType
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -52,6 +54,7 @@ from industry_platform.modules.jobs.ports import JobApplicationUseCase
 from industry_platform.modules.jobs.resources import create_job_resources
 
 IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER = "identity.refresh_recovery.cleanup.v1"
+logger = logging.getLogger(__name__)
 
 
 class JobExecutionDisposition(StrEnum):
@@ -203,6 +206,30 @@ class JobExecutionRuntime:
             raise ValueError("Job heartbeat interval must be positive")
 
     async def execute(
+        self,
+        delivery: JobDispatchMessage,
+    ) -> JobExecutionDisposition:
+        started_at = monotonic()
+        try:
+            disposition = await self._execute_delivery(delivery)
+        except Exception:
+            logger.exception(
+                "job_execution_unsettled job_id=%s trace_id=%s status=error duration_ms=%d",
+                delivery.job_id,
+                delivery.trace_id,
+                max(0, int((monotonic() - started_at) * 1_000)),
+            )
+            raise
+        logger.info(
+            "job_execution_terminal job_id=%s trace_id=%s status=%s duration_ms=%d",
+            delivery.job_id,
+            delivery.trace_id,
+            disposition.value,
+            max(0, int((monotonic() - started_at) * 1_000)),
+        )
+        return disposition
+
+    async def _execute_delivery(
         self,
         delivery: JobDispatchMessage,
     ) -> JobExecutionDisposition:
