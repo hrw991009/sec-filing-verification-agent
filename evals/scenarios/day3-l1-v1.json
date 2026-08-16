@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day3-tool-l1",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day3-l1-success",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l1-success",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l1", "version": "v1" },
+        "input": { "question": "What changed in the steel market?" },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l1-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 1000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l1-success", "version": "v1" },
+          { "name": "fake-tool/steel", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "A Markdown answer grounded in exactly one normalized Observation.",
+        "tool_call_count": 1
+      },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "l1-action-observation",
+          "version": "v1",
+          "parameters": {}
+        },
+        { "category": "result", "name": "markdown-final", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Executable binding: test_tool_l1_runtime.py::test_l1_success_uses_typed_action_and_untrusted_observation_in_same_runtime"
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l1-arguments-invalid",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l1-arguments-invalid",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l1", "version": "v1" },
+        "input": { "question": "Submit arguments that violate the Tool schema." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l1-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 1000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l1-arguments-invalid", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "tool_error",
+      "expected_behavior": { "tool_execution_started": false },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "tool-schema-rejected",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Executable binding: test_tool_l1_runtime.py::test_l1_fails_closed_before_tool_execution"
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l1-capability-denied",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l1-capability-denied",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l1", "version": "v1" },
+        "input": { "question": "Attempt the Tool without workspace.tools.run." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l1-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 1000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l1-capability-denied", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "tool_denied",
+      "expected_behavior": { "tool_execution_started": false },
+      "scorers": [
+        { "category": "trajectory", "name": "capability-denied", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Executable binding: test_tool_l1_runtime.py::test_l1_fails_closed_before_tool_execution"
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l1-approval-required",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l1-approval-required",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l1", "version": "v1" },
+        "input": { "question": "Request a Tool whose static policy requires approval." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l1-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 1000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l1-approval-required", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "approval_required",
+      "expected_behavior": { "durable_resume": false },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "approval-required-stop",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Day 3 stops after the typed request; persistent interrupt/resume remains D5-09."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l1-tool-failure",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l1-tool-failure",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l1", "version": "v1" },
+        "input": { "question": "Simulate a deterministic Tool adapter failure." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l1-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 1000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l1-tool-failure", "version": "v1" },
+          { "name": "fake-tool/missing", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "tool_error",
+      "expected_behavior": { "error_code": "tool_fixture_not_found" },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "tool-failure-terminal",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Executable binding: test_tool_l1_runtime.py::test_l1_tool_failure_has_stable_event_and_terminal_reason"
+    }
+  ]
+}

@@ -15,6 +15,8 @@
 - [Day 2 学习日志](docs/learning-log/day-2.md)
 - [Day 2 运行与故障手册](docs/runbooks/day-2-agent-runtime.md)
 - [Day 2 第三方依赖与使用边界复核](docs/security/day-2-third-party-review.md)
+- [Day 3 Agent Harness v1：L1 薄切片](docs/agent-harness.md)
+- [Day 3 学习日志](docs/learning-log/day-3.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围
@@ -29,7 +31,7 @@
 - PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Deep Research、Agent Knowledge/RAG 与后续 Eval 能力尚未实现。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 当前只完成 D3-02 第一段 L1 Runtime/持久化合同薄切片的本地验收：已实现原子 Event batch、Tool/Step/Run 成本与关联守恒、完成/取消/硬超时竞态的 fail-closed 收敛、写副作用结果未知语义，以及稳定错误码、受限 locator、服务端幂等摘要和 Trace Observation 关联校验。生产 composition 仍只启用 L0，Conversation/Job/Worker 尚未物化 L1 command；L2、真实 Web/行业来源、Text2SQL、Tool Inspector 以及 Day 4～Day 7 能力仍未实现。`ToolCall/ToolRun` 当前是 Run-owned operational audit projection，普通删除被外键 `RESTRICT`；生产 L1 启用前还必须实现显式 Run purge、最小 security audit 留存与恢复/备份测试，并统一旧 queued-cancel/unrecoverable terminalizer 的 revision 投影。真实 Web 接入前还必须由 Adapter 只产出 public canonical locator 并通过完整 SSRF/egress 合同。当前证据见 [Day 3 学习日志](docs/learning-log/day-3.md)；尚无对应干净 CI，D3-02 保持 `thin_slice`，不得据此宣称 Day 3 或生产 L1 用户旅程完成。
 
 ## 执行基线与安装
 

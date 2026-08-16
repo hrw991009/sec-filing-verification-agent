@@ -411,10 +411,10 @@ export interface components {
         };
         /**
          * AgentEventType
-         * @description Day 2 Event vocabulary shared by persistence, SSE, and Trace.
+         * @description Versioned Event vocabulary shared by persistence, SSE, and Trace.
          * @enum {string}
          */
-        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.artifact.created" | "agent.checkpoint.saved";
+        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.tool.requested" | "agent.tool.approval_required" | "agent.tool.denied" | "agent.tool.started" | "agent.tool.completed" | "agent.tool.failed" | "agent.tool.cancelled" | "agent.artifact.created" | "agent.checkpoint.saved";
         /**
          * AgentRunStatus
          * @description Persisted lifecycle of one logical Agent run.
@@ -563,10 +563,10 @@ export interface components {
         };
         /**
          * ContextSourceKind
-         * @description The base inputs plus each explicitly selected Day 2 attachment.
+         * @description The explicit, versioned sources considered for one model request.
          * @enum {string}
          */
-        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "conversation_summary" | "attachment" | "user_question";
+        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "conversation_summary" | "attachment" | "user_question" | "tool_observation";
         /** ContextSourceResponse */
         ContextSourceResponse: {
             decision_reason: components["schemas"]["ContextDecisionReason"];

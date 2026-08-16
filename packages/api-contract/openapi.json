@@ -22,7 +22,7 @@
         "type": "object"
       },
       "AgentEventType": {
-        "description": "Day 2 Event vocabulary shared by persistence, SSE, and Trace.",
+        "description": "Versioned Event vocabulary shared by persistence, SSE, and Trace.",
         "enum": [
           "agent.run.queued",
           "agent.run.started",
@@ -37,6 +37,13 @@
           "agent.model.started",
           "agent.model.delta",
           "agent.model.completed",
+          "agent.tool.requested",
+          "agent.tool.approval_required",
+          "agent.tool.denied",
+          "agent.tool.started",
+          "agent.tool.completed",
+          "agent.tool.failed",
+          "agent.tool.cancelled",
           "agent.artifact.created",
           "agent.checkpoint.saved"
         ],
@@ -291,13 +298,14 @@
         "type": "object"
       },
       "ContextSourceKind": {
-        "description": "The base inputs plus each explicitly selected Day 2 attachment.",
+        "description": "The explicit, versioned sources considered for one model request.",
         "enum": [
           "system_instructions",
           "runtime_context_projection",
           "conversation_summary",
           "attachment",
-          "user_question"
+          "user_question",
+          "tool_observation"
         ],
         "title": "ContextSourceKind",
         "type": "string"

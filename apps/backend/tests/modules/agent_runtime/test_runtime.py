@@ -97,6 +97,10 @@ class RecordingEventCommitter:
             raise AssertionError("test committer received a sequence gap")
         self.events.append(event)
 
+    async def append_batch(self, events: tuple[AgentEvent, ...]) -> None:
+        for event in events:
+            await self.append(event)
+
 
 class ScriptedCancellationProbe:
     def __init__(self, decisions: tuple[bool, ...] = ()) -> None:

@@ -1,7 +1,9 @@
 """Typed inputs and audit records for compiling one model-visible context."""
 
 import hashlib
+import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -19,6 +21,7 @@ from industry_platform.modules.agent_runtime.domain import (
     require_current_schema_version,
     require_non_nil_uuid,
     require_utc,
+    snapshot_json_mapping,
 )
 from industry_platform.modules.agent_runtime.model import (
     ModelImageMediaType,
@@ -33,7 +36,9 @@ from industry_platform.modules.workspaces.policy import WORKSPACE_ROLE_ACTIONS
 
 CONTEXT_MANIFEST_SCHEMA_VERSION: Final = 1
 CONTEXT_COMPILER_V0: Final = "context-v0"
+CONTEXT_COMPILER_V1: Final = "context-v1"
 RUNTIME_CONTEXT_PROJECTION_V0: Final = "runtime-context-projection-v0"
+TOOL_OBSERVATION_CONTEXT_VERSION: Final = "tool-observation-v1"
 
 MAX_CONTEXT_SYSTEM_INSTRUCTIONS_LENGTH: Final = 20_000
 MAX_CONTEXT_QUESTION_LENGTH: Final = 20_000
@@ -41,7 +46,14 @@ MAX_CONTEXT_SUMMARY_LENGTH: Final = 50_000
 MAX_CONTEXT_WORKSPACE_NAME_LENGTH: Final = 256
 MAX_CONTEXT_ATTACHMENT_TEXT_LENGTH: Final = 500_000
 MAX_CONTEXT_ATTACHMENTS: Final = 4
-MAX_CONTEXT_MANIFEST_SOURCES: Final = 4 + MAX_CONTEXT_ATTACHMENTS
+MAX_CONTEXT_TOOL_OBSERVATION_TEXT_LENGTH: Final = 50_000
+# The Tool contract permits up to sixteen 2 KiB Unicode source locators. Keep
+# the aggregate envelope hard-bounded while accepting every domain-valid
+# Observation; the Context token budget remains the stricter model-call gate.
+MAX_CONTEXT_TOOL_OBSERVATION_LOCATOR_BYTES: Final = 256 * 1_024
+MAX_CONTEXT_TOOL_OBSERVATIONS: Final = 8
+MAX_CONTEXT_RESPONSE_SCHEMA_BYTES: Final = 100_000
+MAX_CONTEXT_MANIFEST_SOURCES: Final = 4 + MAX_CONTEXT_ATTACHMENTS + MAX_CONTEXT_TOOL_OBSERVATIONS
 
 _VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+/-]{0,127}$")
 _SECRET_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
@@ -77,13 +89,14 @@ class BackgroundRunPrincipal:
 
 
 class ContextSourceKind(StrEnum):
-    """The base inputs plus each explicitly selected Day 2 attachment."""
+    """The explicit, versioned sources considered for one model request."""
 
     SYSTEM_INSTRUCTIONS = "system_instructions"
     RUNTIME_CONTEXT_PROJECTION = "runtime_context_projection"
     CONVERSATION_SUMMARY = "conversation_summary"
     ATTACHMENT = "attachment"
     USER_QUESTION = "user_question"
+    TOOL_OBSERVATION = "tool_observation"
 
 
 class ContextDecisionReason(StrEnum):
@@ -263,8 +276,129 @@ def validate_attachment_context_sources(
 
 
 @dataclass(frozen=True, slots=True)
+class ToolObservationContextSource:
+    """One normalized, bounded Tool Observation selected as untrusted model data."""
+
+    observation_id: UUID
+    tool_call_id: UUID
+    workspace_id: UUID
+    ordinal: int
+    tool_name: str
+    tool_version: str
+    source_name: str
+    source_version: str
+    observed_at: datetime
+    locator: Mapping[str, object] = field(repr=False)
+    content_sha256: str
+    model_text: str = field(repr=False)
+    observation_version: str = TOOL_OBSERVATION_CONTEXT_VERSION
+    envelope_sha256: str = ""
+
+    def __post_init__(self) -> None:
+        for identifier, field_name in (
+            (self.observation_id, "Tool Observation ID"),
+            (self.tool_call_id, "Tool Observation call ID"),
+            (self.workspace_id, "Tool Observation Workspace ID"),
+        ):
+            require_non_nil_uuid(identifier, field_name=field_name)
+        if self.observation_id == self.tool_call_id:
+            raise ValueError("Tool Observation and call IDs must be distinct")
+        if isinstance(self.ordinal, bool) or not 1 <= self.ordinal <= MAX_CONTEXT_TOOL_OBSERVATIONS:
+            raise ValueError("Tool Observation ordinal is invalid")
+        for value, field_name in (
+            (self.tool_name, "Tool Observation tool name"),
+            (self.tool_version, "Tool Observation tool version"),
+            (self.source_name, "Tool Observation source name"),
+            (self.source_version, "Tool Observation source version"),
+            (self.observation_version, "Tool Observation version"),
+        ):
+            _require_version(value, field_name=field_name)
+        if self.observation_version != TOOL_OBSERVATION_CONTEXT_VERSION:
+            raise ValueError("Tool Observation version is unsupported")
+        require_utc(self.observed_at, field_name="Tool Observation time")
+
+        locator = snapshot_json_mapping(
+            self.locator,
+            error_message="Tool Observation locator must be canonical JSON data",
+        )
+        if not locator:
+            raise ValueError("Tool Observation locator must not be empty")
+        encoded_locator = json.dumps(
+            dict(locator),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        if len(encoded_locator) > MAX_CONTEXT_TOOL_OBSERVATION_LOCATOR_BYTES:
+            raise ValueError("Tool Observation locator exceeds its size limit")
+        object.__setattr__(self, "locator", locator)
+
+        model_text = _normalize_text(
+            self.model_text,
+            maximum=MAX_CONTEXT_TOOL_OBSERVATION_TEXT_LENGTH,
+            field_name="Tool Observation model text",
+        )
+        if (
+            not _SHA256_PATTERN.fullmatch(self.content_sha256)
+            or hashlib.sha256(model_text.encode("utf-8")).hexdigest() != self.content_sha256
+        ):
+            raise ValueError("Tool Observation model text does not match its digest")
+        object.__setattr__(self, "model_text", model_text)
+        computed_envelope_sha256 = hashlib.sha256(
+            json.dumps(
+                dict(self.to_model_visible_envelope()),
+                allow_nan=False,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()
+        if self.envelope_sha256 and self.envelope_sha256 != computed_envelope_sha256:
+            raise ValueError("Tool Observation envelope does not match its digest")
+        object.__setattr__(self, "envelope_sha256", computed_envelope_sha256)
+
+    def to_model_visible_envelope(self) -> Mapping[str, object]:
+        """Return the exact untrusted payload injected by Context Compiler v1."""
+
+        return snapshot_json_mapping(
+            {
+                "observation_id": str(self.observation_id),
+                "tool_call_id": str(self.tool_call_id),
+                "tool": {"name": self.tool_name, "version": self.tool_version},
+                "source": {"name": self.source_name, "version": self.source_version},
+                "observed_at": self.observed_at.isoformat().replace("+00:00", "Z"),
+                "locator": dict(self.locator),
+                "content_sha256": self.content_sha256,
+                "content": self.model_text,
+            },
+            error_message="Tool Observation model-visible envelope is invalid",
+        )
+
+
+def validate_tool_observation_context_sources(
+    observations: tuple[ToolObservationContextSource, ...],
+    *,
+    workspace_id: UUID,
+) -> tuple[ToolObservationContextSource, ...]:
+    """Freeze one ordered, Workspace-scoped set of bounded Tool Observations."""
+
+    selected = tuple(observations)
+    if len(selected) > MAX_CONTEXT_TOOL_OBSERVATIONS:
+        raise ValueError("Tool Observation Context exceeds the observation count limit")
+    if len({observation.observation_id for observation in selected}) != len(selected):
+        raise ValueError("Tool Observation Context IDs must be unique")
+    if any(
+        observation.workspace_id != workspace_id or observation.ordinal != ordinal
+        for ordinal, observation in enumerate(selected, start=1)
+    ):
+        raise ValueError("Tool Observation Context order or Workspace is invalid")
+    return selected
+
+
+@dataclass(frozen=True, slots=True)
 class ContextCompilationInput:
-    """All explicit inputs needed to compile one Direct Answer model request."""
+    """All explicit inputs needed to compile one bounded model request."""
 
     manifest_id: UUID
     run: AgentRun
@@ -282,6 +416,11 @@ class ContextCompilationInput:
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
     attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
+    tool_observations: tuple[ToolObservationContextSource, ...] = field(
+        default=(),
+        repr=False,
+    )
+    response_schema: Mapping[str, object] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         require_non_nil_uuid(self.manifest_id, field_name="Context manifest ID")
@@ -357,6 +496,34 @@ class ContextCompilationInput:
                 workspace_id=self.run.workspace_id,
             ),
         )
+        observations = validate_tool_observation_context_sources(
+            self.tool_observations,
+            workspace_id=self.run.workspace_id,
+        )
+        if self.compiler_version == CONTEXT_COMPILER_V0 and observations:
+            raise ValueError("Context Compiler v0 cannot include Tool Observations")
+        if any(
+            observation.observed_at < self.run.created_at
+            or observation.observed_at > self.compiled_at
+            for observation in observations
+        ):
+            raise ValueError("Tool Observation time is outside the Context compilation window")
+        object.__setattr__(self, "tool_observations", observations)
+        if self.response_schema is not None:
+            response_schema = snapshot_json_mapping(
+                self.response_schema,
+                error_message="Context response schema must be canonical JSON data",
+            )
+            encoded_schema = json.dumps(
+                dict(response_schema),
+                allow_nan=False,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+            if not response_schema or len(encoded_schema) > MAX_CONTEXT_RESPONSE_SCHEMA_BYTES:
+                raise ValueError("Context response schema exceeds its size limit")
+            object.__setattr__(self, "response_schema", response_schema)
 
 
 @dataclass(frozen=True, slots=True)
@@ -393,11 +560,14 @@ class ContextSourceManifestEntry:
             or self.message_role is not None
         ):
             raise ValueError("An excluded Context source cannot claim model input")
-        if self.source_kind is ContextSourceKind.ATTACHMENT:
+        if self.source_kind in {
+            ContextSourceKind.ATTACHMENT,
+            ContextSourceKind.TOOL_OBSERVATION,
+        }:
             if not _SHA256_PATTERN.fullmatch(self.source_sha256 or ""):
-                raise ValueError("Attachment Context source digest is invalid")
+                raise ValueError("Hashed Context source digest is invalid")
         elif self.source_sha256 is not None:
-            raise ValueError("Only Attachment Context sources may record a digest")
+            raise ValueError("Only hashed Context sources may record a digest")
 
 
 @dataclass(frozen=True, slots=True)
@@ -479,14 +649,40 @@ class ContextManifest:
             ContextSourceKind.CONVERSATION_SUMMARY,
         )
         kinds = tuple(source.source_kind for source in sources)
-        if (
+        attachment_count = kinds.count(ContextSourceKind.ATTACHMENT)
+        observation_count = kinds.count(ContextSourceKind.TOOL_OBSERVATION)
+        common_order_is_invalid = (
             not 4 <= len(sources) <= MAX_CONTEXT_MANIFEST_SOURCES
             or kinds[:3] != expected_prefix
-            or kinds[-1] is not ContextSourceKind.USER_QUESTION
-            or any(kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:-1])
+            or attachment_count > MAX_CONTEXT_ATTACHMENTS
+            or observation_count > MAX_CONTEXT_TOOL_OBSERVATIONS
             or any(source.ordinal != ordinal for ordinal, source in enumerate(sources, start=1))
-        ):
-            raise ValueError("Context manifest sources use an invalid v0 order")
+        )
+        if self.compiler_version == CONTEXT_COMPILER_V0:
+            version_order_is_invalid = kinds[-1] is not ContextSourceKind.USER_QUESTION or any(
+                kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:-1]
+            )
+        elif self.compiler_version == CONTEXT_COMPILER_V1:
+            question_indexes = tuple(
+                index for index, kind in enumerate(kinds) if kind is ContextSourceKind.USER_QUESTION
+            )
+            version_order_is_invalid = len(question_indexes) != 1
+            if not version_order_is_invalid:
+                question_index = question_indexes[0]
+                version_order_is_invalid = (
+                    question_index < 3
+                    or any(
+                        kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:question_index]
+                    )
+                    or any(
+                        kind is not ContextSourceKind.TOOL_OBSERVATION
+                        for kind in kinds[question_index + 1 :]
+                    )
+                )
+        else:
+            version_order_is_invalid = True
+        if common_order_is_invalid or version_order_is_invalid:
+            raise ValueError("Context manifest sources use an invalid compiler-version order")
         attachment_ids = tuple(
             source.source_id
             for source in sources
@@ -494,6 +690,13 @@ class ContextManifest:
         )
         if len(attachment_ids) != len(set(attachment_ids)):
             raise ValueError("Context manifest Attachment source IDs must be unique")
+        observation_ids = tuple(
+            source.source_id
+            for source in sources
+            if source.source_kind is ContextSourceKind.TOOL_OBSERVATION
+        )
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("Context manifest Tool Observation source IDs must be unique")
         object.__setattr__(self, "sources", sources)
 
 

@@ -44,6 +44,7 @@ class AgentRunRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "agent_runs"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id"),
+        UniqueConstraint("id", "workspace_id", "user_id"),
         UniqueConstraint("event_stream_id"),
         UniqueConstraint("job_id"),
         ForeignKeyConstraint(

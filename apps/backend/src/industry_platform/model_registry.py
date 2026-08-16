@@ -33,6 +33,7 @@ from industry_platform.modules.jobs.models import (
     Schedule,
     ScheduleOccurrence,
 )
+from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
 REGISTERED_MODELS: tuple[type[Base], ...] = (
     User,
@@ -57,6 +58,8 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     ContextManifestRecord,
     RunArtifactRecord,
     AgentCheckpointRecord,
+    ToolCallRecord,
+    ToolRunRecord,
 )
 
 metadata: MetaData = Base.metadata

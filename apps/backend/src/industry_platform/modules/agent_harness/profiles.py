@@ -11,6 +11,8 @@ from industry_platform.modules.agent_runtime.domain import (
     AgentRunType,
 )
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import ToolL1RuntimePolicy
+from industry_platform.modules.tools.domain import ToolReference, tool_references
 
 DIRECT_ANSWER_PROFILE_SCHEMA_VERSION: Final = 1
 DIRECT_ANSWER_TOOLSET_VERSION: Final = "toolset-none-v1"
@@ -24,6 +26,7 @@ class ProfileExecutionMode(StrEnum):
     """Whether a profile is a baseline or a bounded Agent loop."""
 
     BASELINE_MODEL_RUN = "baseline_model_run"
+    BOUNDED_TOOL_LOOP = "bounded_tool_loop"
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,4 +100,54 @@ class DirectAnswerProfile:
             max_input_tokens=self.max_input_tokens,
             max_output_tokens=self.max_output_tokens,
             system_instructions=self.system_instructions,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ToolL1Profile:
+    """L1 policy: two model calls around one exact allowlisted Tool."""
+
+    schema_version: int
+    profile_name: str
+    profile_version: str
+    prompt_version: str
+    context_compiler_version: str
+    output_contract_version: str
+    toolset_version: str
+    model: str
+    max_input_tokens: int
+    max_action_output_tokens: int
+    max_final_output_tokens: int
+    system_instructions: str = field(repr=False)
+    available_tools: tuple[ToolReference, ...]
+    run_type: AgentRunType = field(default=AgentRunType.TOOL_LOOP, init=False)
+    execution_mode: ProfileExecutionMode = field(
+        default=ProfileExecutionMode.BOUNDED_TOOL_LOOP,
+        init=False,
+    )
+
+    def __post_init__(self) -> None:
+        if self.profile_name != "tool-l1":
+            raise ValueError("Tool L1 profile name is invalid")
+        # Runtime policy owns the complete validation and is also the projection.
+        runtime_policy = self.to_runtime_policy()
+        object.__setattr__(self, "available_tools", runtime_policy.available_tools)
+        object.__setattr__(self, "system_instructions", runtime_policy.system_instructions)
+
+    def to_runtime_policy(self) -> ToolL1RuntimePolicy:
+        """Project Harness choices into the Runtime-owned L1 policy."""
+
+        return ToolL1RuntimePolicy(
+            schema_version=self.schema_version,
+            profile_version=self.profile_version,
+            prompt_version=self.prompt_version,
+            context_compiler_version=self.context_compiler_version,
+            output_contract_version=self.output_contract_version,
+            toolset_version=self.toolset_version,
+            model=self.model,
+            max_input_tokens=self.max_input_tokens,
+            max_action_output_tokens=self.max_action_output_tokens,
+            max_final_output_tokens=self.max_final_output_tokens,
+            system_instructions=self.system_instructions,
+            available_tools=tool_references(self.available_tools),
         )

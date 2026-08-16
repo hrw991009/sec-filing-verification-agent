@@ -7,7 +7,7 @@ from types import MappingProxyType
 from typing import Final
 from uuid import UUID
 
-from industry_platform.modules.agent_runtime.context import ContextManifest
+from industry_platform.modules.agent_runtime.context import ContextManifest, ContextSourceKind
 from industry_platform.modules.agent_runtime.domain import (
     AgentRunStatus,
     AgentRunType,
@@ -214,6 +214,29 @@ class AgentTrace:
             for manifest in manifests
         ):
             raise ValueError("Trace Context manifests do not belong to its Run Steps")
+        completed_observations: dict[str, str] = {}
+        for event in events:
+            if event.event_type is not AgentEventType.TOOL_COMPLETED:
+                continue
+            observation_id = event.details.get("observation_id")
+            envelope_sha256 = event.details.get("observation_envelope_sha256")
+            if (
+                not isinstance(observation_id, str)
+                or not isinstance(envelope_sha256, str)
+                or len(envelope_sha256) != 64
+                or any(character not in "0123456789abcdef" for character in envelope_sha256)
+                or observation_id in completed_observations
+            ):
+                raise ValueError("Trace Tool completion metadata is invalid")
+            completed_observations[observation_id] = envelope_sha256
+        for manifest in manifests:
+            for source in manifest.sources:
+                if source.source_kind is not ContextSourceKind.TOOL_OBSERVATION:
+                    continue
+                if completed_observations.get(source.source_id) != source.source_sha256:
+                    raise ValueError(
+                        "Trace Tool Observation source does not match a completed Tool Event"
+                    )
         object.__setattr__(self, "steps", steps)
         object.__setattr__(self, "context_manifests", manifests)
         object.__setattr__(self, "events", events)

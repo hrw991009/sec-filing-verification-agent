@@ -43,6 +43,8 @@ from industry_platform.modules.conversations.models import Message, MessageRole,
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.domain import TERMINAL_JOB_STATUSES, JobEventType, JobStatus
 from industry_platform.modules.jobs.models import Job, JobEvent
+from industry_platform.modules.tools.domain import ToolObservation, ToolReference, ToolSource
+from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
 
 class AgentEventPersistenceError(RuntimeError):
@@ -89,19 +91,39 @@ class SqlAlchemyAgentEventCommitter:
     session_factory: AsyncSessionFactory
 
     async def append(self, event: AgentEvent) -> None:
+        await self.append_batch((event,))
+
+    async def append_batch(self, events: tuple[AgentEvent, ...]) -> None:
+        if not events:
+            raise ValueError("Agent Event persistence batch cannot be empty")
+        first = events[0]
+        if any(
+            event.run_id != first.run_id
+            or event.workspace_id != first.workspace_id
+            or event.stream_id != first.stream_id
+            or event.trace_id != first.trace_id
+            or event.schema_version != first.schema_version
+            for event in events[1:]
+        ):
+            raise ValueError("Agent Event persistence batch must belong to one Run")
         try:
             async with self.session_factory.begin() as session:
                 run = await session.scalar(
                     select(AgentRunRecord)
                     .where(
-                        AgentRunRecord.id == event.run_id,
-                        AgentRunRecord.workspace_id == event.workspace_id,
+                        AgentRunRecord.id == first.run_id,
+                        AgentRunRecord.workspace_id == first.workspace_id,
                     )
                     .with_for_update()
                 )
                 if run is None:
                     raise AgentEventPersistenceError()
-                await _append_locked_agent_event(session, run, event)
+                for index, event in enumerate(events):
+                    await _append_locked_agent_event(session, run, event)
+                    if index + 1 < len(events):
+                        # Later projections in the same transaction may lock rows
+                        # created by an earlier Event in this atomic batch.
+                        await session.flush()
         except AgentEventPersistenceError:
             raise
         except (TypeError, ValueError):
@@ -150,6 +172,14 @@ class SqlAlchemyAgentEventCommitter:
                 workspace_id=event.workspace_id,
                 step_id=_required_uuid(payload, "step_id"),
             )
+            step_cost_micro_usd = _optional_int(payload, "cost_micro_usd") or 0
+            if step.kind is AgentStepKind.TOOL:
+                await _validate_tool_step_terminal_projection(
+                    session,
+                    event,
+                    step=step,
+                    cost_micro_usd=step_cost_micro_usd,
+                )
             step.status = (
                 AgentStepStatus.COMPLETED
                 if event.event_type is AgentEventType.STEP_COMPLETED
@@ -159,7 +189,7 @@ class SqlAlchemyAgentEventCommitter:
             step.last_event_sequence = event.sequence
             step.input_tokens = _optional_int(payload, "input_tokens") or 0
             step.output_tokens = _optional_int(payload, "output_tokens") or 0
-            step.cost_micro_usd = _optional_int(payload, "cost_micro_usd") or 0
+            step.cost_micro_usd = step_cost_micro_usd
             step.error_code = (
                 _required_str(payload, "error_code")
                 if event.event_type is AgentEventType.STEP_FAILED
@@ -169,13 +199,39 @@ class SqlAlchemyAgentEventCommitter:
                 run.input_tokens_used += step.input_tokens
                 run.output_tokens_used += step.output_tokens
                 run.cached_input_tokens_used += _optional_int(payload, "cached_input_tokens") or 0
-                run.cost_micro_usd += step.cost_micro_usd
+            run.cost_micro_usd += step.cost_micro_usd
+            return
+        if event.event_type is AgentEventType.TOOL_REQUESTED:
+            await _project_tool_requested(session, run, event)
+            return
+        if event.event_type in {
+            AgentEventType.TOOL_APPROVAL_REQUIRED,
+            AgentEventType.TOOL_DENIED,
+        }:
+            await _project_tool_rejected(session, event)
+            return
+        if event.event_type is AgentEventType.TOOL_STARTED:
+            await _project_tool_started(session, event)
+            return
+        if event.event_type is AgentEventType.TOOL_COMPLETED:
+            await _project_tool_completed(session, event)
+            return
+        if event.event_type in {
+            AgentEventType.TOOL_FAILED,
+            AgentEventType.TOOL_CANCELLED,
+        }:
+            await _project_tool_settled_without_result(session, event)
             return
         if event.event_type in {
             AgentEventType.RUN_COMPLETED,
             AgentEventType.RUN_FAILED,
             AgentEventType.RUN_CANCELLED,
         }:
+            projected_revision = _optional_int(payload, "state_revision")
+            if projected_revision is not None:
+                if projected_revision <= run.state_revision:
+                    raise AgentEventPersistenceError()
+                run.state_revision = projected_revision
             run.status = {
                 AgentEventType.RUN_COMPLETED: AgentRunStatus.COMPLETED,
                 AgentEventType.RUN_FAILED: AgentRunStatus.FAILED,
@@ -183,12 +239,506 @@ class SqlAlchemyAgentEventCommitter:
             }[event.event_type]
             run.stop_reason = RunStopReason(_required_str(payload, "stop_reason"))
             run.terminal_at = event.occurred_at
+            await _settle_interrupted_tool_facts(session, event)
             if event.event_type is AgentEventType.RUN_CANCELLED:
                 await _settle_cancelled_step(session, run, event)
             if event.event_type is AgentEventType.RUN_COMPLETED:
                 await _persist_final_message(session, run, event.occurred_at)
             else:
                 await _persist_partial_message(session, run, event)
+
+
+async def _locked_tool_facts(
+    session: AsyncSession,
+    event: AgentEvent,
+) -> tuple[ToolCallRecord, ToolRunRecord]:
+    call_id = _required_uuid(event.payload, "call_id")
+    call = await session.scalar(
+        select(ToolCallRecord)
+        .where(
+            ToolCallRecord.id == call_id,
+            ToolCallRecord.run_id == event.run_id,
+            ToolCallRecord.workspace_id == event.workspace_id,
+        )
+        .with_for_update()
+    )
+    audit = await session.scalar(
+        select(ToolRunRecord)
+        .where(
+            ToolRunRecord.id == call_id,
+            ToolRunRecord.run_id == event.run_id,
+            ToolRunRecord.workspace_id == event.workspace_id,
+        )
+        .with_for_update()
+    )
+    if call is None or audit is None:
+        raise AgentEventPersistenceError()
+    return call, audit
+
+
+async def _validate_tool_step_terminal_projection(
+    session: AsyncSession,
+    event: AgentEvent,
+    *,
+    step: AgentStepRecord,
+    cost_micro_usd: int,
+) -> None:
+    """Require one Tool Step settlement to match its already-projected Tool facts."""
+
+    call_id = _required_uuid(event.payload, "call_id")
+    call = await session.scalar(
+        select(ToolCallRecord)
+        .where(
+            ToolCallRecord.id == call_id,
+            ToolCallRecord.execution_step_id == step.id,
+            ToolCallRecord.run_id == event.run_id,
+            ToolCallRecord.workspace_id == event.workspace_id,
+        )
+        .with_for_update()
+    )
+    audit = await session.scalar(
+        select(ToolRunRecord)
+        .where(
+            ToolRunRecord.id == call_id,
+            ToolRunRecord.run_id == event.run_id,
+            ToolRunRecord.workspace_id == event.workspace_id,
+        )
+        .with_for_update()
+    )
+    expected_status = "completed" if event.event_type is AgentEventType.STEP_COMPLETED else "failed"
+    expected_error = (
+        None if expected_status == "completed" else _required_str(event.payload, "error_code")
+    )
+    if (
+        call is None
+        or audit is None
+        or call.status != expected_status
+        or audit.status != expected_status
+        or call.cost_micro_usd != cost_micro_usd
+        or audit.cost_micro_usd != cost_micro_usd
+        or call.error_code != expected_error
+        or audit.error_code != expected_error
+    ):
+        raise AgentEventPersistenceError()
+    if expected_status == "completed" and _required_str(event.payload, "step_kind") != "tool":
+        raise AgentEventPersistenceError()
+
+
+async def _validate_cancelled_tool_step_projection(
+    session: AsyncSession,
+    event: AgentEvent,
+    *,
+    step: AgentStepRecord,
+) -> None:
+    call = await session.scalar(
+        select(ToolCallRecord)
+        .where(
+            ToolCallRecord.execution_step_id == step.id,
+            ToolCallRecord.run_id == event.run_id,
+            ToolCallRecord.workspace_id == event.workspace_id,
+        )
+        .with_for_update()
+    )
+    if call is None:
+        raise AgentEventPersistenceError()
+    audit = await session.scalar(
+        select(ToolRunRecord)
+        .where(
+            ToolRunRecord.id == call.id,
+            ToolRunRecord.run_id == event.run_id,
+            ToolRunRecord.workspace_id == event.workspace_id,
+        )
+        .with_for_update()
+    )
+    if (
+        audit is None
+        or call.status != "cancelled"
+        or audit.status != "cancelled"
+        or call.cost_micro_usd != 0
+        or audit.cost_micro_usd != 0
+        or call.error_code is not None
+        or audit.error_code is not None
+    ):
+        raise AgentEventPersistenceError()
+
+
+async def _project_tool_requested(
+    session: AsyncSession,
+    run: AgentRunRecord,
+    event: AgentEvent,
+) -> None:
+    payload = event.payload
+    call_id = _required_uuid(payload, "call_id")
+    requested_by_step_id = _required_uuid(payload, "requested_by_step_id")
+    requesting_step = await _locked_step(
+        session,
+        run_id=event.run_id,
+        workspace_id=event.workspace_id,
+        step_id=requested_by_step_id,
+    )
+    if requesting_step.kind is not AgentStepKind.MODEL:
+        raise AgentEventPersistenceError()
+    actor_user_id = _required_uuid(payload, "actor_user_id")
+    trace_id = _required_str(payload, "trace_id")
+    if actor_user_id != run.user_id or trace_id != run.trace_id:
+        raise AgentEventPersistenceError()
+    digest = _required_sha256_bytes(payload, "sanitized_arguments_sha256")
+    summary = _required_json_object(payload, "sanitized_input_summary")
+    common: dict[str, object] = {
+        "id": call_id,
+        "workspace_id": event.workspace_id,
+        "run_id": event.run_id,
+        "schema_version": event.schema_version,
+        "requested_tool_name": _required_str(payload, "requested_tool_name"),
+        "requested_tool_version": _required_str(payload, "requested_tool_version"),
+        "toolset_version": _required_str(payload, "toolset_version"),
+        "policy_version": _required_str(payload, "policy_version"),
+        "status": "requested",
+        "cost_micro_usd": 0,
+        "created_at": event.occurred_at,
+        "updated_at": event.occurred_at,
+    }
+    session.add(
+        ToolCallRecord(
+            **common,
+            requested_by_step_id=requested_by_step_id,
+            execution_step_id=None,
+            sanitized_arguments_hash=digest,
+        )
+    )
+    session.add(
+        ToolRunRecord(
+            **common,
+            actor_user_id=actor_user_id,
+            actor_role=_required_str(payload, "actor_role"),
+            trace_id=trace_id,
+            sanitizer_version=_required_str(payload, "sanitizer_version"),
+            sanitized_input_summary=summary,
+            source_summary=[],
+        )
+    )
+
+
+def _apply_tool_definition_snapshot(
+    call: ToolCallRecord,
+    audit: ToolRunRecord,
+    payload: Mapping[str, object],
+) -> None:
+    resolved_name = payload.get("resolved_tool_name")
+    if resolved_name is None:
+        return
+    values: dict[str, object] = {
+        "resolved_tool_name": _required_str(payload, "resolved_tool_name"),
+        "tool_version": _required_str(payload, "tool_version"),
+        "input_schema_version": _required_str(payload, "input_schema_version"),
+        "output_schema_version": _required_str(payload, "output_schema_version"),
+        "required_capability": _required_str(payload, "required_capability"),
+        "cost_class": _required_str(payload, "cost_class"),
+        "side_effect_class": _required_str(payload, "side_effect_class"),
+        "approval_policy": _required_str(payload, "approval_policy"),
+        "retry_classification": _required_str(payload, "retry_classification"),
+        "policy_version": _required_str(payload, "policy_version"),
+        "timeout_ms": _required_int(payload, "timeout_ms"),
+        "max_result_bytes": _required_int(payload, "max_result_bytes"),
+        "max_cost_micro_usd": _required_int(payload, "max_cost_micro_usd"),
+    }
+    for record in (call, audit):
+        for key, value in values.items():
+            setattr(record, key, value)
+
+
+async def _project_tool_rejected(session: AsyncSession, event: AgentEvent) -> None:
+    call, audit = await _locked_tool_facts(session, event)
+    if call.status != "requested" or audit.status != "requested":
+        raise AgentEventPersistenceError()
+    _apply_tool_definition_snapshot(call, audit, event.payload)
+    decision = _required_str(event.payload, "policy_decision")
+    reason = _required_str(event.payload, "policy_reason_code")
+    status = (
+        "approval_required"
+        if event.event_type is AgentEventType.TOOL_APPROVAL_REQUIRED
+        else "denied"
+    )
+    if (status == "approval_required") != (decision == "approval_required"):
+        raise AgentEventPersistenceError()
+    if status == "denied" and decision != "deny":
+        raise AgentEventPersistenceError()
+    for record in (call, audit):
+        record.status = status
+        record.policy_decision = decision
+        record.policy_reason_code = reason
+        record.terminal_at = event.occurred_at
+        record.updated_at = event.occurred_at
+        record.error_code = None if status == "approval_required" else reason
+
+
+async def _project_tool_started(session: AsyncSession, event: AgentEvent) -> None:
+    call, audit = await _locked_tool_facts(session, event)
+    if call.status != "requested" or audit.status != "requested":
+        raise AgentEventPersistenceError()
+    execution_step_id = _required_uuid(event.payload, "execution_step_id")
+    execution_step = await _locked_step(
+        session,
+        run_id=event.run_id,
+        workspace_id=event.workspace_id,
+        step_id=execution_step_id,
+    )
+    if execution_step.kind is not AgentStepKind.TOOL:
+        raise AgentEventPersistenceError()
+    _apply_tool_definition_snapshot(call, audit, event.payload)
+    decision = _required_str(event.payload, "policy_decision")
+    reason = _required_str(event.payload, "policy_reason_code")
+    if decision != "allow":
+        raise AgentEventPersistenceError()
+    digest = _required_sha256_bytes(event.payload, "sanitized_arguments_sha256")
+    if digest != call.sanitized_arguments_hash:
+        raise AgentEventPersistenceError()
+    idempotency_hash = _optional_sha256_bytes(event.payload, "idempotency_key_sha256")
+    call.execution_step_id = execution_step_id
+    call.idempotency_key_hash = idempotency_hash
+    call.started_at = event.occurred_at
+    for record in (call, audit):
+        record.status = "running"
+        record.policy_decision = decision
+        record.policy_reason_code = reason
+        record.updated_at = event.occurred_at
+
+
+async def _project_tool_completed(session: AsyncSession, event: AgentEvent) -> None:
+    call, audit = await _locked_tool_facts(session, event)
+    if call.status != "running" or audit.status != "running":
+        raise AgentEventPersistenceError()
+    if call.execution_step_id != _required_uuid(event.payload, "execution_step_id"):
+        raise AgentEventPersistenceError()
+    projection = _validated_tool_observation_projection(call, event)
+    duration_ms = _required_int(event.payload, "duration_ms")
+    cost_micro_usd = _required_int(event.payload, "cost_micro_usd")
+    call.status = "completed"
+    call.observation_schema_version = projection.schema_version
+    call.observation = projection.envelope
+    call.observation_content_sha256 = projection.content_sha256
+    call.observation_envelope_sha256 = projection.envelope_sha256
+    call.cost_micro_usd = cost_micro_usd
+    call.terminal_at = event.occurred_at
+    call.updated_at = event.occurred_at
+    audit.status = "completed"
+    audit.sanitized_output_summary = projection.output_summary
+    audit.source_summary = projection.source_summary
+    audit.duration_ms = duration_ms
+    audit.cost_micro_usd = cost_micro_usd
+    audit.terminal_at = event.occurred_at
+    audit.updated_at = event.occurred_at
+
+
+@dataclass(frozen=True, slots=True)
+class _ValidatedToolObservationProjection:
+    schema_version: int
+    envelope: dict[str, object]
+    content_sha256: str
+    envelope_sha256: str
+    output_summary: dict[str, object]
+    source_summary: list[dict[str, object]]
+
+
+def _validated_tool_observation_projection(
+    call: ToolCallRecord,
+    event: AgentEvent,
+) -> _ValidatedToolObservationProjection:
+    payload = event.payload
+    envelope = _required_json_object(payload, "observation")
+    expected_envelope_fields = {
+        "schema_version",
+        "observation_id",
+        "call_id",
+        "tool_name",
+        "tool_version",
+        "normalizer_version",
+        "model_text",
+        "content_sha256",
+        "observed_at",
+        "sources",
+    }
+    if set(envelope) != expected_envelope_fields:
+        raise AgentEventPersistenceError()
+
+    source_values = _required_json_object_list(envelope, "sources")
+    sources: list[ToolSource] = []
+    expected_source_fields = {
+        "source_type",
+        "source_version",
+        "locator",
+        "observed_at",
+        "content_sha256",
+    }
+    for source in source_values:
+        if set(source) != expected_source_fields:
+            raise AgentEventPersistenceError()
+        try:
+            sources.append(
+                ToolSource(
+                    source_type=_required_str(source, "source_type"),
+                    source_version=_required_str(source, "source_version"),
+                    locator=_required_str(source, "locator"),
+                    observed_at=_required_iso_datetime(source, "observed_at"),
+                    content_sha256=_required_sha256_hex(source, "content_sha256"),
+                )
+            )
+        except (TypeError, ValueError):
+            raise AgentEventPersistenceError() from None
+
+    try:
+        observation = ToolObservation(
+            schema_version=_required_int(envelope, "schema_version"),
+            observation_id=_required_uuid(envelope, "observation_id"),
+            call_id=_required_uuid(envelope, "call_id"),
+            run_id=event.run_id,
+            workspace_id=event.workspace_id,
+            tool=ToolReference(
+                name=_required_str(envelope, "tool_name"),
+                version=_required_str(envelope, "tool_version"),
+            ),
+            normalizer_version=_required_str(envelope, "normalizer_version"),
+            model_text=_required_str(envelope, "model_text"),
+            sources=tuple(sources),
+            observed_at=_required_iso_datetime(envelope, "observed_at"),
+            content_sha256=_required_sha256_hex(envelope, "content_sha256"),
+        )
+    except (TypeError, ValueError):
+        raise AgentEventPersistenceError() from None
+
+    if (
+        call.id != observation.call_id
+        or call.run_id != event.run_id
+        or call.workspace_id != event.workspace_id
+        or call.resolved_tool_name is None
+        or call.tool_version is None
+        or observation.tool.name != call.resolved_tool_name
+        or observation.tool.version != call.tool_version
+        or call.started_at is None
+        or observation.observed_at < call.started_at
+        or observation.observed_at > event.occurred_at
+    ):
+        raise AgentEventPersistenceError()
+
+    canonical_envelope = _plain_json_mapping(observation.to_persistence_payload())
+    if canonical_envelope != envelope:
+        raise AgentEventPersistenceError()
+    declared_schema_version = _required_int(payload, "observation_schema_version")
+    declared_observation_id = _required_uuid(payload, "observation_id")
+    declared_content_sha256 = _required_sha256_hex(payload, "observation_content_sha256")
+    declared_envelope_sha256 = _required_sha256_hex(payload, "observation_envelope_sha256")
+    if (
+        declared_schema_version != observation.schema_version
+        or declared_observation_id != observation.observation_id
+        or declared_content_sha256 != observation.content_sha256
+        or declared_envelope_sha256 != observation.model_visible_envelope_sha256
+    ):
+        raise AgentEventPersistenceError()
+
+    source_summary = _required_json_object_list(payload, "source_summary")
+    canonical_sources = _required_json_object_list(canonical_envelope, "sources")
+    output_summary = _required_json_object(payload, "sanitized_output_summary")
+    canonical_output_summary = _plain_json_mapping(observation.sanitized_output_summary)
+    if source_summary != canonical_sources or output_summary != canonical_output_summary:
+        raise AgentEventPersistenceError()
+
+    return _ValidatedToolObservationProjection(
+        schema_version=observation.schema_version,
+        envelope=canonical_envelope,
+        content_sha256=observation.content_sha256,
+        envelope_sha256=observation.model_visible_envelope_sha256,
+        output_summary=canonical_output_summary,
+        source_summary=canonical_sources,
+    )
+
+
+async def _project_tool_settled_without_result(
+    session: AsyncSession,
+    event: AgentEvent,
+) -> None:
+    call, audit = await _locked_tool_facts(session, event)
+    if call.status != "running" or audit.status != "running" or call.started_at is None:
+        raise AgentEventPersistenceError()
+    if call.execution_step_id != _required_uuid(event.payload, "execution_step_id"):
+        raise AgentEventPersistenceError()
+    cancelled = event.event_type is AgentEventType.TOOL_CANCELLED
+    status = "cancelled" if cancelled else "failed"
+    error_code = None if cancelled else _required_str(event.payload, "error_code")
+    cost_micro_usd = 0 if cancelled else _required_int(event.payload, "cost_micro_usd")
+    duration_ms = max(
+        0,
+        int((event.occurred_at - call.started_at).total_seconds() * 1_000),
+    )
+    for record in (call, audit):
+        record.status = status
+        record.cost_micro_usd = cost_micro_usd
+        record.terminal_at = event.occurred_at
+        record.updated_at = event.occurred_at
+        record.error_code = error_code
+    audit.duration_ms = duration_ms
+
+
+async def _settle_interrupted_tool_facts(
+    session: AsyncSession,
+    event: AgentEvent,
+) -> None:
+    calls = tuple(
+        await session.scalars(
+            select(ToolCallRecord)
+            .where(
+                ToolCallRecord.run_id == event.run_id,
+                ToolCallRecord.workspace_id == event.workspace_id,
+                ToolCallRecord.status.in_(("requested", "running")),
+            )
+            .with_for_update()
+        )
+    )
+    for call in calls:
+        audit = await session.scalar(
+            select(ToolRunRecord)
+            .where(
+                ToolRunRecord.id == call.id,
+                ToolRunRecord.run_id == event.run_id,
+                ToolRunRecord.workspace_id == event.workspace_id,
+            )
+            .with_for_update()
+        )
+        if audit is None:
+            raise AgentEventPersistenceError()
+        _settle_interrupted_tool_fact(call, audit, event)
+
+
+def _settle_interrupted_tool_fact(
+    call: ToolCallRecord,
+    audit: ToolRunRecord,
+    event: AgentEvent,
+) -> None:
+    if audit.status != call.status or call.status not in {"requested", "running"}:
+        raise AgentEventPersistenceError()
+    execution_started = call.status == "running"
+    if execution_started != (call.started_at is not None):
+        raise AgentEventPersistenceError()
+    if audit.side_effect_class != call.side_effect_class:
+        raise AgentEventPersistenceError()
+    outcome_unknown = execution_started and call.side_effect_class != "read_only"
+    cancelled = event.event_type is AgentEventType.RUN_CANCELLED and not outcome_unknown
+    status = "cancelled" if cancelled else "failed"
+    error_code = (
+        "tool_outcome_unknown"
+        if outcome_unknown
+        else (None if cancelled else "runtime_interrupted")
+    )
+    started_at = call.started_at
+    for record in (call, audit):
+        record.status = status
+        record.terminal_at = event.occurred_at
+        record.updated_at = event.occurred_at
+        record.error_code = error_code
+    if started_at is not None:
+        audit.duration_ms = max(
+            0,
+            int((event.occurred_at - started_at).total_seconds() * 1_000),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -782,9 +1332,21 @@ async def _settle_cancelled_step(session: object, run: AgentRunRecord, event: Ag
         workspace_id=event.workspace_id,
         step_id=UUID(value),
     )
+    if step.kind is AgentStepKind.TOOL:
+        if not isinstance(session, AsyncSession):
+            raise AgentEventPersistenceError()
+        await _validate_cancelled_tool_step_projection(session, event, step=step)
     step.status = AgentStepStatus.CANCELLED
     step.completed_at = event.occurred_at
     step.last_event_sequence = event.sequence
+    step.input_tokens = _optional_int(event.payload, "input_tokens") or 0
+    step.output_tokens = _optional_int(event.payload, "output_tokens") or 0
+    step.cost_micro_usd = _optional_int(event.payload, "cost_micro_usd") or 0
+    if step.kind is AgentStepKind.MODEL:
+        run.input_tokens_used += step.input_tokens
+        run.output_tokens_used += step.output_tokens
+        run.cached_input_tokens_used += _optional_int(event.payload, "cached_input_tokens") or 0
+    run.cost_micro_usd += step.cost_micro_usd
     run.step_count = max(run.step_count, step.sequence)
 
 
@@ -1003,3 +1565,60 @@ def _optional_int(payload: Mapping[str, object], key: str) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise AgentEventPersistenceError()
     return value
+
+
+def _required_json_object(
+    payload: Mapping[str, object],
+    key: str,
+) -> dict[str, object]:
+    value = payload.get(key)
+    if not isinstance(value, Mapping) or not all(isinstance(item, str) for item in value):
+        raise AgentEventPersistenceError()
+    return _plain_json_mapping(value)
+
+
+def _required_json_object_list(
+    payload: Mapping[str, object],
+    key: str,
+) -> list[dict[str, object]]:
+    value = payload.get(key)
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        raise AgentEventPersistenceError()
+    result: list[dict[str, object]] = []
+    for item in value:
+        if not isinstance(item, Mapping) or not all(isinstance(name, str) for name in item):
+            raise AgentEventPersistenceError()
+        result.append(_plain_json_mapping(item))
+    return result
+
+
+def _required_iso_datetime(payload: Mapping[str, object], key: str) -> datetime:
+    try:
+        return datetime.fromisoformat(_required_str(payload, key))
+    except ValueError:
+        raise AgentEventPersistenceError() from None
+
+
+def _required_sha256_hex(payload: Mapping[str, object], key: str) -> str:
+    value = _required_str(payload, key)
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise AgentEventPersistenceError()
+    return value
+
+
+def _required_sha256_bytes(payload: Mapping[str, object], key: str) -> bytes:
+    value = _required_sha256_hex(payload, key)
+    try:
+        decoded = bytes.fromhex(value)
+    except ValueError:
+        raise AgentEventPersistenceError() from None
+    if len(decoded) != 32:
+        raise AgentEventPersistenceError()
+    return decoded
+
+
+def _optional_sha256_bytes(payload: Mapping[str, object], key: str) -> bytes | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    return _required_sha256_bytes(payload, key)

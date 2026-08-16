@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-15
+> 更新日期：2026-08-16
 >
 > 权威来源：`docs/master-plan.md` 1.7.0
 
@@ -140,7 +140,7 @@ Agent 追加 DoD 的适用性已单独复核：Day 2 的成功、Provider 失败
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
 | D3-01 | 首页与当前行业上下文 | R2 + NEW | 搜索/切换四个预设行业；影响推荐、资讯、招投标、聊天与 Research；不改变权限 | 刷新持久化、作用域和越权测试 | `planned` | `complete` |
-| D3-02 | Tool Registry、L1/L2 有界循环与审计 | R2 + NEW | typed Action→Observation、Schema/scope、max_steps/deadline/token/cost/cancel/no_progress、稳定错误、静态 allow/deny 与 approval_required、ApprovalRequest/Decision 和副作用幂等契约、Tool Run 页面 | L0/L1/L2 轨迹对照；模型越权、超时、预算、停止原因、Schema、审批契约、幂等键和审计测试 | `planned` | `complete` |
+| D3-02 | Tool Registry、L1/L2 有界循环与审计 | R2 + NEW | typed Action→Observation、Schema/scope、max_steps/deadline/token/cost/cancel/no_progress、稳定错误、静态 allow/deny 与 approval_required、ApprovalRequest/Decision 和副作用幂等契约、Tool Run 页面 | L0/L1/L2 轨迹对照；模型越权、超时、预算、停止原因、Schema、审批契约、幂等键和审计测试 | `thin_slice` | `complete` |
 | D3-03 | Web Search | R2 + NEW | 一个合规真实 Adapter、来源快照/摘要、Citation；URL/网络边界复用版本化 Web Tool 安全合同和受控 egress | Tool contract、真实来源、SSRF/跳转/响应预算专项负向集和来源追踪 | `planned` | `complete` |
 | D3-04 | 新闻资讯 | R2 + NEW | 真实来源样例、分类、统计、分页、原链接、行业过滤、手动采集结果 | Provider contract、真实集成、去重和来源追踪 | `planned` | `complete` |
 | D3-05 | 政策 | R2 + NEW | 正式模型、搜索/筛选、来源与时间、页面 readiness；至少一条真实来源闭环 | Contract、真实样例、权限和引用测试 | `planned` | `complete` |
@@ -150,6 +150,8 @@ Agent 追加 DoD 的适用性已单独复核：Day 2 的成功、Provider 失败
 | D3-09 | 数据库浏览 | R2 + NEW | 表大小/行数列表、Schema、主键、索引、分页数据、连接测试 | allowlist、越权、分页和错误 UI | `planned` | `complete` |
 | D3-10 | 安全 Text2SQL | R2 + NEW | 只读样例库、完整 AST、schema/table/column allowlist、预算和审计 | DML/DDL/COPY/CALL/多语句/危险 CTE 拒绝 100% | `planned` | `complete` |
 | D3-11 | 受校验图表 | R2 + NEW | generated/validated SQL、解释、结果表、line/bar/pie/scatter/table ECharts | 函数/脚本/外链/超量数据全部拒绝 | `planned` | `complete` |
+
+D3-02 当前工作树已通过第一段 L1 Runtime/持久化薄切片的本地验收：生产 L0 与 Harness L1 由同一 `UnifiedAgentRuntime` dispatch，真实 PostgreSQL 用例直接调用同一个内部 `ToolL1Runtime` 和 SQL ports，只验证 Runtime/持久化合同；已写入结构化单 Tool Action、可信 Registry/静态策略、一次 Tool 执行、归一化 Observation、`ContextCompiler v1` 二次入模、原子 Event batch、稳定 Event/Trace 和 PostgreSQL `ToolCall/ToolRun` operational audit projection。合同覆盖 Tool 完成/取消/硬超时竞态 fail-closed、写副作用 outcome unknown、非零实际成本守恒、稳定 error code、受限 locator、原始幂等键仅驻留内存而持久边界只存服务端摘要，以及 call/run/workspace/actor/Step/trace/Observation correlation；普通 Trace 不暴露参数或幂等键 digest。Harness 以 Fake Tool 覆盖成功、Schema 拒绝、capability 拒绝、`approval_required` 与 Tool 失败。L1 尚未接入生产 Conversation/Job/Worker 用户入口；旧 queued-cancel/unrecoverable terminalizer 的 revision 一致性、显式 Run purge、最小 security audit 留存及恢复/备份测试仍未实现；L2/no-progress、真实 Web/行业 Tool、Text2SQL、Artifact 和 Tool Inspector 也仍未开始，因此不能把 D3-02、Day 3 或生产 L1 旅程标为 `complete`。累计 Scenario 已从 Day 2 的 9 条增加到 14 条；其中 Day 3 新增 5 条只证明 L1 契约，不冒充真实外部来源质量。统一本地门禁已通过：Python 808 项、Web 43 项、Playwright 3 项均通过且强制真实依赖无 skip；OpenAPI/format/lint/typecheck/build、Python/Node 依赖审计、迁移往返和受控 Secret 扫描均通过。当前尚无对应的干净 CI。
 
 ## 6. Day 4：Agent Memory、Evidence 与 Research L3
 

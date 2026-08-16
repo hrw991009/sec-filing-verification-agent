@@ -41,6 +41,7 @@ from industry_platform.modules.agent_runtime.execution import (
 )
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
+from industry_platform.modules.agent_runtime.tool_runtime import UnifiedAgentRuntime
 from industry_platform.modules.agent_runtime.trace import AgentTrace
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.workspaces.domain import WorkspaceScope
@@ -135,15 +136,17 @@ def create_direct_answer_runtime_resources(
             "Do not claim to have searched the web or private knowledge sources."
         ),
     )
-    runtime = DirectAnswerRuntime(
-        context_compiler=ContextCompilerV0(token_counter=Utf8UpperBoundTokenCounter()),
-        context_manifest_store=SqlAlchemyContextManifestStore(session_factory),
-        model_provider=OpenAICompatibleModelProvider(
-            client=provider_http_client,
-            config=provider_config,
-        ),
-        event_committer=SqlAlchemyAgentEventCommitter(session_factory),
-        cancellation_probe=SqlAlchemyAgentRunControl(session_factory),
+    runtime = UnifiedAgentRuntime(
+        direct_answer_runtime=DirectAnswerRuntime(
+            context_compiler=ContextCompilerV0(token_counter=Utf8UpperBoundTokenCounter()),
+            context_manifest_store=SqlAlchemyContextManifestStore(session_factory),
+            model_provider=OpenAICompatibleModelProvider(
+                client=provider_http_client,
+                config=provider_config,
+            ),
+            event_committer=SqlAlchemyAgentEventCommitter(session_factory),
+            cancellation_probe=SqlAlchemyAgentRunControl(session_factory),
+        )
     )
     execution_service = DirectAnswerRunExecutionService(
         loader=SqlAlchemyDirectAnswerRunLoader(

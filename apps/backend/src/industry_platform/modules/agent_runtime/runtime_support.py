@@ -57,6 +57,16 @@ class RuntimeTransitionSupport:
         await self._event_committer.append(event)
         events.append(event)
 
+    async def _commit_batch(
+        self,
+        events: list[AgentEvent],
+        batch: tuple[AgentEvent, ...],
+    ) -> None:
+        if not batch:
+            raise ValueError("Runtime Event batch cannot be empty")
+        await self._event_committer.append_batch(batch)
+        events.extend(batch)
+
     def _time(self, *, not_before: datetime) -> datetime:
         value = self._clock()
         require_utc(value, field_name="Runtime clock value")
@@ -139,6 +149,7 @@ class RuntimeTransitionSupport:
         step_count: int | None = None,
         usage: ModelUsage | None = None,
         token_budget_preflight_rejected: bool = False,
+        cost_budget_preflight_rejected: bool = False,
         terminal_details: dict[str, object] | None = None,
     ) -> AgentEvent:
         revision = state.revision + 1
@@ -166,6 +177,7 @@ class RuntimeTransitionSupport:
             updated_at=occurred_at,
             stop_reason=stop_reason,
             token_budget_preflight_rejected=token_budget_preflight_rejected,
+            cost_budget_preflight_rejected=cost_budget_preflight_rejected,
         )
         terminal_run = replace(
             run,
@@ -186,6 +198,22 @@ class RuntimeTransitionSupport:
             occurred_at=occurred_at,
             payload={
                 "stop_reason": stop_reason.value,
+                "state_revision": revision,
+                **(
+                    {}
+                    if usage is None
+                    else {
+                        "input_tokens": usage.input_tokens,
+                        "output_tokens": usage.output_tokens,
+                        "cached_input_tokens": usage.cached_input_tokens,
+                        "cost_micro_usd": usage.cost_micro_usd,
+                    }
+                ),
+                **(
+                    {"cost_budget_preflight_rejected": True}
+                    if cost_budget_preflight_rejected
+                    else {}
+                ),
                 **({} if terminal_details is None else terminal_details),
             },
         )

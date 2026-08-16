@@ -78,6 +78,7 @@ class RunState:
     artifact_ids: tuple[UUID, ...] = ()
     stop_reason: RunStopReason | None = None
     token_budget_preflight_rejected: bool = False
+    cost_budget_preflight_rejected: bool = False
 
     def __post_init__(self) -> None:
         require_current_schema_version(self.schema_version)
@@ -104,6 +105,13 @@ class RunState:
             or self.stop_reason is not RunStopReason.TOKEN_BUDGET_EXCEEDED
         ):
             raise ValueError("Only a failed token preflight may set its rejection flag")
+        if not isinstance(self.cost_budget_preflight_rejected, bool):
+            raise ValueError("Run State cost preflight flag is invalid")
+        if self.cost_budget_preflight_rejected and (
+            self.status is not AgentRunStatus.FAILED
+            or self.stop_reason is not RunStopReason.COST_BUDGET_EXCEEDED
+        ):
+            raise ValueError("Only a failed cost preflight may set its rejection flag")
 
     @property
     def total_tokens_used(self) -> int:
@@ -155,8 +163,9 @@ def validate_run_state(run: AgentRun, state: RunState) -> None:
         raise ValueError("Token stop reason requires exhaustion or a recorded preflight rejection")
     if run.stop_reason is RunStopReason.COST_BUDGET_EXCEEDED and (
         state.cost_micro_usd < run.budget.max_cost_micro_usd
+        and not state.cost_budget_preflight_rejected
     ):
-        raise ValueError("Cost stop reason requires an exhausted cost budget")
+        raise ValueError("Cost stop reason requires exhaustion or a recorded preflight rejection")
     if run.stop_reason is RunStopReason.DEADLINE_EXCEEDED and (
         state.updated_at < run.budget.deadline
     ):
@@ -198,3 +207,5 @@ def validate_state_transition(
         raise ValueError("Run State Artifact references are append-only")
     if previous.token_budget_preflight_rejected and not successor.token_budget_preflight_rejected:
         raise ValueError("Run State token preflight rejection cannot be removed")
+    if previous.cost_budget_preflight_rejected and not successor.cost_budget_preflight_rejected:
+        raise ValueError("Run State cost preflight rejection cannot be removed")
