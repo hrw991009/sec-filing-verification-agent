@@ -1,10 +1,10 @@
 # Day 2 学习日志
 
-> 更新日期：2026-08-15
+> 更新日期：2026-08-16
 >
 > 计划基线：`docs/master-plan.md` 1.7.0
 >
-> 当前结论：Day 2 的仓库内实现和可比较 Eval 已收口，D2-01～D2-09 均为 `implemented_pending_verification`。本轮可靠性修复后的最终全量本地门禁、当前提交的干净 GitHub CI 与学习者职责复盘尚未全部关闭，所以还不能写成 `complete`。
+> 当前结论：Day 2 的仓库内实现、可比较 Eval、全量本地门禁、干净 GitHub CI 与学习者职责复盘均已收口，D2-01～D2-09 全部为 `complete`。
 
 ## 1. Runtime、Harness 和 Worker 不是一回事
 
@@ -76,10 +76,15 @@ Day 2 只启用 `none`。`web/local/both` 虽然是正式枚举和持久字段�
 
 2026-08-15 已按根 README 的统一门禁完成本地收口：245 份 Python 文件通过 Ruff format/check，240 个文件通过 mypy；强制 PostgreSQL/Redis/MinIO 后 708 个 pytest 全部通过且无 skip，fresh migration、Python build/audit 通过。前端 format/lint/typecheck、10 个 Vitest 文件共 42 个测试、build、OpenAPI 确定性、Node audit 与 3 条 Playwright 旅程通过。浏览器旅程新增了“页面 POST → PostgreSQL Outbox/Job → 正式 JobExecutionRuntime → 正式 DirectAnswerRuntime（只替换 ModelProvider 测试边界）→ 两段 committed SSE → final Message → 刷新恢复”的成功链；受控路径和 39 个 Git 提交的 Gitleaks 扫描未发现 Secret。版本化 Eval JSON 仍只是可重复报告，不代替这些命令。
 
-即使本地门禁全部通过，仍有两项外部门禁：
+提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 push 与 pull request CI 均成功，[CI 31922391846](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 的全部适用 Job 通过。学习者于 2026-08-16 用自己的话说明了五个组件的职责；复核结论为：
 
-- 当前改动尚未提交，无法取得对应提交的干净 GitHub CI 链接；
-- 由学习者用自己的话解释 Runtime、Harness、Worker、Checkpoint 与 Trace 的职责差异后，才满足主计划的最后一条学习门禁。真实 Provider smoke 可补充验证，但没有付费 Provider 时，只能用正式 `provider_not_configured` 全链路证明不会回退 Fake 成功，不能声称已经验证真实模型质量。
+- Runtime 负责一次 Run 从状态推进、预算判断到 Event/终态输出的统一编排；
+- Harness 使用 Scenario、Fake、Scorer 和同一 Runtime 隔离模型随机性，证明执行契约可重复，但不冒充真实模型质量；
+- Outbox Dispatcher 把 PostgreSQL 已提交的 Job 通知可靠发布到 Redis/Celery，Worker 消费通知后从 PostgreSQL 领取权威数据，再交给 Handler 和正式 Runtime；
+- Day 2 Checkpoint 保存版本化状态信封并用 CAS 防止并发覆盖；真正从中断点继续执行属于 Day 5 的 durable resume；
+- Trace 记录已提交的 Run/Step/Event、Context manifest、usage 和 stop reason，用于解释、调试和评测，但不是执行状态或恢复点。
+
+真实 Provider smoke 可补充验证，但没有付费 Provider 时，只能用正式 `provider_not_configured` 全链路证明不会回退 Fake 成功，不能声称已经验证真实模型质量。
 
 ## 10. 当前明确边界
 
@@ -91,6 +96,6 @@ Day 2 只启用 `none`。`web/local/both` 虽然是正式枚举和持久字段�
 - Fake/Replay 是离线评测边界，不是生产 Provider fallback；
 - Agent 追加 DoD 中的 Tool 失败对 Day 2 L0 阶段性 `N/A`：本日 `available_tools=[]`，没有 Action/Observation；复核人为执行代理，日期 2026-08-15。Day 3 L1/L2 必须恢复此义务并新增 Tool 失败 Scenario；
 - Day 2 对不可恢复 Worker 中断的义务不是 `N/A`，`day2-unrecoverable-worker-interruption` 必须证明唯一 failed 终态。只有同一次模型调用的 durable graph resume 因主计划明确归属 Day 5 而阶段性 `N/A`；复核人为执行代理，日期 2026-08-15；
-- 当前工作树的最终全量本地门禁已经通过；在对应提交的干净 GitHub CI 和学习者复盘门禁完成前，任何 Day 2 项仍不能标为 `complete`。
+- 当前工作树的最终全量本地门禁、对应提交的干净 GitHub CI 和学习者复盘均已通过，D2-01～D2-09 已标为 `complete`。
 
 详细职责、执行链路、接口、限制与命令见 [Agent Runtime v0](../agent-runtime.md)。

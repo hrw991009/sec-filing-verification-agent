@@ -1,10 +1,10 @@
 # Agent Runtime v0
 
-> 更新日期：2026-08-15
+> 更新日期：2026-08-16
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 2
 >
-> 当前状态：D2-01～D2-09 的仓库内实现和版本化 Eval 已收口，均为 `implemented_pending_verification`。可靠性修复后的最终全量本地门禁、当前提交的干净 GitHub CI 与学习者职责复盘尚未全部关闭；在这些门禁通过前不能标为 `complete`。
+> 当前状态：D2-01～D2-09 的仓库内实现、版本化 Eval、全量本地门禁、干净 GitHub CI 与学习者职责复盘均已关闭，统一为 `complete`。
 
 ## 1. Day 2 的边界
 
@@ -180,7 +180,7 @@ Turn 持久化 `search_mode`、`industry_id` 和 `knowledge_base_ids`，消息�
 
 2026-08-15 的最终本地收口结果为：Ruff format/check 覆盖 245 份 Python 文件，mypy 覆盖 240 个文件；真实 PostgreSQL、Redis、MinIO 门禁全部强制开启时 708 个 pytest 全部通过且无 skip，fresh migration、Python build/audit 同时通过。Web format/lint/typecheck、10 个 Vitest 文件共 42 个测试、生产构建、OpenAPI 确定性、Node audit 和 3 条 Playwright 浏览器旅程通过；受控源码/配置路径与 39 个 Git 提交的 Gitleaks 扫描未发现 Secret。版本化报告只保存可重复测量和测试绑定，不冒充这些命令的事实来源。
 
-当前仍不把任何 Day 2 项标为 `complete`：仓库内实现与最终全量本地门禁已经通过，但当前工作树尚未形成可验证提交，因此还没有对应提交的干净 GitHub CI；学习者也要用自己的话完成 Runtime、Harness、Worker、Checkpoint 与 Trace 的职责复盘。真实 Provider smoke 可以补充信心，但没有配置 Provider 时只能使用 Fake/冻结回归证明契约，并用正式 `provider_not_configured` 链路证明不会回退到 Fake，不能把它写成真实模型质量成功。D2-06 的 Citation 对 Day 2 L0 明确不适用，因为主计划把 Evidence/Claim 放在 Day 4、把真实 Citation gate 放在 Day 6；Day 2 不生成没有 Evidence locator 的空引用或伪引用。
+提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 push 与 pull request CI 均成功；其中 [CI 31922391846](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 的 Python、PostgreSQL/Redis/MinIO、Web、Browser E2E、依赖审计和 Secret history Job 全部通过。学习者于 2026-08-16 用自己的话完成职责复盘；复核时进一步明确：Outbox Dispatcher 负责把已提交 Job 通知发布到 Redis/Celery，Worker 消费通知后从 PostgreSQL 领取权威数据并调用 Handler/Runtime；Day 2 Checkpoint 只完成版本化信封和 CAS 基础，真正的中断续跑属于 Day 5。真实 Provider smoke 可以补充信心，但没有配置 Provider 时只能使用 Fake/冻结回归证明契约，并用正式 `provider_not_configured` 链路证明不会回退到 Fake，不能把它写成真实模型质量成功。D2-06 的 Citation 对 Day 2 L0 明确不适用，因为主计划把 Evidence/Claim 放在 Day 4、把真实 Citation gate 放在 Day 6；Day 2 不生成没有 Evidence locator 的空引用或伪引用。
 
 ### 11.1 Day 2 Definition of Done 复核
 
@@ -195,8 +195,8 @@ Turn 持久化 `search_mode`、`industry_id` 和 `knowledge_base_ids`，消息�
 | 第三方许可和条款 | 通过（当前使用范围） | httpx2、MinIO SDK/Pillow、MinIO 镜像和 Provider 数据边界已人工记录；真实 Provider 启用前需复核其具体条款 |
 | 可重复 Eval | 通过（本地） | 6 个 Provider Scenario、3 个绑定可执行测试的可靠性 Scenario、冻结 fixture/Trace 与版本化报告全部通过；不声称 Fake 代表真实模型质量 |
 | README/Runbook/回滚 | 通过 | 根 README、本文和 [Day 2 Runbook](runbooks/day-2-agent-runtime.md) |
-| 干净环境演示 | 等待外部门禁 | 本地真实依赖/E2E 已过；仍需把当前提交推送并取得对应 GitHub CI |
-| 学习复盘 | 等待学习者 | 必须回答主计划第 664 行的职责问题后，才能进入 Day 3 |
+| 干净环境演示 | 通过 | 提交 `bf4feaff` 的 CI 31922391846 在 GitHub 干净环境通过全部适用 Job |
+| 学习复盘 | 通过 | 学习者已解释 Runtime、Harness、Worker、Checkpoint 与 Trace；复核时校正 Dispatcher/Worker 数据流和 Day 2 Checkpoint 不提供真实 resume 的边界 |
 
 ### 11.2 Agent 追加 DoD 的适用性复核
 
