@@ -26,6 +26,19 @@ from industry_platform.modules.identity.models import (
     Workspace,
     WorkspaceMembership,
 )
+from industry_platform.modules.industry.models import (
+    BiddingItemRecord,
+    CollectionCursorRecord,
+    CollectionRunItemRecord,
+    CollectionRunRecord,
+    DataSourceRecord,
+    IndustryRecord,
+    MarketSnapshotRecord,
+    NewsItemRecord,
+    PolicyItemRecord,
+    SourceItemRecord,
+    UserIndustryPreference,
+)
 from industry_platform.modules.jobs.models import (
     Job,
     JobEvent,
@@ -60,6 +73,17 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     AgentCheckpointRecord,
     ToolCallRecord,
     ToolRunRecord,
+    IndustryRecord,
+    UserIndustryPreference,
+    DataSourceRecord,
+    CollectionRunRecord,
+    CollectionCursorRecord,
+    SourceItemRecord,
+    CollectionRunItemRecord,
+    NewsItemRecord,
+    PolicyItemRecord,
+    BiddingItemRecord,
+    MarketSnapshotRecord,
 )
 
 metadata: MetaData = Base.metadata

@@ -26,11 +26,13 @@ from industry_platform.modules.identity.domain import (
     TraceId,
 )
 from industry_platform.modules.identity.ports import RefreshRecoveryCleanupUseCase
+from industry_platform.modules.industry.domain import INDUSTRY_COLLECTION_TASK_NAME
 from industry_platform.modules.jobs.domain import (
     CELERY_JOB_DISPATCH_TASK_NAME,
     AcquiredJob,
     AcquireJobCommand,
     CheckpointJobCommand,
+    ExecutionScope,
     FinishJobCommand,
     HeartbeatJobCommand,
     JobDispatchMessage,
@@ -49,6 +51,7 @@ from industry_platform.workers.runtime import (
     IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER,
     DirectAnswerJobHandler,
     FixedJobHandlerRegistry,
+    IndustryCollectionJobHandler,
     JobExecutionDisposition,
     JobExecutionRuntime,
     create_job_delivery_runtime,
@@ -183,6 +186,8 @@ def acquired_job(
 ) -> AcquiredJob:
     return AcquiredJob(
         job_id=JOB_ID,
+        scope=ExecutionScope(system_scope_key="worker-unit"),
+        trace_id=TRACE_ID,
         task_name=task_name,
         queue_name="default",
         payload=payload if payload is not None else {"batch_size": 25},
@@ -450,6 +455,10 @@ async def test_production_composition_registers_the_direct_answer_runtime(
         assert isinstance(
             worker.handlers.resolve(DIRECT_ANSWER_TASK_NAME),
             DirectAnswerJobHandler,
+        )
+        assert isinstance(
+            worker.handlers.resolve(INDUSTRY_COLLECTION_TASK_NAME),
+            IndustryCollectionJobHandler,
         )
     finally:
         await client.aclose()

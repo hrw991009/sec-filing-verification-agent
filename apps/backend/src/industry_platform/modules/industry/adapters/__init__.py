@@ -1,0 +1,1 @@
+"""Industry infrastructure adapters."""

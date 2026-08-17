@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-16
+> 更新日期：2026-08-17
 >
 > 权威来源：`docs/master-plan.md` 1.7.0
 
@@ -139,19 +139,19 @@ Agent 追加 DoD 的适用性已单独复核：Day 2 的成功、Provider 失败
 
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
-| D3-01 | 首页与当前行业上下文 | R2 + NEW | 搜索/切换四个预设行业；影响推荐、资讯、招投标、聊天与 Research；不改变权限 | 刷新持久化、作用域和越权测试 | `planned` | `complete` |
+| D3-01 | 首页与当前行业上下文 | R2 + NEW | 搜索/切换四个预设行业；影响推荐、资讯、招投标、聊天与 Research；不改变权限 | 刷新持久化、作用域和越权测试 | `thin_slice` | `complete` |
 | D3-02 | Tool Registry、L1/L2 有界循环与审计 | R2 + NEW | typed Action→Observation、Schema/scope、max_steps/deadline/token/cost/cancel/no_progress、稳定错误、静态 allow/deny 与 approval_required、ApprovalRequest/Decision 和副作用幂等契约、Tool Run 页面 | L0/L1/L2 轨迹对照；模型越权、超时、预算、停止原因、Schema、审批契约、幂等键和审计测试 | `thin_slice` | `complete` |
-| D3-03 | Web Search | R2 + NEW | 一个合规真实 Adapter、来源快照/摘要、Citation；URL/网络边界复用版本化 Web Tool 安全合同和受控 egress | Tool contract、真实来源、SSRF/跳转/响应预算专项负向集和来源追踪 | `planned` | `complete` |
-| D3-04 | 新闻资讯 | R2 + NEW | 真实来源样例、分类、统计、分页、原链接、行业过滤、手动采集结果 | Provider contract、真实集成、去重和来源追踪 | `planned` | `complete` |
-| D3-05 | 政策 | R2 + NEW | 正式模型、搜索/筛选、来源与时间、页面 readiness；至少一条真实来源闭环 | Contract、真实样例、权限和引用测试 | `planned` | `complete` |
-| D3-06 | 招投标 | R2 + NEW | 招/中标、地区、分页、原链接、手动采集；至少一条真实来源闭环 | Contract、真实样例、去重和失败测试 | `planned` | `complete` |
-| D3-07 | 股票 | R2 + NEW | 真实行情 Provider、工具事件、时间/来源和聊天行情卡片 | Contract、真实样例、过期/限流/错误 UI | `planned` | `complete` |
-| D3-08 | 定时采集 | R2 + NEW | 持久 Schedule/Occurrence、IANA timezone、next_due_at、停机补跑/misfire 上限；Beat→Application Service→Job/Outbox→Dispatcher；游标、external ID/hash 去重、退避、last success、dead-letter、手动立即运行 | 重复 tick/多 Beat/停机 24h/超补跑上限/时区边界/Redis 故障测试；不重复入库且遗漏、合并和失败均可见 | `planned` | `complete` |
+| D3-03 | Web Search | R2 + NEW | 一个合规真实 Adapter、来源快照/摘要、Citation；URL/网络边界复用版本化 Web Tool 安全合同和受控 egress | Tool contract、真实来源、SSRF/跳转/响应预算专项负向集和来源追踪 | `thin_slice` | `complete` |
+| D3-04 | 新闻资讯 | R2 + NEW | 真实来源样例、分类、统计、分页、原链接、行业过滤、手动采集结果 | Provider contract、真实集成、去重和来源追踪 | `thin_slice` | `complete` |
+| D3-05 | 政策 | R2 + NEW | 正式模型、搜索/筛选、来源与时间、页面 readiness；至少一条真实来源闭环 | Contract、真实样例、权限和引用测试 | `thin_slice` | `complete` |
+| D3-06 | 招投标 | R2 + NEW | 招/中标、地区、分页、原链接、手动采集；至少一条真实来源闭环 | Contract、真实样例、去重和失败测试 | `thin_slice` | `complete` |
+| D3-07 | 股票 | R2 + NEW | 真实行情 Provider、工具事件、时间/来源和聊天行情卡片 | Contract、真实样例、过期/限流/错误 UI | `thin_slice` | `complete` |
+| D3-08 | 定时采集 | R2 + NEW | 持久 Schedule/Occurrence、IANA timezone、next_due_at、停机补跑/misfire 上限；Beat→Application Service→Job/Outbox→Dispatcher；游标、external ID/hash 去重、退避、last success、dead-letter、手动立即运行 | 重复 tick/多 Beat/停机 24h/超补跑上限/时区边界/Redis 故障测试；不重复入库且遗漏、合并和失败均可见 | `thin_slice` | `complete` |
 | D3-09 | 数据库浏览 | R2 + NEW | 表大小/行数列表、Schema、主键、索引、分页数据、连接测试 | allowlist、越权、分页和错误 UI | `planned` | `complete` |
 | D3-10 | 安全 Text2SQL | R2 + NEW | 只读样例库、完整 AST、schema/table/column allowlist、预算和审计 | DML/DDL/COPY/CALL/多语句/危险 CTE 拒绝 100% | `planned` | `complete` |
 | D3-11 | 受校验图表 | R2 + NEW | generated/validated SQL、解释、结果表、line/bar/pie/scatter/table ECharts | 函数/脚本/外链/超量数据全部拒绝 | `planned` | `complete` |
 
-D3-02 当前工作树已通过 L1 单 Tool 与 L2 有界循环控制切片的本地验收：生产 L0 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch，真实 PostgreSQL 用例直接调用相同内部 Runtime 和 SQL ports，只验证 Runtime/持久化合同；L2 每轮只接受严格 `tool_call|final` 决策，累积有界 Observation Context，并统一执行 max steps、跨轮 Token/费用、deadline、取消、Tool timeout/failure、重复 Action 与重复 Observation 的停止语义。结构化 Tool 合同、可信 Registry/静态策略、原子 Event batch、稳定 Event/Trace 和 PostgreSQL `ToolCall/ToolRun` operational audit projection 由 L1/L2 共同复用；合同继续覆盖竞态 fail-closed、写副作用 outcome unknown、非零实际成本守恒、稳定 error code、受限 locator、服务端幂等摘要和完整 correlation。Harness 新增 10 条 L2 fault case，全部经 L2 materializer、`HarnessRunner` 与统一 Runtime 执行；累计 Scenario 从 Day 2 的 9 条、L1 的 5 条增加到 24 条。L1/L2 尚未接入生产 Conversation/Job/Worker 用户入口，当前 L2 只暴露一个 Fake Tool，不能冒充“至少两个不同 Tool”或真实外部来源质量；旧 queued-cancel/unrecoverable terminalizer 的 revision 一致性、显式 Run purge、最小 security audit 留存及恢复/备份测试仍未实现；真实 Web/行业 Tool、Text2SQL、Artifact 和 Tool Inspector 也仍未开始，因此不能把 D3-02、Day 3 或生产 Tool 旅程标为 `complete`。统一本地门禁已通过：Python 822 项、Web 43 项、Playwright 3 项均通过且强制真实依赖无 skip；OpenAPI/format/lint/typecheck/build、Python/Node 依赖审计、迁移往返和受控 Secret 扫描均通过。当前尚无对应的干净 CI。
+D3-02 当前工作树已通过 L1 单 Tool 与 L2 有界循环控制切片的本地验收：生产 L0 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch，真实 PostgreSQL 用例直接调用相同内部 Runtime 和 SQL ports，只验证 Runtime/持久化合同；L2 每轮只接受严格 `tool_call|final` 决策，累积有界 Observation Context，并统一执行 max steps、跨轮 Token/费用、deadline、取消、Tool timeout/failure、重复 Action 与重复 Observation 的停止语义。D3-01、D3-03～D3-08 现已进入后端 `thin_slice`：四个稳定行业预设和服务端偏好按 Workspace 授权；四个固定 Provider 分别规范化新闻、政策、招投标与行情；`industry.web_search:v1` 经过正式 Registry/Executor 输出有来源的 Observation；Schedule/Occurrence、Job、Outbox 与 CollectionRun 同事务物化，Worker 复用同一 Application Service，并保存 cursor、来源、领域投影和 external ID/content hash 去重 disposition。World Bank News 与 Alpha Vantage 在用途条款未显式批准时发网前 fail-closed，绝不以 Demo/Mock 冒充 readiness。真实 PostgreSQL 已证明并发手动触发收敛、权限隔离、双重去重和 migration 往返；既有 Scheduler 测试继续覆盖 IANA timezone、多 Beat、24h misfire、上限、Redis/Dispatcher 故障与 dead-letter。生产 Conversation/Agent Job 仍未接入 L1/L2，当前 L2 Scenario 仍只有一个 Fake Tool；行业/数据库/图表 UI、Text2SQL、Artifact、Tool Inspector、显式 Run purge 和旧 terminalizer revision 债务未关闭，因此 D3-01～D3-08 均不能标为 `complete`。统一本地门禁为 Python `847 passed`、Web `43 passed`、Playwright `3 passed`，强制真实依赖无 skip；OpenAPI 二次生成、format/lint/typecheck/build、Python/Node 审计、迁移往返和 Secret 扫描均通过。当前尚无对应的干净 CI。
 
 ## 6. Day 4：Agent Memory、Evidence 与 Research L3
 

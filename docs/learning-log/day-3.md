@@ -1,10 +1,10 @@
-# Day 3 学习日志：前两步有界 Tool Use
+# Day 3 学习日志：前三步有界 Tool Use 与真实采集
 
-> 更新日期：2026-08-16
+> 更新日期：2026-08-17
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前结论：五步计划中的第 1、2 步已通过本地验收，本轮严格停在第 2 步。D3-02 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
+> 当前结论：五步计划中的第 1～3 步已通过本地验收，本轮严格停在第 3 步。D3-01～D3-08 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
 
 ## 1. Tool、Skill、Application Service 和 Harness 各自负责什么
 
@@ -36,7 +36,7 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 
 如果 Harness 自己执行 Action→Tool→Observation，测试可能通过，但生产的 Event、预算、取消、持久化和错误语义仍是另一套。前两步把 L0 生产链与 L1/L2 Harness 都放进同一个 `UnifiedAgentRuntime` dispatch；单元/Harness 只通过正式 Port/构造边界注入 Provider、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信身份。真实 PostgreSQL 用例直接调用同一个内部 `ToolL1Runtime` 或 `ToolL2Runtime` 并使用 SQL ports，只验证 Runtime/持久化合同，不冒充生产 Application/Job/Worker 入口。
 
-这并不等于真实 Web 已接通。Fake Tool 只证明调用边界、轨迹和错误可重复；正式 `web` 模式仍须等第 3 步的真实 Adapter 和 SSRF/egress 合同通过。
+第 3 步增加了真实 `industry.web_search:v1` Adapter，并证明它经过正式 Registry/Executor 后生成带 `[S1]` Citation 标识与 provenance 的 Observation；采集 Job 也已进入固定 Worker registry。它仍不等于聊天的生产 `web` 模式已启用：Conversation/Agent Job 尚未物化 L1/L2 Tool command，前端页面与错误交互也留在第 5 步。
 
 ## 6. 安全复盘
 
@@ -47,21 +47,30 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 - Tool 完成/取消/硬超时竞态、非零成本守恒、稳定 error code、Observation envelope digest 与幂等键 hash 都有 fail-closed 合同；
 - ToolCall/ToolRun 是 Run-owned operational audit projection，当前 `RESTRICT` 阻止普通删除隐式清空；显式 Run purge、最小 security audit 留存期限及恢复/备份测试，以及旧 queued-cancel/unrecoverable terminalizer 的最终 revision 投影仍未实现，是生产 L1 前置 open 项；
 - approval_required 只停止并记录请求；持久 interrupt/resume 与重复审批幂等属于 Day 5；
-- Fake Tool 无网络、Shell、数据库和 Secret 能力，不会伪装真实来源。
+- Fake Tool 无网络、Shell、数据库和 Secret 能力，不会伪装真实来源；真实 Adapter 只接受固定 host/字段和服务端 terms approval，不接受模型提供 URL、key 或许可开关。
 
 ## 7. 验收记录
 
-第一步已完整执行根 [README 的统一验证](../../README.md#统一验证)，没有用定向绿色子集替代：
+前三步当前工作树已执行根 [README 的统一验证](../../README.md#统一验证)中适用于未提交工作树的全部门禁，没有用定向绿色子集替代。`api:check` 的最后一步要求生成物与当前 Git 提交完全相同，因本步有预期的 OpenAPI 变更，在提交前必然报告 diff；这里以二次独立生成 hash 一致、生成 diff 评审和 contract typecheck 验收，仍须由后续干净 CI 执行 `api:check`：
 
-- 锁定依赖安装通过；Python 262 个文件的 format check、Ruff、mypy 256 个源文件、wheel/sdist build 均通过；`uv audit --locked` 检查 72 个包，没有已知漏洞或 adverse status；
-- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `822 passed`，没有 skip/xfail；L1/L2、Context、Trace、持久化与 Registry 的安全定向集另有 `99 passed`；
+- Python 282 个文件的 format check、Ruff、mypy 275 个源文件、wheel/sdist build 均通过；`uv audit --locked` 检查 72 个包，没有已知漏洞或 adverse status；
+- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `847 passed`，没有 skip/xfail；行业 Provider/Tool 合同为 `24 passed`；
 - disposable PostgreSQL 上的 fresh Alembic upgrade/check/downgrade/upgrade 与真实 L1/L2 往返通过；L2 PostgreSQL 用例持久化两次 ToolCall/ToolRun、六个 Step 与三份递增 Observation manifest，并核对累计费用、最终 revision 和安全 Trace；
 - OpenAPI 二次生成一致，API contract typecheck 通过；Web format/lint/typecheck/production build 通过，Vitest 为 `43 passed`，`pnpm audit --audit-level high` 无漏洞；
 - Playwright 的会话、停止与刷新恢复三条真实浏览器旅程为 `3 passed`；
-- 受控工作树路径与完整 41-commit 历史的 Gitleaks 扫描均无泄漏，`git diff --check` 与暂存区复核通过；本步没有新增第三方运行时依赖或许可证例外。
+- disposable PostgreSQL 证明同一事务物化 ScheduleOccurrence、Job、Outbox 与 CollectionRun，并验证并发手动触发收敛、Workspace 权限、游标、external ID/hash 去重和领域投影；完整 migration upgrade/check/downgrade/upgrade 无漂移；
+- 受控工作树路径与完整 43-commit 历史的 Gitleaks 扫描均无泄漏；本步没有新增第三方运行时依赖，World Bank News 与 Alpha Vantage 在用途条款未显式批准时 fail-closed，详见[真实来源复核](../security/day-3-source-review.md)。
 
 失败修复没有靠删测试、放宽 Schema 或把适用项写成 `N/A` 绕过。实际关闭了执行中取消/deadline/硬超时竞态、已知 Model/Tool 成本守恒、确定转移的 Event batch 原子性、PostgreSQL `CHECK` 的三值逻辑绕过、Tool/Step/Run 投影关联、Observation→Context→Trace 关联，以及写副作用结果未知时的保守终态。
 
-残余边界也不隐藏：生产 Application/Job/Worker 尚未启用 L1/L2，因此还没有正式 Tool 用户旅程和干净 CI 证据；当前 L2 只暴露一个 Fake Tool，真实多 Tool 选择、Web/行业来源、Text2SQL、Artifact 与 Tool Inspector 均未开始；显式 Run purge、最小 security audit 留存/恢复/备份、旧 queued-cancel/unrecoverable terminalizer 的 revision 投影，以及真实 Web locator 的语义级 token/PII 清洗和 SSRF/egress 防护，都是相应后续入口前的硬门禁。
+残余边界也不隐藏：生产 Conversation/Agent Job 尚未启用 L1/L2，因此还没有正式聊天 Tool 用户旅程和干净 CI 证据；当前 L2 Scenario 只暴露一个 Fake Tool，真实行业 Tool 尚未与 Text2SQL 组成多 Tool surface；Text2SQL、Artifact、行业/数据库/图表 UI 与 Tool Inspector 未开始。显式 Run purge、最小 security audit 留存/恢复/备份和旧 queued-cancel/unrecoverable terminalizer 的 revision 投影仍是相应入口前硬门禁。
 
-当前阶段结论：只完成第 1、2 步的本地验收；第 3～5 步未开始，D3-02 仍为 `thin_slice`，Day 3 总门禁仍未关闭。
+## 8. 第三步的知识突破
+
+Provider Adapter 和 Tool Adapter 是两层：Provider Adapter 只负责固定外部协议、网络失败与上游响应归一化；Tool Adapter 再把这些业务结果放进 Tool 的 typed input/output、Workspace capability、预算和 Observation 合同。采集 Worker 可以直接调用同一个行业 Application Service，但不能因此绕过 Tool Runtime 后冒充聊天 Tool 轨迹。
+
+调度原子性也不等于“一次 SQL”。本步最初在真实 PostgreSQL 暴露了 FK 插入顺序问题：ORM 不会因为两个 mapper 之间只有表级 FK 就自动保证 `ScheduleOccurrence` 先于 `CollectionRun`。正确做法是在同一事务内先 flush Job/Outbox/Occurrence 父事实，再加入 CollectionRun，最后仍只 commit 一次；后半段失败时四者会一起回滚。
+
+另一个突破是“公开 API”不等于“可在任何商业产品中使用”。World Bank News 与 Alpha Vantage 的用途条件都要求显式复核，因此 readiness 同时表达技术配置与使用授权；缺批准时在发网前停止。TED 的公开复用、FederalRegister.gov 的非正式法律版本提示也进入来源合同，而不是只写在产品文案里。
+
+当前阶段结论：完成第 1～3 步的本地验收；第 4、5 步未开始，D3-01～D3-08 仍为 `thin_slice`，Day 3 总门禁仍未关闭。

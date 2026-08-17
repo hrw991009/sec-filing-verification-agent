@@ -279,7 +279,7 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 记忆 | `thread_memory_states`、`memories`、`memory_revisions` | Short-term 保存 Thread 消息引用、摘要、compaction revision 与 freshness；Long-term 当前投影和版本修订保存 provenance、scope、confidence、写入原因、策略/用户决定、停用、过期和删除 |
 | Research | `research_runs`、`research_plans`、`research_reports`、`research_claims`、`claim_evidence` | `research_runs.agent_run_id` 是统一执行事实的领域扩展；计划显式版本化；关键 Claim 关联 Evidence；不得再建立 research_steps/research_checkpoints 第二套执行历史 |
 | 证据图与图表 | `graph_nodes`、`graph_edges`、`chart_specs` | 图绑定 Research Run 并引用 Claim/Evidence/Entity；Chart 绑定 Query Run 或 Research Run，option 必须通过版本化 Schema |
-| 行业数据 | `industries`、`companies`、`data_sources`、`collection_runs`、`source_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots`、`metric_observations` | 公司与行业关系显式；指标带单位、观察时间、来源和口径；`(data_source_id, external_id)` 唯一；公共来源字段与领域字段分离；记录 URL、发布时间、采集时间、哈希和使用约束 |
+| 行业数据 | 当前：`industries`、`user_industry_preferences`、`data_sources`、`collection_runs`、`collection_cursors`、`source_items`、`collection_run_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots`；后续：`companies`、`metric_observations` | 当前按 Workspace、Provider external ID 与内容 hash 去重，公共来源字段与领域字段分离并保存 URL、发布时间、采集时间、哈希和使用约束；公司关系与通用指标尚未实现 |
 | 数据库与 SQL | `data_connections`、`schema_snapshots`、`query_runs` | 凭据只存 Secret 引用；allowlisted schema/table/column；同时保存 generated 与 validated SQL、预算、状态、行数和错误 |
 | 工具 | `tool_calls`、`tool_runs` | 两者是归属于 AgentRun 的 operational audit projection：`tool_calls` 保存统一 AgentStep 下的请求/执行事实，`tool_runs` 提供可授权查询的脱敏审计视图；它们按唯一 ID 一对一关联，不各自推进第二套状态；保存调用者、权限、Schema 版本、脱敏输入/输出摘要、预算、耗时、来源、状态、错误码与 trace |
 | Agent 评测 | `evaluation_cases`、`evaluation_results` | Case 固定 dataset/runtime/harness/model/prompt/context/toolset version、预算和夹具；Result 关联真实 AgentRun，并分别保存 trajectory/result/evidence/recovery、Token、费用和延迟评分 |
@@ -327,7 +327,7 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 |---|---|
 | 身份 | `/auth/register`、`/auth/login`、`/auth/refresh`、`/auth/logout`、`/auth/me`、`/auth/change-password` |
 | Workspace | `/workspaces`、`/workspaces/{id}`、`/workspaces/{id}/members` |
-| 行业上下文 | `/industries`、`/me/industry-preference`；当前行业作为显式查询/会话作用域，不从 LocalStorage 直接决定服务端数据权限 |
+| 行业上下文 | 当前 `/industries`、`/workspaces/{workspace_id}/industry-preference`；当前行业作为显式查询作用域，不从 LocalStorage 直接决定服务端数据权限；写入 Turn/AgentRun 快照仍待生产 Tool 入口 |
 | 私有文件 | `/workspaces/{workspace_id}/files/presign`、`/workspaces/{workspace_id}/files/{id}/complete`、`download-url` 与删除 |
 | 知识库与文档 | `/knowledge-bases`、`/knowledge-bases/{id}/documents`、`/documents/{id}/chunks`、`assets`、`retry`、`reindex` |
 | 会话与附件 | `/workspaces/{workspace_id}/conversations`、`/conversations/{id}`、`/conversations/{id}/messages`；创建接口原子写 Turn、Message、附件关系、AgentRun、Job 与 Outbox |
@@ -335,8 +335,8 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 | 检索 | `/search/hybrid`、`/search/web`；调试响应区分 Dense、BM25、RRF 与 Rerank 排名和分数 |
 | 记忆 | `/memories`、`/memories/search`、`/memories/from-session`、`confirm`、`disable`；删除走正式资源接口 |
 | Research | `/research-runs`、`/research-runs/{id}/report`、`graph`、`charts`；其 events/cancel/resume/checkpoints 若保留，只能是对应 `/agent-runs/{agent_run_id}` 的授权兼容视图 |
-| 行业情报 | `/industry/items`、`stats`、`collection-runs`、`collection-runs/{id}`；支持分类/地区/公告类型筛选和手动触发 |
-| 数据源状态 | `/data-sources`、`/data-sources/{id}/readiness`、`/schedules/status`；未配置返回 `PROVIDER_NOT_CONFIGURED` |
+| 行业情报 | 当前 `/workspaces/{workspace_id}/industry-sources/items`、`industry-collections/runs`、`industry-collections/schedules` 及手动触发；统计、详情和专用页面待第 5 步 |
+| 数据源状态 | 当前 `/workspaces/{workspace_id}/industry-sources/readiness`；未配置返回 `provider_not_configured`，用途未批准返回 `provider_terms_approval_required` |
 | 数据库浏览 | `/data-connections`、`/data-connections/{id}/test`、`tables`、`tables/{name}/schema`、`rows` |
 | Text2SQL 与图表 | `/query-runs`、`/query-runs/{id}`、`/query-runs/{id}/chart` |
 | 工具审计 | `/tools`、`/tool-runs`、`/tool-runs/{id}` |
@@ -641,7 +641,7 @@ Memory 分为两层，且都不同于当前 LLM Context、Run State 与 Checkpoi
 
 每次 Tool 请求以 Event batch 和对应投影在同一 PostgreSQL 事务中原子提交，创建 `ToolCall` 及一对一的 `ToolRun` operational audit projection，并持续校验 call/run/workspace、请求/执行 Step 与 trace 的关联；只有静态 allow 后才绑定真实 Tool execution Step。投影记录调用者、Schema/策略快照、脱敏输入/输出摘要、来源、状态、耗时、实际预算消耗和稳定错误码，不独立推进第二套状态机。Tool 完成、取消与硬超时竞争时只能有一个结算结果，迟到结果不能覆盖已提交状态；不一致 batch、error code、locator、digest、幂等键 hash 或 Trace correlation 一律 fail-closed。非零实际 Tool 成本必须不超过声明上限，并在 Event、Tool Step、Run state 与 Tool 投影之间只计一次且数值守恒。模型看到的 Tool 结果仍是不可信输入。知识检索、Web、行业、股票、数据库 Schema、Text2SQL 和图表都复用这一条正式链路。
 
-写 Tool 的原始副作用幂等键只在受控内存合同中保留、从 `repr` 隐藏并传给 Adapter；Event 和 PostgreSQL 只保存服务端完整性摘要，普通 Trace 不暴露参数或幂等键 digest。来源 locator 拒绝 userinfo、query、fragment 和控制字符，完整 model-visible Observation envelope digest 同时约束正文与 provenance；真实 Web Adapter 还必须只产出不含凭据或 PII 的 public canonical locator，并在 Day 3 第 3 步通过 SSRF/egress 专项合同。`ToolCall/ToolRun` 当前由 `RESTRICT` 保护，仍需在生产 L1 前完成显式 Run purge、最小 security audit 留存期限、隐私擦除、恢复与备份测试，并让旧 queued-cancel/unrecoverable terminalizer 同样投影最终 revision；这些 open 项不能被 `thin_slice` 或 `N/A` 豁免。
+写 Tool 的原始副作用幂等键只在受控内存合同中保留、从 `repr` 隐藏并传给 Adapter；Event 和 PostgreSQL 只保存服务端完整性摘要，普通 Trace 不暴露参数或幂等键 digest。来源 locator 拒绝 userinfo、query、fragment 和控制字符，完整 model-visible Observation envelope digest 同时约束正文与 provenance。Day 3 第 3 步的真实 Web/行业 Adapter 已固定 host、字段、响应预算和 public canonical locator，并复用 SSRF/DNS pinning/跳转拒绝 egress 合同；World Bank News 与 Alpha Vantage 还在用途条款未显式批准时发网前 fail-closed。`ToolCall/ToolRun` 当前由 `RESTRICT` 保护，仍需在生产 L1 前完成显式 Run purge、最小 security audit 留存期限、隐私擦除、恢复与备份测试，并让旧 queued-cancel/unrecoverable terminalizer 同样投影最终 revision；这些 open 项不能被 `thin_slice` 或 `N/A` 豁免。
 
 Day 3 完成 L1 单工具与 L2 有界循环，停止条件至少包括 final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error 和 no_progress。Day 3 的 Approval 只执行基于可信 policy context 的静态 allow/deny，或发出 `approval_required` 并停止；Day 5 才持久化 ApprovalRequest/Decision，执行 interrupt/resume、allow/deny/timeout 和重复 decision 幂等。
 
@@ -665,12 +665,14 @@ Beat 计算到期 occurrence，或授权用户手动触发
 → Adapter 拉取并规范化 Source Item
 → external ID + content hash 幂等去重
 → 保存来源、原链接、发布时间、采集时间和使用约束
-→ 写领域明细和 Evidence
+→ 写领域明细和 EvidenceCandidate；Day 4 才提升为 Evidence
 → 更新 cursor、last success、统计和终态
 → 瞬时失败退避重试；超过上限进入持久 dead-letter
 ```
 
 资讯支持分类、统计、分页、原始来源和手动采集结果；招投标支持公告类型、地区、分页和手动采集结果；股票 Tool 在聊天中返回专用行情卡片。调度状态、最后成功时间和失败原因对授权用户可见。
+
+当前第 3 步已经实现四个固定 Provider contract、领域表、来源/游标/去重、手动和定时调度后端，以及 `industry.web_search:v1` 的 Registry/Executor/Observation 合同；真实 PostgreSQL 验证 ScheduleOccurrence、Job、Outbox 与 CollectionRun 同事务提交。尚未实现的是统计/详情与专用卡片 UI、聊天 Tool command 物化、Artifact 和 Evidence ledger，所以 D3-01、D3-03～D3-08 仍为 `thin_slice`。
 
 ### 15.4 Deep Research、报告与证据图
 
@@ -831,13 +833,13 @@ Day 7 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application �
 
 Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
-本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 5 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、ToolCall/ToolRun、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
+本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 6 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、ToolCall/ToolRun、行业偏好/来源/采集、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
 
 Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-01～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
 新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 当前已通过 D3-02 的 L1 单 Tool 与 L2 有界循环控制切片本地验收：L2 在同一 Runtime 上执行严格 `tool_call|final` 决策、累积 Observation Context、跨轮 Step/Token/费用预算，并对重复 Action、重复 Observation、deadline、取消与 Tool timeout/failure 给出稳定停止原因；结构化 Tool 合同、可信 Registry/静态策略、Context Compiler v1、统一 Event/Trace、原子 Event batch 和 PostgreSQL operational audit projection 由两级复用，竞态 fail-closed、写副作用 outcome unknown、非零成本守恒、稳定错误码、locator/幂等键与 Trace correlation 均有回归。生产 L0 与 Harness L1/L2 由 `UnifiedAgentRuntime` dispatch；真实 PostgreSQL 用例直接调用相同内部 Runtime 并替换为 SQL ports，只证明 Runtime/持久化合同，不是生产入口。生产 composition 仍只注入 L0，Conversation/Job/Worker 尚未物化 Tool command；当前 L2 也只暴露一个 Fake Tool。旧 queued-cancel/unrecoverable terminalizer 的 revision 一致性、显式 Run purge、最小 security audit 留存与恢复/备份测试仍为 open；真实多 Tool、Web/行业 Tool、Text2SQL、Artifact、Tool Inspector 以及 D3-01、D3-03～D3-11 仍未实现。Day 4～Day 7 的 Short/Long-term Memory、Knowledge/RAG、Deep Research 与后续 Evaluation 能力也尚未实现。当前尚无本切片对应的干净 CI，不能把 D3-02、Day 3 或生产 Tool 用户旅程标为完成。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 已通过前三个切片的本地验收：D3-02 的 L1/L2 typed loop、Context Compiler v1、Event/Trace 与 ToolCall/ToolRun 原子审计继续复用；D3-01、D3-03～D3-08 新增四个预设行业、服务端偏好、四个固定真实 Provider contract、受控 egress、`industry.web_search:v1`、来源/领域投影，以及 ScheduleOccurrence/Job/Outbox/CollectionRun 原子物化、Worker、cursor 和 external ID/content hash 去重。World Bank News 与 Alpha Vantage 在用途条款未显式批准时发网前 fail-closed。生产 L0 与 Harness L1/L2 仍由 `UnifiedAgentRuntime` dispatch，但 Conversation/Agent Job 尚未物化 Tool command；L2 Scenario 仍只有一个 Fake Tool。旧 queued-cancel/unrecoverable terminalizer revision、显式 Run purge、最小 security audit 留存/恢复/备份、Text2SQL、Artifact、行业/数据库/图表 UI 与 Tool Inspector 仍为 open，因此 D3-01～D3-08 保持 `thin_slice`，D3-09～D3-11 保持 `planned`。当前无对应干净 CI，不能把 Day 3 或生产聊天 Tool 用户旅程标为完成。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 

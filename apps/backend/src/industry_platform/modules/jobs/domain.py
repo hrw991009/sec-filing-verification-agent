@@ -95,6 +95,10 @@ class JobExecutionErrorCode(StrEnum):
     SOFT_TIME_LIMIT_EXCEEDED = "soft_time_limit_exceeded"
     UNSTARTED_TIMEOUT = "job_unstarted_timeout"
     LEASE_EXPIRED = "job_lease_expired"
+    COLLECTION_PROVIDER_RETRYABLE = "collection_provider_retryable"
+    COLLECTION_PROVIDER_FAILED = "collection_provider_failed"
+    COLLECTION_PROVIDER_NOT_CONFIGURED = "collection_provider_not_configured"
+    COLLECTION_UNAVAILABLE = "collection_unavailable"
 
 
 class JobRetryDisposition(StrEnum):
@@ -551,6 +555,54 @@ class ScheduleOccurrenceDefinition:
             require_utc(self.scheduled_for, field_name="scheduled_for")
         if self.trigger_id is not None and self.trigger_id.int == 0:
             raise ValueError("Manual trigger ID must not be a nil UUID")
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleOccurrenceMaterialization:
+    """Atomic extension fact exposed to statically composed schedule projections."""
+
+    occurrence_id: UUID
+    schedule_id: UUID
+    job_id: UUID
+    scope: ExecutionScope
+    task_name: str
+    payload: Mapping[str, object] = field(repr=False)
+    trigger_kind: ScheduleTriggerKind
+    scheduled_for: datetime | None
+    window_start: datetime
+    window_end: datetime
+    coalesced_count: int
+    trace_id: TraceId
+    materialized_at: datetime
+
+    def __post_init__(self) -> None:
+        if any(
+            identifier.int == 0
+            for identifier in (self.occurrence_id, self.schedule_id, self.job_id)
+        ):
+            raise ValueError("Schedule materialization identity is invalid")
+        if not _IDENTIFIER_PATTERN.fullmatch(self.task_name):
+            raise ValueError("Schedule materialization task is invalid")
+        if isinstance(self.coalesced_count, bool) or self.coalesced_count < 1:
+            raise ValueError("Schedule materialization coalesced count is invalid")
+        for value, field_name in (
+            (self.scheduled_for, "scheduled_for"),
+            (self.window_start, "window_start"),
+            (self.window_end, "window_end"),
+            (self.materialized_at, "materialized_at"),
+        ):
+            if value is not None:
+                require_utc(value, field_name=field_name)
+        if self.window_end < self.window_start:
+            raise ValueError("Schedule materialization window is invalid")
+        object.__setattr__(
+            self,
+            "payload",
+            snapshot_json_mapping(
+                self.payload,
+                error_message="Schedule materialization payload must be canonical JSON data",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -1041,6 +1093,8 @@ class AcquiredJob:
     """Sensitive execution input returned only to the winning worker."""
 
     job_id: UUID
+    scope: ExecutionScope
+    trace_id: TraceId
     task_name: str
     queue_name: str
     payload: Mapping[str, object] = field(repr=False)
@@ -1054,6 +1108,8 @@ class AcquiredJob:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "payload", MappingProxyType(dict(self.payload)))
+        if not self.trace_id or len(self.trace_id) > 64:
+            raise ValueError("Acquired job trace ID is invalid")
         if not 1 <= self.attempt_count <= self.max_attempts:
             raise ValueError("Acquired job attempt bounds are invalid")
         if not (1 <= self.soft_time_limit_seconds < self.hard_time_limit_seconds <= 1_800):

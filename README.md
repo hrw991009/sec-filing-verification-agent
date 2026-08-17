@@ -15,8 +15,9 @@
 - [Day 2 学习日志](docs/learning-log/day-2.md)
 - [Day 2 运行与故障手册](docs/runbooks/day-2-agent-runtime.md)
 - [Day 2 第三方依赖与使用边界复核](docs/security/day-2-third-party-review.md)
-- [Day 3 Agent Harness v1：L1/L2 控制切片](docs/agent-harness.md)
+- [Day 3 Agent Harness v1：L1/L2 与行业采集切片](docs/agent-harness.md)
 - [Day 3 学习日志](docs/learning-log/day-3.md)
+- [Day 3 真实来源、使用边界与安全复核](docs/security/day-3-source-review.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围
@@ -31,7 +32,7 @@
 - PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 当前完成 D3-02 的 L1 单 Tool 与 L2 有界循环控制切片本地验收：L2 在同一 Runtime 中执行严格 `tool_call|final` 决策、累积 Observation Context、跨轮 Step/Token/费用预算，并对重复 Action、重复 Observation、deadline、取消和 Tool timeout/failure 给出稳定终态；L1 的原子 Event batch、Tool/Step/Run 成本与关联守恒、竞态 fail-closed、写副作用结果未知、稳定错误码、受限 locator、服务端幂等摘要和 Trace correlation 继续复用。生产 composition 仍只启用 L0，Conversation/Job/Worker 尚未物化 Tool command；当前 L2 也只暴露一个 Fake Tool，真实多 Tool、Web/行业来源、Text2SQL、Tool Inspector 以及 Day 4～Day 7 能力仍未实现。`ToolCall/ToolRun` 当前是 Run-owned operational audit projection，普通删除被外键 `RESTRICT`；生产 Tool 入口启用前还必须实现显式 Run purge、最小 security audit 留存与恢复/备份测试，并统一旧 queued-cancel/unrecoverable terminalizer 的 revision 投影。真实 Web 接入前还必须由 Adapter 只产出 public canonical locator 并通过完整 SSRF/egress 合同。当前证据见 [Day 3 学习日志](docs/learning-log/day-3.md)；尚无对应干净 CI，D3-02 保持 `thin_slice`，不得据此宣称 Day 3 或生产 Tool 用户旅程完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 当前完成前三个切片的本地验收：D3-02 的 L1/L2 Runtime 控制与审计继续复用；D3-01、D3-03～D3-08 新增四个预设行业、服务端偏好与越权拒绝、固定真实 Provider contracts、`industry.web_search:v1`、来源快照/Citation、新闻/政策/招投标/行情领域投影，以及 ScheduleOccurrence/CollectionRun/Job/Outbox 原子物化、Worker、游标和双重去重。World Bank News 与 Alpha Vantage 在用途条款未显式批准时 fail-closed，不使用 Demo/Mock 伪装 readiness。生产 Conversation/Agent Job 仍只启用 L0，L1/L2 Tool command、Text2SQL、Artifact、行业/数据库/图表 UI、Tool Inspector 与 Day 4～Day 7 能力仍未实现。当前证据见 [Day 3 学习日志](docs/learning-log/day-3.md) 和 [真实来源复核](docs/security/day-3-source-review.md)；尚无对应干净 CI，D3-01～D3-08 保持 `thin_slice`，不得据此宣称 Day 3 或生产聊天 Tool 用户旅程完成。
 
 ## 执行基线与安装
 

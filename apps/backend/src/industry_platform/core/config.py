@@ -346,6 +346,10 @@ class Settings(BaseSettings):
     )
     agent_model_request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
 
+    world_bank_news_terms_approved: bool = False
+    alpha_vantage_api_key: SecretStr | None = None
+    alpha_vantage_terms_approved: bool = False
+
     minio_endpoint: str | None = None
     minio_access_key: str | None = None
     minio_secret_key: SecretStr | None = None

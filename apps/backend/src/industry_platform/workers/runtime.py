@@ -35,6 +35,15 @@ from industry_platform.modules.identity.domain import (
 )
 from industry_platform.modules.identity.ports import RefreshRecoveryCleanupUseCase
 from industry_platform.modules.identity.service import RefreshRecoveryCleanupService
+from industry_platform.modules.industry.domain import (
+    INDUSTRY_COLLECTION_TASK_NAME,
+    IndustryNotFoundError,
+    IndustryPersistenceError,
+    IndustryProviderError,
+    ProviderErrorCode,
+)
+from industry_platform.modules.industry.ports import IndustryCollectionUseCase
+from industry_platform.modules.industry.resources import create_industry_resources
 from industry_platform.modules.jobs.domain import (
     AcquiredJob,
     AcquireJobCommand,
@@ -73,7 +82,7 @@ class JobHandler(Protocol):
 
     async def execute(
         self,
-        payload: Mapping[str, object],
+        job: AcquiredJob,
     ) -> Mapping[str, object]: ...
 
 
@@ -93,6 +102,14 @@ class RetryableJobHandlerError(RuntimeError):
         self.error_code = error_code
 
 
+class PermanentJobHandlerError(RuntimeError):
+    """Carry one stable non-retryable business failure to Job settlement."""
+
+    def __init__(self, error_code: JobExecutionErrorCode) -> None:
+        super().__init__("Job handler request failed")
+        self.error_code = error_code
+
+
 @dataclass(frozen=True, slots=True)
 class IdentityRefreshRecoveryCleanupHandler:
     """Parse one bounded cleanup batch and invoke the existing identity use case."""
@@ -101,8 +118,9 @@ class IdentityRefreshRecoveryCleanupHandler:
 
     async def execute(
         self,
-        payload: Mapping[str, object],
+        job: AcquiredJob,
     ) -> Mapping[str, object]:
+        payload = job.payload
         if set(payload) != {"batch_size"}:
             raise InvalidJobPayloadError
 
@@ -134,7 +152,8 @@ class DirectAnswerJobHandler:
 
     execution_use_case: DirectAnswerRunExecutionUseCase = field(repr=False)
 
-    async def execute(self, payload: Mapping[str, object]) -> Mapping[str, object]:
+    async def execute(self, job: AcquiredJob) -> Mapping[str, object]:
+        payload = job.payload
         if set(payload) != {"schema_version", "agent_run_id"}:
             raise InvalidJobPayloadError
         schema_version = payload["schema_version"]
@@ -162,6 +181,48 @@ class DirectAnswerJobHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class IndustryCollectionJobHandler:
+    """Resolve the atomic Collection Run projection and invoke its Application Service."""
+
+    collection_use_case: IndustryCollectionUseCase = field(repr=False)
+
+    async def execute(self, job: AcquiredJob) -> Mapping[str, object]:
+        if job.scope.workspace_id is None or job.scope.system_scope_key is not None:
+            raise InvalidJobPayloadError
+        if set(job.payload) != {"schema_version", "industry_id", "source_kind", "query"}:
+            raise InvalidJobPayloadError
+        try:
+            result = await self.collection_use_case.collect_job(
+                job_id=job.job_id,
+                workspace_id=job.scope.workspace_id,
+                trace_id=job.trace_id,
+            )
+        except IndustryProviderError as error:
+            if error.code is ProviderErrorCode.NOT_CONFIGURED:
+                raise PermanentJobHandlerError(
+                    JobExecutionErrorCode.COLLECTION_PROVIDER_NOT_CONFIGURED
+                ) from None
+            if error.retryable:
+                raise RetryableJobHandlerError(
+                    JobExecutionErrorCode.COLLECTION_PROVIDER_RETRYABLE
+                ) from None
+            raise PermanentJobHandlerError(
+                JobExecutionErrorCode.COLLECTION_PROVIDER_FAILED
+            ) from None
+        except IndustryNotFoundError:
+            raise InvalidJobPayloadError from None
+        except IndustryPersistenceError:
+            raise RetryableJobHandlerError(JobExecutionErrorCode.COLLECTION_UNAVAILABLE) from None
+        return {
+            "collection_run_id": str(result.collection_run_id),
+            "provider": result.provider.value,
+            "fetched_count": result.fetched_count,
+            "inserted_count": result.inserted_count,
+            "duplicate_count": result.duplicate_count,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FixedJobHandlerRegistry:
     """Immutable allowlist; persisted names never trigger dynamic imports."""
 
@@ -175,6 +236,7 @@ class FixedJobHandlerRegistry:
         cls,
         cleanup_use_case: RefreshRecoveryCleanupUseCase,
         direct_answer_use_case: DirectAnswerRunExecutionUseCase | None = None,
+        collection_use_case: IndustryCollectionUseCase | None = None,
     ) -> "FixedJobHandlerRegistry":
         handlers: dict[str, JobHandler] = {
             IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
@@ -183,6 +245,10 @@ class FixedJobHandlerRegistry:
         }
         if direct_answer_use_case is not None:
             handlers[DIRECT_ANSWER_TASK_NAME] = DirectAnswerJobHandler(direct_answer_use_case)
+        if collection_use_case is not None:
+            handlers[INDUSTRY_COLLECTION_TASK_NAME] = IndustryCollectionJobHandler(
+                collection_use_case
+            )
         return cls(handlers)
 
     def resolve(self, task_name: str) -> JobHandler:
@@ -258,6 +324,8 @@ class JobExecutionRuntime:
             )
         except RetryableJobHandlerError as error:
             return await self._retry(acquired, error.error_code)
+        except PermanentJobHandlerError as error:
+            return await self._fail(acquired, error.error_code)
         except UnknownJobHandlerError:
             return await self._fail(
                 acquired,
@@ -319,7 +387,7 @@ class JobExecutionRuntime:
 
     async def _invoke_handler(self, acquired: AcquiredJob) -> Mapping[str, object]:
         handler = self.handlers.resolve(acquired.task_name)
-        return await handler.execute(acquired.payload)
+        return await handler.execute(acquired)
 
     async def _heartbeat_loop(
         self,
@@ -417,14 +485,19 @@ def create_job_delivery_runtime(
         session_factory,
         provider_http_client,
     )
+    job_resources = create_job_resources(settings, session_factory)
+    industry = create_industry_resources(
+        settings,
+        session_factory,
+        provider_http_client,
+        job_resources.schedule_service,
+    )
     return JobExecutionRuntime(
-        jobs=create_job_resources(
-            settings,
-            session_factory,
-        ).application_service,
+        jobs=job_resources.application_service,
         handlers=FixedJobHandlerRegistry.production(
             cleanup_service,
             direct_answer.execution_service,
+            industry.collection_service,
         ),
         worker_id=f"celery-{uuid4().hex}",
         heartbeat_seconds=settings.job_heartbeat_seconds,
