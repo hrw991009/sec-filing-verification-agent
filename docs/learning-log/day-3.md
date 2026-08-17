@@ -1,10 +1,10 @@
-# Day 3 学习日志：第一步 L1 Tool Use
+# Day 3 学习日志：前两步有界 Tool Use
 
 > 更新日期：2026-08-16
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前结论：今天只执行五步计划中的第 1 步；该步已通过本地验收。D3-02 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
+> 当前结论：五步计划中的第 1、2 步已通过本地验收，本轮严格停在第 2 步。D3-02 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
 
 ## 1. Tool、Skill、Application Service 和 Harness 各自负责什么
 
@@ -28,11 +28,13 @@ Observation 是 Tool 返回值的有界、可追溯、归一化表示；它带�
 
 L1 只允许一次 Action、一次 Tool、一次 Observation 和一次最终回答。Action 通过 Schema/scope/policy 才继续；执行成功且 Observation 通过边界校验，才进入最终 Model Step。
 
-在当前 L1 的已实现 safe point，参数无效、未知/越权 Tool、capability 不足、需要审批、Tool 失败、Provider 失败、预算耗尽、deadline 或取消都必须收敛为稳定 Event 和 stop reason；Runtime 不让模型换个名字绕过，也不做隐式重试。Tool 完成、取消和硬超时竞争时只允许一个结算结果，迟到结果不能覆盖已提交终态；非零实际 Tool 成本在 completed Event、Tool Step、Run state 与 Tool 投影间保持同一数值且只计一次。L2 的多轮继续还要增加 max steps、no-progress、重复 Observation 与跨轮预算轨迹，这是今天第 2 步，当前没有提前实现。
+L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型只能返回严格结构化的 `tool_call` 或 `final`。只有新 Action 通过可信校验、未命中 no-progress guard，且剩余 Step、Token、费用、deadline 与取消仍允许下一轮时才继续。完全相同的 Action 在第二次执行前拒绝；不同 Action 若得到相同规范化内容，会先保存第二次真实执行事实，再以 `no_progress` 停止。这样既不伪造“没有执行”，也不把重复结果继续喂给模型制造无限循环。
+
+在当前 L1/L2 的已实现 safe point，参数无效、未知/越权 Tool、capability 不足、需要审批、Tool 失败、Provider 失败、max steps、无进展、预算耗尽、deadline 或取消都必须收敛为稳定 Event 和 stop reason；Runtime 不让模型换个名字绕过，也不做隐式重试。Tool 完成、取消和硬超时竞争时只允许一个结算结果；非零实际 Tool 成本在 completed Event、Tool Step、Run state 与 Tool 投影间保持同一数值且只计一次。当前 L2 只用一个可信 Tool 的不同参数证明多轮控制，不能替代 Day 3 后续“至少两个不同 Tool”的验收。
 
 ## 5. 为什么生产与 Harness 必须共用 Runtime
 
-如果 Harness 自己执行 Action→Tool→Observation，测试可能通过，但生产的 Event、预算、取消、持久化和错误语义仍是另一套。第一步把 L0 生产链与 L1 Harness 都放进同一个 `UnifiedAgentRuntime` dispatch；单元/Harness 只通过正式 Port/构造边界注入 Provider、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信身份。真实 PostgreSQL 用例直接调用同一个内部 `ToolL1Runtime` 并使用 SQL ports，只验证 Runtime/持久化合同，不冒充生产 Application/Job/Worker 入口。
+如果 Harness 自己执行 Action→Tool→Observation，测试可能通过，但生产的 Event、预算、取消、持久化和错误语义仍是另一套。前两步把 L0 生产链与 L1/L2 Harness 都放进同一个 `UnifiedAgentRuntime` dispatch；单元/Harness 只通过正式 Port/构造边界注入 Provider、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信身份。真实 PostgreSQL 用例直接调用同一个内部 `ToolL1Runtime` 或 `ToolL2Runtime` 并使用 SQL ports，只验证 Runtime/持久化合同，不冒充生产 Application/Job/Worker 入口。
 
 这并不等于真实 Web 已接通。Fake Tool 只证明调用边界、轨迹和错误可重复；正式 `web` 模式仍须等第 3 步的真实 Adapter 和 SSRF/egress 合同通过。
 
@@ -52,14 +54,14 @@ L1 只允许一次 Action、一次 Tool、一次 Observation 和一次最终回�
 第一步已完整执行根 [README 的统一验证](../../README.md#统一验证)，没有用定向绿色子集替代：
 
 - 锁定依赖安装通过；Python 262 个文件的 format check、Ruff、mypy 256 个源文件、wheel/sdist build 均通过；`uv audit --locked` 检查 72 个包，没有已知漏洞或 adverse status；
-- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `808 passed`，没有 skip/xfail；最终安全、原子性与可靠性定向集另有 `99 passed`；
-- disposable PostgreSQL 上的 fresh Alembic upgrade/check/downgrade/upgrade 与真实 L1 往返通过；真实 PostgreSQL 用例覆盖成功投影、跨 actor 拒绝、成本篡改整批回滚、Observation/Trace 篡改拒绝和最终 revision 一致；
+- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `822 passed`，没有 skip/xfail；L1/L2、Context、Trace、持久化与 Registry 的安全定向集另有 `99 passed`；
+- disposable PostgreSQL 上的 fresh Alembic upgrade/check/downgrade/upgrade 与真实 L1/L2 往返通过；L2 PostgreSQL 用例持久化两次 ToolCall/ToolRun、六个 Step 与三份递增 Observation manifest，并核对累计费用、最终 revision 和安全 Trace；
 - OpenAPI 二次生成一致，API contract typecheck 通过；Web format/lint/typecheck/production build 通过，Vitest 为 `43 passed`，`pnpm audit --audit-level high` 无漏洞；
 - Playwright 的会话、停止与刷新恢复三条真实浏览器旅程为 `3 passed`；
 - 受控工作树路径与完整 41-commit 历史的 Gitleaks 扫描均无泄漏，`git diff --check` 与暂存区复核通过；本步没有新增第三方运行时依赖或许可证例外。
 
 失败修复没有靠删测试、放宽 Schema 或把适用项写成 `N/A` 绕过。实际关闭了执行中取消/deadline/硬超时竞态、已知 Model/Tool 成本守恒、确定转移的 Event batch 原子性、PostgreSQL `CHECK` 的三值逻辑绕过、Tool/Step/Run 投影关联、Observation→Context→Trace 关联，以及写副作用结果未知时的保守终态。
 
-残余边界也不隐藏：生产 Application/Job/Worker 尚未启用 L1，因此还没有正式 L1 用户旅程和干净 CI 证据；显式 Run purge、最小 security audit 留存/恢复/备份、旧 queued-cancel/unrecoverable terminalizer 的 revision 投影，以及真实 Web locator 的语义级 token/PII 清洗和 SSRF/egress 防护，都是相应后续入口前的硬门禁。
+残余边界也不隐藏：生产 Application/Job/Worker 尚未启用 L1/L2，因此还没有正式 Tool 用户旅程和干净 CI 证据；当前 L2 只暴露一个 Fake Tool，真实多 Tool 选择、Web/行业来源、Text2SQL、Artifact 与 Tool Inspector 均未开始；显式 Run purge、最小 security audit 留存/恢复/备份、旧 queued-cancel/unrecoverable terminalizer 的 revision 投影，以及真实 Web locator 的语义级 token/PII 清洗和 SSRF/egress 防护，都是相应后续入口前的硬门禁。
 
-当前阶段结论：只完成第 1 步的本地验收；第 2～5 步未开始，D3-02 仍为 `thin_slice`，Day 3 总门禁仍未关闭。
+当前阶段结论：只完成第 1、2 步的本地验收；第 3～5 步未开始，D3-02 仍为 `thin_slice`，Day 3 总门禁仍未关闭。

@@ -1,10 +1,10 @@
-# Agent Harness v1：Day 3 L1 薄切片
+# Agent Harness v1：Day 3 L1/L2 控制切片
 
 > 更新日期：2026-08-16
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前状态：当天第 1 个可验收步骤已通过本地验收；D3-02 仍为 `thin_slice`，尚无对应干净 CI，Day 3 门禁尚未通过。
+> 当前状态：当天第 1、2 个可验收步骤已通过本地验收；D3-02 仍为 `thin_slice`，尚无对应干净 CI，Day 3 门禁尚未通过。
 
 ## 1. 今天的五个可验收步骤
 
@@ -14,7 +14,7 @@
 4. 完成数据库能力切片：数据库浏览、安全 Text2SQL、只读 AST、schema/table/column allowlist、查询预算，以及受校验的表格/图表 Artifact 和错误旅程。
 5. 完成 Tool Inspector 与行业/数据库/图表正式页面和 E2E，输出 L0/L1/L2 trajectory report、累计数据集，并逐项关闭 Day 3 Definition of Done 与学习门禁。
 
-本轮严格停在第 1 步。第 2～5 步未开始，不能把 Fake Tool 写成真实 Web 能力，也不能提前宣称 Day 3 完成。
+本轮严格停在第 2 步。第 3～5 步未开始，不能把 Fake Tool 写成真实 Web 能力，也不能提前宣称 Day 3 完成。
 
 ## 2. 第一步的正式执行链
 
@@ -31,7 +31,9 @@ ToolL1Profile 选择恰好一个版本化 Tool
   → Runtime 生成正式 Markdown final，并以唯一终态结束
 ```
 
-生产 L0 与 Harness L1 都经 `UnifiedAgentRuntime` dispatch；Harness 只通过正式 Port/构造边界注入 Model、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信执行身份，不实现第二套 loop。真实 PostgreSQL 集成用例则直接调用同一个内部 `ToolL1Runtime`，把 manifest、Event 和控制边界替换为 SQL ports，以验证 Runtime/持久化合同；它没有经过生产 L1 Application/Job/Worker 入口。当前生产 composition 只注入 L0，Conversation/Job/Worker 尚未物化 `ToolL1RunCommand`，所以这一步不是可供用户启用的生产 L1 旅程。L1 使用 provider-neutral 的严格 JSON response schema，当前没有扩展成特定 Provider 的原生 `tool_calls`。
+生产 L0 与 Harness L1/L2 都经 `UnifiedAgentRuntime` dispatch；Harness 只通过正式 Port/构造边界注入 Model、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信执行身份，不实现第二套 loop。真实 PostgreSQL 集成用例直接调用同一个内部 `ToolL1Runtime` 或 `ToolL2Runtime`，把 manifest、Event 和控制边界替换为 SQL ports，以验证 Runtime/持久化合同；它没有经过生产 Tool Application/Job/Worker 入口。当前生产 composition 只注入 L0，Conversation/Job/Worker 尚未物化 Tool command，所以这两步都不是可供用户启用的生产 Tool 旅程。L1/L2 使用 provider-neutral 的严格 JSON response schema，当前没有扩展成特定 Provider 的原生 `tool_calls`。
+
+L2 在同一状态机上重复 `决策 Model → Action → Registry/策略 → Tool → Observation`，每次决策只能返回严格的 `tool_call` 或 `final` 分支。每轮 Context 都包含此前全部有界 Observation；Runtime 在继续前统一核对剩余 Step、Token、费用、deadline 与取消。相同 name/version/参数摘要的 Action 在再次执行前以 `no_progress` 拒绝；不同参数若产生相同的规范化内容，第二次已发生的 Tool/Step 审计事实会被原子保存，然后以 `no_progress` 停止。当前控制切片故意只暴露一个可信 Tool 的一个精确版本，用于证明多轮边界；“至少两个不同 Tool”的 Day 3 门禁属于后续真实 Web 与 Text2SQL 切片，尚未满足。
 
 ## 3. Tool、Skill、Application Service 与 Harness
 
@@ -48,7 +50,7 @@ Runtime 决定 Step/Event/State/Budget/stop reason；ToolExecutor 是 Runtime Po
 
 主要合同位于 `modules/tools/domain.py`、`registry.py` 和 `agent_runtime/tool_runtime_contracts.py`：
 
-- `ToolDefinition` 冻结 name/version/description、输入输出 Schema 版本、capability、timeout、成本上限、副作用类别、approval policy 和 retry classification；retry classification 只描述边界，L1 仍禁止隐式重试；
+- `ToolDefinition` 冻结 name/version/description、输入输出 Schema 版本、capability、timeout、成本上限、副作用类别、approval policy 和 retry classification；retry classification 只描述边界，L1/L2 均禁止隐式重试；
 - `ToolAction` 只能携带模型建议的 name/version/arguments，不能携带可信 policy、WorkspaceScope、Budget 或审批结果；
 - `ToolCall` 是通过 Registry 校验后的执行合同；写操作的原始副作用幂等键只在受控内存中保留、从 `repr` 隐藏并传给 Adapter，Event/Trace/PostgreSQL 只能保存其 SHA-256；
 - `ToolObservation` 必须有来源类型/版本、时间、locator、content SHA-256 和 normalizer version，并受条数、文本与 locator 上限约束；locator fail-closed 拒绝 userinfo、query、fragment 和控制字符，完整 model-visible envelope digest 还会绑定正文与 provenance；
@@ -68,9 +70,9 @@ Observation 还不是 Evidence。它只证明“某个 Tool 在某个时间返�
 
 ## 6. Harness Scenario 与停止语义
 
-`evals/scenarios/day3-l1-v1.json` 新增 5 个版本化用例：成功、参数 Schema 错误、capability 拒绝、需要审批和 Tool 失败。加上 Day 2 的 9 条，累计 14 条。
+`evals/scenarios/day3-l1-v1.json` 登记 5 个 L1 版本化用例；`evals/scenarios/day3-l2-v1.json` 再登记 10 个 L2 用例：两轮成功、重复 Action、重复 Observation、max steps、跨轮 Token/费用预算、取消、deadline、第二轮 Tool timeout 与 Tool failure。10 条 L2 case 全部通过 `HarnessRunner`、L2 materializer 和 `UnifiedAgentRuntime` 执行。加上 Day 2 的 9 条，当前累计 24 条。
 
-L1 的继续条件非常窄：结构化 Action 通过可信 Registry/策略后，只执行一次 Tool，并只把一次归一化 Observation 送入最终回答。当前 L1 必须在每个已实现 safe point 对校验失败、deny、approval_required、Tool/Provider failure、Run deadline、预算或取消给出稳定终态，且没有隐式 Tool retry。Tool 完成、取消和硬超时同时竞争时 fail-closed，只允许一个结算结果，迟到结果不能覆盖已提交终态；非零实际 Tool 成本必须不超过定义上限，并在 completed Event、Tool Step、Run state 与 Tool 投影之间数值一致、只计一次。第 2 步还要把这些边界扩展成 L2 多轮轨迹，并新增 max steps、no-progress、重复 Observation 和跨轮预算的完整验收。
+L1 的继续条件非常窄：结构化 Action 通过可信 Registry/策略后，只执行一次 Tool，并只把一次归一化 Observation 送入最终回答。L2 只有在决策要求一个未重复的新 Action、所有静态策略通过且仍为下一次决策与 Final Step 留出预算时继续；模型直接返回 final、任一预算/控制边界触发、Action 重复或 Observation 内容重复时停止。L1/L2 都必须在每个已实现 safe point 对校验失败、deny、approval_required、Tool/Provider failure、Run deadline、预算或取消给出稳定终态，且没有隐式 Tool retry。Tool 完成、取消和硬超时同时竞争时 fail-closed，只允许一个结算结果；非零实际 Tool 成本必须不超过定义上限，并在 completed Event、Tool Step、Run state 与 Tool 投影之间数值一致、只计一次。
 
 Fake Industry Lookup 不访问网络、Shell、数据库或 Secret，只用于可重复验证合同。它不能证明真实搜索质量，也不能让正式 `web` 模式从 readiness 变为可用。
 
@@ -86,7 +88,7 @@ Fake Industry Lookup 不访问网络、Shell、数据库或 Secret，只用于�
 - 安全：不保存 raw arguments/result、原始幂等键、Secret/Runtime Context、Provider body 或模型控制的未知参数键；error code、locator、digest 和幂等键 hash 均执行稳定的 fail-closed 校验；
 - 学习：能够解释四类职责、Observation/Evidence 边界和继续/停止规则。
 
-L2、真实来源、Text2SQL、Artifact、Tool Inspector、完整 trajectory scorer 和 Day 3 用户门禁在第 2～5 步验收；显式 Run purge、最小 security audit 留存与恢复/备份测试也仍为生产 L1 前置 open 项。本步不将这些义务标为 `N/A` 或提前完成。
+真实来源、多 Tool 选择、Text2SQL、Artifact、Tool Inspector、完整 trajectory scorer 和 Day 3 用户门禁仍在第 3～5 步验收；显式 Run purge、最小 security audit 留存与恢复/备份测试也仍为生产 Tool 入口前置 open 项。本步不将这些义务标为 `N/A` 或提前完成。
 
 ## 8. 代码与验证入口
 
@@ -94,8 +96,8 @@ L2、真实来源、Text2SQL、Artifact、Tool Inspector、完整 trajectory sco
 - Tool contract/Registry/Executor：`apps/backend/src/industry_platform/modules/tools/`；
 - Harness/Fake：`apps/backend/src/industry_platform/modules/agent_harness/tool_use.py`、`tool_fakes.py`、`profiles.py`；
 - PostgreSQL：`apps/backend/migrations/versions/4d9b8f6c2a10_create_tool_execution_facts.py` 与 Agent Event committer；
-- 单元/Scenario：`apps/backend/tests/modules/agent_runtime/test_tool_l1_runtime.py`、`test_context_v1.py`、`apps/backend/tests/modules/tools/`；
-- 真实 PostgreSQL：`apps/backend/tests/integration/test_tool_l1_postgres.py` 与 `test_migration_smoke.py`；
+- 单元/Scenario：`apps/backend/tests/modules/agent_runtime/test_tool_l1_runtime.py`、`test_tool_l2_runtime.py`、`test_context_v1.py`、`apps/backend/tests/modules/tools/`；
+- 真实 PostgreSQL：`apps/backend/tests/integration/test_tool_l1_postgres.py`、`test_tool_l2_postgres.py` 与 `test_migration_smoke.py`；
 - Web contract：`apps/web/src/chat/chat-api.test.ts`、`chat-workbench-model.test.ts`。
 
-最终本地门禁结果已记录在 [Day 3 学习日志](learning-log/day-3.md)；它只关闭今天第 1 步的本地验收，不代表 D3-02 `complete`、Day 3 执行门禁通过或生产 L1 用户旅程可用。
+最终本地门禁结果已记录在 [Day 3 学习日志](learning-log/day-3.md)；它只关闭今天第 1、2 步的本地验收，不代表 D3-02 `complete`、Day 3 执行门禁通过或生产 Tool 用户旅程可用。

@@ -148,6 +148,7 @@ class RuntimeTransitionSupport:
         occurred_at: datetime,
         step_count: int | None = None,
         usage: ModelUsage | None = None,
+        max_steps_preflight_rejected: bool = False,
         token_budget_preflight_rejected: bool = False,
         cost_budget_preflight_rejected: bool = False,
         terminal_details: dict[str, object] | None = None,
@@ -176,6 +177,7 @@ class RuntimeTransitionSupport:
             ),
             updated_at=occurred_at,
             stop_reason=stop_reason,
+            max_steps_preflight_rejected=max_steps_preflight_rejected,
             token_budget_preflight_rejected=token_budget_preflight_rejected,
             cost_budget_preflight_rejected=cost_budget_preflight_rejected,
         )
@@ -209,6 +211,7 @@ class RuntimeTransitionSupport:
                         "cost_micro_usd": usage.cost_micro_usd,
                     }
                 ),
+                **({"max_steps_preflight_rejected": True} if max_steps_preflight_rejected else {}),
                 **(
                     {"cost_budget_preflight_rejected": True}
                     if cost_budget_preflight_rejected

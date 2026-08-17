@@ -11,7 +11,10 @@ from industry_platform.modules.agent_runtime.domain import (
     AgentRunType,
 )
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
-from industry_platform.modules.agent_runtime.tool_runtime_contracts import ToolL1RuntimePolicy
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    ToolL1RuntimePolicy,
+    ToolL2RuntimePolicy,
+)
 from industry_platform.modules.tools.domain import ToolReference, tool_references
 
 DIRECT_ANSWER_PROFILE_SCHEMA_VERSION: Final = 1
@@ -148,6 +151,55 @@ class ToolL1Profile:
             max_input_tokens=self.max_input_tokens,
             max_action_output_tokens=self.max_action_output_tokens,
             max_final_output_tokens=self.max_final_output_tokens,
+            system_instructions=self.system_instructions,
+            available_tools=tool_references(self.available_tools),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ToolL2Profile:
+    """L2 policy: one strict Tool surface inside a bounded multi-round loop."""
+
+    schema_version: int
+    profile_name: str
+    profile_version: str
+    prompt_version: str
+    context_compiler_version: str
+    output_contract_version: str
+    toolset_version: str
+    model: str
+    max_input_tokens: int
+    max_decision_output_tokens: int
+    max_tool_calls: int
+    system_instructions: str = field(repr=False)
+    available_tools: tuple[ToolReference, ...]
+    run_type: AgentRunType = field(default=AgentRunType.TOOL_LOOP, init=False)
+    execution_mode: ProfileExecutionMode = field(
+        default=ProfileExecutionMode.BOUNDED_TOOL_LOOP,
+        init=False,
+    )
+
+    def __post_init__(self) -> None:
+        if self.profile_name != "tool-l2":
+            raise ValueError("Tool L2 profile name is invalid")
+        runtime_policy = self.to_runtime_policy()
+        object.__setattr__(self, "available_tools", runtime_policy.available_tools)
+        object.__setattr__(self, "system_instructions", runtime_policy.system_instructions)
+
+    def to_runtime_policy(self) -> ToolL2RuntimePolicy:
+        """Project Harness choices into the Runtime-owned L2 loop policy."""
+
+        return ToolL2RuntimePolicy(
+            schema_version=self.schema_version,
+            profile_version=self.profile_version,
+            prompt_version=self.prompt_version,
+            context_compiler_version=self.context_compiler_version,
+            output_contract_version=self.output_contract_version,
+            toolset_version=self.toolset_version,
+            model=self.model,
+            max_input_tokens=self.max_input_tokens,
+            max_decision_output_tokens=self.max_decision_output_tokens,
+            max_tool_calls=self.max_tool_calls,
             system_instructions=self.system_instructions,
             available_tools=tool_references(self.available_tools),
         )

@@ -1,0 +1,382 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day3-tool-l2",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-two-round-final",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-two-round-final",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Compare steel and copper market changes." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l2-two-round-final", "version": "v1" },
+          { "name": "fake-tool/steel-copper", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": { "tool_call_count": 2, "final_output": "Bounded Markdown" },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "l2-two-round-final",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Two distinct arguments, two normalized Observations, then final."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-repeated-action",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-repeated-action",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Repeat an identical Action." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l2-repeated-action", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "no_progress",
+      "expected_behavior": { "tool_call_count": 1, "guard": "tool_action_repeated" },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-no-progress", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "The second identical Action is rejected before execution."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-duplicate-observation",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-duplicate-observation",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Produce the same normalized result through different arguments." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "fake-tool/duplicate-result", "version": "v1" }]
+      },
+      "expected_stop_reason": "no_progress",
+      "expected_behavior": { "tool_call_count": 2, "guard": "duplicate_observation" },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "l2-duplicate-observation",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "The second completed Tool fact is retained, then the Run stops."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-max-steps",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-max-steps",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Request another Tool without room to finish safely." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 5,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "fake-model/day3-l2-max-steps", "version": "v1" }]
+      },
+      "expected_stop_reason": "max_steps",
+      "expected_behavior": { "tool_call_count": 1, "preflight_rejected": true },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-max-steps", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Runtime reserves Tool + future decision + final before continuing."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-token-budget",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-token-budget",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Exhaust the shared token budget on the second decision." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 900,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l2-token-budget", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "token_budget_exceeded",
+      "expected_behavior": { "tool_call_count": 1 },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-token-budget", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Every model round consumes the same Run token budget."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-cost-budget",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-cost-budget",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Exhaust the shared cost budget on the second decision." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 1002,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-model/day3-l2-cost-budget", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "cost_budget_exceeded",
+      "expected_behavior": { "tool_call_count": 1 },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-cost-budget", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Model and Tool costs share one authoritative Run total."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-cancelled",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-cancelled",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Cancel after the first Tool round." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-control/cancel-after-first-tool", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "cancelled",
+      "expected_behavior": { "tool_call_count": 1 },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-cancelled", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Cancellation prevents the next model round."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-deadline",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-deadline",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Reach the deadline after an authoritative Tool result." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-clock/deadline-after-tool", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "deadline_exceeded",
+      "expected_behavior": { "tool_call_count": 1 },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-deadline", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "Known Tool outcome is persisted before the deadline terminal."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-tool-timeout",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-tool-timeout",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Time out the second Tool invocation." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "fake-tool/timeout-second-call", "version": "v1" }]
+      },
+      "expected_stop_reason": "tool_error",
+      "expected_behavior": { "error_code": "tool_timeout" },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-tool-timeout", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "The timeout has one Tool/Step/Run failure boundary."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day3-l2-tool-failure",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day3-l2-tool-failure",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "tool-l2", "version": "v1" },
+        "input": { "question": "Fail the second Tool fixture lookup." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "fake-industry-toolset-v1",
+        "available_tools": [{ "name": "fake.industry_lookup", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "fake-tool/missing-second-result", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "tool_error",
+      "expected_behavior": { "error_code": "tool_fixture_not_found" },
+      "scorers": [
+        { "category": "trajectory", "name": "l2-tool-failure", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [],
+      "artifact_refs": [],
+      "human_notes": "No implicit retry or fallback after the second Tool fails."
+    }
+  ]
+}

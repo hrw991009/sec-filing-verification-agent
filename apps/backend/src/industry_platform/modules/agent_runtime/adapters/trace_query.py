@@ -66,12 +66,18 @@ class AgentTraceQueryError(RuntimeError):
 
 
 _SAFE_EVENT_FIELDS: Mapping[AgentEventType, tuple[str, ...]] = {
-    AgentEventType.RUN_QUEUED: ("run_type", "runtime_version", "harness_version"),
+    AgentEventType.RUN_QUEUED: (
+        "run_type",
+        "runtime_version",
+        "harness_version",
+        "loop_level",
+        "tool_call_limit",
+    ),
     AgentEventType.RUN_STARTED: ("state_revision",),
     AgentEventType.RUN_PAUSED: ("state_revision",),
     AgentEventType.RUN_RESUMED: ("state_revision",),
     AgentEventType.RUN_COMPLETED: ("stop_reason",),
-    AgentEventType.RUN_FAILED: ("stop_reason",),
+    AgentEventType.RUN_FAILED: ("stop_reason", "loop_guard"),
     AgentEventType.RUN_CANCELLED: ("stop_reason", "cancelled_step_id"),
     AgentEventType.STEP_STARTED: ("step_id", "step_sequence", "step_kind"),
     AgentEventType.STEP_COMPLETED: (
