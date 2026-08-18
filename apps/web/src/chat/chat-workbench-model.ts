@@ -82,6 +82,13 @@ export const eventNames: Record<string, string> = {
   "agent.step.completed": "步骤完成",
   "agent.step.failed": "步骤失败",
   "agent.step.started": "步骤开始",
+  "agent.tool.approval_required": "工具调用等待批准",
+  "agent.tool.cancelled": "工具调用已取消",
+  "agent.tool.completed": "工具调用完成",
+  "agent.tool.denied": "工具调用被拒绝",
+  "agent.tool.failed": "工具调用失败",
+  "agent.tool.requested": "工具调用已请求",
+  "agent.tool.started": "工具调用开始",
   "stream.snapshot": "已恢复运行快照",
 };
 
@@ -90,6 +97,7 @@ export const sourceNames: Record<string, string> = {
   conversation_summary: "会话摘要",
   runtime_context_projection: "Workspace 安全投影",
   system_instructions: "系统指令",
+  tool_observation: "工具观察结果",
   user_question: "当前问题",
 };
 

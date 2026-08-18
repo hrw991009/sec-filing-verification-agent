@@ -6,10 +6,12 @@ from typing import Final, cast
 
 MAX_RESPONSE_SCHEMA_DEPTH: Final = 20
 MAX_RESPONSE_SCHEMA_BYTES: Final = 64_000
+MAX_RESPONSE_SCHEMA_ALTERNATIVES: Final = 16
 
 _SUPPORTED_JSON_SCHEMA_FIELDS: Final = frozenset(
     {
         "additionalProperties",
+        "anyOf",
         "const",
         "description",
         "enum",
@@ -107,6 +109,17 @@ def validate_supported_schema(schema: Mapping[str, object], *, depth: int = 0) -
             raise InvalidProviderRequest
     if depth > MAX_RESPONSE_SCHEMA_DEPTH or set(schema) - _SUPPORTED_JSON_SCHEMA_FIELDS:
         raise InvalidProviderRequest
+    alternatives_value = schema.get("anyOf")
+    if alternatives_value is not None:
+        if depth == 0 or set(schema) != {"anyOf"}:
+            raise InvalidProviderRequest
+        alternatives = _schema_sequence(alternatives_value)
+        if not 1 <= len(alternatives) <= MAX_RESPONSE_SCHEMA_ALTERNATIVES:
+            raise InvalidProviderRequest
+        for alternative in alternatives:
+            validate_supported_schema(_schema_mapping(alternative), depth=depth + 1)
+        return
+
     schema_type = schema.get("type")
     if not isinstance(schema_type, str) or schema_type not in _SUPPORTED_JSON_TYPES:
         raise InvalidProviderRequest
@@ -188,6 +201,19 @@ def _validate_json_instance(
     depth: int = 0,
 ) -> None:
     if depth > MAX_RESPONSE_SCHEMA_DEPTH:
+        raise InvalidProviderResponse
+    alternatives_value = schema.get("anyOf")
+    if alternatives_value is not None:
+        for alternative in _schema_sequence(alternatives_value):
+            try:
+                _validate_json_instance(
+                    value,
+                    _schema_mapping(alternative),
+                    depth=depth + 1,
+                )
+                return
+            except InvalidProviderResponse:
+                continue
         raise InvalidProviderResponse
     expected_type = cast(str, schema["type"])
     if not _json_type_matches(value, expected_type):

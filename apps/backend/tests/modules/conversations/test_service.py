@@ -32,6 +32,7 @@ ATTACHMENT_IDS = (
     UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
     UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
 )
+INDUSTRY_ID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
 
 
 class RecordingWriter:
@@ -191,7 +192,33 @@ async def test_submission_rejects_viewers_and_unready_modes_before_writing() -> 
     with pytest.raises(ConversationModeNotReadyError):
         await submission.submit(
             WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
-            replace(request_value, search_mode=TurnSearchMode.WEB),
+            replace(request_value, search_mode=TurnSearchMode.LOCAL),
         )
 
     assert writer.prepared == []
+
+
+@pytest.mark.asyncio
+async def test_submission_materializes_web_mode_as_a_bounded_tool_run() -> None:
+    writer = RecordingWriter()
+    submission = ConversationSubmissionService(application=service(writer), clock=lambda: NOW)
+
+    await submission.submit(
+        WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+        SubmitConversationTurn(
+            trace_id=TraceId("web-turn-trace"),
+            idempotency_key="web-request-1",
+            question="Find current policy updates.",
+            search_mode=TurnSearchMode.WEB,
+            industry_id=INDUSTRY_ID,
+        ),
+    )
+
+    prepared = writer.prepared[0]
+    assert prepared.run.run_type.value == "tool_loop"
+    assert prepared.run.runtime_version == "agent-runtime-v1"
+    assert prepared.run.harness_version == "harness-v1"
+    assert prepared.run.budget.max_steps == 8
+    assert prepared.run.budget.max_total_tokens == 8_192
+    assert prepared.search_mode is TurnSearchMode.WEB
+    assert prepared.industry_id == INDUSTRY_ID

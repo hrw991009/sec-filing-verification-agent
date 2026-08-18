@@ -14,6 +14,9 @@ from industry_platform.core.database import (
     create_database_engine,
     create_database_session_factory,
 )
+from industry_platform.modules.industry.adapters.sqlalchemy import (
+    industry_collection_occurrence_observer,
+)
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyScheduleTransactionFactory,
 )
@@ -68,7 +71,10 @@ async def _create_schedule_resources(settings: Settings) -> _ScheduleResources:
     try:
         session_factory = create_database_session_factory(engine)
         service = ScheduleApplicationService(
-            transaction_factory=SqlAlchemyScheduleTransactionFactory(session_factory),
+            transaction_factory=SqlAlchemyScheduleTransactionFactory(
+                session_factory,
+                occurrence_observer=industry_collection_occurrence_observer,
+            ),
             batch_size=SCHEDULE_BATCH_SIZE,
         )
         return _ScheduleResources(engine=engine, service=service)

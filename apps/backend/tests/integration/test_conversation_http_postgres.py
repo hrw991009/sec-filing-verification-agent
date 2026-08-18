@@ -63,7 +63,7 @@ def test_conversation_http_is_workspace_scoped_and_soft_deletes(
             headers=submit_headers,
             json={"question": "Explain a different market.", "mode": "none"},
         )
-        unavailable_mode = client.post(
+        web_without_industry = client.post(
             root,
             headers={
                 **_bearer(access_token),
@@ -96,8 +96,8 @@ def test_conversation_http_is_workspace_scoped_and_soft_deletes(
     assert repeated.json() == {**accepted_body, "created": False}
     assert changed_retry.status_code == 409
     assert changed_retry.json()["code"] == "CONVERSATION_IDEMPOTENCY_CONFLICT"
-    assert unavailable_mode.status_code == 409
-    assert unavailable_mode.json()["code"] == "CONVERSATION_MODE_NOT_READY"
+    assert web_without_industry.status_code == 422
+    assert web_without_industry.json()["code"] == "REQUEST_VALIDATION_FAILED"
     assert listed.status_code == 200
     assert listed.json()["conversations"][0]["id"] == conversation_id
     assert detail.status_code == 200

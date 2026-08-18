@@ -119,6 +119,8 @@ class StartConversationTurnRequest(StrictConversationModel):
             TurnSearchMode.BOTH,
         }:
             raise ValueError("Knowledge-base IDs require local search mode")
+        if self.mode is TurnSearchMode.WEB and self.industry_id is None:
+            raise ValueError("Web search mode requires one industry ID")
         return self
 
 

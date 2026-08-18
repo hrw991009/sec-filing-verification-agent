@@ -21,6 +21,9 @@ from industry_platform.modules.agent_runtime.events import (
 )
 from industry_platform.modules.agent_runtime.ports import AgentRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRunCommand
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import ToolL2RunCommand
+
+type ProductionAgentRunCommand = DirectAnswerRunCommand | ToolL2RunCommand
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +32,7 @@ logger = logging.getLogger(__name__)
 class DirectAnswerExecutionInput:
     """Trusted Runtime command and authorization context loaded from durable facts."""
 
-    command: DirectAnswerRunCommand = field(repr=False)
+    command: ProductionAgentRunCommand = field(repr=False)
     runtime_context: TrustedRuntimeContext = field(repr=False)
 
 
@@ -84,7 +87,7 @@ class DirectAnswerRunExecutionService:
     """Load one Run, consume the unified Runtime, and return its terminal fact."""
 
     loader: DirectAnswerRunLoader = field(repr=False)
-    runtime: AgentRuntime[DirectAnswerRunCommand, TrustedRuntimeContext] = field(repr=False)
+    runtime: AgentRuntime[ProductionAgentRunCommand, TrustedRuntimeContext] = field(repr=False)
     terminalizer: AgentRunTerminalizer | None = field(default=None, repr=False)
 
     async def execute_run(self, run_id: UUID) -> DirectAnswerExecutionResult:

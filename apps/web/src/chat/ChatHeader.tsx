@@ -6,21 +6,27 @@ import type { ActiveRun } from "./chat-workbench-model";
 import { roleNames } from "./chat-workbench-model";
 import { Icon } from "./icons";
 
+export type WorkbenchView = "chat" | "data" | "industry";
+
 interface ChatTopbarProps {
   readonly currentUser: CurrentUser;
   readonly submitting: boolean;
   readonly workspaceId: string;
+  readonly view: WorkbenchView;
   readonly onChangeWorkspace: (workspaceId: string) => void;
   readonly onLogout: () => Promise<void>;
   readonly onOpenSettings: () => void;
+  readonly onChangeView: (view: WorkbenchView) => void;
 }
 
 export function ChatTopbar({
   currentUser,
   onChangeWorkspace,
+  onChangeView,
   onLogout,
   onOpenSettings,
   submitting,
+  view,
   workspaceId,
 }: ChatTopbarProps) {
   const workspace = currentUser.workspaces.find((candidate) => candidate.id === workspaceId);
@@ -50,6 +56,29 @@ export function ChatTopbar({
           ))}
         </select>
       </div>
+      <nav className="product-nav" aria-label="主要功能">
+        {(
+          [
+            ["chat", "Agent"],
+            ["industry", "行业情报"],
+            ["data", "数据库"],
+          ] as const
+        ).map(([target, label]) => (
+          <button
+            aria-current={view === target ? "page" : undefined}
+            className={
+              view === target ? "product-nav__item product-nav__item--active" : "product-nav__item"
+            }
+            key={target}
+            onClick={() => {
+              onChangeView(target);
+            }}
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
       <div className="chat-account">
         <span className="chat-account__identity">
           <strong>{currentUser.user.email}</strong>
@@ -90,6 +119,7 @@ interface ConversationHeaderProps {
   readonly selectedConversationId: string | null;
   readonly submitting: boolean;
   readonly traceRunId: string | null;
+  readonly searchMode: "none" | "web";
   readonly onBeginRename: () => void;
   readonly onChangeRenameTitle: (title: string) => void;
   readonly onDelete: () => void;
@@ -118,6 +148,7 @@ export function ConversationHeader({
   selectedConversationId,
   submitting,
   traceRunId,
+  searchMode,
 }: ConversationHeaderProps) {
   return (
     <header className="chat-header">
@@ -156,7 +187,9 @@ export function ConversationHeader({
               ? activeRun?.connection === "reconnecting"
                 ? "正在恢复已提交事件"
                 : "Runtime 正在执行"
-              : "直接回答 · 无工具调用"}
+              : searchMode === "web"
+                ? "Web Tool · L2 有界循环"
+                : "直接回答 · L0"}
           </span>
         </div>
       </div>

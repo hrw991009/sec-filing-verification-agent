@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -54,6 +55,7 @@ from industry_platform.modules.jobs.domain import (
     ScheduleDefinition,
     ScheduleDefinitionConflictError,
     ScheduleNotFoundError,
+    ScheduleOccurrenceMaterialization,
     ScheduleOccurrenceStatus,
     ScheduleTickCommand,
     ScheduleTickResult,
@@ -80,6 +82,25 @@ from industry_platform.modules.jobs.ports import (
 DISPATCH_GENERATION = 1
 CREATED_EVENT_SEQUENCE = 0
 STARTED_EVENT_SEQUENCE = 0
+
+
+class ScheduleOccurrenceObserver(Protocol):
+    """Optional same-transaction projection for statically registered task families."""
+
+    async def __call__(
+        self,
+        session: AsyncSession,
+        materialization: ScheduleOccurrenceMaterialization,
+    ) -> None: ...
+
+
+async def ignore_schedule_occurrence(
+    session: AsyncSession,
+    materialization: ScheduleOccurrenceMaterialization,
+) -> None:
+    """Default no-op used when no task family owns an extension projection."""
+
+    del session, materialization
 
 
 @dataclass(slots=True)
@@ -241,6 +262,11 @@ class SqlAlchemyJobWriter:
         )
         return AcquiredJob(
             job_id=job.id,
+            scope=ExecutionScope(
+                workspace_id=job.workspace_id,
+                system_scope_key=job.system_scope_key,
+            ),
+            trace_id=TraceId(job.trace_id),
             task_name=job.task_name,
             queue_name=job.queue_name,
             payload=job.payload,
@@ -1112,6 +1138,7 @@ class SqlAlchemyScheduleWriter:
     """Materialize durable cron facts without ever contacting the broker."""
 
     session: AsyncSession
+    occurrence_observer: ScheduleOccurrenceObserver = ignore_schedule_occurrence
 
     async def ensure_schedule(
         self,
@@ -1249,24 +1276,34 @@ class SqlAlchemyScheduleWriter:
                     database_now=database_now,
                 )
                 record = await SqlAlchemyJobWriter(self.session).submit(prepared)
-                self.session.add(
-                    ScheduleOccurrence(
-                        id=occurrence_id,
-                        schedule_id=schedule.id,
-                        job_id=record.job_id,
-                        trigger_kind=ScheduleTriggerKind.SCHEDULED,
-                        scheduled_for=occurrence.scheduled_for,
-                        trigger_id=None,
-                        schedule_version=schedule.version,
-                        status=occurrence.status,
-                        window_start=occurrence.window_start,
-                        window_end=occurrence.window_end,
-                        coalesced_count=occurrence.coalesced_count,
-                        dst_adjusted=occurrence.dst_adjusted,
-                        utc_offset_seconds=occurrence.utc_offset_seconds,
-                        error_code=None,
-                        created_at=database_now,
-                    )
+                schedule_occurrence = ScheduleOccurrence(
+                    id=occurrence_id,
+                    schedule_id=schedule.id,
+                    job_id=record.job_id,
+                    trigger_kind=ScheduleTriggerKind.SCHEDULED,
+                    scheduled_for=occurrence.scheduled_for,
+                    trigger_id=None,
+                    schedule_version=schedule.version,
+                    status=occurrence.status,
+                    window_start=occurrence.window_start,
+                    window_end=occurrence.window_end,
+                    coalesced_count=occurrence.coalesced_count,
+                    dst_adjusted=occurrence.dst_adjusted,
+                    utc_offset_seconds=occurrence.utc_offset_seconds,
+                    error_code=None,
+                    created_at=database_now,
+                )
+                self.session.add(schedule_occurrence)
+                await self._observe_materialization(
+                    schedule,
+                    occurrence_id=occurrence_id,
+                    job_id=record.job_id,
+                    trigger_kind=ScheduleTriggerKind.SCHEDULED,
+                    scheduled_for=occurrence.scheduled_for,
+                    window_start=occurrence.window_start,
+                    window_end=occurrence.window_end,
+                    coalesced_count=occurrence.coalesced_count,
+                    database_now=database_now,
                 )
                 materialized += 1
                 jobs_created += int(record.created)
@@ -1318,24 +1355,34 @@ class SqlAlchemyScheduleWriter:
         offset = database_now.astimezone(ZoneInfo(schedule.timezone_name)).utcoffset()
         if offset is None:
             raise JobPersistenceError()
-        self.session.add(
-            ScheduleOccurrence(
-                id=occurrence_id,
-                schedule_id=schedule.id,
-                job_id=record.job_id,
-                trigger_kind=ScheduleTriggerKind.MANUAL,
-                scheduled_for=None,
-                trigger_id=command.trigger_id,
-                schedule_version=schedule.version,
-                status=ScheduleOccurrenceStatus.MATERIALIZED,
-                window_start=database_now,
-                window_end=database_now,
-                coalesced_count=1,
-                dst_adjusted=False,
-                utc_offset_seconds=int(offset.total_seconds()),
-                error_code=None,
-                created_at=database_now,
-            )
+        schedule_occurrence = ScheduleOccurrence(
+            id=occurrence_id,
+            schedule_id=schedule.id,
+            job_id=record.job_id,
+            trigger_kind=ScheduleTriggerKind.MANUAL,
+            scheduled_for=None,
+            trigger_id=command.trigger_id,
+            schedule_version=schedule.version,
+            status=ScheduleOccurrenceStatus.MATERIALIZED,
+            window_start=database_now,
+            window_end=database_now,
+            coalesced_count=1,
+            dst_adjusted=False,
+            utc_offset_seconds=int(offset.total_seconds()),
+            error_code=None,
+            created_at=database_now,
+        )
+        self.session.add(schedule_occurrence)
+        await self._observe_materialization(
+            schedule,
+            occurrence_id=occurrence_id,
+            job_id=record.job_id,
+            trigger_kind=ScheduleTriggerKind.MANUAL,
+            scheduled_for=None,
+            window_start=database_now,
+            window_end=database_now,
+            coalesced_count=1,
+            database_now=database_now,
         )
         return ManualScheduleTriggerResult(
             occurrence_id=occurrence_id,
@@ -1364,6 +1411,41 @@ class SqlAlchemyScheduleWriter:
             )
         )
         return result.one_or_none()
+
+    async def _observe_materialization(
+        self,
+        schedule: Schedule,
+        *,
+        occurrence_id: UUID,
+        job_id: UUID,
+        trigger_kind: ScheduleTriggerKind,
+        scheduled_for: datetime | None,
+        window_start: datetime,
+        window_end: datetime,
+        coalesced_count: int,
+        database_now: datetime,
+    ) -> None:
+        await self.occurrence_observer(
+            self.session,
+            ScheduleOccurrenceMaterialization(
+                occurrence_id=occurrence_id,
+                schedule_id=schedule.id,
+                job_id=job_id,
+                scope=ExecutionScope(
+                    workspace_id=schedule.workspace_id,
+                    system_scope_key=schedule.system_scope_key,
+                ),
+                task_name=schedule.task_name,
+                payload=schedule.payload,
+                trigger_kind=trigger_kind,
+                scheduled_for=scheduled_for,
+                window_start=window_start,
+                window_end=window_end,
+                coalesced_count=coalesced_count,
+                trace_id=TraceId(f"schedule:{occurrence_id}"),
+                materialized_at=database_now,
+            ),
+        )
 
     @staticmethod
     def _manual_result(
@@ -1477,6 +1559,7 @@ class SqlAlchemyScheduleTransactionFactory:
     """Commit one bounded scheduling operation and translate SQL failures."""
 
     session_factory: AsyncSessionFactory
+    occurrence_observer: ScheduleOccurrenceObserver = ignore_schedule_occurrence
 
     def __call__(self) -> AbstractAsyncContextManager[ScheduleWriter]:
         return self._transaction()
@@ -1485,7 +1568,10 @@ class SqlAlchemyScheduleTransactionFactory:
     async def _transaction(self) -> AsyncIterator[ScheduleWriter]:
         try:
             async with self.session_factory.begin() as session:
-                yield SqlAlchemyScheduleWriter(session)
+                yield SqlAlchemyScheduleWriter(
+                    session,
+                    occurrence_observer=self.occurrence_observer,
+                )
         except SQLAlchemyError as error:
             raise JobPersistenceError(sqlstate=safe_sqlstate(error)) from None
 

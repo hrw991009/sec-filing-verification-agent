@@ -21,6 +21,8 @@ EXPECTED_BUSINESS_TABLES = {
     "refresh_session_families",
     "refresh_sessions",
     "audit_logs",
+    "tool_calls",
+    "tool_runs",
 }
 
 pytestmark = pytest.mark.migration_smoke
@@ -59,6 +61,24 @@ def assert_foreign_key(
     assert actual_on_delete == on_delete
 
 
+def assert_check_contains(
+    inspector: Inspector,
+    *,
+    table_name: str,
+    constraint_name: str,
+    fragments: tuple[str, ...],
+) -> None:
+    matches = [
+        constraint
+        for constraint in inspector.get_check_constraints(table_name, schema="public")
+        if constraint["name"] == constraint_name
+    ]
+
+    assert len(matches) == 1, f"Expected one {constraint_name} constraint, found {len(matches)}"
+    sqltext = str(matches[0]["sqltext"])
+    assert all(fragment in sqltext for fragment in fragments)
+
+
 def assert_head_schema(probe: PostgresProbe, expected_head: str) -> None:
     """Assert tables, revision, and security-critical foreign keys at head."""
 
@@ -85,6 +105,21 @@ def assert_head_schema(probe: PostgresProbe, expected_head: str) -> None:
             referred_columns=("rotation_family_id", "id"),
             on_delete="RESTRICT",
         )
+        assert_check_contains(
+            inspector,
+            table_name="query_runs",
+            constraint_name="ck_query_runs_lifecycle_consistent",
+            fragments=("completed", "schema_snapshot_id IS NOT NULL", "plan_rows IS NOT NULL"),
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="query_runs",
+            constraint_name="fk_query_runs_agent_run_workspace_actor",
+            constrained_columns=("agent_run_id", "workspace_id", "actor_user_id"),
+            referred_table="agent_runs",
+            referred_columns=("id", "workspace_id", "user_id"),
+            on_delete="RESTRICT",
+        )
         assert_foreign_key(
             inspector,
             source_table="refresh_sessions",
@@ -93,6 +128,82 @@ def assert_head_schema(probe: PostgresProbe, expected_head: str) -> None:
             referred_table="refresh_session_families",
             referred_columns=("id", "user_id"),
             on_delete="CASCADE",
+        )
+        assert_check_contains(
+            inspector,
+            table_name="tool_calls",
+            constraint_name="ck_tool_calls_observation_fields_paired_and_bounded",
+            fragments=(
+                "[0-9a-f]{64}",
+                "observation_content_sha256",
+                "observation_envelope_sha256",
+            ),
+        )
+        assert_check_contains(
+            inspector,
+            table_name="tool_calls",
+            constraint_name="ck_tool_calls_lifecycle_consistent",
+            fragments=("policy_decision IS NULL", "execution_step_id IS NULL"),
+        )
+        assert_check_contains(
+            inspector,
+            table_name="tool_calls",
+            constraint_name="ck_tool_calls_allowed_write_requires_idempotency",
+            fragments=("side_effect_class IS NOT NULL", "idempotency_key_hash IS NOT NULL"),
+        )
+        assert_check_contains(
+            inspector,
+            table_name="tool_calls",
+            constraint_name="ck_tool_calls_retry_classification",
+            fragments=("never", "safe_read_only", "idempotent_write"),
+        )
+        assert_check_contains(
+            inspector,
+            table_name="tool_runs",
+            constraint_name="ck_tool_runs_lifecycle_consistent",
+            fragments=("policy_decision IS NULL", "duration_ms IS NULL"),
+        )
+        assert_check_contains(
+            inspector,
+            table_name="tool_runs",
+            constraint_name="ck_tool_runs_retry_classification",
+            fragments=("never", "safe_read_only", "idempotent_write"),
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="tool_calls",
+            constraint_name="fk_tool_calls_request_step_run_workspace",
+            constrained_columns=("requested_by_step_id", "run_id", "workspace_id"),
+            referred_table="agent_steps",
+            referred_columns=("id", "run_id", "workspace_id"),
+            on_delete="RESTRICT",
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="tool_calls",
+            constraint_name="fk_tool_calls_execution_step_run_workspace",
+            constrained_columns=("execution_step_id", "run_id", "workspace_id"),
+            referred_table="agent_steps",
+            referred_columns=("id", "run_id", "workspace_id"),
+            on_delete="RESTRICT",
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="tool_runs",
+            constraint_name="fk_tool_runs_call_run_workspace",
+            constrained_columns=("id", "run_id", "workspace_id"),
+            referred_table="tool_calls",
+            referred_columns=("id", "run_id", "workspace_id"),
+            on_delete="RESTRICT",
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="tool_runs",
+            constraint_name="fk_tool_runs_actor_run_workspace",
+            constrained_columns=("run_id", "workspace_id", "actor_user_id"),
+            referred_table="agent_runs",
+            referred_columns=("id", "workspace_id", "user_id"),
+            on_delete="RESTRICT",
         )
 
 

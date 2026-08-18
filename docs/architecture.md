@@ -279,9 +279,9 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 记忆 | `thread_memory_states`、`memories`、`memory_revisions` | Short-term 保存 Thread 消息引用、摘要、compaction revision 与 freshness；Long-term 当前投影和版本修订保存 provenance、scope、confidence、写入原因、策略/用户决定、停用、过期和删除 |
 | Research | `research_runs`、`research_plans`、`research_reports`、`research_claims`、`claim_evidence` | `research_runs.agent_run_id` 是统一执行事实的领域扩展；计划显式版本化；关键 Claim 关联 Evidence；不得再建立 research_steps/research_checkpoints 第二套执行历史 |
 | 证据图与图表 | `graph_nodes`、`graph_edges`、`chart_specs` | 图绑定 Research Run 并引用 Claim/Evidence/Entity；Chart 绑定 Query Run 或 Research Run，option 必须通过版本化 Schema |
-| 行业数据 | `industries`、`companies`、`data_sources`、`collection_runs`、`source_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots`、`metric_observations` | 公司与行业关系显式；指标带单位、观察时间、来源和口径；`(data_source_id, external_id)` 唯一；公共来源字段与领域字段分离；记录 URL、发布时间、采集时间、哈希和使用约束 |
+| 行业数据 | 当前：`industries`、`user_industry_preferences`、`data_sources`、`collection_runs`、`collection_cursors`、`source_items`、`collection_run_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots`；后续：`companies`、`metric_observations` | 当前按 Workspace、Provider external ID 与内容 hash 去重，公共来源字段与领域字段分离并保存 URL、发布时间、采集时间、哈希和使用约束；公司关系与通用指标尚未实现 |
 | 数据库与 SQL | `data_connections`、`schema_snapshots`、`query_runs` | 凭据只存 Secret 引用；allowlisted schema/table/column；同时保存 generated 与 validated SQL、预算、状态、行数和错误 |
-| 工具 | `tool_calls`、`tool_runs` | `tool_calls` 是统一 AgentStep 下的执行事实；`tool_runs` 是可授权查询的业务审计投影，两者按唯一 ID 一对一关联，不各自推进状态；保存调用者、权限、Schema 版本、脱敏输入/输出摘要、预算、耗时、来源、状态、错误码与 trace |
+| 工具 | `tool_calls`、`tool_runs` | 两者是归属于 AgentRun 的 operational audit projection：`tool_calls` 保存统一 AgentStep 下的请求/执行事实，`tool_runs` 提供可授权查询的脱敏审计视图；它们按唯一 ID 一对一关联，不各自推进第二套状态；保存调用者、权限、Schema 版本、脱敏输入/输出摘要、预算、耗时、来源、状态、错误码与 trace |
 | Agent 评测 | `evaluation_cases`、`evaluation_results` | Case 固定 dataset/runtime/harness/model/prompt/context/toolset version、预算和夹具；Result 关联真实 AgentRun，并分别保存 trajectory/result/evidence/recovery、Token、费用和延迟评分 |
 
 统一采用 UUID、外键、数据库唯一约束和必要 check constraint。JSON 字段只能保存经过版本化 Schema 校验的扩展数据，不能用来逃避正式列、关系或 migration。
@@ -294,9 +294,9 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 会话 / 消息 / 附件 | 会话先进入删除状态；关联生成取消；仅在无其他引用时清理私有附件；消息不得只在前端隐藏 | 列表和详情不可见、流停止、刷新后仍删除、孤儿附件可被对账发现 |
 | 知识库 / 文档 / 版本 | 先标记 `deleting`，再清理 Milvus、Elasticsearch、MinIO 和缓存，最后进入 `deleted` | 任一外部删除失败可重试；旧索引不再召回；历史状态可解释 |
 | Memory | 删除立即从在线检索中过滤并失效缓存，再清理向量和持久内容 | 下一次回答不再使用；重复删除幂等；其他 Workspace 不受影响 |
-| Agent Run / Research / Checkpoint / Report | 取消 AgentRun 后再删除该 Run 的统一 Checkpoint、Research 扩展、图、图表和报告；共享 Evidence 按引用计数/所有权处理 | 删除后不能恢复该 Run；共享来源不被误删；外部副作用不重复；不得遗留第二套 Research Checkpoint |
+| Agent Run / ToolCall / ToolRun / Research / Checkpoint / Report | 先取消 AgentRun；ToolCall/ToolRun 是 Run-owned operational audit projection，外键以 `RESTRICT` 阻止普通资源删除隐式级联清空。Day 3 的 Conversation 删除是逻辑删除并保留运行审计，真实 PostgreSQL 已验证；对外发布物理擦除前必须新增显式、授权、幂等的 Run purge，按依赖顺序删除运行事实，并按冻结策略提取最小 security audit 记录；共享 Evidence 按引用计数/所有权处理 | 普通删除 fail-closed；purge 后不能恢复该 Run；最小安全审计仍可追踪；共享来源不被误删；外部副作用不重复；备份恢复后关联与留存策略仍成立 |
 | Evidence / Citation | Evidence 失效时 Citation 保留最小关系和原因，但不得继续暴露 excerpt、私有对象或签名 URL | 历史回答显示“来源已失效”，而不是伪造仍可访问引用 |
-| 审计 | 只保存脱敏、最小化事件；不能由普通资源删除接口级联清空 | 安全事件仍可追踪，且不保留密码、Token、Cookie 或全文原文 |
+| 审计 | security audit 与 Run-owned operational projection 分层；前者只保存脱敏、最小化事件并按冻结期限留存，不能由普通资源删除接口级联清空。Day 3 已冻结逻辑删除/保留策略和备份恢复步骤；显式 Run purge、最小安全审计物理留存与隔离恢复演练在 Day 7 对外发布前关闭 | 安全事件仍可追踪，且不保留密码、Token、Cookie 或全文原文；删除、恢复和备份测试证明留存边界 |
 | Redis / Milvus / Elasticsearch | 它们是缓存或派生层；删除/版本变化必须主动失效，并由定时对账兜底 | 清空后可从 PostgreSQL/MinIO 重建，旧 Workspace 数据不再命中 |
 
 每类资源必须在实现时冻结保留期限、可恢复窗口和隐私擦除规则；在这些配置没有明确前，不允许以“永久保留”作为默认捷径。
@@ -327,7 +327,7 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 |---|---|
 | 身份 | `/auth/register`、`/auth/login`、`/auth/refresh`、`/auth/logout`、`/auth/me`、`/auth/change-password` |
 | Workspace | `/workspaces`、`/workspaces/{id}`、`/workspaces/{id}/members` |
-| 行业上下文 | `/industries`、`/me/industry-preference`；当前行业作为显式查询/会话作用域，不从 LocalStorage 直接决定服务端数据权限 |
+| 行业上下文 | 当前 `/industries`、`/workspaces/{workspace_id}/industry-preference`；当前行业作为显式查询作用域，不从 LocalStorage 直接决定服务端数据权限；写入 Turn/AgentRun 快照仍待生产 Tool 入口 |
 | 私有文件 | `/workspaces/{workspace_id}/files/presign`、`/workspaces/{workspace_id}/files/{id}/complete`、`download-url` 与删除 |
 | 知识库与文档 | `/knowledge-bases`、`/knowledge-bases/{id}/documents`、`/documents/{id}/chunks`、`assets`、`retry`、`reindex` |
 | 会话与附件 | `/workspaces/{workspace_id}/conversations`、`/conversations/{id}`、`/conversations/{id}/messages`；创建接口原子写 Turn、Message、附件关系、AgentRun、Job 与 Outbox |
@@ -335,8 +335,8 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 | 检索 | `/search/hybrid`、`/search/web`；调试响应区分 Dense、BM25、RRF 与 Rerank 排名和分数 |
 | 记忆 | `/memories`、`/memories/search`、`/memories/from-session`、`confirm`、`disable`；删除走正式资源接口 |
 | Research | `/research-runs`、`/research-runs/{id}/report`、`graph`、`charts`；其 events/cancel/resume/checkpoints 若保留，只能是对应 `/agent-runs/{agent_run_id}` 的授权兼容视图 |
-| 行业情报 | `/industry/items`、`stats`、`collection-runs`、`collection-runs/{id}`；支持分类/地区/公告类型筛选和手动触发 |
-| 数据源状态 | `/data-sources`、`/data-sources/{id}/readiness`、`/schedules/status`；未配置返回 `PROVIDER_NOT_CONFIGURED` |
+| 行业情报 | 当前 `/workspaces/{workspace_id}/industry-sources/items`、`industry-collections/runs`、`industry-collections/schedules` 及手动触发；统计、详情和专用页面待第 5 步 |
+| 数据源状态 | 当前 `/workspaces/{workspace_id}/industry-sources/readiness`；未配置返回 `provider_not_configured`，用途未批准返回 `provider_terms_approval_required` |
 | 数据库浏览 | `/data-connections`、`/data-connections/{id}/test`、`tables`、`tables/{name}/schema`、`rows` |
 | Text2SQL 与图表 | `/query-runs`、`/query-runs/{id}`、`/query-runs/{id}/chart` |
 | 工具审计 | `/tools`、`/tool-runs`、`/tool-runs/{id}` |
@@ -381,7 +381,7 @@ Token delta 可以进入带 TTL 的 Redis Streams，但最终消息、引用、�
 agent.run.queued | started | paused | resumed | completed | failed | cancelled
 agent.step.started | completed | failed
 agent.model.started | delta | completed
-agent.tool.requested | approval_required | started | completed | failed
+agent.tool.requested | approval_required | denied | started | completed | failed | cancelled
 agent.evidence.added | claim.updated | artifact.created | checkpoint.saved
 
 ingestion.accepted | stage.changed | progress | asset.created
@@ -637,9 +637,11 @@ Memory 分为两层，且都不同于当前 LLM Context、Run State 与 Checkpoi
 
 ### 15.2 Tool Registry
 
-每个 Tool 注册 `name`、版本、description、typed input/output Schema、capability、WorkspaceScope、timeout、cost class、side-effect class、approval policy、重试分类和 execute Port。Harness profile 计算本次 Tool surface，Runtime 校验结构化 Action，`ToolExecutor` Adapter 才能调用正式 Application Service；模型不能通过 Prompt 参数扩大权限、范围、费用、审批或运行时间。
+每个 Tool 注册 `name`、版本、description、typed input/output Schema、所需 capability、timeout、cost class/上限、side-effect class、approval policy、重试分类和 execute Port；Tool 定义不携带某次调用的具体 `WorkspaceScope`。Harness profile 计算本次 Tool surface，可信 Runtime Context 提供本次 `WorkspaceScope` 与 Budget，Registry 校验 capability/scope 后由 `ToolCall` 绑定 run、workspace、user 和请求 Step，`ToolExecutor` Adapter 才能调用正式 Application Service；模型不能通过 Prompt 参数扩大权限、范围、费用、审批或运行时间。
 
-每次调用创建 Tool Run，记录调用者、Workspace、Schema 版本、脱敏输入/输出摘要、来源、状态、耗时、预算消耗、稳定错误码和 trace。模型看到的 Tool 结果仍是不可信输入。知识检索、Web、行业、股票、数据库 Schema、Text2SQL 和图表都复用这一条正式链路。
+每次 Tool 请求以 Event batch 和对应投影在同一 PostgreSQL 事务中原子创建 `ToolCall`；只有静态 allow 且真正开始执行后，才绑定 Tool execution Step 并创建一对一的 `ToolRun` operational audit projection。系统持续校验 call/run/workspace、请求/执行 Step 与 trace 的关联；deny 或 approval_required 不伪造 ToolRun。投影记录调用者、Schema/策略快照、脱敏输入/输出摘要、来源、状态、耗时、实际预算消耗和稳定错误码，不独立推进第二套状态机。Tool 完成、取消与硬超时竞争时只能有一个结算结果，迟到结果不能覆盖已提交状态；不一致 batch、error code、locator、digest、幂等键 hash 或 Trace correlation 一律 fail-closed。非零实际 Tool 成本必须不超过声明上限，并在 Event、Tool Step、Run state 与 Tool 投影之间只计一次且数值守恒。模型看到的 Tool 结果仍是不可信输入。知识检索、Web、行业、股票、数据库 Schema、Text2SQL 和图表都复用这一条正式链路。
+
+写 Tool 的原始副作用幂等键只在受控内存合同中保留、从 `repr` 隐藏并传给 Adapter；Event 和 PostgreSQL 只保存服务端完整性摘要，普通 Trace 不暴露参数或幂等键 digest。来源 locator 拒绝 userinfo、query、fragment 和控制字符，完整 model-visible Observation envelope digest 同时约束正文与 provenance。Day 3 的真实 Web/行业 Adapter 已固定 host、字段、响应预算和 public canonical locator，并复用 SSRF/DNS pinning/跳转拒绝 egress 合同；World Bank News 与 Alpha Vantage 在用途条款未显式批准时发网前 fail-closed。`ToolCall/ToolRun` 由 `RESTRICT` 保护，普通逻辑删除保留审计；queued-cancel/unrecoverable terminalizer、陈旧 QueryRun 和生产 Web L2 已验证最终 revision/终态收敛。显式物理 Run purge、最小 security audit 物理留存和隔离备份恢复演练继续作为 Day 7 发布门禁。
 
 Day 3 完成 L1 单工具与 L2 有界循环，停止条件至少包括 final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error 和 no_progress。Day 3 的 Approval 只执行基于可信 policy context 的静态 allow/deny，或发出 `approval_required` 并停止；Day 5 才持久化 ApprovalRequest/Decision，执行 interrupt/resume、allow/deny/timeout 和重复 decision 幂等。
 
@@ -663,12 +665,14 @@ Beat 计算到期 occurrence，或授权用户手动触发
 → Adapter 拉取并规范化 Source Item
 → external ID + content hash 幂等去重
 → 保存来源、原链接、发布时间、采集时间和使用约束
-→ 写领域明细和 Evidence
+→ 写领域明细和 EvidenceCandidate；Day 4 才提升为 Evidence
 → 更新 cursor、last success、统计和终态
 → 瞬时失败退避重试；超过上限进入持久 dead-letter
 ```
 
 资讯支持分类、统计、分页、原始来源和手动采集结果；招投标支持公告类型、地区、分页和手动采集结果；股票 Tool 在聊天中返回专用行情卡片。调度状态、最后成功时间和失败原因对授权用户可见。
+
+Day 3 已实现四个固定 Provider contract、领域表、来源/游标/去重、手动和定时调度后端，以及 `industry.web_search:v1` 的 Registry/Executor/Observation 合同；真实 PostgreSQL 验证 ScheduleOccurrence、Job、Outbox 与 CollectionRun 同事务提交。行业页提供四类来源/readiness、卡片、分页、手动采集和 Schedule/Run 状态；Conversation/Job 已物化行业限定的 Web L2 command，并由 Playwright 从页面验证到安全 Trace。Observation→Evidence ledger 仍按计划属于 Day 4，不影响 Day 3 当前 `implemented_pending_verification` 结论。
 
 ### 15.4 Deep Research、报告与证据图
 
@@ -712,6 +716,8 @@ Verifier 按 Claim 支持度、Citation 可解析性、coverage、conflict 和�
 SQL 必须经过 sqlglot 完整 AST 校验，只允许受控 SELECT 或 CTE；递归检查 CTE 和子查询，拒绝多语句、DML、DDL、COPY、CALL、危险函数、系统 schema 和越界标识符。执行时强制只读事务、statement timeout、最大返回行数、扫描预算和查询审计。
 
 Query Run 同时保存原始问题、generated SQL、validated SQL、schema snapshot、状态、行数、结果对象引用和稳定错误。数据库故障或校验失败必须明确失败，禁止回退模拟数据。图表只接受通过版本化 JSON Schema 和 allowlist 的 ECharts 配置，不执行模型代码。
+
+`database.text2sql:v1` 以固定合成样例表落地这条边界：独立只读 DSN 访问，连接元数据只保存 Secret 引用；SQLGlot PostgreSQL AST、不可变 SchemaSnapshot、递归计划行预算和数据库只读事务共同校验一次查询。QueryRun/QueryResult/ChartSpec 以 Workspace 复合外键持久化，小型结果限制为 200 行/64 列/512 KiB；列表只返回摘要，详情才返回 Artifact。line/bar/pie/scatter 的 ECharts option 只能由服务端 typed encoding 构造，前端还会执行第二次精确 allowlist 并延迟加载 SVG renderer。数据库/图表页面、Tool Inspector、陈旧 QueryRun 对账和生产 Web L2 command 均已实现；任意生产数据库连接管理不在 Day 3 冻结范围内。
 
 ### 15.6 Evaluation Harness 与 Agent Learning Workbench
 
@@ -829,13 +835,13 @@ Day 7 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application �
 
 Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
-本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前正式表结构来自 4 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
+本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 8 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、ToolCall/ToolRun、行业偏好/来源/采集、DataConnection/SchemaSnapshot/QueryRun/QueryResult/ChartSpec、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
 
-Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-02～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
+Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-01～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
 新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过当前工作树的本地门禁。D2-01～D2-09 仍是 `implemented_pending_verification`，等待当前提交的干净 GitHub CI 和学习者职责复盘；Day 3～Day 7 的 Tool Use、Short/Long-term Memory、Knowledge/RAG、Deep Research 与后续 Evaluation 能力尚未实现。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 的五个切片现已完成仓库内实现与本地收口：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Context Compiler v1、Tool Registry/Executor、Event/Trace/ToolCall/ToolRun 原子审计、四个行业与来源/采集链、安全 Text2SQL、受校验 Artifact、陈旧 QueryRun 对账、Tool Inspector、正式行业/数据库/图表页面、24 条累计 Scenario 和 trajectory report 均落地。真实依赖全量 pytest、Web、Playwright、migration、build、audit 与 Secret 扫描通过；普通 Conversation 逻辑删除保留 Tool audit。因为本轮尚未提交/推送，没有干净 CI，D3-01～D3-11 暂为 `implemented_pending_verification`；显式物理 Run purge与隔离备份恢复演练保留为 Day 7 发布门禁。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 

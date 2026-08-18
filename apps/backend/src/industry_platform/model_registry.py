@@ -17,6 +17,14 @@ from industry_platform.modules.conversations.models import (
     MessageAttachment,
     Turn,
 )
+from industry_platform.modules.data_explorer.models import (
+    ChartSpecRecord,
+    DataConnectionRecord,
+    QueryResultRecord,
+    QueryRunRecord,
+    SampleCompanyMetricRecord,
+    SchemaSnapshotRecord,
+)
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.identity.models import (
     AuditLog,
@@ -26,6 +34,19 @@ from industry_platform.modules.identity.models import (
     Workspace,
     WorkspaceMembership,
 )
+from industry_platform.modules.industry.models import (
+    BiddingItemRecord,
+    CollectionCursorRecord,
+    CollectionRunItemRecord,
+    CollectionRunRecord,
+    DataSourceRecord,
+    IndustryRecord,
+    MarketSnapshotRecord,
+    NewsItemRecord,
+    PolicyItemRecord,
+    SourceItemRecord,
+    UserIndustryPreference,
+)
 from industry_platform.modules.jobs.models import (
     Job,
     JobEvent,
@@ -33,6 +54,7 @@ from industry_platform.modules.jobs.models import (
     Schedule,
     ScheduleOccurrence,
 )
+from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
 REGISTERED_MODELS: tuple[type[Base], ...] = (
     User,
@@ -57,6 +79,25 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     ContextManifestRecord,
     RunArtifactRecord,
     AgentCheckpointRecord,
+    ToolCallRecord,
+    ToolRunRecord,
+    IndustryRecord,
+    UserIndustryPreference,
+    DataSourceRecord,
+    CollectionRunRecord,
+    CollectionCursorRecord,
+    SourceItemRecord,
+    CollectionRunItemRecord,
+    NewsItemRecord,
+    PolicyItemRecord,
+    BiddingItemRecord,
+    MarketSnapshotRecord,
+    SampleCompanyMetricRecord,
+    DataConnectionRecord,
+    SchemaSnapshotRecord,
+    QueryRunRecord,
+    QueryResultRecord,
+    ChartSpecRecord,
 )
 
 metadata: MetaData = Base.metadata

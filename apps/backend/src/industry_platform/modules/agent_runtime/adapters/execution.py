@@ -16,8 +16,16 @@ from industry_platform.modules.agent_runtime.context import (
     BackgroundRunPrincipal,
     TrustedRuntimeContext,
 )
-from industry_platform.modules.agent_runtime.domain import AgentRun, AgentRunStatus, RunBudget
-from industry_platform.modules.agent_runtime.execution import DirectAnswerExecutionInput
+from industry_platform.modules.agent_runtime.domain import (
+    AgentRun,
+    AgentRunStatus,
+    AgentRunType,
+    RunBudget,
+)
+from industry_platform.modules.agent_runtime.execution import (
+    DirectAnswerExecutionInput,
+    ProductionAgentRunCommand,
+)
 from industry_platform.modules.agent_runtime.model import (
     MAX_MODEL_IMAGE_BYTES,
     ModelImageMediaType,
@@ -29,11 +37,17 @@ from industry_platform.modules.agent_runtime.runtime_contracts import (
     DirectAnswerRuntimePolicy,
 )
 from industry_platform.modules.agent_runtime.state import RunState
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    ToolL2RunCommand,
+    ToolL2RuntimePolicy,
+)
+from industry_platform.modules.conversations.domain import TurnSearchMode
 from industry_platform.modules.conversations.models import (
     Message,
     MessageAttachment,
     MessageRole,
     MessageStatus,
+    Turn,
 )
 from industry_platform.modules.files.domain import (
     AttachmentKind,
@@ -53,6 +67,7 @@ from industry_platform.modules.identity.models import (
     WorkspaceMembership,
     WorkspaceStatus,
 )
+from industry_platform.modules.industry.models import IndustryRecord
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -109,6 +124,7 @@ class SqlAlchemyDirectAnswerRunLoader:
 
     session_factory: AsyncSessionFactory
     policy: DirectAnswerRuntimePolicy
+    tool_policy: ToolL2RuntimePolicy | None = None
     attachment_object_reader: AttachmentObjectReader | None = None
 
     async def load(self, run_id: UUID) -> DirectAnswerExecutionInput:
@@ -124,6 +140,9 @@ class SqlAlchemyDirectAnswerRunLoader:
                             Message.content_markdown,
                             Workspace.name,
                             WorkspaceMembership.role,
+                            Turn.search_mode,
+                            Turn.industry_id,
+                            IndustryRecord.code,
                         )
                         .join(
                             Message,
@@ -135,6 +154,14 @@ class SqlAlchemyDirectAnswerRunLoader:
                             ),
                         )
                         .join(User, User.id == AgentRunRecord.user_id)
+                        .join(
+                            Turn,
+                            and_(
+                                Turn.id == AgentRunRecord.turn_id,
+                                Turn.workspace_id == AgentRunRecord.workspace_id,
+                            ),
+                        )
+                        .outerjoin(IndustryRecord, IndustryRecord.id == Turn.industry_id)
                         .join(Workspace, Workspace.id == AgentRunRecord.workspace_id)
                         .join(
                             WorkspaceMembership,
@@ -153,7 +180,16 @@ class SqlAlchemyDirectAnswerRunLoader:
                 ).one_or_none()
                 if row is None:
                     raise DirectAnswerRunNotExecutableError
-                record, message_id, question, workspace_name, stored_role = row
+                (
+                    record,
+                    message_id,
+                    question,
+                    workspace_name,
+                    stored_role,
+                    search_mode,
+                    industry_id,
+                    industry_code,
+                ) = row
                 attachment_rows = cast(
                     list[AttachmentRow],
                     (
@@ -250,21 +286,70 @@ class SqlAlchemyDirectAnswerRunLoader:
             updated_at=record.updated_at,
             stop_reason=record.stop_reason,
         )
+        tool_enabled = record.run_type is AgentRunType.TOOL_LOOP
+        if tool_enabled and (
+            self.tool_policy is None
+            or search_mode is not TurnSearchMode.WEB
+            or industry_id is None
+            or not isinstance(industry_code, str)
+        ):
+            raise DirectAnswerRunNotExecutableError
+        if not tool_enabled and search_mode is not TurnSearchMode.NONE:
+            raise DirectAnswerRunNotExecutableError
         runtime_context = TrustedRuntimeContext(
             principal=BackgroundRunPrincipal(
                 user_id=record.user_id,
                 workspaces=(AuthenticatedWorkspace(record.workspace_id, workspace_name, role),),
             ),
             workspace_scope=scope,
-            capabilities=frozenset({WorkspaceAction.VIEW}),
+            capabilities=frozenset(
+                {WorkspaceAction.VIEW, WorkspaceAction.RUN_TOOL}
+                if tool_enabled
+                else {WorkspaceAction.VIEW}
+            ),
             budget=budget,
         )
         attachments = await self._load_attachments(
             workspace_id=record.workspace_id,
             rows=attachment_rows,
         )
-        return DirectAnswerExecutionInput(
-            command=DirectAnswerRunCommand(
+        command: ProductionAgentRunCommand
+        if tool_enabled:
+            if self.tool_policy is None or not isinstance(industry_code, str):
+                raise DirectAnswerRunNotExecutableError
+            command = ToolL2RunCommand(
+                run=run,
+                state=state,
+                policy=self.tool_policy,
+                decision_model_step_ids=tuple(
+                    uuid5(run_id, f"tool-l2-decision-step-{index}-v1")
+                    for index in range(self.tool_policy.model_call_limit)
+                ),
+                tool_step_ids=tuple(
+                    uuid5(run_id, f"tool-l2-tool-step-{index}-v1")
+                    for index in range(self.tool_policy.tool_call_limit)
+                ),
+                decision_manifest_ids=tuple(
+                    uuid5(run_id, f"tool-l2-context-manifest-{index}-v1")
+                    for index in range(self.tool_policy.model_call_limit)
+                ),
+                tool_call_ids=tuple(
+                    uuid5(run_id, f"tool-l2-call-{index}-v1")
+                    for index in range(self.tool_policy.tool_call_limit)
+                ),
+                approval_request_ids=tuple(
+                    uuid5(run_id, f"tool-l2-approval-{index}-v1")
+                    for index in range(self.tool_policy.tool_call_limit)
+                ),
+                final_step_id=uuid5(run_id, "tool-l2-final-step-v1"),
+                user_question=question,
+                conversation_summary=("Current industry snapshot for this Turn: " + industry_code),
+                conversation_summary_version="turn-industry-snapshot-v1",
+                attachments=attachments,
+                side_effect_idempotency_keys=(None,) * self.tool_policy.tool_call_limit,
+            )
+        else:
+            command = DirectAnswerRunCommand(
                 run=run,
                 state=state,
                 policy=self.policy,
@@ -273,7 +358,9 @@ class SqlAlchemyDirectAnswerRunLoader:
                 manifest_id=uuid5(run_id, "direct-answer-context-manifest-v1"),
                 user_question=question,
                 attachments=attachments,
-            ),
+            )
+        return DirectAnswerExecutionInput(
+            command=command,
             runtime_context=runtime_context,
         )
 

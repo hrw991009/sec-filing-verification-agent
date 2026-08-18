@@ -14,6 +14,14 @@ from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyAgentRunTerminalizer,
 )
 from industry_platform.modules.agent_runtime.execution import AgentRunOrphanReconciler
+from industry_platform.modules.data_explorer.adapters.sqlalchemy import (
+    SqlAlchemyDataExplorerRepository,
+)
+from industry_platform.modules.data_explorer.domain import DataExplorerPersistenceError
+from industry_platform.modules.data_explorer.ports import QueryRunReconciliationUseCase
+from industry_platform.modules.data_explorer.service import (
+    StaleQueryRunReconciliationService,
+)
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyJobTransactionFactory,
 )
@@ -34,6 +42,7 @@ class JobReconciler:
 
     service: JobReconciliationUseCase
     agent_runs: AgentRunOrphanReconciler | None = None
+    query_runs: QueryRunReconciliationUseCase | None = None
     agent_batch_size: int = 100
 
     def __post_init__(self) -> None:
@@ -46,6 +55,10 @@ class JobReconciler:
             terminalized = await self.agent_runs.reconcile_orphans(batch_size=self.agent_batch_size)
             if terminalized:
                 logger.info("agent_run_reconciliation terminalized=%d", terminalized)
+        if self.query_runs is not None:
+            reconciled = await self.query_runs.reconcile_stale(batch_size=self.agent_batch_size)
+            if reconciled:
+                logger.info("query_run_reconciliation terminalized=%d", reconciled)
         return result
 
     async def run_forever(self, *, idle_sleep_seconds: float = 1.0) -> None:
@@ -55,7 +68,11 @@ class JobReconciler:
         while True:
             try:
                 result = await self.reconcile_once()
-            except (AgentEventPersistenceError, JobPersistenceError) as error:
+            except (
+                AgentEventPersistenceError,
+                DataExplorerPersistenceError,
+                JobPersistenceError,
+            ) as error:
                 logger.error(
                     "Job or Agent Run reconciliation persistence unavailable sqlstate=%s",
                     error.sqlstate or "unknown",
@@ -91,6 +108,10 @@ async def run_reconciler(settings: Settings) -> None:
         await JobReconciler(
             service,
             agent_runs=SqlAlchemyAgentRunTerminalizer(session_factory),
+            query_runs=StaleQueryRunReconciliationService(
+                SqlAlchemyDataExplorerRepository(session_factory),
+                stale_after_seconds=settings.text2sql_query_stale_seconds,
+            ),
             agent_batch_size=settings.job_reconcile_batch_size,
         ).run_forever()
     finally:

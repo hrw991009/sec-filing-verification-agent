@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "report_id": "day3-bounded-tool-contract-regression",
+  "report_version": "v1",
+  "datasets": [
+    { "id": "day3-tool-l1", "version": "v1", "case_count": 5 },
+    { "id": "day3-tool-l2", "version": "v1", "case_count": 10 }
+  ],
+  "scenario_inventory": {
+    "day2_l0_case_count": 9,
+    "day3_l1_case_count": 5,
+    "day3_l2_case_count": 10,
+    "cumulative_case_count": 24
+  },
+  "execution": {
+    "runtime": "UnifiedAgentRuntime",
+    "harness": "HarnessRunner",
+    "provider": "deterministic scripted ModelProvider",
+    "tools": "typed fake adapters plus production industry.web_search:v1 integration",
+    "evidence_kind": "deterministic contract regression and PostgreSQL production-path integration",
+    "test_suite_is_pass_fail_authority": true
+  },
+  "aggregate": {
+    "day3_case_count": 15,
+    "passed_case_count": 15,
+    "expected_stop_reason_match_rate": 1.0,
+    "trajectory_contract_match_rate": 1.0,
+    "distinct_tool_selection_proved": true,
+    "production_web_tool_journey_proved": true
+  },
+  "coverage": {
+    "l1": ["final", "arguments_invalid", "capability_denied", "approval_required", "tool_failure"],
+    "l2": [
+      "two_round_final",
+      "repeated_action",
+      "duplicate_observation",
+      "max_steps",
+      "token_budget",
+      "cost_budget",
+      "cancelled",
+      "deadline",
+      "tool_timeout",
+      "tool_failure"
+    ]
+  },
+  "executable_evidence": [
+    {
+      "claim": "all versioned L1 scenarios use HarnessRunner and UnifiedAgentRuntime",
+      "test_ref": "apps/backend/tests/modules/agent_runtime/test_tool_l1_runtime.py::test_versioned_l1_scenario_runs_via_harness_and_same_unified_runtime"
+    },
+    {
+      "claim": "all versioned L2 scenarios use UnifiedAgentRuntime",
+      "test_ref": "apps/backend/tests/modules/agent_runtime/test_tool_l2_runtime.py::test_all_versioned_l2_fault_scenarios_run_through_the_unified_runtime"
+    },
+    {
+      "claim": "one exact L2 allowlist selects two different typed tools",
+      "test_ref": "apps/backend/tests/modules/agent_runtime/test_tool_l2_runtime.py::test_l2_selects_two_different_tools_from_one_exact_allowlist"
+    },
+    {
+      "claim": "L2 Tool facts and safe Trace survive PostgreSQL projection",
+      "test_ref": "apps/backend/tests/integration/test_tool_l2_postgres.py::test_l2_two_rounds_persist_distinct_tool_facts_and_trace"
+    },
+    {
+      "claim": "a browser-created Web Turn traverses the production loader and actual Web Tool adapter",
+      "test_ref": "apps/backend/tests/integration/test_conversation_web_tool_postgres.py::test_web_turn_executes_through_production_loader_unified_runtime_and_trace"
+    }
+  ],
+  "measurement_limits": {
+    "real_provider_quality_claim": false,
+    "latency_comparison": "not_comparable_to_external_provider_latency",
+    "token_and_cost_scope": "fixture values validate accounting contracts, not provider pricing",
+    "citation_scope": "production-path fixture proves source propagation; broad factual quality remains provider-specific",
+    "durable_approval_resume": "deferred_to_day5"
+  },
+  "decision": "close_day3_bounded_tool_runtime_and_retain_all_budget_scope_and_trace_guards"
+}

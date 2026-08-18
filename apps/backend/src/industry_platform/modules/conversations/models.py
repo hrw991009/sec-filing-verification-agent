@@ -100,6 +100,10 @@ class Turn(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "search_mode <> 'none' OR cardinality(knowledge_base_ids) = 0",
             name="none_mode_has_no_knowledge_bases",
         ),
+        CheckConstraint(
+            "search_mode <> 'web' OR industry_id IS NOT NULL",
+            name="web_requires_industry",
+        ),
         Index(None, "workspace_id", "conversation_id", "sequence"),
     )
 
@@ -121,7 +125,15 @@ class Turn(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         nullable=False,
     )
-    industry_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    industry_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "industries.id",
+            name="fk_conversation_turns_industry",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+    )
     knowledge_base_ids: Mapped[list[UUID]] = mapped_column(
         ARRAY(Uuid(as_uuid=True)), nullable=False, default=list, server_default=text("'{}'::uuid[]")
     )

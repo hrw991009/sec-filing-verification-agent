@@ -34,6 +34,7 @@ from industry_platform.modules.identity.models import (
     WorkspaceRole,
     WorkspaceStatus,
 )
+from industry_platform.modules.industry.domain import SMART_TRANSPORT_INDUSTRY_ID
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
 
@@ -72,7 +73,7 @@ def test_management_is_paginated_workspace_scoped_and_soft_deletes(
                     conversation_id=first.conversation_id,
                 )
             )
-            mode_industry_id = uuid4()
+            mode_industry_id = SMART_TRANSPORT_INDUSTRY_ID
             knowledge_base_ids = [uuid4(), uuid4()]
             async with session_factory.begin() as session:
                 persisted_turn = await session.get(Turn, first.turn_id)

@@ -10,6 +10,7 @@ from industry_platform.modules.agent_runtime.models import (
 )
 from industry_platform.modules.conversations.models import Message, MessageAttachment, Turn
 from industry_platform.modules.files.models import FileObject
+from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
 
 def constraint_columns(
@@ -31,6 +32,9 @@ def test_workspace_is_part_of_every_cross_resource_foreign_key() -> None:
         ("context_manifests", ("step_id", "run_id", "workspace_id")),
         ("message_attachments", ("message_id", "workspace_id")),
         ("message_attachments", ("file_id", "workspace_id")),
+        ("tool_calls", ("requested_by_step_id", "run_id", "workspace_id")),
+        ("tool_calls", ("execution_step_id", "run_id", "workspace_id")),
+        ("tool_runs", ("id", "run_id", "workspace_id")),
     }
     tables = tuple(
         table
@@ -42,6 +46,8 @@ def test_workspace_is_part_of_every_cross_resource_foreign_key() -> None:
             AgentEventRecord.__table__,
             ContextManifestRecord.__table__,
             MessageAttachment.__table__,
+            ToolCallRecord.__table__,
+            ToolRunRecord.__table__,
         )
         if isinstance(table, Table)
     )

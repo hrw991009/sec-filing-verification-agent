@@ -20,7 +20,7 @@ from industry_platform.modules.identity.domain import TraceId
 
 
 class AgentEventType(StrEnum):
-    """Day 2 Event vocabulary shared by persistence, SSE, and Trace."""
+    """Versioned Event vocabulary shared by persistence, SSE, and Trace."""
 
     RUN_QUEUED = "agent.run.queued"
     RUN_STARTED = "agent.run.started"
@@ -35,6 +35,13 @@ class AgentEventType(StrEnum):
     MODEL_STARTED = "agent.model.started"
     MODEL_DELTA = "agent.model.delta"
     MODEL_COMPLETED = "agent.model.completed"
+    TOOL_REQUESTED = "agent.tool.requested"
+    TOOL_APPROVAL_REQUIRED = "agent.tool.approval_required"
+    TOOL_DENIED = "agent.tool.denied"
+    TOOL_STARTED = "agent.tool.started"
+    TOOL_COMPLETED = "agent.tool.completed"
+    TOOL_FAILED = "agent.tool.failed"
+    TOOL_CANCELLED = "agent.tool.cancelled"
     ARTIFACT_CREATED = "agent.artifact.created"
     CHECKPOINT_SAVED = "agent.checkpoint.saved"
 

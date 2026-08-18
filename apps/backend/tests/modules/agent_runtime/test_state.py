@@ -143,6 +143,74 @@ def test_budget_exhaustion_is_deterministic_and_requires_terminalization() -> No
     validate_run_state(failed_run, failed_state)
 
 
+def test_cost_budget_preflight_rejection_is_explicit_without_faking_spend() -> None:
+    failed_run = make_run(
+        status=AgentRunStatus.FAILED,
+        revision=2,
+        stop_reason=RunStopReason.COST_BUDGET_EXCEEDED,
+        terminal_at=NOW + timedelta(seconds=10),
+    )
+    failed_state = replace(
+        make_state(
+            status=AgentRunStatus.FAILED,
+            revision=2,
+            event_count=4,
+            stop_reason=RunStopReason.COST_BUDGET_EXCEEDED,
+            updated_at=NOW + timedelta(seconds=10),
+        ),
+        cost_micro_usd=20,
+        cost_budget_preflight_rejected=True,
+    )
+
+    validate_run_state(failed_run, failed_state)
+
+    with pytest.raises(ValueError, match="exhaustion or a recorded preflight rejection"):
+        validate_run_state(
+            failed_run,
+            replace(failed_state, cost_budget_preflight_rejected=False),
+        )
+    with pytest.raises(ValueError, match="Only a failed cost preflight"):
+        replace(
+            failed_state,
+            stop_reason=RunStopReason.TOOL_ERROR,
+            cost_budget_preflight_rejected=True,
+        )
+
+
+def test_max_steps_preflight_rejection_reserves_a_complete_future_transition() -> None:
+    failed_run = make_run(
+        status=AgentRunStatus.FAILED,
+        revision=2,
+        stop_reason=RunStopReason.MAX_STEPS,
+        terminal_at=NOW + timedelta(seconds=10),
+    )
+    failed_state = replace(
+        make_state(
+            status=AgentRunStatus.FAILED,
+            revision=2,
+            step_count=2,
+            event_count=4,
+            stop_reason=RunStopReason.MAX_STEPS,
+            updated_at=NOW + timedelta(seconds=10),
+        ),
+        max_steps_preflight_rejected=True,
+    )
+
+    validate_run_state(failed_run, failed_state)
+
+    with pytest.raises(ValueError, match="exhausted step budget"):
+        validate_run_state(
+            failed_run,
+            replace(failed_state, max_steps_preflight_rejected=False),
+        )
+    with pytest.raises(ValueError, match="Only a failed max-steps preflight"):
+        replace(
+            failed_state,
+            stop_reason=RunStopReason.NO_PROGRESS,
+            max_steps_preflight_rejected=True,
+        )
+
+
 def test_state_transition_uses_exact_cas_and_append_only_progress() -> None:
     previous = make_state(
         status=AgentRunStatus.QUEUED,

@@ -82,6 +82,11 @@ class AgentEventCommitter(Protocol):
 
         ...
 
+    async def append_batch(self, events: tuple[AgentEvent, ...]) -> None:
+        """Atomically append one non-empty contiguous batch from the same Run."""
+
+        ...
+
 
 class CancellationProbe(Protocol):
     """Read the explicit persisted cancellation request at Runtime safe points."""

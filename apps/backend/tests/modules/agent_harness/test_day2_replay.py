@@ -189,6 +189,9 @@ class RecordingEventCommitter:
     async def append(self, event: AgentEvent) -> None:
         self.events.append(event)
 
+    async def append_batch(self, events: tuple[AgentEvent, ...]) -> None:
+        self.events.extend(events)
+
 
 class ScriptedCancellationProbe:
     def __init__(self, decisions: tuple[bool, ...]) -> None:

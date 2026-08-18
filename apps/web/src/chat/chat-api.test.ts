@@ -269,6 +269,17 @@ describe("chat REST API", () => {
               source_sha256: null,
               source_version: "v1",
             },
+            {
+              decision_reason: "included",
+              estimated_token_count: 8,
+              included: true,
+              message_role: "user",
+              ordinal: 3,
+              source_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              source_kind: "tool_observation",
+              source_sha256: "a".repeat(64),
+              source_version: "tool-observation-v1",
+            },
           ],
           step_id: stepId,
           token_counter_version: "utf8-upper-bound-v0", // gitleaks:allow
@@ -348,11 +359,23 @@ describe("chat REST API", () => {
       estimated_token_count: 0,
       included: false,
     });
+    expect(result.context_manifests[0]?.sources[2]).toMatchObject({
+      source_kind: "tool_observation",
+      source_sha256: "a".repeat(64),
+    });
     const firstCall = fetchMock.mock.calls[0];
     const request = asRequest(firstCall?.[0] ?? "https://invalid.example", firstCall?.[1]);
     expect(request.headers.get("authorization")).toBe(`Bearer ${accessToken}`);
     expect(new URL(request.url).pathname).toBe(
       `/api/v1/workspaces/${workspaceId}/agent-runs/${runId}/trace`,
+    );
+
+    const observation = trace.context_manifests[0]?.sources[2];
+    if (observation === undefined) throw new Error("Tool Observation fixture is missing.");
+    observation.source_sha256 = null;
+
+    await expect(api.getAgentTrace(workspaceId, runId)).rejects.toThrow(
+      "A Trace Context source decision is inconsistent.",
     );
   });
 });

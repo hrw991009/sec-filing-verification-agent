@@ -472,6 +472,7 @@ const sourceKinds = [
   "conversation_summary",
   "attachment",
   "user_question",
+  "tool_observation",
 ] as const;
 const decisionReasons = ["included", "not_available", "excluded_token_budget"] as const;
 const messageRoles = ["system", "user", "assistant"] as const;
@@ -489,6 +490,13 @@ const traceEventTypes = [
   "agent.model.started",
   "agent.model.delta",
   "agent.model.completed",
+  "agent.tool.requested",
+  "agent.tool.approval_required",
+  "agent.tool.denied",
+  "agent.tool.started",
+  "agent.tool.completed",
+  "agent.tool.failed",
+  "agent.tool.cancelled",
   "agent.artifact.created",
   "agent.checkpoint.saved",
 ] as const;
@@ -559,7 +567,8 @@ function parseContextSource(value: unknown): AgentTraceContextSource {
       (parsed.decision_reason === "included" ||
         parsed.estimated_token_count !== 0 ||
         parsed.message_role !== null)) ||
-    (parsed.source_kind === "attachment") !== (parsed.source_sha256 !== null)
+    (parsed.source_kind === "attachment" || parsed.source_kind === "tool_observation") !==
+      (parsed.source_sha256 !== null)
   ) {
     throw new AgentTraceContractError("A Trace Context source decision is inconsistent.");
   }

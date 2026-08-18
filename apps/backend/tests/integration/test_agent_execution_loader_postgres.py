@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import update
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
+from industry_platform.modules.agent_harness.tool_fakes import fake_lookup_definition
 from industry_platform.modules.agent_runtime.adapters.execution import (
     DirectAnswerRunLoadError,
     DirectAnswerRunNotExecutableError,
@@ -33,11 +34,19 @@ from industry_platform.modules.agent_runtime.domain import (
     RunBudget,
 )
 from industry_platform.modules.agent_runtime.model import MAX_MODEL_IMAGE_BYTES
-from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
+from industry_platform.modules.agent_runtime.runtime_contracts import (
+    DirectAnswerRunCommand,
+    DirectAnswerRuntimePolicy,
+)
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    TOOL_L2_RUNTIME_VERSION,
+    ToolL2RunCommand,
+    ToolL2RuntimePolicy,
+)
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,
 )
-from industry_platform.modules.conversations.domain import StartDirectAnswerTurn
+from industry_platform.modules.conversations.domain import StartDirectAnswerTurn, TurnSearchMode
 from industry_platform.modules.conversations.service import ConversationApplicationService
 from industry_platform.modules.files.domain import (
     ATTACHMENT_PARSER_VERSION,
@@ -55,7 +64,8 @@ from industry_platform.modules.identity.models import (
     WorkspaceRole,
     WorkspaceStatus,
 )
-from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError
+from industry_platform.modules.industry.domain import SMART_TRANSPORT_INDUSTRY_ID
+from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceAction
 from industry_platform.server import create_selector_event_loop
 
 from .postgres import PostgresProbe
@@ -155,6 +165,24 @@ def policy() -> DirectAnswerRuntimePolicy:
     )
 
 
+def web_policy() -> ToolL2RuntimePolicy:
+    definition = fake_lookup_definition()
+    return ToolL2RuntimePolicy(
+        schema_version=1,
+        profile_version="conversation-web-l2-v1",
+        prompt_version="conversation-web-l2-prompt-v1",
+        context_compiler_version="context-v1",
+        output_contract_version="final-markdown-v1",
+        toolset_version="conversation-web-toolset-v1",
+        model="openai-compatible/test-model",
+        max_input_tokens=4_096,
+        max_decision_output_tokens=768,
+        max_tool_calls=2,
+        system_instructions="Use only the exact public-source Tool catalog.",
+        available_tools=(definition.reference,),
+    )
+
+
 def test_loader_rebuilds_stable_runtime_inputs_and_rechecks_current_access(
     migrated_postgres_probe: PostgresProbe,
 ) -> None:
@@ -215,6 +243,8 @@ def test_loader_rebuilds_stable_runtime_inputs_and_rechecks_current_access(
             first = await loader.load(receipt.run_id)
             repeated = await loader.load(receipt.run_id)
 
+            assert isinstance(first.command, DirectAnswerRunCommand)
+            assert isinstance(repeated.command, DirectAnswerRunCommand)
             assert first.command.run.run_id == receipt.run_id
             assert first.command.run.job_id == receipt.job_id
             assert first.command.user_question == "Explain the current market structure."
@@ -241,6 +271,88 @@ def test_loader_rebuilds_stable_runtime_inputs_and_rechecks_current_access(
                 await loader.load(receipt.run_id)
             with pytest.raises(DirectAnswerRunNotExecutableError):
                 await loader.load(uuid4())
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
+def test_loader_materializes_a_web_turn_as_the_production_l2_command(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            async with session_factory.begin() as session:
+                session.add_all(
+                    (
+                        User(
+                            id=USER_ID,
+                            email="agent-web-loader@example.test",
+                            password_hash=str(USER_ID),
+                            status=UserStatus.ACTIVE,
+                            password_changed_at=NOW,
+                        ),
+                        Workspace(
+                            id=WORKSPACE_ID,
+                            name="Web Tool Workspace",
+                            created_by_user_id=USER_ID,
+                            status=WorkspaceStatus.ACTIVE,
+                        ),
+                        WorkspaceMembership(
+                            id=uuid4(),
+                            workspace_id=WORKSPACE_ID,
+                            user_id=USER_ID,
+                            role=WorkspaceRole.MEMBER,
+                        ),
+                    )
+                )
+
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(
+                StartDirectAnswerTurn(
+                    workspace_id=WORKSPACE_ID,
+                    user_id=USER_ID,
+                    trace_id=TraceId("postgres-web-execution-loader"),
+                    budget=RunBudget(
+                        schema_version=1,
+                        max_steps=8,
+                        max_total_tokens=8_192,
+                        max_cost_micro_usd=250_000,
+                        deadline=NOW + timedelta(minutes=5),
+                    ),
+                    runtime_version=TOOL_L2_RUNTIME_VERSION,
+                    harness_version="harness-v1",
+                    idempotency_key="postgres-web-execution-loader-1",
+                    question="Find the latest public transport policy.",
+                    search_mode=TurnSearchMode.WEB,
+                    industry_id=SMART_TRANSPORT_INDUSTRY_ID,
+                )
+            )
+            loader = SqlAlchemyDirectAnswerRunLoader(
+                session_factory,
+                policy(),
+                tool_policy=web_policy(),
+            )
+
+            first = await loader.load(receipt.run_id)
+            repeated = await loader.load(receipt.run_id)
+
+            assert isinstance(first.command, ToolL2RunCommand)
+            assert isinstance(repeated.command, ToolL2RunCommand)
+            assert first.command.run.runtime_version == TOOL_L2_RUNTIME_VERSION
+            assert first.command.policy == web_policy()
+            assert first.command.conversation_summary == (
+                "Current industry snapshot for this Turn: smart_transport"
+            )
+            assert first.command.decision_model_step_ids == repeated.command.decision_model_step_ids
+            assert first.command.tool_call_ids == repeated.command.tool_call_ids
+            assert first.runtime_context.workspace_scope.workspace_id == WORKSPACE_ID
+            assert WorkspaceAction.RUN_TOOL in first.runtime_context.capabilities
         finally:
             await engine.dispose()
 
@@ -337,6 +449,7 @@ def test_loader_joins_ready_attachments_into_compiled_context_and_rechecks_image
             )
 
             loaded = await loader.load(receipt.run_id)
+            assert isinstance(loaded.command, DirectAnswerRunCommand)
             assert [item.file_id for item in loaded.command.attachments] == [
                 IMAGE_FILE_ID,
                 TEXT_FILE_ID,

@@ -20,7 +20,7 @@
   position: relative;
   z-index: 20;
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr) auto;
+  grid-template-columns: 15rem minmax(10rem, 1fr) auto auto;
   align-items: center;
   gap: 1rem;
   padding: 0 1.15rem;
@@ -28,6 +28,35 @@
   background: var(--navy);
   box-shadow: 0 0.45rem 1.6rem rgb(11 19 33 / 12%);
   color: #f7fafc;
+}
+
+.product-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.22rem;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 0.72rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.product-nav__item {
+  min-height: 2rem;
+  padding: 0 0.72rem;
+  border: 0;
+  border-radius: 0.52rem;
+  background: transparent;
+  color: #9eacc0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.product-nav__item:hover,
+.product-nav__item--active {
+  background: #263750;
+  color: #fff;
 }
 
 .chat-brand {
@@ -1148,6 +1177,80 @@
   overflow-y: auto;
 }
 
+.tool-inspector-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tool-inspector-event,
+.manifest-card {
+  padding: 0.72rem;
+  border: 1px solid #d8dfda;
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+.tool-inspector-event > strong,
+.manifest-card > strong {
+  color: #27364a;
+  font-size: 0.7rem;
+}
+
+.tool-inspector-event > span {
+  display: block;
+  margin-top: 0.14rem;
+  color: #8b948e;
+  font-size: 0.58rem;
+}
+
+.tool-inspector-event dl {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.58rem 0 0;
+}
+
+.tool-inspector-event dl div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.45rem;
+}
+
+.tool-inspector-event dt,
+.tool-inspector-event dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.59rem;
+}
+
+.tool-inspector-event dt {
+  color: #77827b;
+}
+
+.tool-inspector-event dd {
+  overflow-wrap: anywhere;
+  color: #334359;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.trace-safety-note {
+  margin: 0.58rem 0 0;
+  color: #7e8982;
+  font-size: 0.58rem;
+  line-height: 1.55;
+}
+
+.manifest-card + .manifest-card {
+  margin-top: 0.55rem;
+}
+
+.manifest-card .source-list {
+  margin-top: 0.55rem;
+}
+
 .panel-backdrop {
   display: none;
 }
@@ -1320,7 +1423,8 @@
 
 @media (max-width: 780px) {
   .chat-topbar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(5rem, 1fr) auto auto;
+    gap: 0.35rem;
     padding: 0 0.7rem;
   }
 
@@ -1331,7 +1435,12 @@
   }
 
   .workspace-switcher select {
-    max-width: 48vw;
+    max-width: 24vw;
+  }
+
+  .product-nav__item {
+    padding: 0 0.45rem;
+    font-size: 0.62rem;
   }
 
   .chat-grid {
@@ -1409,6 +1518,28 @@
 
   .composer-note {
     display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .chat-brand {
+    display: none;
+  }
+
+  .chat-topbar {
+    grid-template-columns: minmax(4.5rem, 1fr) auto auto;
+  }
+
+  .workspace-switcher select {
+    max-width: 22vw;
+  }
+
+  .product-nav__item {
+    padding: 0 0.34rem;
+  }
+
+  .chat-account {
+    gap: 0.15rem;
   }
 }
 

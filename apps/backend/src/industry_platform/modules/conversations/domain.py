@@ -19,12 +19,16 @@ from industry_platform.modules.agent_runtime.domain import (
     require_non_nil_uuid,
     require_utc,
 )
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    TOOL_L2_RUNTIME_VERSION,
+)
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.domain import JobRequestFingerprint, PreparedJobSubmission
 
 MAX_CONVERSATION_TITLE_LENGTH: Final = 160
 MAX_USER_MESSAGE_LENGTH: Final = MAX_CONTEXT_QUESTION_LENGTH
 MAX_TURN_ATTACHMENTS: Final = 4
+CONVERSATION_WEB_TOOL_CALL_LIMIT: Final = 2
 DIRECT_ANSWER_TASK_NAME: Final = "agent.run.direct_answer"
 DIRECT_ANSWER_QUEUE_NAME: Final = "agents"
 _RUN_ID_NAMESPACE: Final = UUID("d1da4f86-ae26-4a35-b444-508e6f51010a")
@@ -91,10 +95,12 @@ class StartDirectAnswerTurn:
             raise ValueError("Turn idempotency key is invalid")
         _require_version(self.runtime_version, field_name="Runtime version")
         _require_version(self.harness_version, field_name="Harness version")
-        if self.search_mode is not TurnSearchMode.NONE:
-            raise ValueError("Only search mode 'none' is ready on Day 2")
+        if self.search_mode not in {TurnSearchMode.NONE, TurnSearchMode.WEB}:
+            raise ValueError("Only search modes 'none' and 'web' are ready")
         if self.industry_id is not None:
             require_non_nil_uuid(self.industry_id, field_name="Turn industry ID")
+        if self.search_mode is TurnSearchMode.WEB and self.industry_id is None:
+            raise ValueError("Web search mode requires one industry snapshot")
         knowledge_base_ids = tuple(self.knowledge_base_ids)
         if len(set(knowledge_base_ids)) != len(knowledge_base_ids):
             raise ValueError("Turn knowledge-base IDs must be unique")
@@ -234,13 +240,25 @@ def build_queued_run(
     """Build the exact queued Run persisted beside the user's message."""
 
     require_utc(created_at, field_name="Run creation time")
+    run_type = (
+        AgentRunType.TOOL_LOOP
+        if command.search_mode is TurnSearchMode.WEB
+        else AgentRunType.DIRECT_ANSWER
+    )
+    expected_runtime_version = (
+        TOOL_L2_RUNTIME_VERSION
+        if run_type is AgentRunType.TOOL_LOOP
+        else "direct-answer-runtime-v0"
+    )
+    if command.runtime_version != expected_runtime_version:
+        raise ValueError("Turn Runtime version does not match its search mode")
     return AgentRun(
         schema_version=1,
         run_id=run_id,
         event_stream_id=stream_id,
         workspace_id=command.workspace_id,
         user_id=command.user_id,
-        run_type=AgentRunType.DIRECT_ANSWER,
+        run_type=run_type,
         runtime_version=command.runtime_version,
         harness_version=command.harness_version,
         budget=command.budget,

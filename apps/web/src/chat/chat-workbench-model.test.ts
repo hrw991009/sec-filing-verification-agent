@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { ConversationMessage } from "./chat-api";
 import {
+  eventNames,
   hasPersistedAssistantMessage,
   newestUnfinishedRun,
+  sourceNames,
   userMessageForRun,
 } from "./chat-workbench-model";
 
@@ -32,6 +34,12 @@ function message(
 }
 
 describe("chat workbench message model", () => {
+  it("labels Tool Trace entries for the Chinese workbench", () => {
+    expect(sourceNames.tool_observation).toBe("工具观察结果");
+    expect(eventNames["agent.tool.approval_required"]).toBe("工具调用等待批准");
+    expect(eventNames["agent.tool.completed"]).toBe("工具调用完成");
+  });
+
   it("resumes a Run when only its committed user message exists", () => {
     expect(newestUnfinishedRun([message("user", "committed")])).toBe(runId);
   });

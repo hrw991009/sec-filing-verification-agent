@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
+from industry_platform.adapters.public_egress import create_public_egress_http_client
 from industry_platform.core.config import Settings, get_settings
 from industry_platform.core.database import (
     check_database_connection,
@@ -73,6 +74,17 @@ from industry_platform.modules.conversations.submission import (
     ConversationIdempotencyConflictError,
     ConversationModeNotReadyError,
 )
+from industry_platform.modules.data_explorer.domain import (
+    DataConnectionNotFoundError,
+    DataExplorerError,
+    DataExplorerPersistenceError,
+    QueryRunNotFoundError,
+)
+from industry_platform.modules.data_explorer.resources import (
+    DataExplorerResources,
+    create_data_explorer_resources,
+)
+from industry_platform.modules.data_explorer.router import router as data_explorer_router
 from industry_platform.modules.files.resources import create_file_resources
 from industry_platform.modules.files.router import router as file_router
 from industry_platform.modules.files.service import (
@@ -115,6 +127,21 @@ from industry_platform.modules.identity.http_cookies import (
 from industry_platform.modules.identity.passwords import PasswordPolicyError
 from industry_platform.modules.identity.resources import create_identity_resources
 from industry_platform.modules.identity.router import router as identity_router
+from industry_platform.modules.industry.adapters.sqlalchemy import (
+    industry_collection_occurrence_observer,
+)
+from industry_platform.modules.industry.domain import (
+    IndustryCollectionNotFoundError,
+    IndustryNotFoundError,
+    IndustryPersistenceError,
+)
+from industry_platform.modules.industry.resources import create_industry_resources
+from industry_platform.modules.industry.router import router as industry_router
+from industry_platform.modules.jobs.domain import (
+    ScheduleDefinitionConflictError,
+    ScheduleNotFoundError,
+    ScheduleTriggerConflictError,
+)
 from industry_platform.modules.jobs.resources import create_job_resources
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
@@ -164,6 +191,8 @@ def create_app(
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         database_engine = create_database_engine(active_settings)
         redis_client: Redis | None = None
+        data_explorer_resources: DataExplorerResources | None = None
+        external_http_client = create_public_egress_http_client()
 
         try:
             database_session_factory = create_database_session_factory(database_engine)
@@ -192,6 +221,17 @@ def create_app(
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
+                occurrence_observer=industry_collection_occurrence_observer,
+            )
+            industry_resources = create_industry_resources(
+                active_settings,
+                database_session_factory,
+                external_http_client,
+                job_resources.schedule_service,
+            )
+            data_explorer_resources = create_data_explorer_resources(
+                active_settings,
+                database_session_factory,
             )
 
             application.state.resources = ApplicationResources(
@@ -206,6 +246,8 @@ def create_app(
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.agent_trace_resources = agent_trace_resources
             application.state.job_resources = job_resources
+            application.state.industry_resources = industry_resources
+            application.state.data_explorer_resources = data_explorer_resources
 
             yield
         finally:
@@ -213,7 +255,14 @@ def create_app(
                 if redis_client is not None:
                     await redis_client.aclose()
             finally:
-                await database_engine.dispose()
+                try:
+                    if data_explorer_resources is not None:
+                        await data_explorer_resources.close()
+                finally:
+                    try:
+                        await external_http_client.aclose()
+                    finally:
+                        await database_engine.dispose()
 
     application = FastAPI(
         title="Industry Intelligence Platform API",
@@ -242,6 +291,8 @@ def create_app(
     application.include_router(conversation_router, prefix="/api/v1")
     application.include_router(agent_run_router, prefix="/api/v1")
     application.include_router(file_router, prefix="/api/v1")
+    application.include_router(industry_router, prefix="/api/v1")
+    application.include_router(data_explorer_router, prefix="/api/v1")
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -256,6 +307,106 @@ def create_app(
         error: RequestValidationError,
     ) -> JSONResponse:
         return await request_validation_exception_handler(request, error)
+
+    @application.exception_handler(IndustryNotFoundError)
+    @application.exception_handler(IndustryCollectionNotFoundError)
+    @application.exception_handler(ScheduleNotFoundError)
+    async def handle_industry_not_found(
+        request: Request,
+        _error: IndustryNotFoundError | IndustryCollectionNotFoundError | ScheduleNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Industry resource not found",
+            code="INDUSTRY_RESOURCE_NOT_FOUND",
+            detail="The requested industry resource does not exist in this workspace.",
+            problem_type="urn:iip:problem:industry-resource-not-found",
+        )
+
+    @application.exception_handler(DataConnectionNotFoundError)
+    @application.exception_handler(QueryRunNotFoundError)
+    async def handle_data_explorer_not_found(
+        request: Request,
+        _error: DataConnectionNotFoundError | QueryRunNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Data Explorer resource not found",
+            code="DATA_EXPLORER_RESOURCE_NOT_FOUND",
+            detail="The requested Data Explorer resource does not exist in this workspace.",
+            problem_type="urn:iip:problem:data-explorer-resource-not-found",
+        )
+
+    @application.exception_handler(DataExplorerPersistenceError)
+    async def handle_data_explorer_unavailable(
+        request: Request,
+        error: DataExplorerPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Data Explorer persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Data Explorer unavailable",
+            code="DATA_EXPLORER_UNAVAILABLE",
+            detail="Database exploration is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:data-explorer-unavailable",
+        )
+
+    @application.exception_handler(DataExplorerError)
+    async def handle_data_explorer_rejected(
+        request: Request,
+        error: DataExplorerError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Data Explorer request rejected",
+            code="DATA_EXPLORER_REQUEST_REJECTED",
+            detail=f"The database request was rejected ({error.code}).",
+            problem_type="urn:iip:problem:data-explorer-request-rejected",
+        )
+
+    @application.exception_handler(ScheduleDefinitionConflictError)
+    @application.exception_handler(ScheduleTriggerConflictError)
+    async def handle_industry_schedule_conflict(
+        request: Request,
+        _error: ScheduleDefinitionConflictError | ScheduleTriggerConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Industry schedule conflict",
+            code="INDUSTRY_SCHEDULE_CONFLICT",
+            detail="The schedule request conflicts with an existing durable definition.",
+            problem_type="urn:iip:problem:industry-schedule-conflict",
+        )
+
+    @application.exception_handler(IndustryPersistenceError)
+    async def handle_industry_unavailable(
+        request: Request,
+        error: IndustryPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Industry persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Industry service unavailable",
+            code="INDUSTRY_SERVICE_UNAVAILABLE",
+            detail="Industry data is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:industry-service-unavailable",
+        )
 
     @application.exception_handler(EmailAlreadyRegisteredError)
     async def handle_duplicate_email(

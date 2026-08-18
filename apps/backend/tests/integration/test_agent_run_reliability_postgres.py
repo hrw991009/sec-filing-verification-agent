@@ -51,6 +51,172 @@ from .test_conversation_agent_postgres import (
 )
 
 
+def test_agent_event_batch_rolls_back_every_projection_when_one_event_is_invalid(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(
+                replace(
+                    command(),
+                    idempotency_key="postgres-agent-event-batch-rollback",
+                    question="Prove that a projected Event batch is atomic.",
+                )
+            )
+            async with session_factory() as session:
+                run = await session.get(AgentRunRecord, receipt.run_id)
+            assert run is not None
+            committer = SqlAlchemyAgentEventCommitter(session_factory)
+            events = (
+                AgentEvent(
+                    schema_version=1,
+                    stream_id=run.event_stream_id,
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    sequence=2,
+                    occurred_at=NOW + timedelta(seconds=1),
+                    trace_id=TraceId(run.trace_id),
+                    event_type=AgentEventType.RUN_STARTED,
+                    payload={"state_revision": 1},
+                ),
+                AgentEvent(
+                    schema_version=1,
+                    stream_id=run.event_stream_id,
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    sequence=3,
+                    occurred_at=NOW + timedelta(seconds=2),
+                    trace_id=TraceId(run.trace_id),
+                    event_type=AgentEventType.STEP_COMPLETED,
+                    payload={
+                        "step_id": str(uuid4()),
+                        "step_kind": "tool",
+                        "cost_micro_usd": 17,
+                    },
+                ),
+            )
+
+            with pytest.raises(AgentEventPersistenceError):
+                await committer.append_batch(events)
+
+            async with session_factory() as session:
+                persisted_run = await session.get(AgentRunRecord, receipt.run_id)
+                event_count = await session.scalar(
+                    select(func.count())
+                    .select_from(AgentEventRecord)
+                    .where(AgentEventRecord.run_id == receipt.run_id)
+                )
+            assert persisted_run is not None
+            assert persisted_run.status is AgentRunStatus.QUEUED
+            assert persisted_run.event_count == 1
+            assert persisted_run.cost_micro_usd == 0
+            assert event_count == 1
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
+def test_cancelled_completed_model_usage_is_preserved_in_run_and_step(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(
+                replace(
+                    command(),
+                    idempotency_key="postgres-cancelled-model-usage",
+                    question="Preserve usage when cancellation races model completion.",
+                )
+            )
+            async with session_factory() as session:
+                run = await session.get(AgentRunRecord, receipt.run_id)
+            assert run is not None
+            step_id = uuid4()
+            committer = SqlAlchemyAgentEventCommitter(session_factory)
+            await committer.append_batch(
+                (
+                    AgentEvent(
+                        schema_version=1,
+                        stream_id=run.event_stream_id,
+                        run_id=run.id,
+                        workspace_id=run.workspace_id,
+                        sequence=2,
+                        occurred_at=NOW + timedelta(seconds=1),
+                        trace_id=TraceId(run.trace_id),
+                        event_type=AgentEventType.RUN_STARTED,
+                        payload={"state_revision": 1},
+                    ),
+                    AgentEvent(
+                        schema_version=1,
+                        stream_id=run.event_stream_id,
+                        run_id=run.id,
+                        workspace_id=run.workspace_id,
+                        sequence=3,
+                        occurred_at=NOW + timedelta(seconds=2),
+                        trace_id=TraceId(run.trace_id),
+                        event_type=AgentEventType.STEP_STARTED,
+                        payload={
+                            "step_id": str(step_id),
+                            "step_sequence": 1,
+                            "step_kind": "model",
+                        },
+                    ),
+                    AgentEvent(
+                        schema_version=1,
+                        stream_id=run.event_stream_id,
+                        run_id=run.id,
+                        workspace_id=run.workspace_id,
+                        sequence=4,
+                        occurred_at=NOW + timedelta(seconds=3),
+                        trace_id=TraceId(run.trace_id),
+                        event_type=AgentEventType.RUN_CANCELLED,
+                        payload={
+                            "stop_reason": RunStopReason.CANCELLED.value,
+                            "cancelled_step_id": str(step_id),
+                            "input_tokens": 11,
+                            "output_tokens": 5,
+                            "cached_input_tokens": 2,
+                            "cost_micro_usd": 17,
+                        },
+                    ),
+                )
+            )
+
+            async with session_factory() as session:
+                persisted_run = await session.get(AgentRunRecord, run.id)
+                persisted_step = await session.get(AgentStepRecord, step_id)
+            assert persisted_run is not None
+            assert persisted_step is not None
+            assert persisted_run.status is AgentRunStatus.CANCELLED
+            assert persisted_run.input_tokens_used == 11
+            assert persisted_run.output_tokens_used == 5
+            assert persisted_run.cached_input_tokens_used == 2
+            assert persisted_run.cost_micro_usd == 17
+            assert persisted_step.status is AgentStepStatus.CANCELLED
+            assert persisted_step.input_tokens == 11
+            assert persisted_step.output_tokens == 5
+            assert persisted_step.cost_micro_usd == 17
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
 def test_unrecoverable_execution_and_dead_letter_each_commit_one_terminal_event(
     migrated_postgres_probe: PostgresProbe,
 ) -> None:
@@ -190,6 +356,9 @@ def test_unrecoverable_execution_and_dead_letter_each_commit_one_terminal_event(
             assert interrupted_step is not None
             assert interrupted_run.status is AgentRunStatus.FAILED
             assert interrupted_run.stop_reason is RunStopReason.RUNTIME_ERROR
+            assert (
+                interrupted_run.state_revision == interrupted_events[-1].payload["state_revision"]
+            )
             assert interrupted_step.status is AgentStepStatus.FAILED
             assert interrupted_step.error_code == "execution_failed"
             assert interrupted_message is not None
@@ -230,6 +399,7 @@ def test_unrecoverable_execution_and_dead_letter_each_commit_one_terminal_event(
             assert abandoned_run is not None
             assert abandoned_run.status is AgentRunStatus.FAILED
             assert abandoned_run.stop_reason is RunStopReason.RUNTIME_ERROR
+            assert abandoned_run.state_revision == abandoned_events[-1].payload["state_revision"]
             assert [event.event_type for event in abandoned_events] == [
                 AgentEventType.RUN_QUEUED,
                 AgentEventType.RUN_FAILED,
