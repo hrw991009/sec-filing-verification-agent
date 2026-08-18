@@ -393,6 +393,36 @@ class SqlAlchemyDataExplorerRepository:
             raise DataExplorerPersistenceError(sqlstate=safe_sqlstate(error)) from None
         return tuple(_query_summary(record) for record in records)
 
+    async def reconcile_stale_queries(
+        self,
+        *,
+        stale_before: datetime,
+        reconciled_at: datetime,
+        batch_size: int,
+    ) -> int:
+        try:
+            async with self._session_factory.begin() as session:
+                records = tuple(
+                    await session.scalars(
+                        select(QueryRunRecord)
+                        .where(
+                            QueryRunRecord.status == QueryRunStatus.RUNNING,
+                            QueryRunRecord.started_at < stale_before,
+                        )
+                        .order_by(QueryRunRecord.started_at, QueryRunRecord.id)
+                        .limit(batch_size)
+                        .with_for_update(skip_locked=True)
+                    )
+                )
+                for record in records:
+                    record.status = QueryRunStatus.FAILED
+                    record.error_code = "query_execution_interrupted"
+                    record.terminal_at = reconciled_at
+                    record.updated_at = reconciled_at
+                return len(records)
+        except SQLAlchemyError as error:
+            raise DataExplorerPersistenceError(sqlstate=safe_sqlstate(error)) from None
+
 
 def _require_running_query(
     record: QueryRunRecord | None,

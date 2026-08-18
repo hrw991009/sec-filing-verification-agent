@@ -10,9 +10,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
+from industry_platform.modules.agent_runtime.domain import AgentRunType
 from industry_platform.modules.agent_runtime.events import AgentEventType
 from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
 from industry_platform.modules.conversations.domain import (
+    CONVERSATION_WEB_TOOL_CALL_LIMIT,
     DirectAnswerTurnReceipt,
     PreparedDirectAnswerTurn,
 )
@@ -119,6 +121,16 @@ class SqlAlchemyDirectAnswerTurnWriter:
             conversation.updated_at = prepared.run.created_at
 
         run = prepared.run
+        queued_payload: dict[str, object] = {
+            "run_type": run.run_type.value,
+            "runtime_version": run.runtime_version,
+            "harness_version": run.harness_version,
+        }
+        if run.run_type is AgentRunType.TOOL_LOOP:
+            queued_payload.update(
+                loop_level="l2",
+                tool_call_limit=CONVERSATION_WEB_TOOL_CALL_LIMIT,
+            )
         self.session.add(
             Turn(
                 id=prepared.turn_id,
@@ -203,11 +215,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                 trace_id=str(run.trace_id),
                 schema_version=run.schema_version,
                 event_type=AgentEventType.RUN_QUEUED,
-                payload={
-                    "run_type": run.run_type.value,
-                    "runtime_version": run.runtime_version,
-                    "harness_version": run.harness_version,
-                },
+                payload=queued_payload,
             )
         )
         await self.session.flush()

@@ -7,6 +7,8 @@ const execFileAsync = promisify(execFile);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const BROWSER_SUCCESS_ANSWER_PREFIX = "Day 2 浏览器流式片段已到达。Run: ";
 const BROWSER_SUCCESS_ANSWER_SUFFIX = "; 第二段完成, 最终回答已持久化。";
+const ANSWER_PREFIX_DAY3 = "Day 3 Web Tool 已完成。Run: ";
+const ANSWER_SUFFIX_DAY3 = "; 公共来源结果已引用 [S1]。";
 
 interface StartTurnReceipt {
   readonly agentRunId: string;
@@ -72,6 +74,40 @@ async function executeBrowserCreatedRun(receipt: StartTurnReceipt): Promise<void
     !/^[0-9a-f]{64}$/u.test(result.answer_sha256)
   ) {
     throw new Error("The browser success driver returned inconsistent terminal facts.");
+  }
+}
+
+async function executeBrowserCreatedWebRun(receipt: StartTurnReceipt): Promise<void> {
+  const uvArguments = [
+    "run",
+    ...(process.env.CI === "true" ? [] : ["--env-file", ".env"]),
+    "--locked",
+    "--package",
+    "industry-platform-backend",
+    "python",
+    "apps/backend/tests/day3_browser_web_tool_driver.py",
+    "--run-id",
+    receipt.agentRunId,
+    "--job-id",
+    receipt.jobId,
+  ];
+  const { stdout } = await execFileAsync("uv", uvArguments, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    timeout: 60_000,
+    windowsHide: true,
+  });
+  const result = requireRecord(JSON.parse(stdout.trim()) as unknown, "Web Tool driver result");
+  if (
+    result.schema_version !== 1 ||
+    result.run_id !== receipt.agentRunId ||
+    result.job_id !== receipt.jobId ||
+    result.disposition !== "succeeded" ||
+    result.provider_calls !== 2 ||
+    typeof result.answer_sha256 !== "string" ||
+    !/^[0-9a-f]{64}$/u.test(result.answer_sha256)
+  ) {
+    throw new Error("The Web Tool driver returned inconsistent terminal facts.");
   }
 }
 
@@ -194,6 +230,61 @@ test.describe("browser identity lifecycle", () => {
     await page.getByRole("button", { name: new RegExp(question, "u") }).click();
     await expect(page.getByText(question, { exact: true }).last()).toBeVisible();
     await expect(page.getByText(expectedAnswer, { exact: true })).toBeVisible();
+  });
+
+  test("uses the industry-scoped Web Tool and exposes its safe Inspector", async ({ page }) => {
+    test.setTimeout(75_000);
+    const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+    const email = `tool-${uniquePart}@example.com`;
+    const password = "Browser!Pass123";
+    const question = `Day 3 Web 搜索 ${uniquePart}`;
+
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "创建账户" }).click();
+    await page.getByLabel("邮箱").fill(email);
+    await page.getByLabel("密码").fill(password);
+    await page.getByRole("button", { name: "创建账户并进入" }).click();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+
+    await page.getByRole("button", { name: "行业情报" }).click();
+    await expect(page.getByRole("heading", { name: "行业情报" })).toBeVisible();
+    await expect(page.getByLabel("当前行业")).toHaveValue("5ae94c40-4441-5e6f-b4cb-0679e8a92f9e");
+    await expect(page.getByText("Schedule → Occurrence → Job/Outbox → Worker")).toBeVisible();
+
+    await page.getByRole("button", { name: "Agent" }).click();
+    await page.getByLabel("回答模式").selectOption("web");
+    await expect(page.getByText(/当前行业：智慧交通/u)).toBeVisible();
+
+    const startResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      const pathname = new URL(response.url()).pathname;
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/conversations$/u.test(pathname) &&
+        response.status() === 202
+      );
+    });
+    await page.getByLabel("输入问题").fill(question);
+    await page.getByRole("button", { name: "发送问题" }).click();
+    const receipt = parseStartTurnReceipt((await (await startResponsePromise).json()) as unknown);
+    await executeBrowserCreatedWebRun(receipt);
+
+    const answer = `${ANSWER_PREFIX_DAY3}${receipt.agentRunId}${ANSWER_SUFFIX_DAY3}`;
+    await expect(page.getByText(answer, { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "打开运行轨迹" }).click();
+    const inspector = page.getByRole("region", { name: "Tool Inspector" });
+    await expect(inspector).toContainText("industry.web_search");
+    await expect(inspector).toContainText("模型可见信封摘要");
+    await expect(inspector).not.toContainText("transport policy");
+
+    await page.getByRole("button", { name: "数据库" }).click();
+    await expect(page.getByRole("heading", { name: "数据库与安全 Text2SQL" })).toBeVisible();
+    await expect(page.getByText(/完整 AST allowlist/u)).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Agent" }).click();
+    await page.getByRole("button", { name: new RegExp(question, "u") }).click();
+    await expect(page.getByText(answer, { exact: true })).toBeVisible();
   });
 
   test("creates, stops, and restores a real Day 2 conversation", async ({ page }) => {

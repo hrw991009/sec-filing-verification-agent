@@ -2,7 +2,7 @@
 
 面向行业研究与企业知识工作的多模态行业智能工作台。
 
-当前状态：Day 1 的新仓工程地基、身份与 Workspace、可靠异步底座、前端身份旅程和统一契约已经通过全量本地门禁与提交 `2c4e6e9` 的干净 CI，D1-01～D1-08、D1-10～D1-12 均为 `complete`。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 2 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
+当前状态：Day 1 的新仓工程地基、身份与 Workspace、可靠异步底座、前端身份旅程和统一契约已经通过全量本地门禁与提交 `2c4e6e9` 的干净 CI，D1-01～D1-08、D1-10～D1-12 均为 `complete`。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 2/Day 3 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
 
 ## 文档入口
 
@@ -18,6 +18,9 @@
 - [Day 3 Agent Harness v1：L1/L2 与行业采集切片](docs/agent-harness.md)
 - [Day 3 学习日志](docs/learning-log/day-3.md)
 - [Day 3 真实来源、使用边界与安全复核](docs/security/day-3-source-review.md)
+- [Day 3 Text2SQL 安全复核](docs/security/day-3-text2sql-review.md)
+- [Day 3 前端、Tool Inspector 与 ECharts 安全复核](docs/security/day-3-ui-review.md)
+- [Day 3 Agent Tool 运行与回滚手册](docs/runbooks/day-3-agent-tools.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围
@@ -32,7 +35,7 @@
 - PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 当前完成前四个切片的本地验收：L1/L2 Runtime 控制与审计、行业/真实 Provider/采集链继续复用；D3-09～D3-11 新增 `database.text2sql:v1`、独立只读 PostgreSQL 样例连接、数据库浏览、SchemaSnapshot、SQLGlot AST/allowlist/预算、QueryRun 审计和受校验表格/图表 Artifact。真实 PostgreSQL 已证明安全聚合与持久 Artifact，危险 SQL 会形成失败 QueryRun，独立账号直接 DELETE 也被拒绝。生产 Conversation/Agent Job 仍只启用 L0；L1/L2 Tool command、数据库/图表 UI、Tool Inspector、陈旧 QueryRun 对账与 Day 4～Day 7 能力仍未实现。当前证据见 [Day 3 学习日志](docs/learning-log/day-3.md)、[真实来源复核](docs/security/day-3-source-review.md)和 [Text2SQL 安全复核](docs/security/day-3-text2sql-review.md)；尚无对应干净 CI，D3-01～D3-11 保持 `thin_slice`，不得据此宣称 Day 3 或生产聊天 Tool 用户旅程完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 的五个切片已经完成仓库内实现与全量本地验收：同一 `UnifiedAgentRuntime` 执行 L0/L1/L2，生产 Conversation/Job 可物化行业限定的 Web L2 command；Tool Inspector、行业页、数据库浏览、安全 Text2SQL、受校验表格/图表、陈旧 QueryRun 对账、24 条累计 Scenario 和 trajectory report 均已落地。真实 PostgreSQL/Redis/MinIO、4 条浏览器旅程、依赖/许可证/来源/隐私与 Secret 门禁均通过。由于当前改动尚未提交和推送，尚无本轮干净 CI，D3-01～D3-11 暂记 `implemented_pending_verification`；这表示只缺发布到分支后的 CI 复核，不是代码范围缺口。Day 7 前仍须完成参考仓 D1-09 外部凭据处置，以及显式物理 Run purge 与隔离备份恢复演练。
 
 ## 执行基线与安装
 
@@ -268,7 +271,9 @@ finally {
 
 上述命令仍是后续变更必须重复执行的统一验证方法。Day 1 当前基线已在本地完整执行，并由提交 [`2c4e6e9`](https://github.com/hrw991009/industry-intelligence-platform/commit/2c4e6e92237584bbac2816577e1509286f08b14b) 的 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339) 在干净环境通过；D1-01～D1-08、D1-10～D1-12 已按能力矩阵复核为 `complete`。Day 2 的本地证据见 [Agent Runtime v0](docs/agent-runtime.md) 和 [Day 2 学习日志](docs/learning-log/day-2.md)，提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [CI 31922391846](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 已在干净环境通过，D2-01～D2-09 已复核为 `complete`。
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 7 发布标签。后续开发以 [七天主计划 v1.7.0](docs/master-plan.md) 为权威执行基线。
+Day 3 当前工作树已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright 4 条均通过，真实 PostgreSQL/Redis/MinIO 无 skip，migration 往返、OpenAPI `api:check`、Python/Web build 与 audit、受控路径和 44-commit Gitleaks 也通过。证据和限制见 [Day 3 学习日志](docs/learning-log/day-3.md)。本轮尚未提交/推送，D3-01～D3-11 因缺干净 CI 暂为 `implemented_pending_verification`；提交后的 CI 通过才允许改为 `complete` 并进入 Day 4。
+
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2/Day 3 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 7 发布标签。后续开发以 [七天主计划 v1.7.0](docs/master-plan.md) 为权威执行基线。
 
 ## 常见问题
 

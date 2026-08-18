@@ -32,6 +32,7 @@ test-results/
 evals/reports/*
 !evals/reports/README.md
 !evals/reports/day2-v1.json
+!evals/reports/day3-v1.json
 
 # Runtime and infrastructure state
 *.log

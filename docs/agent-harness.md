@@ -4,7 +4,7 @@
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前状态：当天第 1～4 个可验收步骤已通过本地验收；D3-01～D3-11 仍为 `thin_slice`，尚无对应干净 CI，Day 3 门禁尚未通过。
+> 当前状态：五个可验收步骤均已完成并通过全量本地门禁；尚未提交/推送，D3-01～D3-11 暂为 `implemented_pending_verification`，待干净 CI 后转为 `complete`。
 
 ## 1. 今天的五个可验收步骤
 
@@ -14,7 +14,7 @@
 4. 完成数据库能力切片：数据库浏览、安全 Text2SQL、只读 AST、schema/table/column allowlist、查询预算，以及受校验的表格/图表 Artifact 和错误旅程。
 5. 完成 Tool Inspector 与行业/数据库/图表正式页面和 E2E，输出 L0/L1/L2 trajectory report、累计数据集，并逐项关闭 Day 3 Definition of Done 与学习门禁。
 
-本轮严格停在第 4 步。第 5 步未开始；后端 Text2SQL/Artifact 合同不能冒充数据库/图表页面、Tool Inspector、生产聊天 Tool 旅程或 Day 3 完成。
+第 5 步已经完成：正式页面、Tool Inspector、生产 Web Tool 用户旅程、累计数据集、trajectory report、安全复核、运行手册和全量本地门禁均有可执行证据。当前不提前进入 Day 4。
 
 ## 2. 第一步的正式执行链
 
@@ -31,9 +31,9 @@ ToolL1Profile 选择恰好一个版本化 Tool
   → Runtime 生成正式 Markdown final，并以唯一终态结束
 ```
 
-生产 L0 与 Harness L1/L2 都经 `UnifiedAgentRuntime` dispatch；Harness 只通过正式 Port/构造边界注入 Model、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信执行身份，不实现第二套 loop。真实 PostgreSQL 集成用例直接调用同一个内部 `ToolL1Runtime` 或 `ToolL2Runtime`，把 manifest、Event 和控制边界替换为 SQL ports，以验证 Runtime/持久化合同。第 3 步新增的 `industry.web_search:v1` 已通过正式 `ToolRegistry → RegistryToolExecutor → Pydantic Adapter → ToolObservation` 合同测试；采集则有独立的 Schedule/Occurrence→Job/Outbox→Worker Application Service 正式入口。Conversation/Agent Job 仍未物化 L1/L2 Tool command，因此它尚不是可由聊天用户启用的生产 Tool 旅程。L1/L2 使用 provider-neutral 的严格 JSON response schema，当前没有扩展成特定 Provider 的原生 `tool_calls`。
+生产 L0、生产 Web L2 与 Harness L1/L2 都经 `UnifiedAgentRuntime` dispatch；Harness 只通过正式 Port/构造边界注入 Model、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信执行身份，不实现第二套 loop。真实 PostgreSQL 集成用例既直接验证内部 L1/L2 Runtime 与 SQL ports，也从 Conversation Application Service 创建 Web Turn，经持久 Job、正式 Loader 与统一 Runtime 调用 `industry.web_search:v1`。采集仍走独立的 Schedule/Occurrence→Job/Outbox→Worker Application Service；数据库页则调用同一安全 Text2SQL Application/Artifact 边界。L1/L2 使用 provider-neutral 的严格 JSON response schema，当前没有扩展成特定 Provider 的原生 `tool_calls`。
 
-L2 在同一状态机上重复 `决策 Model → Action → Registry/策略 → Tool → Observation`，每次决策只能返回严格的 `tool_call` 或 `final` 分支。每轮 Context 都包含此前全部有界 Observation；Runtime 在继续前统一核对剩余 Step、Token、费用、deadline 与取消。相同 name/version/参数摘要的 Action 在再次执行前以 `no_progress` 拒绝；不同参数若产生相同的规范化内容，第二次已发生的 Tool/Step 审计事实会被原子保存，然后以 `no_progress` 停止。L2 Scenario 仍只暴露 Fake Tool 来证明可重复控制；`industry.web_search:v1` 与 `database.text2sql:v1` 已分别通过正式 Registry/Executor 合同，但尚未组成同一生产/Harness 多 Tool 选择面，所以“至少两个不同 Tool”的 Day 3 用户门禁仍未满足。
+L2 在同一状态机上重复 `决策 Model → Action → Registry/策略 → Tool → Observation`，每次决策只能返回严格的 `tool_call` 或 `final` 分支。每轮 Context 都包含此前全部有界 Observation；Runtime 在继续前统一核对剩余 Step、Token、费用、deadline 与取消。相同 name/version/参数摘要的 Action 在再次执行前以 `no_progress` 拒绝；不同参数若产生相同的规范化内容，第二次已发生的 Tool/Step 审计事实会被原子保存，然后以 `no_progress` 停止。确定性 L2 用例在同一精确 allowlist 内实际选择并执行两个不同 typed Tool；生产 Web 用户旅程使用 `industry.web_search:v1`，数据库页面和 Registry 合同另行验证 `database.text2sql:v1` 与可追溯 Artifact。
 
 ## 3. Tool、Skill、Application Service 与 Harness
 
@@ -58,7 +58,7 @@ Runtime 决定 Step/Event/State/Budget/stop reason；ToolExecutor 是 Runtime Po
 
 PostgreSQL 新增一对一的 `tool_calls` 与 `tool_runs`；二者是归属于 AgentRun 的 operational audit projection，后者不是独立状态机或独立 security audit 事实源。请求 Tool 的 Model Step 始终存在；只有真正 allow 后才绑定可空且唯一的 Tool execution Step。Runtime 把 Event batch 与对应 Tool/Step/Run 投影放在同一事务原子提交，并校验 call/run/workspace、请求/执行 Step 与 trace 的关联；不完整或不一致的 batch 整体失败。两表只保存参数/幂等键 hash、有界脱敏摘要、策略/Schema 快照、规范化 Observation、来源、耗时、实际成本和稳定错误码，不保存 raw arguments、原始 Provider/Tool 大响应、Secret、Runtime Context 或 chain-of-thought。
 
-当前 Tool 外键以 `RESTRICT` 阻止普通 AgentStep/Run 删除隐式清空这些投影，`ToolRun` actor 还通过复合外键绑定对应 Run 的 workspace/user。生产 L1 启用前还必须实现显式、授权、幂等的 Run purge：按依赖顺序清理 Run-owned operational facts，同时按冻结期限保留最小 security audit 记录，并完成隐私擦除、恢复和备份测试；旧 queued-cancel/unrecoverable terminalizer 也要补齐最终 revision 投影。这些项目仍为 open，不能因为第一步写入迁移而标成已完成。
+当前 Tool 外键以 `RESTRICT` 阻止普通 AgentStep/Run 删除隐式清空这些投影，`ToolRun` actor 还通过复合外键绑定对应 Run 的 workspace/user。普通 Conversation 删除是逻辑删除，真实 PostgreSQL 已验证 Tool audit 继续保留；queued-cancel/unrecoverable terminalizer 与陈旧 QueryRun 也会推进权威终态/revision。面向用户的物理 Run purge 尚不开放：显式授权 purge、最小 security audit 留存和隔离备份恢复演练继续作为 Day 7 对外发布门禁，而不是让普通删除隐式级联。
 
 ## 5. Context Compiler v1 与信任边界
 
@@ -88,7 +88,7 @@ Fake Industry Lookup 不访问网络、Shell、数据库或 Secret，只用于�
 - 安全：不保存 raw arguments/result、原始幂等键、Secret/Runtime Context、Provider body 或模型控制的未知参数键；error code、locator、digest 和幂等键 hash 均执行稳定的 fail-closed 校验；
 - 学习：能够解释四类职责、Observation/Evidence 边界和继续/停止规则。
 
-真实来源、行业上下文和正式采集后端已在第 3 步验收；第 4 步又完成只读样例库、数据库浏览、完整 AST allowlist、计划/结果预算、QueryRun 审计和受校验表格/图表 Artifact。多 Tool 选择、Tool Inspector、行业/数据库/图表 UI、完整 trajectory scorer 和 Day 3 用户门禁仍在第 5 步验收。显式 Run purge、最小 security audit 留存与恢复/备份测试也仍为生产 Tool 入口前置 open 项。本步不将这些义务标为 `N/A` 或提前完成。
+真实来源、行业上下文和正式采集后端已在第 3 步验收；第 4 步完成只读样例库、数据库浏览、完整 AST allowlist、计划/结果预算、QueryRun 审计和受校验 Artifact；第 5 步又关闭多 Tool 选择、Tool Inspector、行业/数据库/图表 UI、陈旧 QueryRun 对账、trajectory report 和浏览器用户门禁。显式物理 Run purge与隔离备份恢复演练不属于 Day 3 冻结产物，但已作为 Day 7 发布门禁保留，不能被当前逻辑删除策略冒充完成。
 
 ## 8. 代码与验证入口
 
@@ -116,4 +116,4 @@ Fake Industry Lookup 不访问网络、Shell、数据库或 Secret，只用于�
 - 测试：`apps/backend/tests/modules/data_explorer/` 与 `apps/backend/tests/integration/test_data_explorer_postgres.py`；
 - 依赖与威胁复核：[Day 3 安全 Text2SQL 复核](security/day-3-text2sql-review.md)。
 
-最终本地门禁结果已记录在 [Day 3 学习日志](learning-log/day-3.md)；它只关闭今天第 1～4 步的本地验收，不代表 D3-01～D3-11 `complete`、Day 3 执行门禁通过或生产聊天 Tool 用户旅程可用。
+第 5 步新增入口还包括 `apps/web/src/industry/`、`apps/web/src/data-explorer/`、`TracePanel.tsx`、`apps/backend/tests/integration/test_conversation_web_tool_postgres.py`、`tests/e2e/app-shell.spec.ts`、`evals/reports/day3-v1.json`、[前端安全复核](security/day-3-ui-review.md)与 [Day 3 运行手册](runbooks/day-3-agent-tools.md)。最终本地门禁见 [Day 3 学习日志](learning-log/day-3.md)；状态只因尚无本轮干净 CI 保持 `implemented_pending_verification`。

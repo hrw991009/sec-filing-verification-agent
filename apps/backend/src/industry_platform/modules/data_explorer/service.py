@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from industry_platform.modules.data_explorer.artifacts import (
@@ -35,6 +37,34 @@ from industry_platform.modules.data_explorer.sql_validator import (
 )
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.workspaces.domain import WorkspaceScope
+
+
+@dataclass(frozen=True, slots=True)
+class StaleQueryRunReconciliationService:
+    repository: DataExplorerRepository = field(repr=False)
+    stale_after_seconds: int = 300
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC)
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.stale_after_seconds, bool)
+            or not 30 <= self.stale_after_seconds <= 86_400
+        ):
+            raise ValueError("Query Run stale timeout is invalid")
+
+    async def reconcile_stale(self, *, batch_size: int) -> int:
+        if isinstance(batch_size, bool) or not 1 <= batch_size <= 1_000:
+            raise ValueError("Query Run reconciliation batch size is invalid")
+        reconciled_at = self.clock()
+        if reconciled_at.tzinfo is None or reconciled_at.utcoffset() != UTC.utcoffset(
+            reconciled_at
+        ):
+            raise ValueError("Query Run reconciliation clock must return UTC")
+        return await self.repository.reconcile_stale_queries(
+            stale_before=reconciled_at - timedelta(seconds=self.stale_after_seconds),
+            reconciled_at=reconciled_at,
+            batch_size=batch_size,
+        )
 
 
 class DataExplorerService:

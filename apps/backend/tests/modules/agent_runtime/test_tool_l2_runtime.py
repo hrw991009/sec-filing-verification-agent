@@ -20,8 +20,11 @@ from industry_platform.modules.agent_harness.profiles import ToolL2Profile
 from industry_platform.modules.agent_harness.runner import HarnessRunner
 from industry_platform.modules.agent_harness.scenarios import load_scenario_dataset
 from industry_platform.modules.agent_harness.tool_fakes import (
+    FAKE_DATABASE_TOOL_NAME,
+    FAKE_DATABASE_TOOL_VERSION,
     FAKE_LOOKUP_TOOL_NAME,
     FAKE_LOOKUP_TOOL_VERSION,
+    FakeDatabaseLookupTool,
     FakeIndustryLookupTool,
     FakeLookupRecord,
     fake_lookup_definition,
@@ -263,10 +266,15 @@ def model_response(
     )
 
 
-def action_decision(query: str) -> str:
+def action_decision(
+    query: str,
+    *,
+    name: str = FAKE_LOOKUP_TOOL_NAME,
+    version: str = FAKE_LOOKUP_TOOL_VERSION,
+) -> str:
     return (
         '{"decision":{"schema_version":1,"kind":"tool_call",'
-        f'"name":"{FAKE_LOOKUP_TOOL_NAME}","version":"{FAKE_LOOKUP_TOOL_VERSION}",'
+        f'"name":"{name}","version":"{version}",'
         f'"arguments":{{"query":"{query}"}}}}}}'
     )
 
@@ -533,6 +541,94 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
         validate_supported_schema(request.response_schema)
     assert "provider/tool-l2-key" not in repr(events)
     assert "provider/tool-l2-key" not in repr(provider.requests)
+
+
+@pytest.mark.asyncio
+async def test_l2_selects_two_different_tools_from_one_exact_allowlist() -> None:
+    provider = QueueModelProvider(
+        (
+            model_response(action_decision("steel"), request_id="multi-decision-1"),
+            model_response(
+                action_decision(
+                    "revenue",
+                    name=FAKE_DATABASE_TOOL_NAME,
+                    version=FAKE_DATABASE_TOOL_VERSION,
+                ),
+                request_id="multi-decision-2",
+            ),
+            model_response(final_decision(), request_id="multi-decision-3"),
+        )
+    )
+    industry_tool = FakeIndustryLookupTool(
+        {
+            "steel": FakeLookupRecord(
+                text="Steel demand rose 3%.",
+                locator="fixture://industry/steel/2026-08",
+                source_version="fixture-2026-08-v1",
+            )
+        }
+    )
+    database_tool = FakeDatabaseLookupTool(
+        {
+            "revenue": FakeLookupRecord(
+                text='{"artifact_id":"table-1","row_count":4}',
+                locator="fixture://database/artifacts/table-1",
+                source_version="fixture-database-v1",
+            )
+        }
+    )
+    registry = ToolRegistry((industry_tool, database_tool))
+    manifests = RecordingManifestStore()
+    committer = RecordingCommitter()
+    selected_clock = IncrementingClock()
+    runtime = UnifiedAgentRuntime(
+        direct_answer_runtime=DirectAnswerRuntime(
+            context_compiler=ContextCompilerV0(token_counter=FixedTokenCounter()),
+            context_manifest_store=manifests,
+            model_provider=provider,
+            event_committer=committer,
+            cancellation_probe=NeverCancelled(),
+            clock=selected_clock,
+        ),
+        tool_l2_runtime=ToolL2Runtime(
+            context_compiler=ContextCompilerV1(token_counter=FixedTokenCounter()),
+            context_manifest_store=manifests,
+            model_provider=provider,
+            tool_registry=registry,
+            tool_executor=RegistryToolExecutor(registry, clock=selected_clock),
+            event_committer=committer,
+            cancellation_probe=NeverCancelled(),
+            clock=selected_clock,
+        ),
+    )
+    selected_budget = budget()
+    selected_policy = replace(
+        policy(),
+        toolset_version="fake-multitool-v1",
+        available_tools=(industry_tool.definition.reference, database_tool.definition.reference),
+    )
+    selected_command = replace(
+        command(selected_budget=selected_budget),
+        policy=selected_policy,
+    )
+
+    events = [
+        event
+        async for event in runtime.run(
+            selected_command,
+            runtime_context(selected_budget),
+        )
+    ]
+
+    assert_terminal(events, event_type=AgentEventType.RUN_COMPLETED, reason=RunStopReason.FINAL)
+    assert [item.query for item in industry_tool.invocations] == ["steel"]
+    assert [item.query for item in database_tool.invocations] == ["revenue"]
+    assert [
+        event.payload["requested_tool_name"]
+        for event in events
+        if event.event_type is AgentEventType.TOOL_REQUESTED
+    ] == [FAKE_LOOKUP_TOOL_NAME, FAKE_DATABASE_TOOL_NAME]
+    assert all(request.response_schema is not None for request in provider.requests)
 
 
 @pytest.mark.asyncio

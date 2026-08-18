@@ -7,6 +7,9 @@ from typing import Protocol
 from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import RunBudget, require_utc
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    TOOL_L2_RUNTIME_VERSION,
+)
 from industry_platform.modules.conversations.domain import (
     DirectAnswerTurnReceipt,
     StartDirectAnswerTurn,
@@ -64,14 +67,19 @@ class DirectAnswerSubmissionPolicy:
     max_cost_micro_usd: int = 250_000
     timeout_seconds: int = 300
 
-    def budget_at(self, accepted_at: datetime) -> RunBudget:
+    def budget_at(
+        self,
+        accepted_at: datetime,
+        search_mode: TurnSearchMode = TurnSearchMode.NONE,
+    ) -> RunBudget:
         require_utc(accepted_at, field_name="Turn acceptance time")
         if isinstance(self.timeout_seconds, bool) or self.timeout_seconds <= 0:
             raise ValueError("Direct-answer timeout is invalid")
+        tool_enabled = search_mode is TurnSearchMode.WEB
         return RunBudget(
             schema_version=1,
-            max_steps=self.max_steps,
-            max_total_tokens=self.max_total_tokens,
+            max_steps=8 if tool_enabled else self.max_steps,
+            max_total_tokens=8_192 if tool_enabled else self.max_total_tokens,
             max_cost_micro_usd=self.max_cost_micro_usd,
             deadline=accepted_at + timedelta(seconds=self.timeout_seconds),
         )
@@ -108,19 +116,22 @@ class ConversationSubmissionService:
     ) -> DirectAnswerTurnReceipt:
         if not scope_allows(scope, WorkspaceAction.CREATE_RESOURCE):
             raise WorkspaceAccessDeniedError
-        if request.search_mode is not TurnSearchMode.NONE:
+        if request.search_mode not in {TurnSearchMode.NONE, TurnSearchMode.WEB}:
             raise ConversationModeNotReadyError(request.search_mode)
         if request.knowledge_base_ids:
             raise ConversationModeNotReadyError(TurnSearchMode.LOCAL)
 
         accepted_at = self.clock()
+        tool_enabled = request.search_mode is TurnSearchMode.WEB
         command = StartDirectAnswerTurn(
             workspace_id=scope.workspace_id,
             user_id=scope.user_id,
             trace_id=request.trace_id,
-            budget=self.policy.budget_at(accepted_at),
-            runtime_version=self.policy.runtime_version,
-            harness_version=self.policy.harness_version,
+            budget=self.policy.budget_at(accepted_at, request.search_mode),
+            runtime_version=(
+                TOOL_L2_RUNTIME_VERSION if tool_enabled else self.policy.runtime_version
+            ),
+            harness_version="harness-v1" if tool_enabled else self.policy.harness_version,
             idempotency_key=request.idempotency_key,
             question=request.question,
             conversation_id=request.conversation_id,

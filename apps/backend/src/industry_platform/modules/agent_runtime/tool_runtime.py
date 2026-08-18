@@ -1906,9 +1906,11 @@ class ToolL2Runtime(ToolL1Runtime):
         await self._commit(events, started)
         yield started
 
-        selected_reference = command.policy.available_tools[0]
-        selected_definition = self._tool_registry.definition(selected_reference)
-        if selected_definition is None:
+        selected_definitions = tuple(
+            self._tool_registry.definition(reference)
+            for reference in command.policy.available_tools
+        )
+        if any(definition is None for definition in selected_definitions):
             terminal_at = self._time(not_before=events[-1].occurred_at)
             terminal = self._terminal_event(
                 run=run,
@@ -1923,7 +1925,10 @@ class ToolL2Runtime(ToolL1Runtime):
             await self._commit(events, terminal)
             yield terminal
             return
-        decision_schema = tool_loop_decision_response_schema(selected_definition)
+        definitions = tuple(
+            definition for definition in selected_definitions if definition is not None
+        )
+        decision_schema = tool_loop_decision_response_schema(definitions)
 
         for decision_index in range(command.policy.model_call_limit):
             decision_sequence = state.step_count + 1
@@ -1947,7 +1952,7 @@ class ToolL2Runtime(ToolL1Runtime):
                 sequence=decision_sequence,
                 step_id=command.decision_model_step_ids[decision_index],
                 manifest_id=command.decision_manifest_ids[decision_index],
-                system_instructions=self._loop_instructions(command, selected_definition),
+                system_instructions=self._loop_instructions(command, definitions),
                 max_output_tokens=command.policy.max_decision_output_tokens,
                 response_schema=decision_schema,
                 observations=tuple(observations),
@@ -2949,16 +2954,19 @@ class ToolL2Runtime(ToolL1Runtime):
     @staticmethod
     def _loop_instructions(
         command: ToolL2RunCommand,
-        definition: ToolDefinition,
+        definitions: tuple[ToolDefinition, ...],
     ) -> str:
-        catalog = {
-            "name": definition.name,
-            "version": definition.version,
-            "description": definition.description,
-            "input_schema_version": definition.input_schema_version,
-            "input_schema": dict(definition.input_schema),
-            "retry_classification": definition.retry_classification.value,
-        }
+        catalog = [
+            {
+                "name": definition.name,
+                "version": definition.version,
+                "description": definition.description,
+                "input_schema_version": definition.input_schema_version,
+                "input_schema": dict(definition.input_schema),
+                "retry_classification": definition.retry_classification.value,
+            }
+            for definition in definitions
+        ]
         return (
             command.policy.system_instructions
             + "\nReturn exactly one JSON decision matching the supplied response schema. "

@@ -480,17 +480,18 @@ def create_job_delivery_runtime(
     cleanup_service = RefreshRecoveryCleanupService(
         transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory)
     )
-    direct_answer = create_direct_answer_runtime_resources(
-        settings,
-        session_factory,
-        provider_http_client,
-    )
     job_resources = create_job_resources(settings, session_factory)
     industry = create_industry_resources(
         settings,
         session_factory,
         provider_http_client,
         job_resources.schedule_service,
+    )
+    direct_answer = create_direct_answer_runtime_resources(
+        settings,
+        session_factory,
+        provider_http_client,
+        tool_adapters=(industry.web_search_tool,),
     )
     return JobExecutionRuntime(
         jobs=job_resources.application_service,

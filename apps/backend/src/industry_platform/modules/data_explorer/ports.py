@@ -1,6 +1,7 @@
 """Dependency boundaries for read-only data access and durable query audit."""
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -104,3 +105,15 @@ class DataExplorerRepository(Protocol):
     async def list_queries(
         self, scope: WorkspaceScope, *, limit: int
     ) -> Sequence[QueryRunSummary]: ...
+
+    async def reconcile_stale_queries(
+        self,
+        *,
+        stale_before: datetime,
+        reconciled_at: datetime,
+        batch_size: int,
+    ) -> int: ...
+
+
+class QueryRunReconciliationUseCase(Protocol):
+    async def reconcile_stale(self, *, batch_size: int) -> int: ...

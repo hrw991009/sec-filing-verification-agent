@@ -9,6 +9,10 @@ import {
   type SubmitEvent,
 } from "react";
 
+import { DataExplorerWorkspace } from "../data-explorer/DataExplorerWorkspace";
+import { IndustryWorkspace } from "../industry/IndustryWorkspace";
+import { getIndustryPreference, listIndustries, type Industry } from "../industry/industry-api";
+
 import {
   cancelRun,
   deleteConversation,
@@ -27,7 +31,7 @@ import {
 } from "./chat-api";
 import "./chat.css";
 import { ChatComposer } from "./ChatComposer";
-import { ChatTopbar, ConversationHeader } from "./ChatHeader";
+import { ChatTopbar, ConversationHeader, type WorkbenchView } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import {
   attachmentKind,
@@ -54,6 +58,10 @@ import { useAllConversationMessages } from "./useAllConversationMessages";
 export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWorkbenchProps) {
   const initialWorkspaceId = currentUser.workspaces[0]?.id ?? "";
   const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId);
+  const [view, setView] = useState<WorkbenchView>("chat");
+  const [searchMode, setSearchMode] = useState<"none" | "web">("none");
+  const [industries, setIndustries] = useState<Industry[]>([]);
+  const [industryId, setIndustryId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationCursor, setConversationCursor] = useState<string | null>(null);
   const [conversationState, setConversationState] = useState<LoadState>("loading");
@@ -429,6 +437,31 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   }, [loadConversationList]);
 
   useEffect(() => {
+    let active = true;
+    setIndustries([]);
+    setIndustryId(null);
+    if (!workspaceId) {
+      return () => {
+        active = false;
+      };
+    }
+    void Promise.all([listIndustries(), getIndustryPreference(workspaceId)])
+      .then(([nextIndustries, preference]) => {
+        if (!active || workspaceIdRef.current !== workspaceId) return;
+        setIndustries(nextIndustries);
+        setIndustryId(preference?.industry.id ?? nextIndustries[0]?.id ?? null);
+      })
+      .catch((caught: unknown) => {
+        if (active && workspaceIdRef.current === workspaceId) {
+          setComposerError(`行业上下文加载失败：${publicError(caught)}`);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [workspaceId]);
+
+  useEffect(() => {
     if (selectedConversationId === null) {
       setMessages([]);
       setMessagesState("ready");
@@ -642,6 +675,7 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
       !normalizedQuestion ||
       submitting ||
       activeRun?.status === "running" ||
+      (searchMode === "web" && industryId === null) ||
       readyAttachments.length !== composerAttachments.length
     ) {
       return;
@@ -649,7 +683,9 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     const fingerprint = JSON.stringify({
       attachmentIds: readyAttachments.map((item) => item.snapshot.id),
       conversationId: selectedConversationId,
+      industryId: searchMode === "web" ? industryId : null,
       question: normalizedQuestion,
+      searchMode,
       workspaceId,
     });
     const existingAttempt = submitAttemptRef.current;
@@ -669,8 +705,9 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
         {
           attachment_ids: readyAttachments.map((item) => item.snapshot.id),
           conversation_id: submittedConversationId,
+          industry_id: searchMode === "web" ? industryId : null,
           knowledge_base_ids: [],
-          mode: "none",
+          mode: searchMode,
           question: normalizedQuestion,
         },
         attempt.key,
@@ -854,7 +891,12 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const runIsBusy = activeRun?.status === "running";
   const attachmentsReady = composerAttachments.every((item) => item.status === "ready");
   const submitDisabled =
-    !canCompose || !question.trim() || submitting || runIsBusy || !attachmentsReady;
+    !canCompose ||
+    !question.trim() ||
+    submitting ||
+    runIsBusy ||
+    !attachmentsReady ||
+    (searchMode === "web" && industryId === null);
   const panelActiveRun =
     activeRun !== null && (traceRunId === null || traceRunId === activeRun.runId)
       ? activeRun
@@ -868,120 +910,146 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     <main className="chat-shell">
       <ChatTopbar
         currentUser={currentUser}
+        onChangeView={(nextView) => {
+          setView(nextView);
+          setSidebarOpen(false);
+          setTraceOpen(false);
+        }}
         onChangeWorkspace={changeWorkspace}
         onLogout={onLogout}
         onOpenSettings={onOpenSettings}
         submitting={submitting}
+        view={view}
         workspaceId={workspaceId}
       />
 
-      <div
-        className={`chat-grid${traceOpen ? " chat-grid--trace-open" : ""}${sidebarOpen ? " chat-grid--sidebar-open" : ""}`}
-      >
-        <ConversationSidebar
-          canCompose={canCompose}
-          conversationCursor={conversationCursor}
-          conversationError={conversationError}
-          conversationState={conversationState}
-          conversations={filteredConversations}
-          onChangeSearch={setSearch}
-          onLoadMore={(cursor) => void loadConversationList(cursor, true)}
-          onReload={() => void loadConversationList(null, false)}
-          onSelectConversation={selectConversation}
-          onStartNewConversation={startNewConversation}
-          search={search}
-          selectedConversationId={selectedConversationId}
-          submitting={submitting}
-        />
-
-        <section className="chat-main" aria-labelledby="conversation-title">
-          <ConversationHeader
-            activeRun={activeRun}
+      {view === "chat" ? (
+        <div
+          className={`chat-grid${traceOpen ? " chat-grid--trace-open" : ""}${sidebarOpen ? " chat-grid--sidebar-open" : ""}`}
+        >
+          <ConversationSidebar
             canCompose={canCompose}
-            creatingNew={creatingNew}
-            onBeginRename={() => {
-              setRenameTitle(selectedConversation?.title ?? "");
-              setRenaming(true);
-            }}
-            onChangeRenameTitle={setRenameTitle}
-            onDelete={() => {
-              setDeleteDialogOpen(true);
-            }}
-            onOpenSidebar={() => {
-              setSidebarOpen(true);
-            }}
-            onOpenTrace={(runId) => {
-              if (runId !== null) void loadTrace(runId, true);
-              else setTraceOpen(true);
-            }}
-            onSaveRename={(event) => void saveRename(event)}
-            onStopRenaming={() => {
-              setRenaming(false);
-            }}
-            renameInputRef={renameInputRef}
-            renameTitle={renameTitle}
-            renaming={renaming}
-            runIsBusy={runIsBusy}
-            selectedConversation={selectedConversation}
+            conversationCursor={conversationCursor}
+            conversationError={conversationError}
+            conversationState={conversationState}
+            conversations={filteredConversations}
+            onChangeSearch={setSearch}
+            onLoadMore={(cursor) => void loadConversationList(cursor, true)}
+            onReload={() => void loadConversationList(null, false)}
+            onSelectConversation={selectConversation}
+            onStartNewConversation={startNewConversation}
+            search={search}
             selectedConversationId={selectedConversationId}
             submitting={submitting}
-            traceRunId={traceRunId}
           />
 
-          <ChatMessages
-            activeRun={activeRun}
-            canCompose={canCompose && !submitting}
-            messages={messages}
-            messagesError={messagesError}
-            messagesState={messagesState}
-            onDownload={(fileId) => void downloadAttachment(fileId)}
-            onOpenTrace={(runId) => void loadTrace(runId, true)}
-            onRetryLastQuestion={retryLastQuestion}
-            onRetryMessageLoad={retryMessageLoad}
-            onSelectPrompt={setQuestion}
-            threadEndRef={threadEndRef}
-          />
+          <section className="chat-main" aria-labelledby="conversation-title">
+            <ConversationHeader
+              activeRun={activeRun}
+              canCompose={canCompose}
+              creatingNew={creatingNew}
+              onBeginRename={() => {
+                setRenameTitle(selectedConversation?.title ?? "");
+                setRenaming(true);
+              }}
+              onChangeRenameTitle={setRenameTitle}
+              onDelete={() => {
+                setDeleteDialogOpen(true);
+              }}
+              onOpenSidebar={() => {
+                setSidebarOpen(true);
+              }}
+              onOpenTrace={(runId) => {
+                if (runId !== null) void loadTrace(runId, true);
+                else setTraceOpen(true);
+              }}
+              onSaveRename={(event) => void saveRename(event)}
+              onStopRenaming={() => {
+                setRenaming(false);
+              }}
+              renameInputRef={renameInputRef}
+              renameTitle={renameTitle}
+              renaming={renaming}
+              runIsBusy={runIsBusy}
+              searchMode={searchMode}
+              selectedConversation={selectedConversation}
+              selectedConversationId={selectedConversationId}
+              submitting={submitting}
+              traceRunId={traceRunId}
+            />
 
-          <ChatComposer
-            activeRun={activeRun}
-            attachments={composerAttachments}
-            canCompose={canCompose}
-            error={composerError}
-            fileInputRef={fileInputRef}
-            onAddFiles={(event) => void addFiles(event)}
-            onChangeQuestion={setQuestion}
-            onKeyDown={composerKeyDown}
-            onRemoveAttachment={(attachment) => void removeComposerAttachment(attachment)}
-            onRequestCancellation={() => void requestCancellation()}
-            onSubmit={(event) => void submitQuestion(event)}
-            question={question}
-            runIsBusy={runIsBusy}
-            submitDisabled={submitDisabled}
-            submitting={submitting}
-          />
-        </section>
+            <ChatMessages
+              activeRun={activeRun}
+              canCompose={canCompose && !submitting}
+              messages={messages}
+              messagesError={messagesError}
+              messagesState={messagesState}
+              onDownload={(fileId) => void downloadAttachment(fileId)}
+              onOpenTrace={(runId) => void loadTrace(runId, true)}
+              onRetryLastQuestion={retryLastQuestion}
+              onRetryMessageLoad={retryMessageLoad}
+              onSelectPrompt={setQuestion}
+              threadEndRef={threadEndRef}
+            />
 
-        <TracePanel
-          activeRun={panelActiveRun}
-          events={traceEvents}
-          onClose={() => {
-            setTraceOpen(false);
+            <ChatComposer
+              activeRun={activeRun}
+              attachments={composerAttachments}
+              canCompose={canCompose}
+              error={composerError}
+              fileInputRef={fileInputRef}
+              onAddFiles={(event) => void addFiles(event)}
+              onChangeQuestion={setQuestion}
+              onChangeSearchMode={setSearchMode}
+              onKeyDown={composerKeyDown}
+              onRemoveAttachment={(attachment) => void removeComposerAttachment(attachment)}
+              onRequestCancellation={() => void requestCancellation()}
+              onSubmit={(event) => void submitQuestion(event)}
+              question={question}
+              runIsBusy={runIsBusy}
+              searchMode={searchMode}
+              selectedIndustryName={
+                industries.find((industry) => industry.id === industryId)?.name ?? null
+              }
+              submitDisabled={submitDisabled}
+              submitting={submitting}
+            />
+          </section>
+
+          <TracePanel
+            activeRun={panelActiveRun}
+            events={traceEvents}
+            onClose={() => {
+              setTraceOpen(false);
+            }}
+            onRetry={traceRunId === null ? undefined : () => void loadTrace(traceRunId, true)}
+            trace={trace}
+            traceError={traceError}
+            traceState={traceState}
+          />
+          <button
+            aria-label="关闭侧栏"
+            className="panel-backdrop"
+            onClick={() => {
+              setSidebarOpen(false);
+              setTraceOpen(false);
+            }}
+            type="button"
+          />
+        </div>
+      ) : view === "industry" ? (
+        <IndustryWorkspace
+          canManage={canCompose}
+          industries={industries}
+          onSelectIndustry={(nextIndustryId) => {
+            setIndustryId(nextIndustryId);
           }}
-          onRetry={traceRunId === null ? undefined : () => void loadTrace(traceRunId, true)}
-          trace={trace}
-          traceError={traceError}
-          traceState={traceState}
+          selectedIndustryId={industryId}
+          workspaceId={workspaceId}
         />
-        <button
-          aria-label="关闭侧栏"
-          className="panel-backdrop"
-          onClick={() => {
-            setSidebarOpen(false);
-            setTraceOpen(false);
-          }}
-          type="button"
-        />
-      </div>
+      ) : (
+        <DataExplorerWorkspace key={workspaceId} canManage={canCompose} workspaceId={workspaceId} />
+      )}
 
       <DeleteConversationDialog
         onCancel={() => {

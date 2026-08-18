@@ -2,7 +2,7 @@
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final
 from uuid import UUID
@@ -104,7 +104,7 @@ class ToolL1RuntimePolicy:
 
 @dataclass(frozen=True, slots=True)
 class ToolL2RuntimePolicy:
-    """Trusted bounded-loop surface for repeated use of one exact Tool version."""
+    """Trusted bounded-loop surface for repeated use of an exact Tool allowlist."""
 
     schema_version: int
     profile_version: str
@@ -121,20 +121,34 @@ class ToolL2RuntimePolicy:
     allows_implicit_retry: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
-        common = ToolL1RuntimePolicy(
-            schema_version=self.schema_version,
-            profile_version=self.profile_version,
-            prompt_version=self.prompt_version,
-            context_compiler_version=self.context_compiler_version,
-            output_contract_version=self.output_contract_version,
-            toolset_version=self.toolset_version,
-            model=self.model,
-            max_input_tokens=self.max_input_tokens,
-            max_action_output_tokens=self.max_decision_output_tokens,
-            max_final_output_tokens=self.max_decision_output_tokens,
-            system_instructions=self.system_instructions,
-            available_tools=self.available_tools,
-        )
+        require_current_schema_version(self.schema_version)
+        for value, field_name in (
+            (self.profile_version, "Tool L2 profile version"),
+            (self.prompt_version, "Tool L2 prompt version"),
+            (self.context_compiler_version, "Tool L2 Context Compiler version"),
+            (self.output_contract_version, "Tool L2 output contract version"),
+            (self.toolset_version, "Tool L2 toolset version"),
+        ):
+            if not _VERSION_PATTERN.fullmatch(value):
+                raise ValueError(f"{field_name} is invalid")
+        if self.context_compiler_version != CONTEXT_COMPILER_V1:
+            raise ValueError("Tool L2 requires Context Compiler v1")
+        if self.output_contract_version != FINAL_MARKDOWN_CONTRACT_VERSION:
+            raise ValueError("Tool L2 final output contract is unsupported")
+        if not _MODEL_PATTERN.fullmatch(self.model):
+            raise ValueError("Tool L2 model is invalid")
+        for token_limit, field_name in (
+            (self.max_input_tokens, "Tool L2 max input tokens"),
+            (self.max_decision_output_tokens, "Tool L2 decision output tokens"),
+        ):
+            if isinstance(token_limit, bool) or not 1 <= token_limit <= MAX_RUN_TOKENS:
+                raise ValueError(f"{field_name} is invalid")
+        instructions = self.system_instructions.strip()
+        if not instructions or len(instructions) > 20_000:
+            raise ValueError("Tool L2 system instructions are invalid")
+        references = tool_references(self.available_tools)
+        if not 1 <= len(references) <= 8:
+            raise ValueError("The L2 profile must expose between one and eight Tool versions")
         if (
             isinstance(self.max_tool_calls, bool)
             or not 2 <= self.max_tool_calls <= MAX_CONTEXT_TOOL_OBSERVATIONS
@@ -142,8 +156,8 @@ class ToolL2RuntimePolicy:
             raise ValueError(
                 f"Tool L2 max calls must be between 2 and {MAX_CONTEXT_TOOL_OBSERVATIONS}"
             )
-        object.__setattr__(self, "system_instructions", common.system_instructions)
-        object.__setattr__(self, "available_tools", common.available_tools)
+        object.__setattr__(self, "system_instructions", instructions)
+        object.__setattr__(self, "available_tools", references)
 
     @property
     def model_call_limit(self) -> int:
@@ -182,10 +196,15 @@ class ToolLoopFinalDecision:
         object.__setattr__(self, "content_markdown", normalized)
 
 
-def tool_loop_decision_response_schema(definition: ToolDefinition) -> Mapping[str, object]:
-    """Return a strict nested-anyOf schema for one Tool Action or final answer."""
+def tool_loop_decision_response_schema(
+    definitions: ToolDefinition | Sequence[ToolDefinition],
+) -> Mapping[str, object]:
+    """Return a strict decision schema for an exact trusted Tool surface or final answer."""
 
-    action_schema = dict(tool_action_response_schema(definition))
+    selected = (definitions,) if isinstance(definitions, ToolDefinition) else tuple(definitions)
+    if not selected or len(selected) != len({item.reference for item in selected}):
+        raise ValueError("Tool loop decision schema requires unique Tool definitions")
+    action_schemas = [dict(tool_action_response_schema(definition)) for definition in selected]
     final_schema = {
         "type": "object",
         "additionalProperties": False,
@@ -201,7 +220,7 @@ def tool_loop_decision_response_schema(definition: ToolDefinition) -> Mapping[st
             "type": "object",
             "additionalProperties": False,
             "required": ["decision"],
-            "properties": {"decision": {"anyOf": [action_schema, final_schema]}},
+            "properties": {"decision": {"anyOf": [*action_schemas, final_schema]}},
         },
         error_message="Tool loop decision schema must be canonical JSON data",
     )

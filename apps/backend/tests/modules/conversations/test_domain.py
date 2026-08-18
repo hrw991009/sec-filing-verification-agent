@@ -20,6 +20,7 @@ NOW = datetime(2026, 8, 13, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
 OTHER_WORKSPACE_ID = UUID("22222222-2222-4222-8222-222222222222")
 USER_ID = UUID("33333333-3333-4333-8333-333333333333")
+INDUSTRY_ID = UUID("55555555-5555-4555-8555-555555555555")
 ATTACHMENT_IDS = tuple(UUID(f"00000000-0000-4000-8000-{value:012d}") for value in range(1, 6))
 
 
@@ -72,17 +73,35 @@ def test_new_conversation_can_derive_a_bounded_one_line_title() -> None:
     assert title.endswith("...")
 
 
-@pytest.mark.parametrize("mode", [TurnSearchMode.WEB, TurnSearchMode.LOCAL, TurnSearchMode.BOTH])
-def test_unready_search_modes_fail_instead_of_returning_mock_results(
+@pytest.mark.parametrize("mode", [TurnSearchMode.LOCAL, TurnSearchMode.BOTH])
+def test_unready_local_search_modes_fail_instead_of_returning_mock_results(
     mode: TurnSearchMode,
 ) -> None:
-    with pytest.raises(ValueError, match="Only search mode 'none'"):
+    with pytest.raises(ValueError, match="Only search modes 'none' and 'web'"):
         command(search_mode=mode)
+
+
+def test_web_mode_requires_an_industry_and_the_l2_runtime_version() -> None:
+    with pytest.raises(ValueError, match="industry snapshot"):
+        command(
+            search_mode=TurnSearchMode.WEB,
+            runtime_version="agent-runtime-v1",
+            harness_version="harness-v1",
+        )
+
+    accepted = command(
+        search_mode=TurnSearchMode.WEB,
+        industry_id=INDUSTRY_ID,
+        runtime_version="agent-runtime-v1",
+        harness_version="harness-v1",
+    )
+    assert accepted.search_mode is TurnSearchMode.WEB
+    assert accepted.industry_id == INDUSTRY_ID
 
 
 def test_local_knowledge_selection_is_rejected_until_its_real_tool_is_ready() -> None:
     with pytest.raises(ValueError, match="Local knowledge mode is not ready"):
-        command(knowledge_base_ids=(UUID("55555555-5555-4555-8555-555555555555"),))
+        command(knowledge_base_ids=(INDUSTRY_ID,))
 
 
 def test_run_id_is_stable_per_workspace_and_idempotency_key() -> None:

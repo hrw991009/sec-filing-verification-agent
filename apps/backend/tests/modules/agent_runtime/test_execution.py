@@ -23,6 +23,7 @@ from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEven
 from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerExecutionInput,
     DirectAnswerRunExecutionService,
+    ProductionAgentRunCommand,
 )
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRunCommand
 from industry_platform.modules.identity.domain import TraceId
@@ -52,11 +53,11 @@ class RecordingLoader:
 class RecordingRuntime:
     def __init__(self, events: tuple[AgentEvent, ...]) -> None:
         self.events = events
-        self.calls: list[tuple[DirectAnswerRunCommand, TrustedRuntimeContext]] = []
+        self.calls: list[tuple[ProductionAgentRunCommand, TrustedRuntimeContext]] = []
 
     async def run(
         self,
-        command: DirectAnswerRunCommand,
+        command: ProductionAgentRunCommand,
         runtime_context: TrustedRuntimeContext,
     ) -> AsyncGenerator[AgentEvent]:
         self.calls.append((command, runtime_context))
@@ -71,7 +72,7 @@ class BlockingRuntime(RecordingRuntime):
 
     async def run(
         self,
-        command: DirectAnswerRunCommand,
+        command: ProductionAgentRunCommand,
         runtime_context: TrustedRuntimeContext,
     ) -> AsyncGenerator[AgentEvent]:
         self.calls.append((command, runtime_context))

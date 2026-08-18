@@ -232,10 +232,12 @@ def test_queued_cancellation_terminalizes_run_and_job_together_once(
             assert run.terminal_at == job.terminal_at
             assert run.terminal_at >= NOW + timedelta(seconds=1)
             assert run.event_count == 2
+            assert run.state_revision == 1
             assert tuple(event.event_type for event in agent_events) == (
                 AgentEventType.RUN_QUEUED,
                 AgentEventType.RUN_CANCELLED,
             )
+            assert agent_events[-1].payload["state_revision"] == run.state_revision
             assert job.status is JobStatus.CANCELLED
             assert job_events[-1].event_type is JobEventType.CANCELLED
             assert sum(event.event_type is JobEventType.CANCELLED for event in job_events) == 1

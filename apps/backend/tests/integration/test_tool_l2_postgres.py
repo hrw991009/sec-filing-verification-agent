@@ -57,7 +57,7 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,
 )
-from industry_platform.modules.conversations.domain import StartDirectAnswerTurn
+from industry_platform.modules.conversations.domain import StartDirectAnswerTurn, TurnSearchMode
 from industry_platform.modules.conversations.service import ConversationApplicationService
 from industry_platform.modules.identity.domain import (
     AuthenticatedPrincipal,
@@ -73,6 +73,7 @@ from industry_platform.modules.identity.models import (
     WorkspaceRole,
     WorkspaceStatus,
 )
+from industry_platform.modules.industry.domain import SMART_TRANSPORT_INDUSTRY_ID
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
@@ -196,6 +197,8 @@ def test_l2_two_rounds_persist_distinct_tool_facts_and_trace(
                     harness_version="harness-v1",
                     idempotency_key=f"tool-l2-{user_id}",
                     question="Compare steel and copper market changes.",
+                    search_mode=TurnSearchMode.WEB,
+                    industry_id=SMART_TRANSPORT_INDUSTRY_ID,
                 )
             )
             async with session_factory.begin() as session:

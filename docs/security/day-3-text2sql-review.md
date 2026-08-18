@@ -40,6 +40,6 @@ SQLGlot 是 parser/transpiler，不被当成安全判定本身。项目在完整
 - 真实 disposable PostgreSQL 完成 migration upgrade/check/downgrade/upgrade；独立账号执行安全聚合查询并生成持久表格/图表，危险 SQL 留下失败 QueryRun，账号绕过应用直接 `DELETE` 仍被 PostgreSQL `InsufficientPrivilege` 拒绝。
 - Registry/Executor 单测证明 `database.text2sql:v1` 的输入 Schema 可组成 Provider structured `response_schema`，查询失败映射稳定 Tool error，成功 Observation 不回传 generated SQL。
 
-## 6. 尚未关闭的范围
+## 6. 第 5 步产品结论与后续边界
 
-当前只实现后端数据库浏览、直接 API、Tool Adapter、审计与 Artifact 合同；第 5 步的数据库/图表页面、Tool Inspector、Playwright 用户旅程和生产 Conversation/Agent Job 的 L1/L2 command materialization 尚未完成。QueryRun 进程崩溃后的陈旧 `running` 对账、正式数据源连接管理、显式 Run purge、审计留存/恢复/备份也必须在生产入口前关闭。上述限制不影响本步对固定样例库的后端安全结论，但禁止把它表述成 Day 3 或生产聊天 Text2SQL 已完成。
+第 5 步已经接通数据库/图表页面和安全 ECharts 渲染，并让 Reconciler 把陈旧 `running` QueryRun 收敛为 `query_execution_interrupted`；页面的加载、未配置、失败、Schema/分页、generated/validated SQL、计划和 Artifact 都由组件测试覆盖。当前 Day 3 只开放固定合成样例连接，不提供任意生产数据源连接管理，也不把 Text2SQL 隐式加入 Web Tool allowlist。显式物理 Run purge与隔离备份恢复演练继续属于 Day 7 发布门禁；这些边界不影响 Day 3 固定样例库与 Artifact 用户旅程的本地验收结论。

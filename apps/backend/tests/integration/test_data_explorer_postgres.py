@@ -1,6 +1,7 @@
 """Prove safe Text2SQL, Artifacts, and least privilege against real PostgreSQL."""
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import psycopg
@@ -20,6 +21,7 @@ from industry_platform.modules.data_explorer.domain import (
     ChartRequest,
     ChartType,
     QueryBudgets,
+    QueryExecutionRequest,
     QueryRunNotFoundError,
     QueryRunStatus,
 )
@@ -29,7 +31,10 @@ from industry_platform.modules.data_explorer.models import (
     QueryRunRecord,
     SampleCompanyMetricRecord,
 )
-from industry_platform.modules.data_explorer.service import DataExplorerService
+from industry_platform.modules.data_explorer.service import (
+    DataExplorerService,
+    StaleQueryRunReconciliationService,
+)
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.identity.models import (
     User,
@@ -94,15 +99,16 @@ def test_safe_text2sql_and_artifacts_use_a_real_read_only_role(
         )
         database = PostgresReadOnlyDatabase(read_only_engine)
         repository = SqlAlchemyDataExplorerRepository(session_factory)
+        budgets = QueryBudgets(
+            statement_timeout_ms=2_000,
+            max_rows=20,
+            max_plan_cost=100_000,
+            max_plan_rows=100_000,
+        )
         service = DataExplorerService(
             repository,
             database,
-            QueryBudgets(
-                statement_timeout_ms=2_000,
-                max_rows=20,
-                max_plan_cost=100_000,
-                max_plan_rows=100_000,
-            ),
+            budgets,
         )
         user_id = uuid4()
         workspace_id = uuid4()
@@ -220,8 +226,34 @@ def test_safe_text2sql_and_artifacts_use_a_real_read_only_role(
                 QueryRunStatus.COMPLETED,
             )
 
+            stale_request = QueryExecutionRequest(
+                scope=scope,
+                connection_id=connection.connection_id,
+                question="A query interrupted by process loss",
+                generated_sql="SELECT industry FROM public.sample_company_metrics",
+                chart=ChartRequest(chart_type=ChartType.TABLE),
+                trace_id=TraceId("text2sql-integration-stale"),
+            )
+            stale = await repository.start_query(stale_request, budgets)
+            reconciled_at = datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
+            async with session_factory.begin() as session:
+                stale_record = await session.get(QueryRunRecord, stale.query_run_id)
+                assert stale_record is not None
+                stale_record.started_at = reconciled_at - timedelta(minutes=10)
+                stale_record.updated_at = stale_record.started_at
+            reconciler = StaleQueryRunReconciliationService(
+                repository,
+                stale_after_seconds=300,
+                clock=lambda: reconciled_at,
+            )
+            assert await reconciler.reconcile_stale(batch_size=20) == 1
+            reconciled = await service.get_query(scope, stale.query_run_id)
+            assert reconciled.status is QueryRunStatus.FAILED
+            assert reconciled.error_code == "query_execution_interrupted"
+            assert reconciled.terminal_at == reconciled_at
+
             async with session_factory() as session:
-                assert await session.scalar(select(func.count()).select_from(QueryRunRecord)) == 3
+                assert await session.scalar(select(func.count()).select_from(QueryRunRecord)) == 4
                 assert (
                     await session.scalar(select(func.count()).select_from(QueryResultRecord)) == 1
                 )

@@ -915,7 +915,10 @@ class SqlAlchemyAgentRunControl:
                             occurred_at=terminal_at,
                             trace_id=TraceId(run.trace_id),
                             event_type=AgentEventType.RUN_CANCELLED,
-                            payload={"stop_reason": RunStopReason.CANCELLED.value},
+                            payload={
+                                "stop_reason": RunStopReason.CANCELLED.value,
+                                "state_revision": run.state_revision + 1,
+                            },
                         ),
                     )
                 return True
@@ -1168,6 +1171,7 @@ async def _terminalize_unrecoverable_run(
                 "stop_reason": stop_reason.value,
                 "error_code": error_code,
                 "settled_step_ids": [str(step.id) for step in running_steps],
+                "state_revision": run.state_revision + 1,
             },
         ),
     )

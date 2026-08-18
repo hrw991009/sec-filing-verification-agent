@@ -248,7 +248,7 @@ def test_l1_success_persists_tool_call_run_observation_and_safe_trace(
                     user_id=user_id,
                     trace_id=TraceId("trace-tool-l1-postgres"),
                     budget=budget,
-                    runtime_version=TOOL_L1_RUNTIME_VERSION,
+                    runtime_version="direct-answer-runtime-v0",
                     harness_version="harness-v1",
                     idempotency_key=f"tool-l1-{user_id}",
                     question="What changed in the steel market?",

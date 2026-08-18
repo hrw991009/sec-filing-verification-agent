@@ -50,6 +50,7 @@ from industry_platform.modules.agent_runtime.models import (
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
 from industry_platform.modules.agent_runtime.streaming import load_committed_replay
+from industry_platform.modules.agent_runtime.tool_runtime import UnifiedAgentRuntime
 from industry_platform.modules.conversations.adapters.sqlalchemy import (
     SqlAlchemyDirectAnswerTurnTransactionFactory,
 )
@@ -224,7 +225,7 @@ def test_success_uses_the_durable_job_runtime_and_replays_without_model_reexecut
             )
             execution = DirectAnswerRunExecutionService(
                 loader=SqlAlchemyDirectAnswerRunLoader(session_factory, policy),
-                runtime=runtime,
+                runtime=UnifiedAgentRuntime(direct_answer_runtime=runtime),
                 terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),
             )
             worker = JobExecutionRuntime(

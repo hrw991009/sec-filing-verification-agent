@@ -1,10 +1,10 @@
-# Day 3 学习日志：前四步有界 Tool Use、真实采集与安全 Text2SQL
+# Day 3 学习日志：有界 Tool Use、真实能力与正式 Workbench
 
 > 更新日期：2026-08-17
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前结论：五步计划中的第 1～4 步已通过本地验收，本轮严格停在第 4 步。D3-01～D3-11 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
+> 当前结论：五步均已完成并通过全量本地验收；D3-01～D3-11 暂为 `implemented_pending_verification`，只等待本轮提交后的干净 CI，不提前进入 Day 4。
 
 ## 1. Tool、Skill、Application Service 和 Harness 各自负责什么
 
@@ -30,13 +30,13 @@ L1 只允许一次 Action、一次 Tool、一次 Observation 和一次最终回�
 
 L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型只能返回严格结构化的 `tool_call` 或 `final`。只有新 Action 通过可信校验、未命中 no-progress guard，且剩余 Step、Token、费用、deadline 与取消仍允许下一轮时才继续。完全相同的 Action 在第二次执行前拒绝；不同 Action 若得到相同规范化内容，会先保存第二次真实执行事实，再以 `no_progress` 停止。这样既不伪造“没有执行”，也不把重复结果继续喂给模型制造无限循环。
 
-在当前 L1/L2 的已实现 safe point，参数无效、未知/越权 Tool、capability 不足、需要审批、Tool 失败、Provider 失败、max steps、无进展、预算耗尽、deadline 或取消都必须收敛为稳定 Event 和 stop reason；Runtime 不让模型换个名字绕过，也不做隐式重试。Tool 完成、取消和硬超时竞争时只允许一个结算结果；非零实际 Tool 成本在 completed Event、Tool Step、Run state 与 Tool 投影间保持同一数值且只计一次。当前 L2 只用一个可信 Tool 的不同参数证明多轮控制，不能替代 Day 3 后续“至少两个不同 Tool”的验收。
+在当前 L1/L2 的已实现 safe point，参数无效、未知/越权 Tool、capability 不足、需要审批、Tool 失败、Provider 失败、max steps、无进展、预算耗尽、deadline 或取消都必须收敛为稳定 Event 和 stop reason；Runtime 不让模型换个名字绕过，也不做隐式重试。Tool 完成、取消和硬超时竞争时只允许一个结算结果；非零实际 Tool 成本在 completed Event、Tool Step、Run state 与 Tool 投影间保持同一数值且只计一次。最终 L2 用例已在同一 exact allowlist 内选择并执行两个不同 typed Tool，不再用“同一 Tool 换参数”代替这项门禁。
 
 ## 5. 为什么生产与 Harness 必须共用 Runtime
 
 如果 Harness 自己执行 Action→Tool→Observation，测试可能通过，但生产的 Event、预算、取消、持久化和错误语义仍是另一套。前两步把 L0 生产链与 L1/L2 Harness 都放进同一个 `UnifiedAgentRuntime` dispatch；单元/Harness 只通过正式 Port/构造边界注入 Provider、Tool、manifest/Event store、控制与时间等 test doubles，并由服务端物化可信身份。真实 PostgreSQL 用例直接调用同一个内部 `ToolL1Runtime` 或 `ToolL2Runtime` 并使用 SQL ports，只验证 Runtime/持久化合同，不冒充生产 Application/Job/Worker 入口。
 
-第 3 步增加了真实 `industry.web_search:v1` Adapter，并证明它经过正式 Registry/Executor 后生成带 `[S1]` Citation 标识与 provenance 的 Observation；采集 Job 也已进入固定 Worker registry。它仍不等于聊天的生产 `web` 模式已启用：Conversation/Agent Job 尚未物化 L1/L2 Tool command，前端页面与错误交互也留在第 5 步。
+第 3 步增加了真实 `industry.web_search:v1` Adapter，并证明它经过正式 Registry/Executor 后生成带 `[S1]` Citation 标识与 provenance 的 Observation；采集 Job 也进入固定 Worker registry。第 5 步进一步让 Conversation 保存 Web Turn 快照、Job/Outbox 承载 durable work、正式 Loader 物化 L2 command，再由同一个 Runtime 执行；Playwright 只把外部 Model/Provider 替换成冻结 Adapter，不绕过 Application、Job、Runtime 或 PostgreSQL。
 
 ## 6. 安全复盘
 
@@ -45,26 +45,26 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 - ToolCall/ToolRun 使用 Workspace/run 复合外键，ToolRun actor 还必须匹配 AgentRun 的 workspace/user，执行 Step 可空且唯一；Event batch 与 Tool/Step/Run 投影在同一事务原子提交，并校验 call/run/workspace/actor/Step/trace/Observation correlation；
 - Observation 有硬大小、来源数量、时间、scope 和 digest 校验；locator 拒绝 userinfo、query、fragment 和控制字符，放不进 Context budget 时 fail-closed；
 - Tool 完成/取消/硬超时竞态、非零成本守恒、稳定 error code、Observation envelope digest 与幂等键 hash 都有 fail-closed 合同；
-- ToolCall/ToolRun 是 Run-owned operational audit projection，当前 `RESTRICT` 阻止普通删除隐式清空；显式 Run purge、最小 security audit 留存期限及恢复/备份测试，以及旧 queued-cancel/unrecoverable terminalizer 的最终 revision 投影仍未实现，是生产 L1 前置 open 项；
+- ToolCall/ToolRun 是 Run-owned operational audit projection，`RESTRICT` 阻止普通删除隐式清空；真实 PostgreSQL 已证明 Conversation 逻辑删除后 audit 仍保留，旧 terminalizer revision 与陈旧 QueryRun 对账也已关闭；显式物理 purge、最小 security audit 物理留存和隔离备份恢复演练留作 Day 7 发布门禁；
 - approval_required 只停止并记录请求；持久 interrupt/resume 与重复审批幂等属于 Day 5；
 - Fake Tool 无网络、Shell、数据库和 Secret 能力，不会伪装真实来源；真实 Adapter 只接受固定 host/字段和服务端 terms approval，不接受模型提供 URL、key 或许可开关。
 
 ## 7. 验收记录
 
-前四步当前工作树已执行根 [README 的统一验证](../../README.md#统一验证)中适用于未提交工作树的全部门禁，没有用定向绿色子集替代。`api:check` 的最后一步要求生成物与当前 Git 提交完全相同，因本步有预期的 OpenAPI 变更，在提交前必然报告 diff；这里以连续两次独立生成一致、生成 diff 评审和 contract typecheck 验收，仍须由后续干净 CI 执行 `api:check`：
+五步当前工作树已执行根 [README 的统一验证](../../README.md#统一验证)中适用于未提交工作树的全部门禁，没有用定向绿色子集代替：
 
-- Python 305 个文件的 format check、Ruff、mypy 297 个源文件、wheel/sdist build 均通过；`uv audit --locked` 解析 75 个包并检查 73 个第三方包，没有已知漏洞或 adverse status；
-- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `890 passed`，没有 skip/xfail；Data Explorer 定向单元/真实 PostgreSQL 合同为 `44 passed`；
+- Python 312 个文件的 format check、Ruff、mypy 303 个源文件、wheel/sdist build 均通过；`uv audit --locked` 解析 75 个包并检查 73 个第三方包，没有已知漏洞或 adverse status；
+- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `898 passed`，没有 skip/xfail；
 - disposable PostgreSQL 上的 fresh Alembic upgrade/check/downgrade/upgrade 与真实 L1/L2 往返通过；L2 PostgreSQL 用例持久化两次 ToolCall/ToolRun、六个 Step 与三份递增 Observation manifest，并核对累计费用、最终 revision 和安全 Trace；
-- OpenAPI 二次生成一致，API contract typecheck 通过；Web format/lint/typecheck/production build 通过，Vitest 为 `43 passed`，`pnpm audit --audit-level high` 无漏洞；
-- Playwright 的会话、停止与刷新恢复三条真实浏览器旅程为 `3 passed`；
+- OpenAPI `api:check`、API contract typecheck、Web format/lint/typecheck/production build 通过，Vitest 为 `54 passed`，`pnpm audit --audit-level high` 无漏洞；ECharts 改成模块化、延迟加载，初始 JS 约 288 KiB；
+- Playwright 的身份、L0 成功、Web Tool/Inspector 和取消/附件/删除四条真实浏览器旅程为 `4 passed`；
 - disposable PostgreSQL 证明同一事务物化 ScheduleOccurrence、Job、Outbox 与 CollectionRun，并验证并发手动触发收敛、Workspace 权限、游标、external ID/hash 去重和领域投影；完整 migration upgrade/check/downgrade/upgrade 无漂移；
 - disposable PostgreSQL 还证明独立只读账号的连接测试、Schema/主键/索引/分页、安全聚合、QueryRun/Artifact 持久化和 Workspace 隔离；危险 SQL 留下稳定失败事实，账号绕过应用直接 DELETE 仍被数据库拒绝；
-- 受控工作树路径与完整 43-commit 历史的 Gitleaks 扫描均无泄漏；新增的 `sqlglot==28.5.0` 为 MIT 许可、不发网也不执行 SQL，来源、威胁模型与负向清单见 [Text2SQL 安全复核](../security/day-3-text2sql-review.md)。
+- 受控工作树路径与完整 44-commit 历史的 Gitleaks 扫描均无泄漏；`sqlglot==28.5.0` 为 MIT，`echarts==6.1.0` 为 Apache-2.0，来源、威胁模型与负向清单见三份 Day 3 安全复核。
 
 失败修复没有靠删测试、放宽 Schema 或把适用项写成 `N/A` 绕过。实际关闭了执行中取消/deadline/硬超时竞态、已知 Model/Tool 成本守恒、确定转移的 Event batch 原子性、PostgreSQL `CHECK` 的三值逻辑绕过、Tool/Step/Run 投影关联、Observation→Context→Trace 关联，以及写副作用结果未知时的保守终态。
 
-残余边界也不隐藏：生产 Conversation/Agent Job 尚未启用 L1/L2，因此还没有正式聊天 Tool 用户旅程和干净 CI 证据；当前 L2 Scenario 只暴露一个 Fake Tool，真实行业 Tool 与 Text2SQL 尚未组成同一多 Tool 选择面；行业/数据库/图表 UI 与 Tool Inspector 未开始。显式 Run purge、最小 security audit 留存/恢复/备份、进程崩溃后的陈旧 QueryRun 对账和旧 queued-cancel/unrecoverable terminalizer 的 revision 投影仍是相应入口前硬门禁。
+残余边界也不隐藏：当前没有本轮提交和干净 CI，所以矩阵不能从 `implemented_pending_verification` 改为 `complete`。World Bank/Alpha Vantage 的实际部署用途批准仍须由部署方提供；Day 4 才做 Observation→Evidence；Day 5 才做持久 approval interrupt/resume；显式物理 Run purge与隔离备份恢复演练是 Day 7 发布门禁。它们不再是 Day 3 冻结范围的代码缺口，也不能被当前本地通过冒充已完成。
 
 ## 8. 第三步的知识突破
 
@@ -84,4 +84,16 @@ Provider Adapter 和 Tool Adapter 是两层：Provider Adapter 只负责固定�
 
 Artifact 也不是把模型给的 ECharts JSON 原样透传。表格先做行/列/字节/hash 约束，图表再从可信列映射构造固定 option；模型不能提供 JavaScript、函数、外链或任意 option。Text2SQL Observation 只回传前三行和 Artifact 引用，而且仍是不可信 Context，不在本步冒充 Evidence。
 
-当前阶段结论：完成第 1～4 步的本地验收；第 5 步未开始，D3-01～D3-11 仍为 `thin_slice`，Day 3 总门禁仍未关闭。
+## 10. 本日最大的知识突破：`response_schema` 是模型请求合同的一部分
+
+本日最重要的认识是：期望的 JSON Schema 不只能写进 Prompt，还能在请求模型时作为结构化字段传入。当前链路由 `ContextCompiler` 在编译时接收并为 Schema 预留 Token，写入 `ModelRequest.response_schema`；OpenAI-compatible Adapter 再把它转换成请求体的 JSON Schema response format。这样模型输出先被 Provider 约束为 `tool_call|final` 的确定形状，本地 decoder 和 typed Tool Schema仍会再次校验。
+
+这提升的是“回复形状稳定性”，不是授权。JSON Schema 无法授予 capability、WorkspaceScope、预算或 SQL 权限，也不能证明工具参数在业务上安全；这些仍必须由可信 Registry、Runtime Context、Application Service 和数据库边界决定。把 Schema 纳入 ContextCompiler 而不是在 Adapter 前临时附加，还有一个容易忽略的好处：大 Schema 的字节/Token 成本会在 Provider 调用前进入预算，不能绕过 Run 的输入上限。
+
+## 11. 第五步与 Definition of Done 复核
+
+第五步把“后端有合同”变成了真实用户闭环：用户切换行业并提交 Web Turn，正式 Job/Loader/Runtime 调用真实行业 Tool Adapter；刷新后 Inspector 从 Trace 重建 Action、策略、预算、Observation digest 与 stop reason。数据库页同样消费正式 Connection/Schema/QueryRun/Artifact API，ECharts 只渲染客户端二次 allowlist 通过的服务端 option。
+
+Definition of Done 逐项结论：真实用户旅程、正常/边界/失败/权限/恢复、migration/OpenAPI/SSE 兼容、结构化终态/Trace/稳定错误、逻辑删除与备份策略、威胁/隐私、第三方许可证/来源条款、可重复 Eval、README/Runbook、无静默 Mock/重复 loop，以及本地真实依赖环境均通过。持久审批 resume 按主计划属于 Day 5，物理 purge 与隔离备份恢复演练属于 Day 7；两项均写明归属，不作为逃避 Day 3 实现的 `N/A`。当前唯一未满足的状态条件是干净 CI，因为用户尚未要求提交或推送本轮改动。
+
+当前阶段结论：Day 3 五步实现与本地门禁已经收口；D3-01～D3-11 等待提交后的干净 CI，再从 `implemented_pending_verification` 转为 `complete`。在此之前不进入 Day 4。

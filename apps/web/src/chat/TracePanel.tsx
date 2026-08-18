@@ -13,6 +13,35 @@ interface TracePanelProps {
   readonly traceState: LoadState;
 }
 
+const toolDetailNames: Readonly<Record<string, string>> = {
+  approval_policy: "审批策略",
+  call_id: "调用 ID",
+  cost_class: "费用等级",
+  cost_micro_usd: "实际费用（微美元）",
+  duration_ms: "耗时（毫秒）",
+  error_code: "稳定错误码",
+  max_cost_micro_usd: "费用上限（微美元）",
+  max_result_bytes: "结果上限（字节）",
+  observation_envelope_sha256: "模型可见信封摘要",
+  observation_id: "Observation ID",
+  policy_decision: "策略判定",
+  policy_reason_code: "判定原因",
+  policy_version: "策略版本",
+  requested_tool_name: "请求工具",
+  requested_tool_version: "请求版本",
+  required_capability: "所需能力",
+  resolved_tool_name: "执行工具",
+  sanitizer_version: "脱敏器版本",
+  side_effect_class: "副作用等级",
+  timeout_ms: "超时（毫秒）",
+  toolset_version: "工具集版本",
+  tool_version: "工具版本",
+};
+
+function traceEventType(event: TracePanelProps["events"][number]): string {
+  return "event_type" in event ? event.event_type : event.type;
+}
+
 export function TracePanel({
   activeRun,
   events,
@@ -22,8 +51,8 @@ export function TracePanel({
   traceError,
   traceState,
 }: TracePanelProps) {
-  const manifest = trace?.context_manifests[0];
   const status = activeRun?.status ?? trace?.run.status;
+  const toolEvents = trace?.events.filter((event) => event.event_type.startsWith("agent.tool."));
   return (
     <aside className="trace-panel" aria-label="Agent 运行轨迹">
       <header className="trace-panel__header">
@@ -77,7 +106,7 @@ export function TracePanel({
             <div className="trace-status">
               <div>
                 <strong>
-                  {trace?.run.run_type === "direct_answer" ? "Direct Answer L0" : "Agent Run"}
+                  {trace?.run.run_type === "direct_answer" ? "Direct Answer L0" : "Tool Loop L2"}
                 </strong>
                 <span>{trace?.run.runtime_version ?? "Runtime 正在记录事件"}</span>
               </div>
@@ -112,9 +141,11 @@ export function TracePanel({
                         {step.sequence}.{" "}
                         {step.kind === "model"
                           ? "模型调用"
-                          : step.kind === "final"
-                            ? "最终输出"
-                            : step.kind}
+                          : step.kind === "tool"
+                            ? "工具执行"
+                            : step.kind === "final"
+                              ? "最终输出"
+                              : step.kind}
                       </strong>
                       <span>
                         {step.status} · {step.usage.input_tokens + step.usage.output_tokens} Token
@@ -124,27 +155,71 @@ export function TracePanel({
                 </ol>
               </section>
             )}
-            {manifest === undefined ? null : (
-              <section className="trace-section">
+            {toolEvents === undefined || toolEvents.length === 0 ? null : (
+              <section className="trace-section" aria-label="Tool Inspector">
                 <div className="trace-section__title">
-                  <span>上下文组成</span>
-                  <span>{manifest.compiler_version}</span>
+                  <span>Tool Inspector</span>
+                  <span>{toolEvents.length} 个事实</span>
                 </div>
-                <ol className="source-list">
-                  {manifest.sources.map((source) => (
+                <ol className="tool-inspector-list">
+                  {toolEvents.map((event) => (
                     <li
-                      className={`source-item${source.included ? "" : " source-item--excluded"}`}
-                      key={`${String(source.ordinal)}-${source.source_id}`}
+                      className="tool-inspector-event"
+                      key={`${String(event.sequence)}-${event.event_type}`}
                     >
-                      <strong>{sourceNames[source.source_kind] ?? source.source_kind}</strong>
-                      <span>
-                        {source.included
-                          ? `${String(source.estimated_token_count)} Token · 已送入模型`
-                          : source.decision_reason}
-                      </span>
+                      <strong>{eventNames[event.event_type] ?? event.event_type}</strong>
+                      <span>sequence {event.sequence}</span>
+                      <dl>
+                        {Object.entries(event.details)
+                          .filter(([name]) => toolDetailNames[name] !== undefined)
+                          .map(([name, value]) => (
+                            <div key={name}>
+                              <dt>{toolDetailNames[name]}</dt>
+                              <dd>{String(value)}</dd>
+                            </div>
+                          ))}
+                      </dl>
                     </li>
                   ))}
                 </ol>
+                <p className="trace-safety-note">
+                  仅显示 allowlist 内的策略、预算、稳定错误码与摘要；原始参数、凭据和 Provider
+                  响应不会进入 Inspector。
+                </p>
+              </section>
+            )}
+            {trace === null || trace.context_manifests.length === 0 ? null : (
+              <section className="trace-section">
+                <div className="trace-section__title">
+                  <span>上下文组成</span>
+                  <span>{trace.context_manifests.length} 次模型请求</span>
+                </div>
+                {trace.context_manifests.map((manifest, manifestIndex) => (
+                  <div className="manifest-card" key={manifest.manifest_id}>
+                    <strong>
+                      请求 {String(manifestIndex + 1)} · {manifest.compiler_version}
+                    </strong>
+                    <ol className="source-list">
+                      {manifest.sources.map((source) => (
+                        <li
+                          className={`source-item${source.included ? "" : " source-item--excluded"}`}
+                          key={`${String(source.ordinal)}-${source.source_id}`}
+                        >
+                          <strong>{sourceNames[source.source_kind] ?? source.source_kind}</strong>
+                          <span>
+                            {source.included
+                              ? `${String(source.estimated_token_count)} Token · 已送入模型${
+                                  source.source_sha256 === null
+                                    ? ""
+                                    : ` · 摘要 ${source.source_sha256.slice(0, 12)}…`
+                                }`
+                              : source.decision_reason}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
               </section>
             )}
             <section className="trace-section">
@@ -154,7 +229,7 @@ export function TracePanel({
               </div>
               <ol className="event-list">
                 {events.map((event) => {
-                  const type = "event_type" in event ? event.event_type : event.type;
+                  const type = traceEventType(event);
                   return (
                     <li className="event-item" key={`${String(event.sequence)}-${type}`}>
                       <strong>{eventNames[type] ?? type}</strong>

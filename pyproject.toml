@@ -54,7 +54,7 @@ line-ending = "lf"
 [tool.mypy]
 python_version = "3.13"
 plugins = ["pydantic.mypy"]
-mypy_path = ["apps/backend/src"]
+mypy_path = ["apps/backend/src", "apps/backend/tests"]
 explicit_package_bases = true
 files = [
   "apps/backend/src",

@@ -356,6 +356,9 @@ def test_unrecoverable_execution_and_dead_letter_each_commit_one_terminal_event(
             assert interrupted_step is not None
             assert interrupted_run.status is AgentRunStatus.FAILED
             assert interrupted_run.stop_reason is RunStopReason.RUNTIME_ERROR
+            assert (
+                interrupted_run.state_revision == interrupted_events[-1].payload["state_revision"]
+            )
             assert interrupted_step.status is AgentStepStatus.FAILED
             assert interrupted_step.error_code == "execution_failed"
             assert interrupted_message is not None
@@ -396,6 +399,7 @@ def test_unrecoverable_execution_and_dead_letter_each_commit_one_terminal_event(
             assert abandoned_run is not None
             assert abandoned_run.status is AgentRunStatus.FAILED
             assert abandoned_run.stop_reason is RunStopReason.RUNTIME_ERROR
+            assert abandoned_run.state_revision == abandoned_events[-1].payload["state_revision"]
             assert [event.event_type for event in abandoned_events] == [
                 AgentEventType.RUN_QUEUED,
                 AgentEventType.RUN_FAILED,

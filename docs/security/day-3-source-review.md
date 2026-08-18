@@ -37,9 +37,9 @@ CI 不依赖公网稳定性。自动测试使用冻结的官方响应形状，�
 - Source Item 只保存必要 metadata、有界摘要、原链接、发布时间、采集时间、Provider/version、使用约束和内容 hash，不保存完整上游页面或原始响应；
 - external ID 与规范化内容 hash 双重去重；每次重复仍写入 `collection_run_items` 的明确 disposition，避免静默丢失采集事实。
 
-## 4. 尚未关闭的产品边界
+## 4. 产品边界与第 5 步结论
 
-- 当前只完成后端 Provider、Tool、采集、readiness 和授权 API；行业页面、专用政策/招投标/行情卡片、错误 UI 与 Tool Inspector 属第 5 步；
+- 行业页面、四类来源/readiness、手动/定时采集状态、生产 Web L2 用户旅程与 Tool Inspector 已在第 5 步接通正式 API/Event；Playwright 使用冻结外部响应，但没有替换 Conversation、Job、Loader、Runtime 或 Tool Adapter；
 - World Bank News 和 Alpha Vantage 未取得相应部署用途批准时保持 fail-closed，不能为了演示把 readiness 改成 ready；
 - 当前 Source Item 是可追溯 Observation/EvidenceCandidate，不是 Day 4 的 Evidence；后续 Claim/Citation 仍须经过授权、许可、去重和 locator 可解析性校验；
 - 若 Provider 条款、endpoint 或字段发生变化，必须更新 Provider version、重新复核本文件并重跑合同与安全测试，不能静默兼容未知响应。

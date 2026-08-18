@@ -41,7 +41,13 @@ const mocks = vi.hoisted(() => ({
   uploadFile: vi.fn<() => Promise<unknown>>(),
 }));
 
+const industryMocks = vi.hoisted(() => ({
+  getIndustryPreference: vi.fn<() => Promise<unknown>>(),
+  listIndustries: vi.fn<() => Promise<unknown>>(),
+}));
+
 vi.mock("./chat-api", () => mocks);
+vi.mock("../industry/industry-api", () => industryMocks);
 vi.mock("./agent-run-status", () => ({
   pollAgentRunTerminal: mocks.pollAgentRunTerminal,
 }));
@@ -219,6 +225,27 @@ beforeEach(() => {
   mocks.followAgentRunEvents.mockResolvedValue(0);
   mocks.getAgentTrace.mockResolvedValue(cancelledTrace());
   mocks.getDownloadUrl.mockRejectedValue(new Error("No attachment selected"));
+  industryMocks.getIndustryPreference.mockResolvedValue({
+    industry: {
+      code: "smart_transport",
+      default_query: "transport",
+      default_symbol: "TRANSPORT",
+      id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+      name: "新能源汽车",
+    },
+    updated_at: "2026-08-17T08:00:00Z",
+    user_id: currentUser.user.id,
+    workspace_id: workspaceId,
+  });
+  industryMocks.listIndustries.mockResolvedValue([
+    {
+      code: "new-energy-vehicles",
+      default_query: "transport",
+      default_symbol: "TRANSPORT",
+      id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+      name: "新能源汽车",
+    },
+  ]);
   mocks.listConversations.mockResolvedValue({ conversations: [conversation], next_cursor: null });
   mocks.listMessages.mockResolvedValue({ messages: historicalMessages, next_cursor: null });
   mocks.pollAgentRunTerminal.mockImplementation(
@@ -311,6 +338,38 @@ describe("Chat Workbench", () => {
     expect(document.querySelector(".safe-markdown script")).toBeNull();
     expect(mocks.listMessages).toHaveBeenCalledWith(workspaceId, conversationId, { limit: 100 });
     expect(mocks.followAgentRunEvents).not.toHaveBeenCalled();
+  });
+
+  it("submits Web mode with the persisted current industry through the production turn contract", async () => {
+    const user = userEvent.setup();
+    mocks.startTurn.mockResolvedValue({
+      agent_run_id: activeRunId,
+      conversation_id: conversationId,
+      created: false,
+      job_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      turn_id: turnId,
+      user_message_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    renderWorkbench();
+    await user.click(await screen.findByRole("button", { name: /新能源汽车季度分析/u }));
+    await screen.findByText("安全答案");
+    await user.selectOptions(screen.getByLabelText("回答模式"), "web");
+    expect(screen.getByText(/当前行业：新能源汽车/u)).toBeVisible();
+    await user.type(screen.getByLabelText("输入问题"), "检索最新政策");
+    await user.click(screen.getByRole("button", { name: "发送问题" }));
+
+    await waitFor(() => {
+      expect(mocks.startTurn).toHaveBeenCalledWith(
+        workspaceId,
+        expect.objectContaining({
+          conversation_id: conversationId,
+          industry_id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+          mode: "web",
+          question: "检索最新政策",
+        }),
+        expect.stringMatching(/^web-/u),
+      );
+    });
   });
 
   it("never shows one conversation's messages underneath another conversation's title", async () => {

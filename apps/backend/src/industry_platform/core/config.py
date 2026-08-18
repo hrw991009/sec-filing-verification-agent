@@ -355,6 +355,7 @@ class Settings(BaseSettings):
     text2sql_max_rows: Annotated[int, Field(ge=1, le=200)] = 200
     text2sql_max_plan_cost: Annotated[int, Field(ge=1, le=10_000_000)] = 100_000
     text2sql_max_plan_rows: Annotated[int, Field(ge=1, le=10_000_000)] = 100_000
+    text2sql_query_stale_seconds: Annotated[int, Field(ge=30, le=86_400)] = 300
 
     minio_endpoint: str | None = None
     minio_access_key: str | None = None

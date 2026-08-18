@@ -9,6 +9,12 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from browser_driver_support import (
+    BrowserSuccessDriverError,
+    claim_target_delivery,
+    non_nil_uuid,
+    require_pending_target,
+)
 from sqlalchemy import select
 
 from industry_platform.core.config import Settings, get_settings
@@ -48,18 +54,15 @@ from industry_platform.modules.agent_runtime.model import (
 from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
+from industry_platform.modules.agent_runtime.tool_runtime import UnifiedAgentRuntime
 from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
 from industry_platform.modules.conversations.models import Message, MessageRole, MessageStatus
-from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyOutboxTransactionFactory
 from industry_platform.modules.jobs.domain import (
-    ClaimedJobDispatch,
     JobStatus,
-    OutboxStatus,
 )
-from industry_platform.modules.jobs.models import Job, OutboxEvent
+from industry_platform.modules.jobs.models import Job
 from industry_platform.modules.jobs.resources import create_job_resources
 from industry_platform.server import create_selector_event_loop
-from industry_platform.workers.dispatcher import OutboxDispatcher
 from industry_platform.workers.runtime import (
     DirectAnswerJobHandler,
     FixedJobHandlerRegistry,
@@ -70,35 +73,6 @@ from industry_platform.workers.runtime import (
 ANSWER_PREFIX = "Day 2 浏览器流式片段已到达。Run: "
 ANSWER_SUFFIX = "; 第二段完成, 最终回答已持久化。"
 MODEL_DELTA_DELAY_SECONDS = 1.25
-
-
-class BrowserSuccessDriverError(RuntimeError):
-    """One expected formal-path fact was absent or inconsistent."""
-
-
-def _non_nil_uuid(value: str) -> UUID:
-    try:
-        parsed = UUID(value)
-    except ValueError as error:
-        raise argparse.ArgumentTypeError("Expected a UUID") from error
-    if parsed.int == 0:
-        raise argparse.ArgumentTypeError("Expected a non-zero UUID")
-    return parsed
-
-
-@dataclass(slots=True)
-class TargetOutboxPublisher:
-    """Capture the target selected while every unrelated Outbox row is locked."""
-
-    target_job_id: UUID
-    delivery: ClaimedJobDispatch | None = None
-
-    async def publish(self, dispatch: ClaimedJobDispatch) -> None:
-        if dispatch.message.job_id != self.target_job_id:
-            raise BrowserSuccessDriverError("The scoped Dispatcher selected an unrelated Outbox")
-        if self.delivery is not None:
-            raise BrowserSuccessDriverError("The target Outbox was published more than once")
-        self.delivery = dispatch
 
 
 @dataclass(slots=True)
@@ -145,75 +119,6 @@ class BrowserSuccessModelProvider:
         raise BrowserSuccessDriverError(
             f"Direct Answer must stream the requested model, not complete {request.model}"
         )
-
-
-async def _require_pending_target(
-    session_factory: AsyncSessionFactory,
-    *,
-    run_id: UUID,
-    job_id: UUID,
-) -> UUID:
-    async with session_factory() as session:
-        run = await session.get(AgentRunRecord, run_id)
-        job = await session.get(Job, job_id)
-        outbox_ids = tuple(
-            await session.scalars(
-                select(OutboxEvent.id)
-                .where(
-                    OutboxEvent.source_job_id == job_id,
-                    OutboxEvent.status == OutboxStatus.PENDING,
-                )
-                .order_by(OutboxEvent.id)
-            )
-        )
-    if (
-        run is None
-        or job is None
-        or run.job_id != job_id
-        or run.status is not AgentRunStatus.QUEUED
-        or job.status is not JobStatus.PENDING
-        or len(outbox_ids) != 1
-    ):
-        raise BrowserSuccessDriverError("The browser-created Run, Job and Outbox are not pending")
-    return outbox_ids[0]
-
-
-async def _claim_target_delivery(
-    settings: Settings,
-    session_factory: AsyncSessionFactory,
-    *,
-    job_id: UUID,
-    outbox_id: UUID,
-) -> ClaimedJobDispatch:
-    publisher = TargetOutboxPublisher(job_id)
-    dispatcher = OutboxDispatcher(
-        transaction_factory=SqlAlchemyOutboxTransactionFactory(session_factory),
-        publisher=publisher,
-        dispatcher_id=f"e2e-browser-success-{job_id.hex}",
-        batch_size=1,
-        claim_seconds=settings.outbox_claim_seconds,
-    )
-    async with session_factory.begin() as isolation_session:
-        # The production writer uses FOR UPDATE SKIP LOCKED. Holding row locks on
-        # every pre-existing unrelated Outbox makes its normal query select only
-        # the target without changing any unrelated status, attempt or timestamp.
-        tuple(
-            await isolation_session.scalars(
-                select(OutboxEvent.id).where(OutboxEvent.id != outbox_id).with_for_update()
-            )
-        )
-        result = await dispatcher.dispatch_once()
-    if (
-        result.claimed != 1
-        or result.published != 1
-        or result.retry_scheduled != 0
-        or result.dead_lettered != 0
-        or result.claim_lost != 0
-        or publisher.delivery is None
-        or publisher.delivery.proof.outbox_id != outbox_id
-    ):
-        raise BrowserSuccessDriverError("The scoped Dispatcher did not publish only the target")
-    return publisher.delivery
 
 
 async def _verify_terminal_facts(
@@ -276,12 +181,12 @@ async def execute_browser_run(
     engine = create_database_engine(settings)
     try:
         session_factory = create_database_session_factory(engine)
-        outbox_id = await _require_pending_target(
+        outbox_id = await require_pending_target(
             session_factory,
             run_id=run_id,
             job_id=job_id,
         )
-        delivery = await _claim_target_delivery(
+        delivery = await claim_target_delivery(
             settings,
             session_factory,
             job_id=job_id,
@@ -310,7 +215,7 @@ async def execute_browser_run(
         )
         execution = DirectAnswerRunExecutionService(
             loader=SqlAlchemyDirectAnswerRunLoader(session_factory, policy),
-            runtime=runtime,
+            runtime=UnifiedAgentRuntime(direct_answer_runtime=runtime),
             terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),
         )
         worker = JobExecutionRuntime(
@@ -348,8 +253,8 @@ async def execute_browser_run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-id", required=True, type=_non_nil_uuid)
-    parser.add_argument("--job-id", required=True, type=_non_nil_uuid)
+    parser.add_argument("--run-id", required=True, type=non_nil_uuid)
+    parser.add_argument("--job-id", required=True, type=non_nil_uuid)
     arguments = parser.parse_args()
     with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
         result = runner.run(

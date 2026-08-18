@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@industry-platform/api-contract": "workspace:*",
+    "echarts": "6.1.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

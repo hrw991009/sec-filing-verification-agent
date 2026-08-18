@@ -11,6 +11,8 @@ interface ChatComposerProps {
   readonly error: string | null;
   readonly fileInputRef: RefObject<HTMLInputElement | null>;
   readonly question: string;
+  readonly searchMode: "none" | "web";
+  readonly selectedIndustryName: string | null;
   readonly runIsBusy: boolean;
   readonly submitDisabled: boolean;
   readonly submitting: boolean;
@@ -19,6 +21,7 @@ interface ChatComposerProps {
   readonly onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   readonly onRemoveAttachment: (attachment: ComposerAttachment) => void;
   readonly onRequestCancellation: () => void;
+  readonly onChangeSearchMode: (mode: "none" | "web") => void;
   readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
 }
 
@@ -30,11 +33,14 @@ export function ChatComposer({
   fileInputRef,
   onAddFiles,
   onChangeQuestion,
+  onChangeSearchMode,
   onKeyDown,
   onRemoveAttachment,
   onRequestCancellation,
   onSubmit,
   question,
+  searchMode,
+  selectedIndustryName,
   runIsBusy,
   submitDisabled,
   submitting,
@@ -120,13 +126,15 @@ export function ChatComposer({
             <select
               aria-label="回答模式"
               className="mode-select"
-              defaultValue="none"
               disabled={submitting || runIsBusy}
+              onChange={(event) => {
+                const mode = event.currentTarget.value;
+                if (mode === "none" || mode === "web") onChangeSearchMode(mode);
+              }}
+              value={searchMode}
             >
               <option value="none">直接回答</option>
-              <option disabled value="web">
-                Web 搜索 · Day 3
-              </option>
+              <option value="web">Web 搜索 · L2</option>
               <option disabled value="local">
                 知识库 · Day 5
               </option>
@@ -160,7 +168,9 @@ export function ChatComposer({
         </div>
       </form>
       <p className="composer-note">
-        Day 2 仅启用直接回答。TXT、Markdown 与静态图片会经过服务端验证后进入模型上下文。
+        {searchMode === "web"
+          ? `当前行业：${selectedIndustryName ?? "尚未选择"}。模型只能调用 allowlist 内的只读 Web Tool。`
+          : "直接回答不调用 Tool。TXT、Markdown 与静态图片仍会经过服务端验证。"}
       </p>
     </div>
   );
