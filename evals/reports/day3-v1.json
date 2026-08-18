@@ -29,13 +29,7 @@
     "production_web_tool_journey_proved": true
   },
   "coverage": {
-    "l1": [
-      "final",
-      "arguments_invalid",
-      "capability_denied",
-      "approval_required",
-      "tool_failure"
-    ],
+    "l1": ["final", "arguments_invalid", "capability_denied", "approval_required", "tool_failure"],
     "l2": [
       "two_round_final",
       "repeated_action",
