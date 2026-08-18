@@ -74,6 +74,17 @@ from industry_platform.modules.conversations.submission import (
     ConversationIdempotencyConflictError,
     ConversationModeNotReadyError,
 )
+from industry_platform.modules.data_explorer.domain import (
+    DataConnectionNotFoundError,
+    DataExplorerError,
+    DataExplorerPersistenceError,
+    QueryRunNotFoundError,
+)
+from industry_platform.modules.data_explorer.resources import (
+    DataExplorerResources,
+    create_data_explorer_resources,
+)
+from industry_platform.modules.data_explorer.router import router as data_explorer_router
 from industry_platform.modules.files.resources import create_file_resources
 from industry_platform.modules.files.router import router as file_router
 from industry_platform.modules.files.service import (
@@ -180,6 +191,7 @@ def create_app(
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         database_engine = create_database_engine(active_settings)
         redis_client: Redis | None = None
+        data_explorer_resources: DataExplorerResources | None = None
         external_http_client = create_public_egress_http_client()
 
         try:
@@ -217,6 +229,10 @@ def create_app(
                 external_http_client,
                 job_resources.schedule_service,
             )
+            data_explorer_resources = create_data_explorer_resources(
+                active_settings,
+                database_session_factory,
+            )
 
             application.state.resources = ApplicationResources(
                 settings=active_settings,
@@ -231,6 +247,7 @@ def create_app(
             application.state.agent_trace_resources = agent_trace_resources
             application.state.job_resources = job_resources
             application.state.industry_resources = industry_resources
+            application.state.data_explorer_resources = data_explorer_resources
 
             yield
         finally:
@@ -239,9 +256,13 @@ def create_app(
                     await redis_client.aclose()
             finally:
                 try:
-                    await external_http_client.aclose()
+                    if data_explorer_resources is not None:
+                        await data_explorer_resources.close()
                 finally:
-                    await database_engine.dispose()
+                    try:
+                        await external_http_client.aclose()
+                    finally:
+                        await database_engine.dispose()
 
     application = FastAPI(
         title="Industry Intelligence Platform API",
@@ -271,6 +292,7 @@ def create_app(
     application.include_router(agent_run_router, prefix="/api/v1")
     application.include_router(file_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
+    application.include_router(data_explorer_router, prefix="/api/v1")
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -300,6 +322,55 @@ def create_app(
             code="INDUSTRY_RESOURCE_NOT_FOUND",
             detail="The requested industry resource does not exist in this workspace.",
             problem_type="urn:iip:problem:industry-resource-not-found",
+        )
+
+    @application.exception_handler(DataConnectionNotFoundError)
+    @application.exception_handler(QueryRunNotFoundError)
+    async def handle_data_explorer_not_found(
+        request: Request,
+        _error: DataConnectionNotFoundError | QueryRunNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Data Explorer resource not found",
+            code="DATA_EXPLORER_RESOURCE_NOT_FOUND",
+            detail="The requested Data Explorer resource does not exist in this workspace.",
+            problem_type="urn:iip:problem:data-explorer-resource-not-found",
+        )
+
+    @application.exception_handler(DataExplorerPersistenceError)
+    async def handle_data_explorer_unavailable(
+        request: Request,
+        error: DataExplorerPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Data Explorer persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Data Explorer unavailable",
+            code="DATA_EXPLORER_UNAVAILABLE",
+            detail="Database exploration is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:data-explorer-unavailable",
+        )
+
+    @application.exception_handler(DataExplorerError)
+    async def handle_data_explorer_rejected(
+        request: Request,
+        error: DataExplorerError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Data Explorer request rejected",
+            code="DATA_EXPLORER_REQUEST_REJECTED",
+            detail=f"The database request was rejected ({error.code}).",
+            problem_type="urn:iip:problem:data-explorer-request-rejected",
         )
 
     @application.exception_handler(ScheduleDefinitionConflictError)

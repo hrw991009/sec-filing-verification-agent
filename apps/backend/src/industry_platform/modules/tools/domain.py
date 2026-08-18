@@ -23,7 +23,7 @@ from industry_platform.modules.workspaces.domain import WorkspaceAction
 
 TOOL_ACTION_SCHEMA_VERSION: Final = 1
 TOOL_OBSERVATION_NORMALIZER_VERSION: Final = "tool-observation-v1"
-TOOL_SOURCE_LOCATOR_SCHEMES: Final = frozenset({"fixture", "https"})
+TOOL_SOURCE_LOCATOR_SCHEMES: Final = frozenset({"fixture", "https", "sql"})
 MAX_TOOL_ACTION_BYTES: Final = 32_768
 MAX_TOOL_SCHEMA_BYTES: Final = 100_000
 MAX_TOOL_DESCRIPTION_LENGTH: Final = 1_000

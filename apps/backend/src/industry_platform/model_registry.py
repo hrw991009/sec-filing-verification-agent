@@ -17,6 +17,14 @@ from industry_platform.modules.conversations.models import (
     MessageAttachment,
     Turn,
 )
+from industry_platform.modules.data_explorer.models import (
+    ChartSpecRecord,
+    DataConnectionRecord,
+    QueryResultRecord,
+    QueryRunRecord,
+    SampleCompanyMetricRecord,
+    SchemaSnapshotRecord,
+)
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.identity.models import (
     AuditLog,
@@ -84,6 +92,12 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     PolicyItemRecord,
     BiddingItemRecord,
     MarketSnapshotRecord,
+    SampleCompanyMetricRecord,
+    DataConnectionRecord,
+    SchemaSnapshotRecord,
+    QueryRunRecord,
+    QueryResultRecord,
+    ChartSpecRecord,
 )
 
 metadata: MetaData = Base.metadata

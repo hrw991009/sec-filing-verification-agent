@@ -717,6 +717,8 @@ SQL 必须经过 sqlglot 完整 AST 校验，只允许受控 SELECT 或 CTE；�
 
 Query Run 同时保存原始问题、generated SQL、validated SQL、schema snapshot、状态、行数、结果对象引用和稳定错误。数据库故障或校验失败必须明确失败，禁止回退模拟数据。图表只接受通过版本化 JSON Schema 和 allowlist 的 ECharts 配置，不执行模型代码。
 
+当前后端切片以 `database.text2sql:v1` 落地这条边界：固定合成样例表通过独立只读 DSN 访问，连接元数据只保存 Secret 引用；SQLGlot PostgreSQL AST、不可变 SchemaSnapshot、递归计划行预算和数据库只读事务共同校验一次查询。QueryRun/QueryResult/ChartSpec 以 Workspace 复合外键持久化，小型结果限制为 200 行/64 列/512 KiB；列表只返回摘要，详情才返回 Artifact。line/bar/pie/scatter 的 ECharts option 只能由服务端从 typed encoding 构造。当前 API/Tool Adapter 已实现，但数据库/图表页面、Tool Inspector、生产 Conversation/Agent Job 的 L1/L2 command 和崩溃后陈旧 QueryRun 对账仍未实现。
+
 ### 15.6 Evaluation Harness 与 Agent Learning Workbench
 
 Evaluation Harness 与生产流量调用同一个 Agent Runtime/Harness；测试只替换 Provider/Tool 等外部边界、注入故障和运行 Scorer，不建立测试专用 loop。`Scenario/EvalCase` 固定 input、runtime/harness/model/prompt/context/toolset version、available tools、Budget、expected stop reason、deterministic fixture refs、Scorer 和人工备注。Replay 只重放冻结的外部响应，不宣称真实模型确定。
@@ -833,13 +835,13 @@ Day 7 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application �
 
 Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
-本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 6 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、ToolCall/ToolRun、行业偏好/来源/采集、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
+本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 7 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File 元数据、AgentRun/Step/Event/Checkpoint/manifest、ToolCall/ToolRun、行业偏好/来源/采集、DataConnection/SchemaSnapshot/QueryRun/QueryResult/ChartSpec、Job、Outbox、Schedule 和 occurrence 的唯一业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
 
 Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-01～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
 新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 已通过前三个切片的本地验收：D3-02 的 L1/L2 typed loop、Context Compiler v1、Event/Trace 与 ToolCall/ToolRun 原子审计继续复用；D3-01、D3-03～D3-08 新增四个预设行业、服务端偏好、四个固定真实 Provider contract、受控 egress、`industry.web_search:v1`、来源/领域投影，以及 ScheduleOccurrence/Job/Outbox/CollectionRun 原子物化、Worker、cursor 和 external ID/content hash 去重。World Bank News 与 Alpha Vantage 在用途条款未显式批准时发网前 fail-closed。生产 L0 与 Harness L1/L2 仍由 `UnifiedAgentRuntime` dispatch，但 Conversation/Agent Job 尚未物化 Tool command；L2 Scenario 仍只有一个 Fake Tool。旧 queued-cancel/unrecoverable terminalizer revision、显式 Run purge、最小 security audit 留存/恢复/备份、Text2SQL、Artifact、行业/数据库/图表 UI 与 Tool Inspector 仍为 open，因此 D3-01～D3-08 保持 `thin_slice`，D3-09～D3-11 保持 `planned`。当前无对应干净 CI，不能把 Day 3 或生产聊天 Tool 用户旅程标为完成。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 已通过前四个切片的本地验收：D3-02 的 L1/L2 typed loop、Context Compiler v1、Event/Trace 与 ToolCall/ToolRun 原子审计继续复用；D3-01、D3-03～D3-08 新增行业、真实 Provider/Tool、来源/领域投影和正式采集链；D3-09～D3-11 新增独立只读样例库、数据库浏览、完整 AST/allowlist/预算、QueryRun 审计及受校验表格/图表 Artifact。生产 L0 与 Harness L1/L2 仍由 `UnifiedAgentRuntime` dispatch，但 Conversation/Agent Job 尚未物化 Tool command；L2 Scenario 仍只有一个 Fake Tool。旧 queued-cancel/unrecoverable terminalizer revision、显式 Run purge、最小 security audit 留存/恢复/备份、陈旧 QueryRun 对账、行业/数据库/图表 UI 与 Tool Inspector 仍为 open，因此 D3-01～D3-11 均保持 `thin_slice`。当前无对应干净 CI，不能把 Day 3 或生产聊天 Tool 用户旅程标为完成。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 

@@ -1,10 +1,10 @@
-# Day 3 学习日志：前三步有界 Tool Use 与真实采集
+# Day 3 学习日志：前四步有界 Tool Use、真实采集与安全 Text2SQL
 
 > 更新日期：2026-08-17
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前结论：五步计划中的第 1～3 步已通过本地验收，本轮严格停在第 3 步。D3-01～D3-08 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
+> 当前结论：五步计划中的第 1～4 步已通过本地验收，本轮严格停在第 4 步。D3-01～D3-11 仍是 `thin_slice`，尚无对应干净 CI，Day 3 尚未完成。
 
 ## 1. Tool、Skill、Application Service 和 Harness 各自负责什么
 
@@ -51,19 +51,20 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 
 ## 7. 验收记录
 
-前三步当前工作树已执行根 [README 的统一验证](../../README.md#统一验证)中适用于未提交工作树的全部门禁，没有用定向绿色子集替代。`api:check` 的最后一步要求生成物与当前 Git 提交完全相同，因本步有预期的 OpenAPI 变更，在提交前必然报告 diff；这里以二次独立生成 hash 一致、生成 diff 评审和 contract typecheck 验收，仍须由后续干净 CI 执行 `api:check`：
+前四步当前工作树已执行根 [README 的统一验证](../../README.md#统一验证)中适用于未提交工作树的全部门禁，没有用定向绿色子集替代。`api:check` 的最后一步要求生成物与当前 Git 提交完全相同，因本步有预期的 OpenAPI 变更，在提交前必然报告 diff；这里以连续两次独立生成一致、生成 diff 评审和 contract typecheck 验收，仍须由后续干净 CI 执行 `api:check`：
 
-- Python 282 个文件的 format check、Ruff、mypy 275 个源文件、wheel/sdist build 均通过；`uv audit --locked` 检查 72 个包，没有已知漏洞或 adverse status；
-- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `847 passed`，没有 skip/xfail；行业 Provider/Tool 合同为 `24 passed`；
+- Python 305 个文件的 format check、Ruff、mypy 297 个源文件、wheel/sdist build 均通过；`uv audit --locked` 解析 75 个包并检查 73 个第三方包，没有已知漏洞或 adverse status；
+- 打开 PostgreSQL、Redis、MinIO 强制开关后，全量 Python 测试为 `890 passed`，没有 skip/xfail；Data Explorer 定向单元/真实 PostgreSQL 合同为 `44 passed`；
 - disposable PostgreSQL 上的 fresh Alembic upgrade/check/downgrade/upgrade 与真实 L1/L2 往返通过；L2 PostgreSQL 用例持久化两次 ToolCall/ToolRun、六个 Step 与三份递增 Observation manifest，并核对累计费用、最终 revision 和安全 Trace；
 - OpenAPI 二次生成一致，API contract typecheck 通过；Web format/lint/typecheck/production build 通过，Vitest 为 `43 passed`，`pnpm audit --audit-level high` 无漏洞；
 - Playwright 的会话、停止与刷新恢复三条真实浏览器旅程为 `3 passed`；
 - disposable PostgreSQL 证明同一事务物化 ScheduleOccurrence、Job、Outbox 与 CollectionRun，并验证并发手动触发收敛、Workspace 权限、游标、external ID/hash 去重和领域投影；完整 migration upgrade/check/downgrade/upgrade 无漂移；
-- 受控工作树路径与完整 43-commit 历史的 Gitleaks 扫描均无泄漏；本步没有新增第三方运行时依赖，World Bank News 与 Alpha Vantage 在用途条款未显式批准时 fail-closed，详见[真实来源复核](../security/day-3-source-review.md)。
+- disposable PostgreSQL 还证明独立只读账号的连接测试、Schema/主键/索引/分页、安全聚合、QueryRun/Artifact 持久化和 Workspace 隔离；危险 SQL 留下稳定失败事实，账号绕过应用直接 DELETE 仍被数据库拒绝；
+- 受控工作树路径与完整 43-commit 历史的 Gitleaks 扫描均无泄漏；新增的 `sqlglot==28.5.0` 为 MIT 许可、不发网也不执行 SQL，来源、威胁模型与负向清单见 [Text2SQL 安全复核](../security/day-3-text2sql-review.md)。
 
 失败修复没有靠删测试、放宽 Schema 或把适用项写成 `N/A` 绕过。实际关闭了执行中取消/deadline/硬超时竞态、已知 Model/Tool 成本守恒、确定转移的 Event batch 原子性、PostgreSQL `CHECK` 的三值逻辑绕过、Tool/Step/Run 投影关联、Observation→Context→Trace 关联，以及写副作用结果未知时的保守终态。
 
-残余边界也不隐藏：生产 Conversation/Agent Job 尚未启用 L1/L2，因此还没有正式聊天 Tool 用户旅程和干净 CI 证据；当前 L2 Scenario 只暴露一个 Fake Tool，真实行业 Tool 尚未与 Text2SQL 组成多 Tool surface；Text2SQL、Artifact、行业/数据库/图表 UI 与 Tool Inspector 未开始。显式 Run purge、最小 security audit 留存/恢复/备份和旧 queued-cancel/unrecoverable terminalizer 的 revision 投影仍是相应入口前硬门禁。
+残余边界也不隐藏：生产 Conversation/Agent Job 尚未启用 L1/L2，因此还没有正式聊天 Tool 用户旅程和干净 CI 证据；当前 L2 Scenario 只暴露一个 Fake Tool，真实行业 Tool 与 Text2SQL 尚未组成同一多 Tool 选择面；行业/数据库/图表 UI 与 Tool Inspector 未开始。显式 Run purge、最小 security audit 留存/恢复/备份、进程崩溃后的陈旧 QueryRun 对账和旧 queued-cancel/unrecoverable terminalizer 的 revision 投影仍是相应入口前硬门禁。
 
 ## 8. 第三步的知识突破
 
@@ -73,4 +74,14 @@ Provider Adapter 和 Tool Adapter 是两层：Provider Adapter 只负责固定�
 
 另一个突破是“公开 API”不等于“可在任何商业产品中使用”。World Bank News 与 Alpha Vantage 的用途条件都要求显式复核，因此 readiness 同时表达技术配置与使用授权；缺批准时在发网前停止。TED 的公开复用、FederalRegister.gov 的非正式法律版本提示也进入来源合同，而不是只写在产品文案里。
 
-当前阶段结论：完成第 1～3 步的本地验收；第 4、5 步未开始，D3-01～D3-08 仍为 `thin_slice`，Day 3 总门禁仍未关闭。
+## 9. 第四步的知识突破
+
+这一步最重要的认识是：模型能输出“看起来像 SQL”的字符串，不等于系统拥有安全 Text2SQL。真正的路径是 `自然语言问题 → response_schema 约束的 typed ToolAction → generated SQL → AST policy → validated SQL → 数据库只读事务`。其中 response schema 只稳定模型回复形状；SQL 能不能执行仍完全由服务端 SchemaSnapshot、allowlist、预算和数据库权限决定。
+
+第二个突破是 AST parser 也不是安全策略。SQLGlot 负责把 PostgreSQL SQL 变成可遍历结构并限定列，但 parser 本身会接受大量合法却不适合本产品的 SQL。项目必须显式拒绝 DML/DDL/COPY/CALL、递归 CTE、锁、危险函数、系统表和越界列；即使 AST 误放行，独立只读账号和 `SET TRANSACTION READ ONLY` 仍构成第二道硬边界。
+
+第三个突破来自查询预算：聚合根节点可能只输出 4 行，但底层顺序扫描可以读取 250,000 行。只检查根 `Plan Rows` 会产生虚假的“低成本”结论，所以当前实现递归累计完整 EXPLAIN 计划的行数，并把 timeout、最大行数、计划成本和扫描行一起保存到 QueryRun。
+
+Artifact 也不是把模型给的 ECharts JSON 原样透传。表格先做行/列/字节/hash 约束，图表再从可信列映射构造固定 option；模型不能提供 JavaScript、函数、外链或任意 option。Text2SQL Observation 只回传前三行和 Artifact 引用，而且仍是不可信 Context，不在本步冒充 Evidence。
+
+当前阶段结论：完成第 1～4 步的本地验收；第 5 步未开始，D3-01～D3-11 仍为 `thin_slice`，Day 3 总门禁仍未关闭。

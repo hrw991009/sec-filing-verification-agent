@@ -350,6 +350,12 @@ class Settings(BaseSettings):
     alpha_vantage_api_key: SecretStr | None = None
     alpha_vantage_terms_approved: bool = False
 
+    text2sql_database_url: SecretStr | None = None
+    text2sql_statement_timeout_ms: Annotated[int, Field(ge=100, le=30_000)] = 2_000
+    text2sql_max_rows: Annotated[int, Field(ge=1, le=200)] = 200
+    text2sql_max_plan_cost: Annotated[int, Field(ge=1, le=10_000_000)] = 100_000
+    text2sql_max_plan_rows: Annotated[int, Field(ge=1, le=10_000_000)] = 100_000
+
     minio_endpoint: str | None = None
     minio_access_key: str | None = None
     minio_secret_key: SecretStr | None = None

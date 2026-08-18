@@ -105,6 +105,21 @@ def assert_head_schema(probe: PostgresProbe, expected_head: str) -> None:
             referred_columns=("rotation_family_id", "id"),
             on_delete="RESTRICT",
         )
+        assert_check_contains(
+            inspector,
+            table_name="query_runs",
+            constraint_name="ck_query_runs_lifecycle_consistent",
+            fragments=("completed", "schema_snapshot_id IS NOT NULL", "plan_rows IS NOT NULL"),
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="query_runs",
+            constraint_name="fk_query_runs_agent_run_workspace_actor",
+            constrained_columns=("agent_run_id", "workspace_id", "actor_user_id"),
+            referred_table="agent_runs",
+            referred_columns=("id", "workspace_id", "user_id"),
+            on_delete="RESTRICT",
+        )
         assert_foreign_key(
             inspector,
             source_table="refresh_sessions",
