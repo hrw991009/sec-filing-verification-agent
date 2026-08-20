@@ -1,10 +1,10 @@
 # Day 3 学习日志：有界 Tool Use、真实能力与正式 Workbench
 
-> 更新日期：2026-08-17
+> 更新日期：2026-08-20
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前结论：五步均已完成并通过全量本地验收；D3-01～D3-11 暂为 `implemented_pending_verification`，只等待本轮提交后的干净 CI，不提前进入 Day 4。
+> 当前结论：五步、全量本地验收、PR 合并与 `main` 合并提交的干净 CI 均已通过；D3-01～D3-11 已复核为 `complete`，Day 3 门禁关闭。
 
 ## 1. Tool、Skill、Application Service 和 Harness 各自负责什么
 
@@ -64,7 +64,7 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 
 失败修复没有靠删测试、放宽 Schema 或把适用项写成 `N/A` 绕过。实际关闭了执行中取消/deadline/硬超时竞态、已知 Model/Tool 成本守恒、确定转移的 Event batch 原子性、PostgreSQL `CHECK` 的三值逻辑绕过、Tool/Step/Run 投影关联、Observation→Context→Trace 关联，以及写副作用结果未知时的保守终态。
 
-残余边界也不隐藏：当前没有本轮提交和干净 CI，所以矩阵不能从 `implemented_pending_verification` 改为 `complete`。World Bank/Alpha Vantage 的实际部署用途批准仍须由部署方提供；Day 4 才做 Observation→Evidence；Day 5 才做持久 approval interrupt/resume；显式物理 Run purge与隔离备份恢复演练是 Day 7 发布门禁。它们不再是 Day 3 冻结范围的代码缺口，也不能被当前本地通过冒充已完成。
+残余边界也不隐藏：World Bank/Alpha Vantage 的实际部署用途批准仍须由部署方提供；Day 4 才做 Observation→Evidence；Day 5 才做持久 approval interrupt/resume；显式物理 Run purge与隔离备份恢复演练是 Day 7 发布门禁。它们不再是 Day 3 冻结范围的代码缺口，也不能由 Day 3 的 `complete` 状态冒充已完成。
 
 ## 8. 第三步的知识突破
 
@@ -94,6 +94,6 @@ Artifact 也不是把模型给的 ECharts JSON 原样透传。表格先做行/�
 
 第五步把“后端有合同”变成了真实用户闭环：用户切换行业并提交 Web Turn，正式 Job/Loader/Runtime 调用真实行业 Tool Adapter；刷新后 Inspector 从 Trace 重建 Action、策略、预算、Observation digest 与 stop reason。数据库页同样消费正式 Connection/Schema/QueryRun/Artifact API，ECharts 只渲染客户端二次 allowlist 通过的服务端 option。
 
-Definition of Done 逐项结论：真实用户旅程、正常/边界/失败/权限/恢复、migration/OpenAPI/SSE 兼容、结构化终态/Trace/稳定错误、逻辑删除与备份策略、威胁/隐私、第三方许可证/来源条款、可重复 Eval、README/Runbook、无静默 Mock/重复 loop，以及本地真实依赖环境均通过。持久审批 resume 按主计划属于 Day 5，物理 purge 与隔离备份恢复演练属于 Day 7；两项均写明归属，不作为逃避 Day 3 实现的 `N/A`。当前唯一未满足的状态条件是干净 CI，因为用户尚未要求提交或推送本轮改动。
+Definition of Done 逐项结论：真实用户旅程、正常/边界/失败/权限/恢复、migration/OpenAPI/SSE 兼容、结构化终态/Trace/稳定错误、逻辑删除与备份策略、威胁/隐私、第三方许可证/来源条款、可重复 Eval、README/Runbook、无静默 Mock/重复 loop，以及本地真实依赖环境均通过。持久审批 resume 按主计划属于 Day 5，物理 purge 与隔离备份恢复演练属于 Day 7；两项均写明归属，不作为逃避 Day 3 实现的 `N/A`。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已于 2026-08-18 合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job。
 
-当前阶段结论：Day 3 五步实现与本地门禁已经收口；D3-01～D3-11 等待提交后的干净 CI，再从 `implemented_pending_verification` 转为 `complete`。在此之前不进入 Day 4。
+当前阶段结论：Day 3 五步实现、本地门禁、合并与干净 CI 已全部收口；D3-01～D3-11 于 2026-08-20 复核为 `complete`，可以按主计划进入 Day 4。

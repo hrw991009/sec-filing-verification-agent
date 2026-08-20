@@ -672,7 +672,7 @@ Beat 计算到期 occurrence，或授权用户手动触发
 
 资讯支持分类、统计、分页、原始来源和手动采集结果；招投标支持公告类型、地区、分页和手动采集结果；股票 Tool 在聊天中返回专用行情卡片。调度状态、最后成功时间和失败原因对授权用户可见。
 
-Day 3 已实现四个固定 Provider contract、领域表、来源/游标/去重、手动和定时调度后端，以及 `industry.web_search:v1` 的 Registry/Executor/Observation 合同；真实 PostgreSQL 验证 ScheduleOccurrence、Job、Outbox 与 CollectionRun 同事务提交。行业页提供四类来源/readiness、卡片、分页、手动采集和 Schedule/Run 状态；Conversation/Job 已物化行业限定的 Web L2 command，并由 Playwright 从页面验证到安全 Trace。Observation→Evidence ledger 仍按计划属于 Day 4，不影响 Day 3 当前 `implemented_pending_verification` 结论。
+Day 3 已实现四个固定 Provider contract、领域表、来源/游标/去重、手动和定时调度后端，以及 `industry.web_search:v1` 的 Registry/Executor/Observation 合同；真实 PostgreSQL 验证 ScheduleOccurrence、Job、Outbox 与 CollectionRun 同事务提交。行业页提供四类来源/readiness、卡片、分页、手动采集和 Schedule/Run 状态；Conversation/Job 已物化行业限定的 Web L2 command，并由 Playwright 从页面验证到安全 Trace。Observation→Evidence ledger 仍按计划属于 Day 4，不影响 Day 3 已复核为 `complete` 的结论。
 
 ### 15.4 Deep Research、报告与证据图
 
@@ -841,7 +841,7 @@ Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c
 
 新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 7 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断 Day 2 Agent 学习。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 的五个切片现已完成仓库内实现与本地收口：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Context Compiler v1、Tool Registry/Executor、Event/Trace/ToolCall/ToolRun 原子审计、四个行业与来源/采集链、安全 Text2SQL、受校验 Artifact、陈旧 QueryRun 对账、Tool Inspector、正式行业/数据库/图表页面、24 条累计 Scenario 和 trajectory report 均落地。真实依赖全量 pytest、Web、Playwright、migration、build、audit 与 Secret 扫描通过；普通 Conversation 逻辑删除保留 Tool audit。因为本轮尚未提交/推送，没有干净 CI，D3-01～D3-11 暂为 `implemented_pending_verification`；显式物理 Run purge与隔离备份恢复演练保留为 Day 7 发布门禁。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 的五个切片现已完成仓库内实现与本地收口：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Context Compiler v1、Tool Registry/Executor、Event/Trace/ToolCall/ToolRun 原子审计、四个行业与来源/采集链、安全 Text2SQL、受校验 Artifact、陈旧 QueryRun 对账、Tool Inspector、正式行业/数据库/图表页面、24 条累计 Scenario 和 trajectory report 均落地。真实依赖全量 pytest、Web、Playwright、migration、build、audit 与 Secret 扫描通过；普通 Conversation 逻辑删除保留 Tool audit。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job；D3-01～D3-11 已复核为 `complete`。显式物理 Run purge与隔离备份恢复演练保留为 Day 7 发布门禁。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
 ## 21. 初学者术语表
 
