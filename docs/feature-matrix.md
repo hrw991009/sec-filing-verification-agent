@@ -4,7 +4,7 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-17
+> 更新日期：2026-08-20
 >
 > 权威来源：`docs/master-plan.md` 1.7.0
 
@@ -139,19 +139,19 @@ Agent 追加 DoD 的适用性已单独复核：Day 2 的成功、Provider 失败
 
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
-| D3-01 | 首页与当前行业上下文 | R2 + NEW | 搜索/切换四个预设行业；影响推荐、资讯、招投标、聊天与 Research；不改变权限 | 刷新持久化、作用域和越权测试 | `implemented_pending_verification` | `complete` |
-| D3-02 | Tool Registry、L1/L2 有界循环与审计 | R2 + NEW | typed Action→Observation、Schema/scope、max_steps/deadline/token/cost/cancel/no_progress、稳定错误、静态 allow/deny 与 approval_required、ApprovalRequest/Decision 和副作用幂等契约、Tool Run 页面 | L0/L1/L2 轨迹对照；模型越权、超时、预算、停止原因、Schema、审批契约、幂等键和审计测试 | `implemented_pending_verification` | `complete` |
-| D3-03 | Web Search | R2 + NEW | 一个合规真实 Adapter、来源快照/摘要、Citation；URL/网络边界复用版本化 Web Tool 安全合同和受控 egress | Tool contract、真实来源、SSRF/跳转/响应预算专项负向集和来源追踪 | `implemented_pending_verification` | `complete` |
-| D3-04 | 新闻资讯 | R2 + NEW | 真实来源样例、分类、统计、分页、原链接、行业过滤、手动采集结果 | Provider contract、真实集成、去重和来源追踪 | `implemented_pending_verification` | `complete` |
-| D3-05 | 政策 | R2 + NEW | 正式模型、搜索/筛选、来源与时间、页面 readiness；至少一条真实来源闭环 | Contract、真实样例、权限和引用测试 | `implemented_pending_verification` | `complete` |
-| D3-06 | 招投标 | R2 + NEW | 招/中标、地区、分页、原链接、手动采集；至少一条真实来源闭环 | Contract、真实样例、去重和失败测试 | `implemented_pending_verification` | `complete` |
-| D3-07 | 股票 | R2 + NEW | 真实行情 Provider、工具事件、时间/来源和聊天行情卡片 | Contract、真实样例、过期/限流/错误 UI | `implemented_pending_verification` | `complete` |
-| D3-08 | 定时采集 | R2 + NEW | 持久 Schedule/Occurrence、IANA timezone、next_due_at、停机补跑/misfire 上限；Beat→Application Service→Job/Outbox→Dispatcher；游标、external ID/hash 去重、退避、last success、dead-letter、手动立即运行 | 重复 tick/多 Beat/停机 24h/超补跑上限/时区边界/Redis 故障测试；不重复入库且遗漏、合并和失败均可见 | `implemented_pending_verification` | `complete` |
-| D3-09 | 数据库浏览 | R2 + NEW | 表大小/行数列表、Schema、主键、索引、分页数据、连接测试 | allowlist、越权、分页和错误 UI | `implemented_pending_verification` | `complete` |
-| D3-10 | 安全 Text2SQL | R2 + NEW | 只读样例库、完整 AST、schema/table/column allowlist、预算和审计 | DML/DDL/COPY/CALL/多语句/危险 CTE 拒绝 100% | `implemented_pending_verification` | `complete` |
-| D3-11 | 受校验图表 | R2 + NEW | generated/validated SQL、解释、结果表、line/bar/pie/scatter/table ECharts | 函数/脚本/外链/超量数据全部拒绝 | `implemented_pending_verification` | `complete` |
+| D3-01 | 首页与当前行业上下文 | R2 + NEW | 搜索/切换四个预设行业；影响推荐、资讯、招投标、聊天与 Research；不改变权限 | 刷新持久化、作用域和越权测试 | `complete` | `complete` |
+| D3-02 | Tool Registry、L1/L2 有界循环与审计 | R2 + NEW | typed Action→Observation、Schema/scope、max_steps/deadline/token/cost/cancel/no_progress、稳定错误、静态 allow/deny 与 approval_required、ApprovalRequest/Decision 和副作用幂等契约、Tool Run 页面 | L0/L1/L2 轨迹对照；模型越权、超时、预算、停止原因、Schema、审批契约、幂等键和审计测试 | `complete` | `complete` |
+| D3-03 | Web Search | R2 + NEW | 一个合规真实 Adapter、来源快照/摘要、Citation；URL/网络边界复用版本化 Web Tool 安全合同和受控 egress | Tool contract、真实来源、SSRF/跳转/响应预算专项负向集和来源追踪 | `complete` | `complete` |
+| D3-04 | 新闻资讯 | R2 + NEW | 真实来源样例、分类、统计、分页、原链接、行业过滤、手动采集结果 | Provider contract、真实集成、去重和来源追踪 | `complete` | `complete` |
+| D3-05 | 政策 | R2 + NEW | 正式模型、搜索/筛选、来源与时间、页面 readiness；至少一条真实来源闭环 | Contract、真实样例、权限和引用测试 | `complete` | `complete` |
+| D3-06 | 招投标 | R2 + NEW | 招/中标、地区、分页、原链接、手动采集；至少一条真实来源闭环 | Contract、真实样例、去重和失败测试 | `complete` | `complete` |
+| D3-07 | 股票 | R2 + NEW | 真实行情 Provider、工具事件、时间/来源和聊天行情卡片 | Contract、真实样例、过期/限流/错误 UI | `complete` | `complete` |
+| D3-08 | 定时采集 | R2 + NEW | 持久 Schedule/Occurrence、IANA timezone、next_due_at、停机补跑/misfire 上限；Beat→Application Service→Job/Outbox→Dispatcher；游标、external ID/hash 去重、退避、last success、dead-letter、手动立即运行 | 重复 tick/多 Beat/停机 24h/超补跑上限/时区边界/Redis 故障测试；不重复入库且遗漏、合并和失败均可见 | `complete` | `complete` |
+| D3-09 | 数据库浏览 | R2 + NEW | 表大小/行数列表、Schema、主键、索引、分页数据、连接测试 | allowlist、越权、分页和错误 UI | `complete` | `complete` |
+| D3-10 | 安全 Text2SQL | R2 + NEW | 只读样例库、完整 AST、schema/table/column allowlist、预算和审计 | DML/DDL/COPY/CALL/多语句/危险 CTE 拒绝 100% | `complete` | `complete` |
+| D3-11 | 受校验图表 | R2 + NEW | generated/validated SQL、解释、结果表、line/bar/pie/scatter/table ECharts | 函数/脚本/外链/超量数据全部拒绝 | `complete` | `complete` |
 
-D3-01～D3-11 的冻结范围已经全部进入正式实现并通过本地验收：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Conversation→Job/Outbox→正式 Loader→`industry.web_search:v1` 的用户链路和安全 Trace 已由真实 PostgreSQL 与 Playwright 验证。L2 在同一精确 allowlist 内选择并执行两个不同 typed Tool；`database.text2sql:v1` 使用独立只读账号、完整 AST/allowlist/预算并生成受校验表格/line/bar/pie/scatter Artifact。四个行业、四类来源、手动/定时采集、陈旧 QueryRun 对账、Tool Inspector、行业/数据库/图表页面、24 条累计 Scenario 和 `evals/reports/day3-v1.json` 均有可执行证据。统一本地门禁为 Python `898 passed`、Web `54 passed`、Playwright `4 passed`，真实 PostgreSQL/Redis/MinIO 强制开启且无 skip；312 个 Python 文件 format、Ruff、303 个源文件 mypy、OpenAPI `api:check`、build、Python/Node 审计、migration 往返和受控路径/44-commit Secret 扫描均通过。普通 Conversation 逻辑删除保留 Tool audit；显式物理 Run purge与隔离备份恢复演练仍是 Day 7 发布门禁。当前唯一未完成的 Day 3 状态条件是本轮改动尚未提交/推送，因而没有干净 CI；所以暂记 `implemented_pending_verification`，不能提前标为 `complete`。
+D3-01～D3-11 的冻结范围已经全部进入正式实现并通过本地验收：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Conversation→Job/Outbox→正式 Loader→`industry.web_search:v1` 的用户链路和安全 Trace 已由真实 PostgreSQL 与 Playwright 验证。L2 在同一精确 allowlist 内选择并执行两个不同 typed Tool；`database.text2sql:v1` 使用独立只读账号、完整 AST/allowlist/预算并生成受校验表格/line/bar/pie/scatter Artifact。四个行业、四类来源、手动/定时采集、陈旧 QueryRun 对账、Tool Inspector、行业/数据库/图表页面、24 条累计 Scenario 和 `evals/reports/day3-v1.json` 均有可执行证据。统一本地门禁为 Python `898 passed`、Web `54 passed`、Playwright `4 passed`，真实 PostgreSQL/Redis/MinIO 强制开启且无 skip；312 个 Python 文件 format、Ruff、303 个源文件 mypy、OpenAPI `api:check`、build、Python/Node 审计、migration 往返和受控路径/44-commit Secret 扫描均通过。普通 Conversation 逻辑删除保留 Tool audit；显式物理 Run purge与隔离备份恢复演练仍是 Day 7 发布门禁。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，head 提交已包含在 `main`；合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在干净环境通过全部 7 个适用 Job。2026-08-20 复核后，D3-01～D3-11 均为 `complete`。
 
 ## 6. Day 4：Agent Memory、Evidence 与 Research L3
 

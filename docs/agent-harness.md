@@ -1,10 +1,10 @@
 # Agent Harness v1：Day 3 L1/L2、行业采集与 Text2SQL 切片
 
-> 更新日期：2026-08-17
+> 更新日期：2026-08-20
 >
 > 计划基线：`docs/master-plan.md` 1.7.0 Day 3
 >
-> 当前状态：五个可验收步骤均已完成并通过全量本地门禁；尚未提交/推送，D3-01～D3-11 暂为 `implemented_pending_verification`，待干净 CI 后转为 `complete`。
+> 当前状态：五个可验收步骤、全量本地门禁、PR 合并与 `main` 合并提交的干净 CI 均已通过；D3-01～D3-11 已复核为 `complete`。
 
 ## 1. 今天的五个可验收步骤
 
@@ -116,4 +116,4 @@ Fake Industry Lookup 不访问网络、Shell、数据库或 Secret，只用于�
 - 测试：`apps/backend/tests/modules/data_explorer/` 与 `apps/backend/tests/integration/test_data_explorer_postgres.py`；
 - 依赖与威胁复核：[Day 3 安全 Text2SQL 复核](security/day-3-text2sql-review.md)。
 
-第 5 步新增入口还包括 `apps/web/src/industry/`、`apps/web/src/data-explorer/`、`TracePanel.tsx`、`apps/backend/tests/integration/test_conversation_web_tool_postgres.py`、`tests/e2e/app-shell.spec.ts`、`evals/reports/day3-v1.json`、[前端安全复核](security/day-3-ui-review.md)与 [Day 3 运行手册](runbooks/day-3-agent-tools.md)。最终本地门禁见 [Day 3 学习日志](learning-log/day-3.md)；状态只因尚无本轮干净 CI 保持 `implemented_pending_verification`。
+第 5 步新增入口还包括 `apps/web/src/industry/`、`apps/web/src/data-explorer/`、`TracePanel.tsx`、`apps/backend/tests/integration/test_conversation_web_tool_postgres.py`、`tests/e2e/app-shell.spec.ts`、`evals/reports/day3-v1.json`、[前端安全复核](security/day-3-ui-review.md)与 [Day 3 运行手册](runbooks/day-3-agent-tools.md)。最终本地门禁见 [Day 3 学习日志](learning-log/day-3.md)；[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 与合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 已关闭最后的验证条件。
