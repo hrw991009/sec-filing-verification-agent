@@ -2,7 +2,7 @@
 
 面向行业研究与企业知识工作的多模态行业智能工作台。
 
-当前状态：Day 1 的新仓工程地基、身份与 Workspace、可靠异步底座、前端身份旅程和统一契约已经通过全量本地门禁与提交 `2c4e6e9` 的干净 CI，D1-01～D1-08、D1-10～D1-12 均为 `complete`。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 2/Day 3 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
+当前状态：Day 1 的新仓工程执行门禁以及 Day 2/3 Agent 门禁已经通过，D1-01～D1-08、D1-10～D1-12、D2-01～D2-09 与 D3-01～D3-11 均为 `complete`；项目现进入 Day 4 的 Agent Memory、Evidence 与 Deep Research L3，D4-01～D4-07 仍为 `planned`，不得在实际验收前提前改为完成。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 4 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
 
 ## 文档入口
 
@@ -21,6 +21,7 @@
 - [Day 3 Text2SQL 安全复核](docs/security/day-3-text2sql-review.md)
 - [Day 3 前端、Tool Inspector 与 ECharts 安全复核](docs/security/day-3-ui-review.md)
 - [Day 3 Agent Tool 运行与回滚手册](docs/runbooks/day-3-agent-tools.md)
+- [Day 4 五步执行计划](docs/learning-log/day-4.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围

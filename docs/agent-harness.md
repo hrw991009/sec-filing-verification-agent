@@ -14,7 +14,7 @@
 4. 完成数据库能力切片：数据库浏览、安全 Text2SQL、只读 AST、schema/table/column allowlist、查询预算，以及受校验的表格/图表 Artifact 和错误旅程。
 5. 完成 Tool Inspector 与行业/数据库/图表正式页面和 E2E，输出 L0/L1/L2 trajectory report、累计数据集，并逐项关闭 Day 3 Definition of Done 与学习门禁。
 
-第 5 步已经完成：正式页面、Tool Inspector、生产 Web Tool 用户旅程、累计数据集、trajectory report、安全复核、运行手册和全量本地门禁均有可执行证据。当前不提前进入 Day 4。
+第 5 步已经完成：正式页面、Tool Inspector、生产 Web Tool 用户旅程、累计数据集、trajectory report、安全复核、运行手册和全量本地门禁均有可执行证据。Day 3 门禁已经关闭；后续按 Day 4 执行计划推进，不再在本文扩张 Day 3 范围。
 
 ## 2. 第一步的正式执行链
 

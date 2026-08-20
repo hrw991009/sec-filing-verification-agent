@@ -165,6 +165,8 @@ D3-01～D3-11 的冻结范围已经全部进入正式实现并通过本地验收
 | D4-06 | Claim 与证据图 | R2 + NEW | 关键 Claim、Evidence/Entity 基础图、locator、support/refute/uncertain、coverage/conflict | 图节点/边可反查，缺证据必须显示 uncertain | `planned` | `complete` |
 | D4-07 | Memory/Research 预算与策略边界 | NEW | Context、Token、费用、时间、Tool allowlist；不存原始 CoT、不执行模型代码 | 预算耗尽、跨租户、错误 Memory/Evidence 和审计测试 | `planned` | `complete` |
 
+Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进。五步开始前 D4-01～D4-07 均保持 `planned`；单步只有代码或页面而未通过该步的真实链路、权限、失败、契约和评测条件时，只能记录过程状态，不能提前标记 `complete`。
+
 ## 7. Day 5：Agent Knowledge 与 Durable Research L4
 
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
