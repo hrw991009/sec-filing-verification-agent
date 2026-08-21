@@ -19,6 +19,13 @@ export type FileDownload = components["schemas"]["FileDownloadResponse"];
 export type AttachmentMediaType = components["schemas"]["AttachmentMediaType"];
 export type StartTurnRequest = components["schemas"]["StartConversationTurnRequest"];
 export type StartTurnReceipt = components["schemas"]["StartConversationTurnResponse"];
+export type CreateMemoryCandidateRequest = components["schemas"]["CreateMemoryCandidateRequest"];
+export type MemoryCandidate = components["schemas"]["MemoryCandidateResponse"];
+export type MemoryCandidateCreated = components["schemas"]["MemoryCandidateCreatedResponse"];
+export type ResolveMemoryCandidateRequest = components["schemas"]["ResolveMemoryCandidateRequest"];
+export type MemoryResolution = components["schemas"]["MemoryResolutionResponse"];
+export type MemorySnapshot = components["schemas"]["MemoryResponse"];
+export type MemoryDetail = components["schemas"]["MemoryDetailResponse"];
 
 export interface ConversationPage {
   readonly conversations: ConversationSummary[];
@@ -32,6 +39,11 @@ export interface ConversationMessagePage {
 
 export interface PageOptions {
   readonly cursor?: string;
+  readonly limit?: number;
+}
+
+export interface MemoryCandidateListOptions {
+  readonly conversationId?: string;
   readonly limit?: number;
 }
 
@@ -190,6 +202,128 @@ export function deleteConversation(workspaceId: string, conversationId: string):
       params: {
         path: { conversation_id: conversationId, workspace_id: workspaceId },
       },
+    }),
+  );
+}
+
+export function createMemoryCandidate(
+  workspaceId: string,
+  request: CreateMemoryCandidateRequest,
+  idempotencyKey: string,
+): Promise<MemoryCandidateCreated> {
+  if (!IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+    throw new TypeError("The Memory idempotency key is invalid.");
+  }
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/candidates", {
+      body: request,
+      headers: authorization(accessToken),
+      params: {
+        header: { "Idempotency-Key": idempotencyKey },
+        path: { workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function listMemoryCandidates(
+  workspaceId: string,
+  options: MemoryCandidateListOptions = {},
+): Promise<MemoryCandidate[]> {
+  const limit = options.limit ?? DEFAULT_PAGE_SIZE;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_PAGE_SIZE) {
+    throw new RangeError("The Memory candidate page size must be between 1 and 100.");
+  }
+  return authenticatedData(async (accessToken) => {
+    const result = await apiClient.GET("/api/v1/workspaces/{workspace_id}/memories/candidates", {
+      headers: authorization(accessToken),
+      params: {
+        path: { workspace_id: workspaceId },
+        query: {
+          conversation_id: options.conversationId ?? null,
+          limit,
+        },
+      },
+    });
+    const page = unwrapData<components["schemas"]["MemoryCandidateCollectionResponse"]>(result);
+    return { data: page.candidates, response: result.response };
+  });
+}
+
+export function getMemoryCandidate(
+  workspaceId: string,
+  candidateId: string,
+): Promise<MemoryCandidate> {
+  return authenticatedData((accessToken) =>
+    apiClient.GET("/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}", {
+      headers: authorization(accessToken),
+      params: { path: { candidate_id: candidateId, workspace_id: workspaceId } },
+    }),
+  );
+}
+
+export function confirmMemoryCandidate(
+  workspaceId: string,
+  candidateId: string,
+  revision: number,
+  request: ResolveMemoryCandidateRequest,
+): Promise<MemoryResolution> {
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new RangeError("The Memory candidate revision is invalid.");
+  }
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}/confirm", {
+      body: request,
+      headers: authorization(accessToken),
+      params: {
+        header: { "If-Match": `"${String(revision)}"` },
+        path: { candidate_id: candidateId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function rejectMemoryCandidate(
+  workspaceId: string,
+  candidateId: string,
+  revision: number,
+): Promise<MemoryCandidate> {
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new RangeError("The Memory candidate revision is invalid.");
+  }
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}/reject", {
+      headers: authorization(accessToken),
+      params: {
+        header: { "If-Match": `"${String(revision)}"` },
+        path: { candidate_id: candidateId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function listMemories(
+  workspaceId: string,
+  limit = DEFAULT_PAGE_SIZE,
+): Promise<MemorySnapshot[]> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_PAGE_SIZE) {
+    throw new RangeError("The Memory page size must be between 1 and 100.");
+  }
+  return authenticatedData(async (accessToken) => {
+    const result = await apiClient.GET("/api/v1/workspaces/{workspace_id}/memories", {
+      headers: authorization(accessToken),
+      params: { path: { workspace_id: workspaceId }, query: { limit } },
+    });
+    const page = unwrapData<components["schemas"]["MemoryCollectionResponse"]>(result);
+    return { data: page.memories, response: result.response };
+  });
+}
+
+export function getMemory(workspaceId: string, memoryId: string): Promise<MemoryDetail> {
+  return authenticatedData((accessToken) =>
+    apiClient.GET("/api/v1/workspaces/{workspace_id}/memories/{memory_id}", {
+      headers: authorization(accessToken),
+      params: { path: { memory_id: memoryId, workspace_id: workspaceId } },
     }),
   );
 }

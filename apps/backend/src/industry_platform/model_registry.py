@@ -54,6 +54,14 @@ from industry_platform.modules.jobs.models import (
     Schedule,
     ScheduleOccurrence,
 )
+from industry_platform.modules.memory.models import (
+    MemoryCandidateRecord,
+    MemoryCandidateSourceRecord,
+    MemoryRecord,
+    MemoryRevisionRecord,
+    MemoryRevisionSourceRecord,
+    ThreadMemoryStateRecord,
+)
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
 REGISTERED_MODELS: tuple[type[Base], ...] = (
@@ -98,6 +106,12 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     QueryRunRecord,
     QueryResultRecord,
     ChartSpecRecord,
+    ThreadMemoryStateRecord,
+    MemoryRecord,
+    MemoryRevisionRecord,
+    MemoryCandidateRecord,
+    MemoryCandidateSourceRecord,
+    MemoryRevisionSourceRecord,
 )
 
 metadata: MetaData = Base.metadata

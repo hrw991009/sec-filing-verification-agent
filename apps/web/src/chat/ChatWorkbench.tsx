@@ -15,19 +15,29 @@ import { getIndustryPreference, listIndustries, type Industry } from "../industr
 
 import {
   cancelRun,
+  confirmMemoryCandidate,
+  createMemoryCandidate,
   deleteConversation,
   deleteFile,
   followAgentRunEvents,
   getAgentTrace,
   getDownloadUrl,
+  getMemory,
+  listMemories,
+  listMemoryCandidates,
   listConversations,
   renameConversation,
+  rejectMemoryCandidate,
   startTurn,
   uploadFile,
   type AgentTrace,
   type ConversationMessage,
   type ConversationSummary,
   type FileSnapshot,
+  type MemoryCandidate,
+  type MemoryResolution,
+  type MemorySnapshot,
+  type ResolveMemoryCandidateRequest,
 } from "./chat-api";
 import "./chat.css";
 import { ChatComposer } from "./ChatComposer";
@@ -51,6 +61,7 @@ import {
 } from "./chat-workbench-model";
 import { ConversationSidebar } from "./ConversationSidebar";
 import { DeleteConversationDialog } from "./DeleteConversationDialog";
+import { MemoryCandidateDialog } from "./MemoryCandidateDialog";
 import { pollAgentRunTerminal, type ConfirmedAgentRunTerminal } from "./agent-run-status";
 import { TracePanel } from "./TracePanel";
 import { useAllConversationMessages } from "./useAllConversationMessages";
@@ -86,6 +97,14 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const [renaming, setRenaming] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [memorySelection, setMemorySelection] = useState<string[]>([]);
+  const [memoryCandidates, setMemoryCandidates] = useState<MemoryCandidate[]>([]);
+  const [memoryCandidatesError, setMemoryCandidatesError] = useState<string | null>(null);
+  const [activeMemoryCandidate, setActiveMemoryCandidate] = useState<MemoryCandidate | null>(null);
+  const [memoryTargets, setMemoryTargets] = useState<MemorySnapshot[]>([]);
+  const [memoryResolution, setMemoryResolution] = useState<MemoryResolution | null>(null);
+  const [memoryDialogError, setMemoryDialogError] = useState<string | null>(null);
+  const [memoryBusy, setMemoryBusy] = useState(false);
   const streamAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(workspaceId);
   const workspaceGenerationRef = useRef({ value: 0, workspaceId });
@@ -96,10 +115,16 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const conversationListRequestRef = useRef(0);
   const messageRequestRef = useRef(0);
   const traceRequestRef = useRef(0);
+  const memoryRequestRef = useRef(0);
+  const memoryDialogRequestRef = useRef(0);
   const settledRunIdsRef = useRef(new Set<string>());
   const submitAttemptRef = useRef<{ readonly fingerprint: string; readonly key: string } | null>(
     null,
   );
+  const memoryCreateAttemptRef = useRef<{
+    readonly fingerprint: string;
+    readonly key: string;
+  } | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
@@ -161,6 +186,43 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
         }
         setConversationState("error");
         setConversationError(publicError(error));
+      }
+    },
+    [workspaceId],
+  );
+
+  const loadMemoryCandidates = useCallback(
+    async (conversationId: string): Promise<MemoryCandidate[]> => {
+      const requestedWorkspaceId = workspaceId;
+      const requestedWorkspaceGeneration = workspaceGenerationRef.current.value;
+      const requestNumber = memoryRequestRef.current + 1;
+      memoryRequestRef.current = requestNumber;
+      setMemoryCandidatesError(null);
+      try {
+        const loaded = await listMemoryCandidates(workspaceId, {
+          conversationId,
+          limit: 50,
+        });
+        if (
+          workspaceIdRef.current !== requestedWorkspaceId ||
+          workspaceGenerationRef.current.value !== requestedWorkspaceGeneration ||
+          selectedConversationIdRef.current !== conversationId ||
+          memoryRequestRef.current !== requestNumber
+        ) {
+          return [];
+        }
+        setMemoryCandidates(loaded);
+        return loaded;
+      } catch (error: unknown) {
+        if (
+          workspaceIdRef.current === requestedWorkspaceId &&
+          workspaceGenerationRef.current.value === requestedWorkspaceGeneration &&
+          selectedConversationIdRef.current === conversationId &&
+          memoryRequestRef.current === requestNumber
+        ) {
+          setMemoryCandidatesError(`记忆候选加载失败：${publicError(error)}`);
+        }
+        return [];
       }
     },
     [workspaceId],
@@ -413,6 +475,8 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     conversationListRequestRef.current += 1;
     messageRequestRef.current += 1;
     traceRequestRef.current += 1;
+    memoryRequestRef.current += 1;
+    memoryDialogRequestRef.current += 1;
     setSelectedConversationId(null);
     selectedConversationIdRef.current = null;
     setCreatingNew(false);
@@ -426,10 +490,19 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     setConversationCursor(null);
     setConversations([]);
     setConversationState("loading");
+    setMemorySelection([]);
+    setMemoryCandidates([]);
+    setMemoryCandidatesError(null);
+    setActiveMemoryCandidate(null);
+    setMemoryTargets([]);
+    setMemoryResolution(null);
+    setMemoryDialogError(null);
+    setMemoryBusy(false);
     setQuestion("");
     setComposerAttachments([]);
     setComposerError(null);
     submitAttemptRef.current = null;
+    memoryCreateAttemptRef.current = null;
   }, [workspaceId]);
 
   useEffect(() => {
@@ -513,6 +586,20 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
       active = false;
     };
   }, [activeRun?.runId, followRun, loadAllMessages, selectedConversationId, workspaceId]);
+
+  useEffect(() => {
+    memoryDialogRequestRef.current += 1;
+    memoryCreateAttemptRef.current = null;
+    setMemorySelection([]);
+    setMemoryCandidates([]);
+    setMemoryCandidatesError(null);
+    setActiveMemoryCandidate(null);
+    setMemoryTargets([]);
+    setMemoryResolution(null);
+    setMemoryDialogError(null);
+    if (selectedConversationId === null) return;
+    void loadMemoryCandidates(selectedConversationId);
+  }, [loadMemoryCandidates, selectedConversationId]);
 
   useEffect(
     () => () => {
@@ -888,6 +975,227 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     }
   }
 
+  function toggleMemorySource(messageId: string): void {
+    if (!canCompose || activeRun?.status === "running") return;
+    setMemoryCandidatesError(null);
+    setMemorySelection((current) => {
+      if (current.includes(messageId)) {
+        memoryCreateAttemptRef.current = null;
+        return current.filter((candidate) => candidate !== messageId);
+      }
+      if (current.length >= 8) {
+        setMemoryCandidatesError("每个记忆候选最多选择 8 条消息。");
+        return current;
+      }
+      memoryCreateAttemptRef.current = null;
+      return [...current, messageId];
+    });
+  }
+
+  async function openMemoryCandidate(candidate: MemoryCandidate): Promise<void> {
+    const requestedWorkspaceId = workspaceId;
+    const requestedWorkspaceGeneration = workspaceGenerationRef.current.value;
+    const requestNumber = memoryDialogRequestRef.current + 1;
+    memoryDialogRequestRef.current = requestNumber;
+    setActiveMemoryCandidate(candidate);
+    setMemoryResolution(null);
+    setMemoryDialogError(null);
+    setMemoryBusy(true);
+    try {
+      const [targets, resolvedDetail] = await Promise.all([
+        listMemories(requestedWorkspaceId, 100),
+        candidate.status === "confirmed" && candidate.resolved_memory_id !== null
+          ? getMemory(requestedWorkspaceId, candidate.resolved_memory_id)
+          : Promise.resolve(null),
+      ]);
+      if (
+        workspaceIdRef.current !== requestedWorkspaceId ||
+        workspaceGenerationRef.current.value !== requestedWorkspaceGeneration ||
+        memoryDialogRequestRef.current !== requestNumber
+      ) {
+        return;
+      }
+      setMemoryTargets(targets);
+      if (resolvedDetail !== null) {
+        setMemoryResolution({
+          action: resolvedDetail.current_revision.write_action,
+          created: false,
+          memory: resolvedDetail,
+        });
+      }
+    } catch (error: unknown) {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration &&
+        memoryDialogRequestRef.current === requestNumber
+      ) {
+        setMemoryDialogError(`记忆详情加载失败：${publicError(error)}`);
+      }
+    } finally {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration &&
+        memoryDialogRequestRef.current === requestNumber
+      ) {
+        setMemoryBusy(false);
+      }
+    }
+  }
+
+  async function createSelectedMemoryCandidate(messageIds: readonly string[]): Promise<void> {
+    const conversationId = selectedConversationIdRef.current;
+    if (
+      !canCompose ||
+      conversationId === null ||
+      memoryBusy ||
+      messageIds.length < 1 ||
+      messageIds.length > 8
+    ) {
+      return;
+    }
+    const requestedWorkspaceId = workspaceId;
+    const requestedWorkspaceGeneration = workspaceGenerationRef.current.value;
+    const fingerprint = JSON.stringify({
+      conversationId,
+      messageIds,
+      workspaceId: requestedWorkspaceId,
+    });
+    const previous = memoryCreateAttemptRef.current;
+    const attempt =
+      previous?.fingerprint === fingerprint
+        ? previous
+        : { fingerprint, key: `memory-${crypto.randomUUID()}` };
+    memoryCreateAttemptRef.current = attempt;
+    setMemoryBusy(true);
+    setMemoryCandidatesError(null);
+    try {
+      const created = await createMemoryCandidate(
+        requestedWorkspaceId,
+        {
+          conversation_id: conversationId,
+          message_ids: [...messageIds],
+          scope: "user",
+        },
+        attempt.key,
+      );
+      memoryCreateAttemptRef.current = null;
+      if (
+        workspaceIdRef.current !== requestedWorkspaceId ||
+        workspaceGenerationRef.current.value !== requestedWorkspaceGeneration ||
+        selectedConversationIdRef.current !== conversationId
+      ) {
+        return;
+      }
+      setMemorySelection([]);
+      await openMemoryCandidate(created);
+      void loadMemoryCandidates(conversationId);
+    } catch (error: unknown) {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration &&
+        selectedConversationIdRef.current === conversationId
+      ) {
+        setMemoryCandidatesError(`记忆候选创建失败：${publicError(error)}`);
+      }
+    } finally {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration
+      ) {
+        setMemoryBusy(false);
+      }
+    }
+  }
+
+  async function resolveActiveMemoryCandidate(
+    payload: ResolveMemoryCandidateRequest,
+  ): Promise<void> {
+    const candidate = activeMemoryCandidate;
+    if (candidate === null || memoryBusy || candidate.status !== "candidate") return;
+    const requestedWorkspaceId = workspaceId;
+    const requestedWorkspaceGeneration = workspaceGenerationRef.current.value;
+    setMemoryBusy(true);
+    setMemoryDialogError(null);
+    try {
+      const resolution = await confirmMemoryCandidate(
+        requestedWorkspaceId,
+        candidate.id,
+        candidate.revision,
+        payload,
+      );
+      if (
+        workspaceIdRef.current !== requestedWorkspaceId ||
+        workspaceGenerationRef.current.value !== requestedWorkspaceGeneration
+      ) {
+        return;
+      }
+      setMemoryResolution(resolution);
+      const targets = await listMemories(requestedWorkspaceId, 100);
+      if (
+        workspaceIdRef.current !== requestedWorkspaceId ||
+        workspaceGenerationRef.current.value !== requestedWorkspaceGeneration
+      ) {
+        return;
+      }
+      setMemoryTargets(targets);
+      const conversationId = selectedConversationIdRef.current;
+      if (conversationId !== null) void loadMemoryCandidates(conversationId);
+    } catch (error: unknown) {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration
+      ) {
+        setMemoryDialogError(publicError(error));
+      }
+    } finally {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration
+      ) {
+        setMemoryBusy(false);
+      }
+    }
+  }
+
+  async function rejectActiveMemoryCandidate(): Promise<void> {
+    const candidate = activeMemoryCandidate;
+    if (candidate === null || memoryBusy || candidate.status !== "candidate") return;
+    const requestedWorkspaceId = workspaceId;
+    const requestedWorkspaceGeneration = workspaceGenerationRef.current.value;
+    setMemoryBusy(true);
+    setMemoryDialogError(null);
+    try {
+      const rejected = await rejectMemoryCandidate(
+        requestedWorkspaceId,
+        candidate.id,
+        candidate.revision,
+      );
+      if (
+        workspaceIdRef.current !== requestedWorkspaceId ||
+        workspaceGenerationRef.current.value !== requestedWorkspaceGeneration
+      ) {
+        return;
+      }
+      setActiveMemoryCandidate(rejected);
+      const conversationId = selectedConversationIdRef.current;
+      if (conversationId !== null) void loadMemoryCandidates(conversationId);
+    } catch (error: unknown) {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration
+      ) {
+        setMemoryDialogError(publicError(error));
+      }
+    } finally {
+      if (
+        workspaceIdRef.current === requestedWorkspaceId &&
+        workspaceGenerationRef.current.value === requestedWorkspaceGeneration
+      ) {
+        setMemoryBusy(false);
+      }
+    }
+  }
+
   const runIsBusy = activeRun?.status === "running";
   const attachmentsReady = composerAttachments.every((item) => item.status === "ready");
   const submitDisabled =
@@ -980,15 +1288,36 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
 
             <ChatMessages
               activeRun={activeRun}
-              canCompose={canCompose && !submitting}
+              canCompose={canCompose && !submitting && !memoryBusy}
               messages={messages}
               messagesError={messagesError}
               messagesState={messagesState}
+              memoryActionBusy={memoryBusy}
+              memoryCandidateCount={
+                memoryCandidates.filter((candidate) => candidate.status === "candidate").length
+              }
+              memoryRecordCount={memoryCandidates.length}
+              memoryCandidatesError={memoryCandidatesError}
+              memorySelection={memorySelection}
+              onClearMemorySelection={() => {
+                memoryCreateAttemptRef.current = null;
+                setMemorySelection([]);
+              }}
+              onCreateMemoryCandidate={(messageIds) =>
+                void createSelectedMemoryCandidate(messageIds)
+              }
               onDownload={(fileId) => void downloadAttachment(fileId)}
+              onOpenMemoryRecord={() => {
+                const candidate =
+                  memoryCandidates.find((item) => item.status === "candidate") ??
+                  memoryCandidates[0];
+                if (candidate !== undefined) void openMemoryCandidate(candidate);
+              }}
               onOpenTrace={(runId) => void loadTrace(runId, true)}
               onRetryLastQuestion={retryLastQuestion}
               onRetryMessageLoad={retryMessageLoad}
               onSelectPrompt={setQuestion}
+              onToggleMemorySource={toggleMemorySource}
               threadEndRef={threadEndRef}
             />
 
@@ -1058,6 +1387,25 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
         onConfirm={() => void confirmDelete()}
         open={deleteDialogOpen}
       />
+      {activeMemoryCandidate === null ? null : (
+        <MemoryCandidateDialog
+          key={`${activeMemoryCandidate.id}:${String(activeMemoryCandidate.revision)}`}
+          busy={memoryBusy}
+          candidate={activeMemoryCandidate}
+          error={memoryDialogError}
+          memories={memoryTargets}
+          onClose={() => {
+            memoryDialogRequestRef.current += 1;
+            setActiveMemoryCandidate(null);
+            setMemoryResolution(null);
+            setMemoryDialogError(null);
+            setMemoryBusy(false);
+          }}
+          onConfirm={(payload) => void resolveActiveMemoryCandidate(payload)}
+          onReject={() => void rejectActiveMemoryCandidate()}
+          resolution={memoryResolution}
+        />
+      )}
     </main>
   );
 }

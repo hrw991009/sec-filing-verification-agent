@@ -7,6 +7,8 @@ const turnId = "44444444-4444-4444-8444-444444444444";
 const runId = "55555555-5555-4555-8555-555555555555";
 const stepId = "66666666-6666-4666-8666-666666666666";
 const fileId = "77777777-7777-4777-8777-777777777777";
+const candidateId = "88888888-1111-4111-8111-888888888888";
+const memoryId = "99999999-1111-4111-8111-999999999999";
 
 afterEach(() => {
   vi.resetModules();
@@ -160,6 +162,135 @@ describe("chat REST API", () => {
     expect(
       listRequest === undefined ? null : new URL(listRequest.url).searchParams.get("limit"),
     ).toBe("25");
+  });
+
+  it("uses generated Memory contracts with idempotency and revision preconditions", async () => {
+    const captured: Request[] = [];
+    const candidate = {
+      confidence: 0.95,
+      conversation_id: conversationId,
+      created_at: "2026-08-20T08:00:00Z",
+      id: candidateId,
+      policy_decision: "allowed",
+      policy_reason: "user_authored",
+      resolved_memory_id: null,
+      revision: 1,
+      source_message_ids: [fileId],
+      status: "candidate",
+      suggested_content: "默认使用中文回答。",
+      suggested_expires_at: null,
+      suggested_scope: "user",
+      updated_at: "2026-08-20T08:00:00Z",
+      write_reason: "user_selected_conversation_messages",
+    };
+    const fetchMock = vi.fn<typeof fetch>((input, init) => {
+      const request = asRequest(input, init);
+      captured.push(request.clone());
+      const path = new URL(request.url).pathname;
+      const root = `/api/v1/workspaces/${workspaceId}/memories`;
+      if (request.method === "POST" && path === `${root}/candidates`) {
+        return Promise.resolve(jsonResponse({ ...candidate, created: true }, 201));
+      }
+      if (request.method === "GET" && path === `${root}/candidates`) {
+        return Promise.resolve(jsonResponse({ candidates: [candidate] }));
+      }
+      if (request.method === "POST" && path.endsWith(`/${candidateId}/confirm`)) {
+        return Promise.resolve(
+          jsonResponse({
+            action: "create",
+            created: true,
+            memory: {
+              current_revision: {
+                content: "默认使用中文回答。",
+                created_at: "2026-08-20T08:01:00Z",
+                editor_user_id: fileId,
+                id: fileId,
+                kind: "preference",
+                policy_decision: "allowed",
+                scope: "user",
+                source_message_ids: [fileId],
+                validity: "valid",
+                version: 1,
+                write_action: "create",
+                write_reason: "user_selected_conversation_messages",
+              },
+              memory: {
+                confidence: 0.95,
+                created_at: "2026-08-20T08:01:00Z",
+                current_revision_id: fileId,
+                current_version: 1,
+                expires_at: null,
+                id: memoryId,
+                kind: "preference",
+                owner_user_id: fileId,
+                scope: "user",
+                source_conversation_id: conversationId,
+                status: "confirmed",
+                updated_at: "2026-08-20T08:01:00Z",
+              },
+              revisions: [],
+            },
+          }),
+        );
+      }
+      if (request.method === "POST" && path.endsWith(`/${candidateId}/reject`)) {
+        return Promise.resolve(jsonResponse({ ...candidate, revision: 2, status: "rejected" }));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    const api = await loadChatApi(fetchMock);
+
+    await expect(
+      api.createMemoryCandidate(
+        workspaceId,
+        {
+          conversation_id: conversationId,
+          message_ids: [fileId],
+          scope: "user",
+        },
+        "memory-create-1",
+      ),
+    ).resolves.toMatchObject({ id: candidateId });
+    await expect(
+      api.listMemoryCandidates(workspaceId, { conversationId, limit: 10 }),
+    ).resolves.toMatchObject([{ id: candidateId }]);
+    await expect(
+      api.confirmMemoryCandidate(workspaceId, candidateId, 1, {
+        action: "create",
+        content: "默认使用中文回答。",
+        expires_at: null,
+        kind: "preference",
+        scope: "user",
+        target_memory_id: null,
+        target_revision: null,
+      }),
+    ).resolves.toMatchObject({ memory: { memory: { id: memoryId } } });
+    await expect(api.rejectMemoryCandidate(workspaceId, candidateId, 1)).resolves.toMatchObject({
+      status: "rejected",
+    });
+
+    const createRequest = captured.find(
+      (request) =>
+        request.method === "POST" && new URL(request.url).pathname.endsWith("/candidates"),
+    );
+    expect(createRequest?.headers.get("idempotency-key")).toBe("memory-create-1");
+    const confirmRequest = captured.find((request) =>
+      new URL(request.url).pathname.endsWith(`/${candidateId}/confirm`),
+    );
+    const rejectRequest = captured.find((request) =>
+      new URL(request.url).pathname.endsWith(`/${candidateId}/reject`),
+    );
+    expect(confirmRequest?.headers.get("if-match")).toBe('"1"');
+    expect(rejectRequest?.headers.get("if-match")).toBe('"1"');
+    const listRequest = captured.find(
+      (request) =>
+        request.method === "GET" && new URL(request.url).pathname.endsWith("/candidates"),
+    );
+    expect(
+      listRequest === undefined
+        ? null
+        : new URL(listRequest.url).searchParams.get("conversation_id"),
+    ).toBe(conversationId);
   });
 
   it("hashes once, posts the presigned multipart without credentials, then completes parsing", async () => {

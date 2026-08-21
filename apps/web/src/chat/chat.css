@@ -1576,3 +1576,218 @@
     scroll-behavior: auto;
   }
 }
+
+.compact-button--active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, white);
+  color: var(--accent);
+}
+
+.memory-selection-bar {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: min(100% - 1.5rem, 58rem);
+  margin: 0.75rem auto 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, white 94%, transparent);
+  box-shadow: 0 0.45rem 1.6rem rgba(15, 23, 42, 0.09);
+  backdrop-filter: blur(12px);
+}
+
+.memory-selection-bar strong {
+  margin-right: auto;
+  font-size: 0.84rem;
+}
+
+.memory-selection-bar__error {
+  color: #b42318;
+  font-size: 0.78rem;
+}
+
+.memory-dialog-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(5px);
+}
+
+.memory-dialog {
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+  width: min(46rem, 100%);
+  max-height: min(52rem, calc(100vh - 2.5rem));
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  background: white;
+  box-shadow: 0 1.6rem 5rem rgba(15, 23, 42, 0.28);
+}
+
+.memory-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.memory-dialog__header h2,
+.memory-dialog__header p {
+  margin: 0;
+}
+
+.memory-dialog__header h2 {
+  margin-top: 0.2rem;
+  font-size: 1.15rem;
+}
+
+.memory-dialog__body {
+  display: grid;
+  overflow: auto;
+  gap: 1rem;
+  padding: 1.2rem 1.25rem 1.3rem;
+}
+
+.memory-policy,
+.memory-dialog__notice,
+.memory-dialog__success,
+.memory-revision-card {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: #f6f8f7;
+}
+
+.memory-policy,
+.memory-dialog__success {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.memory-policy span,
+.memory-dialog__success span,
+.memory-field small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.memory-policy--requires_edit {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--line));
+  background: color-mix(in srgb, var(--amber) 8%, white);
+}
+
+.memory-policy--rejected,
+.memory-dialog__notice--error {
+  border-color: color-mix(in srgb, #b42318 45%, var(--line));
+  background: color-mix(in srgb, #b42318 7%, white);
+  color: #b42318;
+}
+
+.memory-dialog__success {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 7%, white);
+}
+
+.memory-field,
+.memory-field-grid {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.memory-field > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.memory-field textarea,
+.memory-field select,
+.memory-field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.memory-field textarea {
+  min-height: 8rem;
+  padding: 0.75rem;
+  resize: vertical;
+}
+
+.memory-field select,
+.memory-field input {
+  min-height: 2.6rem;
+  padding: 0 0.65rem;
+}
+
+.memory-field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.memory-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+}
+
+.memory-revision-card p {
+  margin: 0 0 0.8rem;
+  white-space: pre-wrap;
+}
+
+.memory-revision-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.memory-revision-card dl div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.memory-revision-card dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.memory-revision-card dd {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 620px) {
+  .memory-selection-bar {
+    flex-wrap: wrap;
+  }
+
+  .memory-selection-bar strong {
+    width: 100%;
+  }
+
+  .memory-field-grid,
+  .memory-revision-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .memory-dialog-backdrop {
+    padding: 0.5rem;
+  }
+}

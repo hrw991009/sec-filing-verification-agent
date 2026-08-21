@@ -583,6 +583,109 @@ export interface paths {
         patch: operations["change_workspace_member_role_api_v1_workspaces__workspace_id__members__user_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Memories */
+        get: operations["list_memories_api_v1_workspaces__workspace_id__memories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/memories/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Memory Candidates */
+        get: operations["list_memory_candidates_api_v1_workspaces__workspace_id__memories_candidates_get"];
+        put?: never;
+        /** Create Memory Candidate */
+        post: operations["create_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Memory Candidate */
+        get: operations["get_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates__candidate_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Memory Candidate */
+        post: operations["confirm_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates__candidate_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Memory Candidate */
+        post: operations["reject_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates__candidate_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/memories/{memory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Memory */
+        get: operations["get_memory_api_v1_workspaces__workspace_id__memories__memory_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/query-runs": {
         parameters: {
             query?: never;
@@ -1122,6 +1225,18 @@ export interface components {
             /** Original Name */
             original_name: string;
         };
+        /** CreateMemoryCandidateRequest */
+        CreateMemoryCandidateRequest: {
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /** Message Ids */
+            message_ids: string[];
+            /** @default user */
+            scope: components["schemas"]["MemoryScope"];
+        };
         /**
          * CurrentUserResponse
          * @description Current server-verified account and its live Workspace memberships.
@@ -1380,6 +1495,227 @@ export interface components {
             token_type: "Bearer";
             user: components["schemas"]["AuthenticatedUser"];
         };
+        /** MemoryCandidateCollectionResponse */
+        MemoryCandidateCollectionResponse: {
+            /** Candidates */
+            candidates: components["schemas"]["MemoryCandidateResponse"][];
+        };
+        /** MemoryCandidateCreatedResponse */
+        MemoryCandidateCreatedResponse: {
+            /** Confidence */
+            confidence: number;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /** Created */
+            created: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            policy_decision: components["schemas"]["MemoryPolicyDecision"];
+            policy_reason: components["schemas"]["MemoryPolicyReason"];
+            /** Resolved Memory Id */
+            resolved_memory_id: string | null;
+            /** Revision */
+            revision: number;
+            /** Source Message Ids */
+            source_message_ids: string[];
+            status: components["schemas"]["MemoryCandidateStatus"];
+            /** Suggested Content */
+            suggested_content: string | null;
+            /** Suggested Expires At */
+            suggested_expires_at: string | null;
+            suggested_scope: components["schemas"]["MemoryScope"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Write Reason */
+            write_reason: string;
+        };
+        /** MemoryCandidateResponse */
+        MemoryCandidateResponse: {
+            /** Confidence */
+            confidence: number;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            policy_decision: components["schemas"]["MemoryPolicyDecision"];
+            policy_reason: components["schemas"]["MemoryPolicyReason"];
+            /** Resolved Memory Id */
+            resolved_memory_id: string | null;
+            /** Revision */
+            revision: number;
+            /** Source Message Ids */
+            source_message_ids: string[];
+            status: components["schemas"]["MemoryCandidateStatus"];
+            /** Suggested Content */
+            suggested_content: string | null;
+            /** Suggested Expires At */
+            suggested_expires_at: string | null;
+            suggested_scope: components["schemas"]["MemoryScope"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Write Reason */
+            write_reason: string;
+        };
+        /**
+         * MemoryCandidateStatus
+         * @enum {string}
+         */
+        MemoryCandidateStatus: "candidate" | "confirmed" | "rejected";
+        /** MemoryCollectionResponse */
+        MemoryCollectionResponse: {
+            /** Memories */
+            memories: components["schemas"]["MemoryResponse"][];
+        };
+        /** MemoryDetailResponse */
+        MemoryDetailResponse: {
+            current_revision: components["schemas"]["MemoryRevisionResponse"];
+            memory: components["schemas"]["MemoryResponse"];
+            /** Revisions */
+            revisions: components["schemas"]["MemoryRevisionResponse"][];
+        };
+        /**
+         * MemoryKind
+         * @enum {string}
+         */
+        MemoryKind: "preference" | "fact" | "instruction" | "note";
+        /**
+         * MemoryPolicyDecision
+         * @enum {string}
+         */
+        MemoryPolicyDecision: "allowed" | "requires_edit" | "rejected";
+        /**
+         * MemoryPolicyReason
+         * @enum {string}
+         */
+        MemoryPolicyReason: "user_authored" | "mixed_sources" | "assistant_only_requires_edit" | "sensitive_content";
+        /** MemoryResolutionResponse */
+        MemoryResolutionResponse: {
+            action: components["schemas"]["MemoryWriteAction"];
+            /** Created */
+            created: boolean;
+            memory: components["schemas"]["MemoryDetailResponse"];
+        };
+        /** MemoryResponse */
+        MemoryResponse: {
+            /** Confidence */
+            confidence: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Current Revision Id
+             * Format: uuid
+             */
+            current_revision_id: string;
+            /** Current Version */
+            current_version: number;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["MemoryKind"];
+            /**
+             * Owner User Id
+             * Format: uuid
+             */
+            owner_user_id: string;
+            scope: components["schemas"]["MemoryScope"];
+            /**
+             * Source Conversation Id
+             * Format: uuid
+             */
+            source_conversation_id: string;
+            status: components["schemas"]["MemoryStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MemoryRevisionResponse */
+        MemoryRevisionResponse: {
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Editor User Id
+             * Format: uuid
+             */
+            editor_user_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["MemoryKind"];
+            policy_decision: components["schemas"]["MemoryPolicyDecision"];
+            scope: components["schemas"]["MemoryScope"];
+            /** Source Message Ids */
+            source_message_ids: string[];
+            validity: components["schemas"]["MemoryRevisionValidity"];
+            /** Version */
+            version: number;
+            write_action: components["schemas"]["MemoryWriteAction"];
+            /** Write Reason */
+            write_reason: string;
+        };
+        /**
+         * MemoryRevisionValidity
+         * @enum {string}
+         */
+        MemoryRevisionValidity: "valid" | "withdrawn";
+        /**
+         * MemoryScope
+         * @enum {string}
+         */
+        MemoryScope: "user" | "workspace";
+        /**
+         * MemoryStatus
+         * @enum {string}
+         */
+        MemoryStatus: "confirmed" | "disabled" | "expired" | "deleted";
+        /**
+         * MemoryWriteAction
+         * @enum {string}
+         */
+        MemoryWriteAction: "create" | "update" | "merge";
         /**
          * ModelRole
          * @description Provider-independent roles visible to the model.
@@ -1575,6 +1911,23 @@ export interface components {
         RenameConversationRequest: {
             /** Title */
             title: string;
+        };
+        /** ResolveMemoryCandidateRequest */
+        ResolveMemoryCandidateRequest: {
+            /** @default create */
+            action: components["schemas"]["MemoryWriteAction"];
+            /** Content */
+            content: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /** @default note */
+            kind: components["schemas"]["MemoryKind"];
+            /** @default user */
+            scope: components["schemas"]["MemoryScope"];
+            /** Target Memory Id */
+            target_memory_id?: string | null;
+            /** Target Revision */
+            target_revision?: number | null;
         };
         /**
          * RunStopReason
@@ -7735,6 +8088,1261 @@ export interface operations {
                 };
             };
             /** @description Workspace service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    list_memories_api_v1_workspaces__workspace_id__memories_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryCollectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    list_memory_candidates_api_v1_workspaces__workspace_id__memories_candidates_get: {
+        parameters: {
+            query?: {
+                conversation_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryCandidateCollectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    create_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMemoryCandidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryCandidateCreatedResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates__candidate_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryCandidateResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    confirm_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates__candidate_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                workspace_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveMemoryCandidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryResolutionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    reject_memory_candidate_api_v1_workspaces__workspace_id__memories_candidates__candidate_id__reject_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                workspace_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryCandidateResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_memory_api_v1_workspaces__workspace_id__memories__memory_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryDetailResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Memory service temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

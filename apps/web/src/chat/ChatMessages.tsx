@@ -19,12 +19,21 @@ interface ChatMessagesProps {
   readonly messages: readonly ConversationMessage[];
   readonly messagesError: string | null;
   readonly messagesState: LoadState;
+  readonly memoryActionBusy: boolean;
+  readonly memoryCandidateCount: number;
+  readonly memoryRecordCount: number;
+  readonly memoryCandidatesError: string | null;
+  readonly memorySelection: readonly string[];
   readonly threadEndRef: RefObject<HTMLDivElement | null>;
+  readonly onClearMemorySelection: () => void;
+  readonly onCreateMemoryCandidate: (messageIds: readonly string[]) => void;
   readonly onDownload: (fileId: string) => void;
   readonly onOpenTrace: (runId: string) => void;
   readonly onRetryLastQuestion: (question: string) => void;
   readonly onRetryMessageLoad: () => void;
+  readonly onOpenMemoryRecord: () => void;
   readonly onSelectPrompt: (prompt: string) => void;
+  readonly onToggleMemorySource: (messageId: string) => void;
 }
 
 export function ChatMessages({
@@ -33,11 +42,20 @@ export function ChatMessages({
   messages,
   messagesError,
   messagesState,
+  memoryActionBusy,
+  memoryCandidateCount,
+  memoryRecordCount,
+  memoryCandidatesError,
+  memorySelection,
+  onClearMemorySelection,
+  onCreateMemoryCandidate,
   onDownload,
   onOpenTrace,
+  onOpenMemoryRecord,
   onRetryLastQuestion,
   onRetryMessageLoad,
   onSelectPrompt,
+  onToggleMemorySource,
   threadEndRef,
 }: ChatMessagesProps) {
   const retryCandidate = latestUserMessage(messages);
@@ -47,6 +65,49 @@ export function ChatMessages({
 
   return (
     <div className="message-scroll" aria-busy={messagesState === "loading"}>
+      {memorySelection.length > 0 || memoryRecordCount > 0 || memoryCandidatesError !== null ? (
+        <div className="memory-selection-bar" aria-busy={memoryActionBusy}>
+          {memorySelection.length > 0 ? (
+            <>
+              <strong>已选择 {memorySelection.length} 条记忆来源</strong>
+              <button
+                className="compact-button"
+                disabled={memoryActionBusy}
+                onClick={onClearMemorySelection}
+                type="button"
+              >
+                清除选择
+              </button>
+              <button
+                className="primary-button"
+                disabled={memoryActionBusy}
+                onClick={() => {
+                  onCreateMemoryCandidate(memorySelection);
+                }}
+                type="button"
+              >
+                生成记忆候选
+              </button>
+            </>
+          ) : null}
+          {memoryRecordCount > 0 ? (
+            <button
+              className="compact-button"
+              disabled={memoryActionBusy}
+              onClick={onOpenMemoryRecord}
+              type="button"
+            >
+              记忆记录 {memoryRecordCount}
+              {memoryCandidateCount > 0 ? ` · 待确认 ${String(memoryCandidateCount)}` : ""}
+            </button>
+          ) : null}
+          {memoryCandidatesError === null ? null : (
+            <span className="memory-selection-bar__error" role="alert">
+              {memoryCandidatesError}
+            </span>
+          )}
+        </div>
+      ) : null}
       {messagesError === null ? null : (
         <div className="message-load-error" role="alert">
           <span>{messagesError}</span>
@@ -72,8 +133,10 @@ export function ChatMessages({
               canRetry={canCompose && activeRun?.status !== "running"}
               key={message.id}
               message={message}
+              memorySelected={memorySelection.includes(message.id)}
               onDownload={onDownload}
               onOpenTrace={onOpenTrace}
+              onToggleMemorySource={onToggleMemorySource}
               onRetryLastQuestion={onRetryLastQuestion}
               retryUserMessage={
                 message.role === "assistant" && message.status === "partial"
@@ -144,15 +207,19 @@ function EmptyConversation({
 function MessageBubble({
   canRetry,
   message,
+  memorySelected,
   onDownload,
   onOpenTrace,
+  onToggleMemorySource,
   onRetryLastQuestion,
   retryUserMessage,
 }: {
   readonly canRetry: boolean;
   readonly message: ConversationMessage;
+  readonly memorySelected: boolean;
   readonly onDownload: (fileId: string) => void;
   readonly onOpenTrace: (runId: string) => void;
+  readonly onToggleMemorySource: (messageId: string) => void;
   readonly onRetryLastQuestion: (question: string) => void;
   readonly retryUserMessage: ConversationMessage | null;
 }) {
@@ -209,6 +276,19 @@ function MessageBubble({
             <Icon name="bolt" />
             {isUser ? "查看本轮运行轨迹" : "查看运行轨迹"}
           </button>
+          {message.status === "partial" ? null : (
+            <button
+              aria-pressed={memorySelected}
+              className={`compact-button${memorySelected ? " compact-button--active" : ""}`}
+              disabled={!canRetry}
+              onClick={() => {
+                onToggleMemorySource(message.id);
+              }}
+              type="button"
+            >
+              {memorySelected ? "已选择为记忆来源" : "选择为记忆来源"}
+            </button>
+          )}
           {!isUser && message.status === "partial" ? (
             <button
               className="compact-button"

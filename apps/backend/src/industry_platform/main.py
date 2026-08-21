@@ -143,6 +143,17 @@ from industry_platform.modules.jobs.domain import (
     ScheduleTriggerConflictError,
 )
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.memory.domain import (
+    MemoryCandidateEditRequiredError,
+    MemoryCandidateNotFoundError,
+    MemoryConflictError,
+    MemoryNotFoundError,
+    MemoryPersistenceError,
+    MemoryRequestRejectedError,
+    MemorySourceNotFoundError,
+)
+from industry_platform.modules.memory.resources import create_memory_resources
+from industry_platform.modules.memory.router import router as memory_router
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
     WorkspaceAccessDeniedError,
@@ -210,6 +221,7 @@ def create_app(
                     and active_settings.agent_model_route.supports_image_input
                 ),
             )
+            memory_resources = create_memory_resources(database_session_factory)
             file_resources = create_file_resources(
                 active_settings,
                 database_session_factory,
@@ -242,6 +254,7 @@ def create_app(
             application.state.identity_resources = identity_resources
             application.state.workspace_resources = workspace_resources
             application.state.conversation_resources = conversation_resources
+            application.state.memory_resources = memory_resources
             application.state.file_resources = file_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.agent_trace_resources = agent_trace_resources
@@ -289,6 +302,7 @@ def create_app(
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(workspace_router, prefix="/api/v1")
     application.include_router(conversation_router, prefix="/api/v1")
+    application.include_router(memory_router, prefix="/api/v1")
     application.include_router(agent_run_router, prefix="/api/v1")
     application.include_router(file_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
@@ -748,6 +762,97 @@ def create_app(
             code="INVALID_CONVERSATION_CURSOR",
             detail="The conversation page cursor is invalid or no longer supported.",
             problem_type="urn:iip:problem:invalid-conversation-cursor",
+        )
+
+    @application.exception_handler(MemoryCandidateNotFoundError)
+    @application.exception_handler(MemoryNotFoundError)
+    async def handle_memory_not_found(
+        request: Request,
+        _error: MemoryCandidateNotFoundError | MemoryNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Memory resource not found",
+            code="MEMORY_NOT_FOUND",
+            detail="The requested Memory resource does not exist in this workspace.",
+            problem_type="urn:iip:problem:memory-not-found",
+        )
+
+    @application.exception_handler(MemorySourceNotFoundError)
+    async def handle_memory_source_not_found(
+        request: Request,
+        _error: MemorySourceNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Memory source not found",
+            code="MEMORY_SOURCE_NOT_FOUND",
+            detail="A selected message is unavailable in this conversation.",
+            problem_type="urn:iip:problem:memory-source-not-found",
+        )
+
+    @application.exception_handler(MemoryConflictError)
+    async def handle_memory_conflict(
+        request: Request,
+        _error: MemoryConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Memory revision conflict",
+            code="MEMORY_CONFLICT",
+            detail="The Memory candidate or target changed. Reload it before deciding again.",
+            problem_type="urn:iip:problem:memory-conflict",
+        )
+
+    @application.exception_handler(MemoryCandidateEditRequiredError)
+    async def handle_memory_edit_required(
+        request: Request,
+        _error: MemoryCandidateEditRequiredError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Memory candidate requires editing",
+            code="MEMORY_CANDIDATE_EDIT_REQUIRED",
+            detail="Review and edit this assistant-only candidate before confirming it.",
+            problem_type="urn:iip:problem:memory-candidate-edit-required",
+        )
+
+    @application.exception_handler(MemoryRequestRejectedError)
+    async def handle_memory_request_rejected(
+        request: Request,
+        _error: MemoryRequestRejectedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Memory request rejected",
+            code="MEMORY_REQUEST_REJECTED",
+            detail="The Memory request violates content, expiry, or revision requirements.",
+            problem_type="urn:iip:problem:memory-request-rejected",
+        )
+
+    @application.exception_handler(MemoryPersistenceError)
+    async def handle_memory_unavailable(
+        request: Request,
+        error: MemoryPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Memory persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Memory service unavailable",
+            code="MEMORY_UNAVAILABLE",
+            detail="Memory is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:memory-unavailable",
         )
 
     @application.exception_handler(ConversationNotFoundError)

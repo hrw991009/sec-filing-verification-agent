@@ -232,6 +232,62 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByText(expectedAnswer, { exact: true })).toBeVisible();
   });
 
+  test("creates, edits, confirms, and restores a Memory revision", async ({ page }) => {
+    test.setTimeout(75_000);
+    const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+    const email = `memory-${uniquePart}@example.com`;
+    const password = "Browser!Pass123";
+    const sourceMessage = `请记住我的回答偏好 ${uniquePart}`;
+    const confirmedContent = `默认使用中文和项目符号回答（${uniquePart}）。`;
+
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "创建账户" }).click();
+    await page.getByLabel("邮箱").fill(email);
+    await page.getByLabel("密码").fill(password);
+    await page.getByRole("button", { name: "创建账户并进入" }).click();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+
+    const startResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      const pathname = new URL(response.url()).pathname;
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/conversations$/u.test(pathname) &&
+        response.status() === 202
+      );
+    });
+
+    await page.getByLabel("输入问题").fill(sourceMessage);
+    await page.getByRole("button", { name: "发送问题" }).click();
+    const startResponse = await startResponsePromise;
+    const receipt = parseStartTurnReceipt((await startResponse.json()) as unknown);
+    await executeBrowserCreatedRun(receipt);
+    await expect(page.getByRole("button", { exact: true, name: "停止" })).toHaveCount(0);
+
+    const sourceCard = page
+      .getByText(sourceMessage, { exact: true })
+      .locator("xpath=ancestor::article");
+    await sourceCard.getByRole("button", { name: "选择为记忆来源" }).click();
+    await page.getByRole("button", { name: "生成记忆候选" }).click();
+    await expect(page.getByRole("heading", { name: "确认要长期保存的内容" })).toBeVisible();
+
+    await page.getByLabel("最终确认内容").fill(confirmedContent);
+    await page.getByLabel("记忆类型").selectOption("preference");
+    await page.getByRole("button", { name: "创建新记忆" }).click();
+    await expect(page.getByText("Memory 已确认")).toBeVisible();
+    await expect(page.getByText(confirmedContent, { exact: true })).toBeVisible();
+    await expect(page.getByText(/创建新记忆 · Revision 1/u)).toBeVisible();
+    await page.getByRole("button", { name: "完成" }).click();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+    await page.getByRole("button", { name: new RegExp(sourceMessage, "u") }).click();
+    await page.getByRole("button", { name: "记忆记录 1" }).click();
+    await expect(page.getByText("Memory 已确认")).toBeVisible();
+    await expect(page.getByText(confirmedContent, { exact: true })).toBeVisible();
+    await expect(page.getByText(/创建新记忆 · Revision 1/u)).toBeVisible();
+  });
+
   test("uses the industry-scoped Web Tool and exposes its safe Inspector", async ({ page }) => {
     test.setTimeout(75_000);
     const uniquePart = [Date.now(), test.info().workerIndex].join("-");

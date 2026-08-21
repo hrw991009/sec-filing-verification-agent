@@ -60,11 +60,20 @@ function renderMessages(
       messages={messages}
       messagesError={null}
       messagesState="ready"
+      memoryActionBusy={false}
+      memoryCandidateCount={0}
+      memoryRecordCount={0}
+      memoryCandidatesError={null}
+      memorySelection={[]}
+      onClearMemorySelection={vi.fn()}
+      onCreateMemoryCandidate={vi.fn()}
       onDownload={vi.fn()}
+      onOpenMemoryRecord={vi.fn()}
       onOpenTrace={onOpenTrace}
       onRetryLastQuestion={onRetryLastQuestion}
       onRetryMessageLoad={vi.fn()}
       onSelectPrompt={vi.fn()}
+      onToggleMemorySource={vi.fn()}
       threadEndRef={createRef<HTMLDivElement>()}
     />,
   );

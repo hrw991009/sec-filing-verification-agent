@@ -8,6 +8,8 @@ import type {
   AgentStreamEvent,
   AgentTrace,
   ConversationMessage,
+  MemoryCandidate,
+  MemoryResolution,
 } from "./chat-api";
 import type { ConfirmedAgentRunTerminal } from "./agent-run-status";
 
@@ -21,12 +23,17 @@ interface CapturedStreamOptions {
 
 const mocks = vi.hoisted(() => ({
   cancelRun: vi.fn<(workspaceId: string, runId: string) => Promise<void>>(),
+  confirmMemoryCandidate: vi.fn<() => Promise<unknown>>(),
+  createMemoryCandidate: vi.fn<() => Promise<unknown>>(),
   deleteConversation: vi.fn<() => Promise<void>>(),
   deleteFile: vi.fn<() => Promise<unknown>>(),
   followAgentRunEvents: vi.fn<(options: CapturedStreamOptions) => Promise<number>>(),
   getAgentTrace: vi.fn<(workspaceId: string, runId: string) => Promise<AgentTrace>>(),
   getDownloadUrl: vi.fn<() => Promise<unknown>>(),
+  getMemory: vi.fn<() => Promise<unknown>>(),
   listConversations: vi.fn<() => Promise<unknown>>(),
+  listMemories: vi.fn<() => Promise<unknown>>(),
+  listMemoryCandidates: vi.fn<() => Promise<unknown>>(),
   listMessages: vi.fn<() => Promise<unknown>>(),
   pollAgentRunTerminal:
     vi.fn<
@@ -37,6 +44,7 @@ const mocks = vi.hoisted(() => ({
       ) => Promise<ConfirmedAgentRunTerminal | null>
     >(),
   renameConversation: vi.fn<() => Promise<unknown>>(),
+  rejectMemoryCandidate: vi.fn<() => Promise<unknown>>(),
   startTurn: vi.fn<() => Promise<unknown>>(),
   uploadFile: vi.fn<() => Promise<unknown>>(),
 }));
@@ -60,6 +68,7 @@ const turnId = "44444444-4444-4444-8444-444444444444";
 const historicalRunId = "55555555-5555-4555-8555-555555555555";
 const activeRunId = "66666666-6666-4666-8666-666666666666";
 const secondWorkspaceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const historicalUserMessageId = "77777777-7777-4777-8777-777777777777";
 
 const currentUser: CurrentUser = {
   user: {
@@ -113,7 +122,7 @@ function message(
 const historicalMessages: ConversationMessage[] = [
   message({
     content_markdown: "分析这份材料",
-    id: "77777777-7777-4777-8777-777777777777",
+    id: historicalUserMessageId,
     role: "user",
     search_mode: "web",
     status: "committed",
@@ -126,6 +135,60 @@ const historicalMessages: ConversationMessage[] = [
     status: "final",
   }),
 ];
+
+const memoryCandidate: MemoryCandidate = {
+  confidence: 0.95,
+  conversation_id: conversationId,
+  created_at: "2026-08-20T08:00:00Z",
+  id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+  policy_decision: "allowed",
+  policy_reason: "user_authored",
+  resolved_memory_id: null,
+  revision: 1,
+  source_message_ids: [historicalUserMessageId],
+  status: "candidate",
+  suggested_content: "分析这份材料",
+  suggested_expires_at: null,
+  suggested_scope: "user",
+  updated_at: "2026-08-20T08:00:00Z",
+  write_reason: "user_selected_conversation_messages",
+};
+
+const memoryResolution: MemoryResolution = {
+  action: "create",
+  created: true,
+  memory: {
+    current_revision: {
+      content: "默认使用中文回答。",
+      created_at: "2026-08-20T08:01:00Z",
+      editor_user_id: currentUser.user.id,
+      id: "bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb",
+      kind: "preference",
+      policy_decision: "allowed",
+      scope: "user",
+      source_message_ids: memoryCandidate.source_message_ids,
+      validity: "valid",
+      version: 1,
+      write_action: "create",
+      write_reason: "user_selected_conversation_messages",
+    },
+    memory: {
+      confidence: 0.95,
+      created_at: "2026-08-20T08:01:00Z",
+      current_revision_id: "bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb",
+      current_version: 1,
+      expires_at: null,
+      id: "cccccccc-1111-4111-8111-cccccccccccc",
+      kind: "preference",
+      owner_user_id: currentUser.user.id,
+      scope: "user",
+      source_conversation_id: conversationId,
+      status: "confirmed",
+      updated_at: "2026-08-20T08:01:00Z",
+    },
+    revisions: [],
+  },
+};
 
 function streamEvent(
   sequence: number,
@@ -220,11 +283,14 @@ afterAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.cancelRun.mockResolvedValue();
+  mocks.confirmMemoryCandidate.mockRejectedValue(new Error("No Memory confirmation requested"));
+  mocks.createMemoryCandidate.mockRejectedValue(new Error("No Memory candidate requested"));
   mocks.deleteConversation.mockResolvedValue();
   mocks.deleteFile.mockResolvedValue(undefined);
   mocks.followAgentRunEvents.mockResolvedValue(0);
   mocks.getAgentTrace.mockResolvedValue(cancelledTrace());
   mocks.getDownloadUrl.mockRejectedValue(new Error("No attachment selected"));
+  mocks.getMemory.mockRejectedValue(new Error("No Memory selected"));
   industryMocks.getIndustryPreference.mockResolvedValue({
     industry: {
       code: "smart_transport",
@@ -247,11 +313,14 @@ beforeEach(() => {
     },
   ]);
   mocks.listConversations.mockResolvedValue({ conversations: [conversation], next_cursor: null });
+  mocks.listMemories.mockResolvedValue([]);
+  mocks.listMemoryCandidates.mockResolvedValue([]);
   mocks.listMessages.mockResolvedValue({ messages: historicalMessages, next_cursor: null });
   mocks.pollAgentRunTerminal.mockImplementation(
     () => new Promise<ConfirmedAgentRunTerminal | null>(() => undefined),
   );
   mocks.renameConversation.mockRejectedValue(new Error("No rename requested"));
+  mocks.rejectMemoryCandidate.mockRejectedValue(new Error("No Memory rejection requested"));
   mocks.startTurn.mockRejectedValue(new Error("No Turn submitted"));
   mocks.uploadFile.mockRejectedValue(new Error("No file selected"));
 });
@@ -532,6 +601,73 @@ describe("Chat Workbench", () => {
     expect(await screen.findByText(/本次回答已停止，已经生成的片段仍然保留/u)).toBeVisible();
     expect(screen.queryByRole("button", { name: "停止" })).not.toBeInTheDocument();
     expect(mocks.getAgentTrace).toHaveBeenCalledWith(workspaceId, activeRunId);
+  });
+
+  it("creates, edits, and confirms a Memory candidate from a persisted message", async () => {
+    mocks.createMemoryCandidate.mockResolvedValue({ ...memoryCandidate, created: true });
+    mocks.confirmMemoryCandidate.mockResolvedValue(memoryResolution);
+    mocks.listMemories.mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderWorkbench();
+
+    await user.click(await screen.findByRole("button", { name: /新能源汽车季度分析/u }));
+    const sourceCard = (await screen.findByText("分析这份材料")).closest("article");
+    if (sourceCard === null) throw new Error("记忆来源消息不在消息卡片内");
+    await user.click(within(sourceCard).getByRole("button", { name: "选择为记忆来源" }));
+    await user.click(screen.getByRole("button", { name: "生成记忆候选" }));
+
+    expect(await screen.findByRole("heading", { name: "确认要长期保存的内容" })).toBeVisible();
+    const editor = screen.getByLabelText("最终确认内容");
+    expect(editor).toHaveValue("分析这份材料");
+    await user.clear(editor);
+    await user.type(editor, "默认使用中文回答。");
+    await user.selectOptions(screen.getByLabelText("记忆类型"), "preference");
+    await user.click(screen.getByRole("button", { name: "创建新记忆" }));
+
+    expect(await screen.findByText("Memory 已确认")).toBeVisible();
+    expect(screen.getByText("默认使用中文回答。")).toBeVisible();
+    expect(mocks.createMemoryCandidate).toHaveBeenCalledWith(
+      workspaceId,
+      {
+        conversation_id: conversationId,
+        message_ids: [historicalUserMessageId],
+        scope: "user",
+      },
+      expect.stringMatching(/^memory-/u),
+    );
+    expect(mocks.confirmMemoryCandidate).toHaveBeenCalledWith(
+      workspaceId,
+      memoryCandidate.id,
+      1,
+      expect.objectContaining({
+        action: "create",
+        content: "默认使用中文回答。",
+        kind: "preference",
+        scope: "user",
+      }),
+    );
+  });
+
+  it("reopens a confirmed Memory revision from the persisted candidate after refresh", async () => {
+    mocks.listMemoryCandidates.mockResolvedValue([
+      {
+        ...memoryCandidate,
+        resolved_memory_id: memoryResolution.memory.memory.id,
+        revision: 2,
+        status: "confirmed",
+      },
+    ]);
+    mocks.listMemories.mockResolvedValue([memoryResolution.memory.memory]);
+    mocks.getMemory.mockResolvedValue(memoryResolution.memory);
+    const user = userEvent.setup();
+    renderWorkbench();
+
+    await user.click(await screen.findByRole("button", { name: /新能源汽车季度分析/u }));
+    await user.click(await screen.findByRole("button", { name: "记忆记录 1" }));
+
+    expect(await screen.findByText("Memory 已确认")).toBeVisible();
+    expect(screen.getByText("默认使用中文回答。")).toBeVisible();
+    expect(mocks.getMemory).toHaveBeenCalledWith(workspaceId, memoryResolution.memory.memory.id);
   });
 
   it("keeps an unconfirmed cancellation busy while allowing an idempotent status retry", async () => {
