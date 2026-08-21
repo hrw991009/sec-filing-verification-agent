@@ -26,6 +26,7 @@ from industry_platform.core.database import Base, TimestampMixin, UUIDPrimaryKey
 from industry_platform.modules.identity.models import enum_values
 from industry_platform.modules.memory.domain import (
     MemoryCandidateStatus,
+    MemoryFeedbackValue,
     MemoryKind,
     MemoryPolicyDecision,
     MemoryPolicyReason,
@@ -120,6 +121,7 @@ class MemoryRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_bounded"),
         CheckConstraint("current_version >= 1", name="current_version_positive"),
+        CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint(
             "(status = 'deleted' AND deleted_at IS NOT NULL) OR "
             "(status <> 'deleted' AND deleted_at IS NULL)",
@@ -173,6 +175,9 @@ class MemoryRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     current_revision_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     current_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+    revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default=text("1")
     )
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -289,7 +294,59 @@ class MemoryRevisionRecord(UUIDPrimaryKeyMixin, Base):
     schema_version: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, default=1, server_default=text("1")
     )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MemoryFeedbackRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One user's latest explicit utility signal for one Memory revision."""
+
+    __tablename__ = "memory_feedback"
+    __table_args__ = (
+        UniqueConstraint("memory_id", "memory_revision_id", "actor_user_id"),
+        ForeignKeyConstraint(
+            ["memory_id", "workspace_id"],
+            ["memories.id", "memories.workspace_id"],
+            name="fk_memory_feedback_memory_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["memory_revision_id", "memory_id", "workspace_id"],
+            ["memory_revisions.id", "memory_revisions.memory_id", "memory_revisions.workspace_id"],
+            name="fk_memory_feedback_revision_memory_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "actor_user_id"],
+            ["workspace_members.workspace_id", "workspace_members.user_id"],
+            name="fk_memory_feedback_workspace_actor",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("value IN ('helpful', 'not_helpful')", name="value_supported"),
+        CheckConstraint("schema_version = 1", name="schema_version_supported"),
+        Index(None, "workspace_id", "actor_user_id", "updated_at"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    memory_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    memory_revision_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    actor_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    value: Mapped[MemoryFeedbackValue] = mapped_column(
+        SqlEnum(
+            MemoryFeedbackValue,
+            name="memory_feedback_value",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    schema_version: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=1, server_default=text("1")
+    )
 
 
 class MemoryCandidateRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):

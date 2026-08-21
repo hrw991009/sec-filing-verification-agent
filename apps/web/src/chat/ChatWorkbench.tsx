@@ -62,6 +62,7 @@ import {
 import { ConversationSidebar } from "./ConversationSidebar";
 import { DeleteConversationDialog } from "./DeleteConversationDialog";
 import { MemoryCandidateDialog } from "./MemoryCandidateDialog";
+import { MemoryWorkspace } from "./MemoryWorkspace";
 import { pollAgentRunTerminal, type ConfirmedAgentRunTerminal } from "./agent-run-status";
 import { TracePanel } from "./TracePanel";
 import { useAllConversationMessages } from "./useAllConversationMessages";
@@ -105,6 +106,7 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const [memoryResolution, setMemoryResolution] = useState<MemoryResolution | null>(null);
   const [memoryDialogError, setMemoryDialogError] = useState<string | null>(null);
   const [memoryBusy, setMemoryBusy] = useState(false);
+  const [focusedMemoryId, setFocusedMemoryId] = useState<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(workspaceId);
   const workspaceGenerationRef = useRef({ value: 0, workspaceId });
@@ -1352,6 +1354,11 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
               setTraceOpen(false);
             }}
             onRetry={traceRunId === null ? undefined : () => void loadTrace(traceRunId, true)}
+            onOpenMemory={(memoryId) => {
+              setFocusedMemoryId(memoryId);
+              setView("memory");
+              setTraceOpen(false);
+            }}
             trace={trace}
             traceError={traceError}
             traceState={traceState}
@@ -1374,6 +1381,13 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
             setIndustryId(nextIndustryId);
           }}
           selectedIndustryId={industryId}
+          workspaceId={workspaceId}
+        />
+      ) : view === "memory" ? (
+        <MemoryWorkspace
+          canManage={canCompose}
+          focusedMemoryId={focusedMemoryId}
+          userId={currentUser.user.id}
           workspaceId={workspaceId}
         />
       ) : (

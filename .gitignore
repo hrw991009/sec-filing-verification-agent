@@ -33,6 +33,8 @@ evals/reports/*
 !evals/reports/README.md
 !evals/reports/day2-v1.json
 !evals/reports/day3-v1.json
+!evals/reports/day4-memory-v1.json
+!evals/reports/day4-memory-v1.md
 
 # Runtime and infrastructure state
 *.log

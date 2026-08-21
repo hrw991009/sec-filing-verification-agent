@@ -13,6 +13,7 @@ from industry_platform.modules.agent_runtime.context import (
     MAX_CONTEXT_SUMMARY_LENGTH,
     MAX_CONTEXT_TOOL_OBSERVATIONS,
     AttachmentContextSource,
+    MemoryContextBundle,
     validate_attachment_context_sources,
 )
 from industry_platform.modules.agent_runtime.domain import (
@@ -300,6 +301,7 @@ class ToolL1RunCommand:
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
     attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
+    memory_context: MemoryContextBundle = field(default_factory=MemoryContextBundle, repr=False)
     side_effect_idempotency_key: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -380,6 +382,7 @@ class ToolL2RunCommand:
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
     attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
+    memory_context: MemoryContextBundle = field(default_factory=MemoryContextBundle, repr=False)
     side_effect_idempotency_keys: tuple[str | None, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:

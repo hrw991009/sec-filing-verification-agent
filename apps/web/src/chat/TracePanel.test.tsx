@@ -30,11 +30,15 @@ const trace = {
         {
           decision_reason: "included",
           estimated_token_count: 24,
+          feedback_score: null,
           included: true,
           message_role: "user",
           ordinal: 5,
+          relevance_score: null,
           source_id: "55555555-5555-4555-8555-555555555555",
           source_kind: "tool_observation",
+          source_revision_id: null,
+          source_scope: null,
           source_sha256: "a".repeat(64),
           source_version: "tool-observation-v1",
         },
@@ -112,6 +116,7 @@ describe("Tool Inspector", () => {
         activeRun={null}
         events={trace.events}
         onClose={vi.fn()}
+        onOpenMemory={vi.fn()}
         onRetry={undefined}
         trace={trace}
         traceError={null}

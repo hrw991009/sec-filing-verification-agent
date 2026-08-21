@@ -9,11 +9,14 @@ import pytest
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.memory.domain import (
     CandidateCreationResult,
+    ChangeMemoryStatus,
     CreateMemoryCandidate,
+    DeleteMemory,
     Memory,
     MemoryCandidate,
     MemoryCandidateStatus,
     MemoryDetail,
+    MemoryFeedback,
     MemoryKind,
     MemoryPolicyAssessment,
     MemoryPolicyDecision,
@@ -23,8 +26,10 @@ from industry_platform.modules.memory.domain import (
     MemoryScope,
     MemorySourceMessage,
     MemoryWriteAction,
+    RecordMemoryFeedback,
     RejectMemoryCandidate,
     ResolveMemoryCandidate,
+    UpdateMemory,
 )
 from industry_platform.modules.memory.service import MemoryApplicationService
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
@@ -132,14 +137,38 @@ class RecordingRepository:
         self,
         scope: WorkspaceScope,
         *,
+        query: str | None,
+        status: object,
+        memory_scope: object,
+        kind: object,
         limit: int,
     ) -> tuple[Memory, ...]:
-        del scope, limit
+        del scope, query, status, memory_scope, kind, limit
         self.calls.append("list_memories")
         return ()
 
     async def get_memory(self, scope: WorkspaceScope, memory_id: UUID) -> MemoryDetail:
         del scope, memory_id
+        raise NotImplementedError
+
+    async def update_memory(self, scope: WorkspaceScope, command: UpdateMemory) -> MemoryDetail:
+        del scope, command
+        raise NotImplementedError
+
+    async def change_status(
+        self, scope: WorkspaceScope, command: ChangeMemoryStatus
+    ) -> MemoryDetail:
+        del scope, command
+        raise NotImplementedError
+
+    async def delete_memory(self, scope: WorkspaceScope, command: DeleteMemory) -> bool:
+        del scope, command
+        raise NotImplementedError
+
+    async def record_feedback(
+        self, scope: WorkspaceScope, command: RecordMemoryFeedback
+    ) -> MemoryFeedback:
+        del scope, command
         raise NotImplementedError
 
 

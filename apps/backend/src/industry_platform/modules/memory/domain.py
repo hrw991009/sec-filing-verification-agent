@@ -79,6 +79,11 @@ class MemoryRevisionValidity(StrEnum):
     WITHDRAWN = "withdrawn"
 
 
+class MemoryFeedbackValue(StrEnum):
+    HELPFUL = "helpful"
+    NOT_HELPFUL = "not_helpful"
+
+
 class MemoryError(Exception):
     """Base class for safe Memory failures."""
 
@@ -126,6 +131,13 @@ def require_memory_content(value: str) -> str:
     if not normalized or len(normalized) > MAX_MEMORY_CONTENT_LENGTH or "\x00" in normalized:
         raise ValueError("Memory content is invalid")
     return normalized
+
+
+def memory_content_is_sensitive(value: str) -> bool:
+    """Recheck current content before recall; write-time policy is not enough."""
+
+    content = require_memory_content(value)
+    return any(pattern.search(content) is not None for pattern in _SENSITIVE_PATTERNS)
 
 
 def require_source_message_ids(value: tuple[UUID, ...]) -> tuple[UUID, ...]:
@@ -180,7 +192,7 @@ def assess_memory_candidate(
     suggested_content: str,
 ) -> MemoryPolicyAssessment:
     content = require_memory_content(suggested_content)
-    if any(pattern.search(content) is not None for pattern in _SENSITIVE_PATTERNS):
+    if memory_content_is_sensitive(content):
         return MemoryPolicyAssessment(
             decision=MemoryPolicyDecision.REJECTED,
             reason=MemoryPolicyReason.SENSITIVE_CONTENT,
@@ -308,6 +320,7 @@ class MemoryRevision:
     editor_user_id: UUID
     source_message_ids: tuple[UUID, ...]
     validity: MemoryRevisionValidity
+    expires_at: datetime | None
     created_at: datetime
 
 
@@ -322,6 +335,7 @@ class Memory:
     status: MemoryStatus
     current_revision_id: UUID
     current_version: int
+    revision: int
     expires_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -332,6 +346,86 @@ class MemoryDetail:
     memory: Memory
     current_revision: MemoryRevision
     revisions: tuple[MemoryRevision, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateMemory:
+    memory_id: UUID
+    expected_revision: int
+    content: str
+    scope: MemoryScope
+    kind: MemoryKind
+    expires_at: datetime | None
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.memory_id, field_name="memory_id")
+        if self.expected_revision < 1:
+            raise ValueError("Memory revision is invalid")
+        object.__setattr__(self, "content", require_memory_content(self.content))
+        if self.expires_at is not None:
+            require_utc(self.expires_at, field_name="expires_at")
+
+
+@dataclass(frozen=True, slots=True)
+class ChangeMemoryStatus:
+    memory_id: UUID
+    expected_revision: int
+    status: MemoryStatus
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.memory_id, field_name="memory_id")
+        if self.expected_revision < 1 or self.status not in {
+            MemoryStatus.CONFIRMED,
+            MemoryStatus.DISABLED,
+        }:
+            raise ValueError("Memory status transition is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteMemory:
+    memory_id: UUID
+    expected_revision: int
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.memory_id, field_name="memory_id")
+        if self.expected_revision < 1:
+            raise ValueError("Memory revision is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class RecordMemoryFeedback:
+    memory_id: UUID
+    expected_revision: int
+    memory_revision_id: UUID
+    value: MemoryFeedbackValue
+    reason: str | None
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.memory_id, field_name="memory_id")
+        require_non_nil_uuid(self.memory_revision_id, field_name="memory_revision_id")
+        if self.expected_revision < 1:
+            raise ValueError("Memory revision is invalid")
+        if self.reason is not None:
+            reason = self.reason.strip()
+            if not reason or len(reason) > 500:
+                raise ValueError("Memory feedback reason is invalid")
+            object.__setattr__(self, "reason", reason)
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryFeedback:
+    feedback_id: UUID
+    memory_id: UUID
+    memory_revision_id: UUID
+    actor_user_id: UUID
+    value: MemoryFeedbackValue
+    reason: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 @dataclass(frozen=True, slots=True)

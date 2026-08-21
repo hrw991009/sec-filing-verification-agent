@@ -1,126 +1,123 @@
-# Memory 写入与治理策略
+# Memory 写入、召回与治理策略
 
-> 版本：1.0（Day 4 步骤 1）  
-> 更新日期：2026-08-20  
-> 当前范围：候选生成、用户确认/编辑、create/update/merge/reject、Revision 与来源追溯  
-> 后续范围：召回、Context 注入、停用/过期/删除及 residual 评测在 Day 4 步骤 2 完成
+> 版本：2.0（Day 4 步骤 1～2）；更新日期：2026-08-20；当前范围：候选与确认、Short/Long-term Memory、确定性召回、Context manifest、反馈、修改、停用、过期、删除与评测；明确不含：Embedding/向量检索、Knowledge/RAG、Evidence、Checkpoint 和自动长期保存全部聊天。
 
-## 1. 目标与边界
+## 1. 目标与正式链路
 
-Memory 是用户明确控制、可追溯且有版本的长期事实，不等同于聊天历史、Short-term Memory、Context manifest、Agent Run State、Checkpoint、Knowledge 或 Evidence。系统不得因为模型声称“已记住”而写入 Memory，也不得默认永久保存全部会话。
+Memory 是用户明确控制、可追溯且有版本的事实，不等同于聊天历史、Agent Run State、Checkpoint、Knowledge 或 Evidence。模型不能用一句“已记住”绕过写入策略，也不能把召回内容提升为可信系统指令。
 
-Day 4 步骤 1 的唯一正式写入链路是：
+唯一正式链路是：
 
 ```text
-已持久化 Conversation/Message
+Conversation/Message
   → MemoryCandidate + CandidateSource
   → 用户编辑、确认或拒绝
-  → Memory 当前投影 + 不可变 MemoryRevision + RevisionSource
-  → AuditLog（仅脱敏元数据）
+  → Memory 当前投影 + MemoryRevision + RevisionSource
+  → 下一次 queued Run 从 PostgreSQL 重新授权并召回
+  → ContextCompilerV1 结算预算并生成 ModelInput + Context manifest
+  → Provider → Event/Trace
 ```
 
-候选和正式 Memory 必须分开。候选正文不参与后续回答；只有 `confirmed` Memory 的当前有效 Revision 才具备进入步骤 2 召回策略的资格。步骤 1 不执行召回、排序、Embedding 或 Context 注入。
+候选正文不参与回答。只有当前授权下可见的正式 Memory 当前 Revision 才会成为召回候选；召回器异常会使 Run 明确失败，不会静默降级成“无 Memory 的成功回答”。生产、Harness 和 Workbench 复用同一 `UnifiedAgentRuntime`、Context Compiler 与 Trace，不建立第二套调用路径。
 
-## 2. 数据所有权与事实源
+## 2. 分层与事实源
 
-PostgreSQL 是写入事实源：
+PostgreSQL 是唯一业务事实源，Redis 只承载短期事件，不保存长期 Memory：
 
 | 实体 | 职责 | 关键不变量 |
 |---|---|---|
-| `thread_memory_states` | 当前 Conversation 的有界 Short-term 摘要投影 | 绑定 Workspace、owner 和 Conversation；1～8 个来源；revision/compaction revision 单调递增 |
-| `memory_candidates` | 尚待用户决定或已决议的候选 | 幂等键只保存 SHA-256；状态与决议字段由数据库约束保持一致 |
-| `memory_candidate_sources` | 候选到正式 Message 的有序引用 | Message 和候选必须属于同一 Workspace/owner 边界 |
-| `memories` | 长期 Memory 的当前投影 | 当前 Revision、版本、scope、kind、confidence、status 和 expiry 受约束 |
-| `memory_revisions` | append-only 的内容与决策历史 | `(memory_id, version)` 唯一；记录 editor、write action/reason、policy decision 和 validity |
-| `memory_revision_sources` | Revision 到正式 Message 的有序 lineage | 不复制来源正文；复合外键阻止跨 Workspace 拼接 |
+| `thread_memory_states` | 同一 Conversation 的有界 Short-term 摘要投影 | 绑定 Workspace、owner、Conversation 和 1～8 个正式 Message；revision/compaction revision 单调递增 |
+| `memory_candidates` / `memory_candidate_sources` | 用户决议前的候选及来源 | 候选与正式 Memory 分离；来源必须属于同一 Workspace/owner/Conversation |
+| `memories` | Long-term Memory 当前投影 | 保存当前 Revision、资源 CAS revision、scope、kind、status、confidence 和 expiry |
+| `memory_revisions` / `memory_revision_sources` | 内容版本与 lineage | 正常修改 append-only；当前 Revision 才可召回；来源不复制 Message 正文 |
+| `memory_feedback` | 当前用户对具体 Revision 的反馈 | 同一 actor/Revision 只保留一份当前反馈；反馈不改写 Memory 正文 |
 
-Conversation 是 Thread 载体，不另建第二套 Session/Thread。Redis 不保存长期 Memory 事实；本步骤也不引入向量库或进程内业务事实缓存。
+Short-term Memory 只服务同一 Thread，包含摘要、来源 Message 引用、freshness 和 compaction revision。Long-term Memory 可跨 Thread 召回，但必须经过用户确认和每次 Run 的重新授权。两者都作为不可信 `user` 数据进入 ModelInput，不得成为 `system` 指令；它们也不等于 Context manifest、State 或 Checkpoint。
 
-`scope=user|workspace` 是已冻结的内容作用域。步骤 1 的列表和详情仍按当前登录用户过滤，即使候选选择 `workspace` 也不会提前向其他成员共享；Workspace 级召回与共享授权在步骤 2 冻结并测试前不得开放。
+本阶段不引入向量库、Embedding 或进程内业务事实缓存。确定性词法基线的目标是让选择、排除和预算行为可解释、可重复，再由 Eval 决定是否需要后续检索升级。
 
-## 3. 可信输入与权限
+## 3. 写入、权限与并发
 
-- `workspace_id` 来自受保护路由，`user_id`、成员角色和 owner 来自认证 Principal；客户端和模型不能提交或覆盖它们。
-- 候选必须引用当前 Workspace 内、属于同一 Conversation、尚未逻辑删除的正式 Message；每个候选允许 1～8 个不重复来源。
-- 创建候选需要当前角色具备 `CREATE_RESOURCE`，查看需要 `VIEW`。跨 Workspace、伪造 Conversation/Message 或其他用户的候选/Memory 对调用者表现为拒绝或不可见，不泄露资源是否存在。
-- 确认时再次检查来源仍可用；候选创建后若 Conversation 或 Message 已失效，返回 `MEMORY_SOURCE_NOT_FOUND`，不得使用候选中的旧副本绕过权限。
-- 正文规范化后必须为 1～4000 个字符、不得包含 NUL；expiry 若提供必须是未来 UTC 时间。
+- `workspace_id` 来自受保护路由；`user_id`、成员角色和 owner 来自认证 Principal，客户端和模型不能覆盖。
+- 候选必须引用当前 Workspace、同一 Conversation、未逻辑删除的正式 Message；每个候选允许 1～8 个不重复来源。
+- 创建候选需要 `CREATE_RESOURCE`，读取需要 `VIEW`。`user` scope 仅 owner 可读；`workspace` scope 可由同 Workspace 成员读取，但只有 owner 可修改、停用、启用或删除。
+- 助手单一来源必须由用户编辑；认证材料、密码、API key、token、Cookie、私钥等敏感模式在候选阶段拒绝，并在召回前再次检查。
+- 正文规范化后为 1～4000 个字符且不含 NUL；expiry 写入时必须是未来 UTC 时间。
+- 候选创建使用 `Idempotency-Key`；确认/拒绝使用候选 `If-Match`。Memory 修改、停用、启用、删除和反馈使用资源 `If-Match`，stale revision 返回 `MEMORY_CONFLICT`。
+- `create` 产生 content v1；`update/merge` 追加 content vN+1。治理状态改变只递增资源 revision，不伪造新的内容版本。
 
-## 4. 候选策略
+候选基线策略保持确定性：用户来源允许，用户/助手混合来源允许但必须展示，助手单一来源要求编辑，敏感内容直接拒绝。用户确认是写入授权，不能由模型或后台任务代替。
 
-步骤 1 使用确定、可测试的基线策略，不把模型判断当成授权：
+## 4. 召回授权、排序与冲突
 
-| 来源/内容 | decision | confidence | 行为 |
-|---|---|---:|---|
-| 仅用户消息 | `allowed / user_authored` | 0.95 | 可在用户确认或编辑后写入 |
-| 用户与助手混合 | `allowed / mixed_sources` | 0.80 | 展示来源后由用户决定 |
-| 仅助手消息 | `requires_edit / assistant_only_requires_edit` | 0.60 | 用户必须修改建议正文，原样确认返回 `MEMORY_CANDIDATE_EDIT_REQUIRED` |
-| 命中认证材料、密码、API key、token、Cookie、私钥等敏感模式 | `rejected / sensitive_content` | 0 | 候选直接记为 rejected，`suggested_content` 为 `NULL`，不可确认 |
+每个 queued Run 在执行前从 PostgreSQL 重载当前状态。查询边界只允许：当前用户自己的 Memory，以及同 Workspace 的 `workspace` scope Memory；其他用户的 `user` scope 和其他 Workspace 数据不得进入候选集合。
 
-多条来源的建议正文按来源顺序确定性构造，供用户审阅，不是模型生成的最终事实。当前敏感规则是阻断基线，不代表完整 DLP；任何漏检都不能成为把正文写入日志、Trace 或前端持久缓存的理由。
+Long-term Memory 最多考虑 20 条，依次执行：
 
-## 5. 状态、幂等与并发
+1. 重新检查 status、expiry、当前 Revision validity、来源 Conversation、敏感内容和当前用户反馈。
+2. 对当前 goal 与 Memory 正文按英文/数字 token 和中文字符计算词法覆盖率；相关性为 0 时排除。
+3. `fact`/`note` 超过 365 天未更新时视为 stale；`preference`/`instruction` 不套用该固定时限。
+4. 按“可注入、相关性、helpful 反馈、user scope、更新时间、Memory id”确定性排序。
+5. 正文规范化后完全相同的候选标记 `excluded_duplicate`；同 kind 且 token Jaccard 相似度至少 0.6、但正文不同的低优先候选标记 `excluded_conflicted`，不静默覆盖高优先事实。
+6. 最多 6 条 Long-term Memory 可进入 Context；其余或无法容纳者标记 `excluded_token_budget`。
 
-候选仅允许以下状态流转：
+当前排除原因全集为：`not_available`、`excluded_not_relevant`、`excluded_stale`、`excluded_conflicted`、`excluded_duplicate`、`excluded_sensitive`、`excluded_disabled`、`excluded_expired`、`excluded_deleted`、`excluded_negative_feedback` 和 `excluded_token_budget`。`not_helpful` 会让该 Revision 在后续 Run 中排除；`helpful` 只提高同等候选中的排序，不越过权限、敏感、状态、时效、冲突或预算规则。
 
-```text
-candidate ──confirm(create/update/merge)──> confirmed
-    │
-    └────────────────reject───────────────> rejected
+## 5. Context 与 Trace 不变量
 
-sensitive content ──policy───────────────> rejected
-```
+`ContextCompilerV1` 的稳定可选顺序是 Conversation summary → Short-term Memory → 已排序 Long-term Memory；之后仍按既有顺序加入附件、当前问题和 Tool Observation。System instructions、Runtime projection、当前问题等必需输入不会为了 Memory 静默删除；必需输入或输出保留无法满足时沿现有预算 stop reason 失败。
 
-- 创建候选要求 `Idempotency-Key`。同一 Workspace、owner、key 和相同请求返回原候选并标记 `created=false`；同 key 不同请求返回 `MEMORY_CONFLICT`。
-- 确认和拒绝要求 `If-Match` 候选 Revision。成功决议将候选 Revision 加一；并发决议至多一个成功。
-- 完全相同的确认重试通过 resolution fingerprint 返回同一 Memory，`created=false`；内容或动作不同的重复确认返回 `MEMORY_CONFLICT`。
-- `create` 产生 Memory v1；`update` 和 `merge` 都要求目标 Memory id 与当前 `target_revision`，成功后追加 vN+1 并更新当前投影。旧 Revision 不改写。
-- `update` 表示用户用新的完整内容替换当前解释；`merge` 表示用户已在确认框中给出合并后的完整内容。系统不在服务端隐式拼接或静默覆盖。
-- 重复拒绝幂等返回 rejected 候选；已拒绝候选不能再次确认。
+每条 Long-term Memory 的 manifest 项至少保存：Memory id、Revision id、content version、scope、relevance score、feedback score、included、decision reason、message role 和 token count。manifest 不保存 Memory 正文；允许保存非敏感内容 digest。被排除项的 `estimated_token_count=0` 且没有 `message_role`；被包含项的 token 总数必须与实际 ModelInput 和预算快照一致。
 
-## 6. HTTP 契约与稳定失败
+Provider 只看到明确标为 untrusted historical data 的 Memory 消息。TracePanel 从正式 Trace 展示使用或排除原因，并可按 Memory id 导航到当前授权下的治理详情；前端不缓存另一份事实，也不能据旧 Trace 绕过当前删除或权限状态读取正文。
 
-正式端点位于 `/api/v1/workspaces/{workspace_id}/memories`：候选创建/列表/详情、确认、拒绝，以及 Memory 列表/详情。OpenAPI 是 Web DTO 的生成源；浏览器不得维护第二套请求结构。
+## 6. 治理与删除语义
 
-| code | HTTP | 含义与恢复 |
+正式 API 支持列表/搜索/状态、scope、kind 筛选，详情/Revision，反馈，修改，停用，恢复启用和删除。所有 UI 操作等待服务端响应并重新加载；409、删除失败或网络失败不能用乐观 UI 假装成功。
+
+- 修改：追加 Revision、更新当前投影并递增资源 revision；下一次 Run 只读取新 Revision。
+- 停用/启用：递增资源 revision；停用项保留可治理记录但召回时明确排除。
+- 过期：当前时间达到 `expires_at` 后立即从召回排除，manifest 原因为 `excluded_expired`。
+- 删除：在单个 PostgreSQL 事务内把当前投影 tombstone、将 Revision 正文改为 `[deleted]` 并 withdraw、删除 Revision source、清空已决候选中的建议正文；默认列表、详情和下一次召回均不可见。
+- 重复删除：同一 owner 对已删除资源重复请求返回成功，即使携带删除前的原 revision；不存在的或未授权资源仍返回 404。
+
+当前实现没有向量索引或业务缓存，因此删除不依赖异步清理才能生效。数据库备份的保留与彻底擦除仍继承项目统一备份策略；Day 7 隔离恢复演练完成前，不把当前在线数据 residual=0 表述为备份介质已擦除。
+
+## 7. HTTP 失败与隐私
+
+端点位于 `/api/v1/workspaces/{workspace_id}/memories`，OpenAPI 是 Web DTO 的唯一生成源。错误使用统一 `application/problem+json` 与 trace id：
+
+| code | HTTP | 恢复动作 |
 |---|---:|---|
-| `MEMORY_NOT_FOUND` | 404 | 候选、Memory 不存在或不属于当前 owner；返回列表后重选 |
-| `MEMORY_SOURCE_NOT_FOUND` | 404 | 来源已失效；回到会话重新选择有效消息 |
-| `MEMORY_CONFLICT` | 409 | 候选/目标 Revision 或幂等请求冲突；重新加载后再次决定 |
-| `MEMORY_CANDIDATE_EDIT_REQUIRED` | 422 | 助手单一来源仍是原建议正文；用户编辑后重试 |
-| `MEMORY_REQUEST_REJECTED` | 422 | 正文、expiry 或结构不合法；修正请求，不自动降级 |
-| `MEMORY_UNAVAILABLE` | 503 | PostgreSQL 暂时不可用；使用同一幂等键安全重试 |
+| `MEMORY_NOT_FOUND` | 404 | 资源不存在、已删除或当前用户无权查看；返回列表重选 |
+| `MEMORY_SOURCE_NOT_FOUND` | 404 | 来源已失效；从仍有效 Message 新建候选 |
+| `MEMORY_CONFLICT` | 409 | 重新 GET 最新资源 revision 后由用户再次决定 |
+| `MEMORY_CANDIDATE_EDIT_REQUIRED` | 422 | 编辑助手单一来源建议后重试 |
+| `MEMORY_REQUEST_REJECTED` | 422 | 修正正文、expiry 或结构，不自动降级 |
+| `MEMORY_UNAVAILABLE` | 503 | 保持当前 Run/操作失败状态，在事实源恢复后安全重试 |
 
-错误响应沿用统一 `application/problem+json` 与 trace id；不在 detail 中回显候选或 Memory 正文。
+普通日志、错误 detail、AuditLog 和 Context manifest 不记录候选/Memory/来源正文、认证材料或原始 chain-of-thought。AuditLog 只记录资源 id、动作、revision、scope、来源数量、结果和 trace id；敏感或 deleted 候选不暴露内容 digest。
 
-## 7. 隐私、审计与保留
+## 8. 评测口径
 
-- 普通日志不记录候选正文、Memory 正文、来源消息、认证材料或原始 chain-of-thought。数据库完整性告警只记录 SQLSTATE 与约束名。
-- AuditLog 只记录 resource/candidate id、action、candidate/memory revision、policy decision/reason、scope、source count、outcome 和 trace id。
-- Candidate/Revision 通过正式 Message id 保留 provenance；API 只有在当前授权下才读取正文和来源 id。
-- 步骤 1 保留用户决议与不可变 Revision 以支持审计。停用、过期、删除、隐私擦除、派生索引清理和 deletion residual=0 属于步骤 2；完成前不得宣称已满足完整删除治理。
-- PostgreSQL 备份继承项目统一备份边界。Day 7 前仍需完成隔离恢复演练；当前仅验证 fresh migration 和事务回滚，不能把数据库存在等同于已验证灾备。
+版本化数据集 `day4-memory-v1` 通过共享 `agent_harness` Scenario loader 读取，确定性 scorer `memory-scorer-v1` 分别报告 write accuracy、retrieval precision、utility、pollution、conflict handling、edit effectiveness、deletion residual、平均 input token 和平均 latency。每项比率必须携带 numerator/denominator；删除样本的固定分母不能随残留数变化。
 
-## 8. 运维、回滚与故障恢复
+JSON/Markdown 基线报告来自冻结 observation fixture，不冒充真实 Provider 质量结论。真实 PostgreSQL 集成测试负责证明跨 Thread 召回、修改、停用、过期、删除、反馈和跨 Workspace 隔离；Context 契约测试同时断言 manifest 与实际 ModelInput 一致。
 
-应用发布顺序为 migration upgrade 后部署兼容应用。确认写入在单个数据库事务内完成；任一 FK、CAS 或审计写入失败都会整体回滚，不留下“候选已确认但 Revision 不存在”的半状态。
+## 9. 发布、回滚与当前证据
 
-故障恢复顺序：
+应用发布顺序为 migration upgrade 后部署兼容应用。若要回退步骤 2，先停止新的 Memory 治理写入并备份 PostgreSQL；回退应用到步骤 1 代码后，只有明确接受丢失 feedback、资源 revision、expiry 与删除治理数据时，才能将 migration `d7c91e4a62bf` downgrade 到 `b4d8f3a9c210`。不得为迁就旧代码直接降级生产库，也不得在回退时重新暴露已 tombstone 的正文。
 
-1. 503 或连接中断时，先用同一 `Idempotency-Key` 重试候选创建，或用同一确认 payload 重试决议。
-2. 409 时不要盲重试；重新 GET 候选与目标 Memory，显示最新 Revision，由用户重新决定。
-3. 来源 404 时终止当前候选确认，让用户从仍有效的正式 Message 创建新候选。
-4. 若需回退发布，先停止 Memory 新写入并备份 PostgreSQL，再回退应用。只有明确接受删除本步骤数据时，才可执行 `alembic downgrade a8f42d91e3b7`；生产数据不得为迁就旧代码直接降级。
-5. 恢复后重新执行 fresh upgrade、候选幂等、确认 CAS、跨 Workspace 与审计脱敏测试。
-
-## 9. 当前验收证据与未完成项
+恢复后至少重跑 fresh upgrade、资源 CAS、跨 Thread 召回、跨 Workspace 负向、manifest/ModelInput 一致性、删除 residual、OpenAPI、组件和浏览器旅程。
 
 实现与测试入口：
 
-- Domain/Application/API：`apps/backend/tests/modules/memory/`
-- 真实 PostgreSQL、权限、来源失效、审计与并发：`apps/backend/tests/integration/test_memory_write_postgres.py`
-- Migration 约束：`apps/backend/tests/integration/test_migration_smoke.py`
-- Web 组件/API：`apps/web/src/chat/ChatWorkbench.test.tsx`、`apps/web/src/chat/chat-api.test.ts`
+- Runtime/Context：`apps/backend/tests/modules/agent_runtime/test_context_v1.py`
+- Memory Domain/API/Eval：`apps/backend/tests/modules/memory/`
+- 真实 PostgreSQL 与删除残留：`apps/backend/tests/integration/test_memory_write_postgres.py`
+- Migration：`apps/backend/tests/integration/test_migration_smoke.py`
+- Web/API/Trace：`apps/web/src/chat/MemoryWorkspace.test.tsx`、`chat-api.test.ts`、`TracePanel.test.tsx`
 - 浏览器旅程：`tests/e2e/app-shell.spec.ts`
+- 版本化数据集与报告：`evals/scenarios/day4-memory-v1.json`、`evals/reports/day4-memory-v1.json`、`evals/reports/day4-memory-v1.md`
 
-本策略不会提前承诺下列能力：实际召回和 Context manifest、跨 Thread 使用说明、修改/停用/过期/删除后的下一 Run 生效、Memory Scorer 和 deletion residual。它们必须在步骤 2 用同一 PostgreSQL/Application/UnifiedAgentRuntime 正式链路完成后再更新本文。
+当前已通过本地验收，等待提交后的干净 CI 与项目所有者复核。只有远端复核也通过后，才能把步骤 2 或 D4-02/D4-03 标记为 `complete`；D4-07 还必须等待 Research 预算与策略边界完成。

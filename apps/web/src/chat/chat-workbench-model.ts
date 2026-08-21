@@ -95,8 +95,10 @@ export const eventNames: Record<string, string> = {
 export const sourceNames: Record<string, string> = {
   attachment: "附件",
   conversation_summary: "会话摘要",
+  long_term_memory: "长期 Memory",
   runtime_context_projection: "Workspace 安全投影",
   system_instructions: "系统指令",
+  short_term_memory: "当前 Thread Memory",
   tool_observation: "工具观察结果",
   user_question: "当前问题",
 };

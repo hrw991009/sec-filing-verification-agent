@@ -29,7 +29,6 @@ from industry_platform.modules.agent_runtime.adapters.trace_query import (
     SqlAlchemyAgentTraceQuery,
 )
 from industry_platform.modules.agent_runtime.context_compiler import (
-    ContextCompilerV0,
     ContextCompilerV1,
     Utf8UpperBoundTokenCounter,
 )
@@ -53,6 +52,7 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
 from industry_platform.modules.agent_runtime.trace import AgentTrace
 from industry_platform.modules.conversations.domain import CONVERSATION_WEB_TOOL_CALL_LIMIT
 from industry_platform.modules.files.resources import create_private_file_object_store
+from industry_platform.modules.memory.adapters.context import SqlAlchemyMemoryContextLoader
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import (
     RegisteredToolAdapter,
@@ -143,7 +143,7 @@ def create_direct_answer_runtime_resources(
         schema_version=1,
         profile_version="direct-answer-v0",
         prompt_version="direct-answer-prompt-v0",
-        context_compiler_version="context-v0",
+        context_compiler_version="context-v1",
         output_contract_version="final-markdown-v1",
         model=model,
         max_input_tokens=2_048,
@@ -161,7 +161,7 @@ def create_direct_answer_runtime_resources(
     cancellation_probe = SqlAlchemyAgentRunControl(session_factory)
     manifest_store = SqlAlchemyContextManifestStore(session_factory)
     direct_runtime = DirectAnswerRuntime(
-        context_compiler=ContextCompilerV0(token_counter=Utf8UpperBoundTokenCounter()),
+        context_compiler=ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter()),
         context_manifest_store=manifest_store,
         model_provider=model_provider,
         event_committer=event_committer,
@@ -212,6 +212,7 @@ def create_direct_answer_runtime_resources(
             policy,
             tool_policy=tool_policy,
             attachment_object_reader=create_private_file_object_store(settings),
+            memory_context_loader=SqlAlchemyMemoryContextLoader(session_factory),
         ),
         runtime=runtime,
         terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),

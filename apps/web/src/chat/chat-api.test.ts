@@ -204,6 +204,7 @@ describe("chat REST API", () => {
                 content: "默认使用中文回答。",
                 created_at: "2026-08-20T08:01:00Z",
                 editor_user_id: fileId,
+                expires_at: null,
                 id: fileId,
                 kind: "preference",
                 policy_decision: "allowed",
@@ -223,6 +224,7 @@ describe("chat REST API", () => {
                 id: memoryId,
                 kind: "preference",
                 owner_user_id: fileId,
+                revision: 1,
                 scope: "user",
                 source_conversation_id: conversationId,
                 status: "confirmed",
@@ -291,6 +293,107 @@ describe("chat REST API", () => {
         ? null
         : new URL(listRequest.url).searchParams.get("conversation_id"),
     ).toBe(conversationId);
+  });
+
+  it("uses resource revisions for Memory search, governance, deletion, and feedback", async () => {
+    const captured: Request[] = [];
+    const snapshot = {
+      confidence: 0.95,
+      created_at: "2026-08-20T08:01:00Z",
+      current_revision_id: fileId,
+      current_version: 2,
+      expires_at: null,
+      id: memoryId,
+      kind: "preference",
+      owner_user_id: fileId,
+      revision: 4,
+      scope: "user",
+      source_conversation_id: conversationId,
+      status: "confirmed",
+      updated_at: "2026-08-20T08:02:00Z",
+    } as const;
+    const revision = {
+      content: "钢铁报告默认使用中文回答。",
+      created_at: "2026-08-20T08:02:00Z",
+      editor_user_id: fileId,
+      expires_at: null,
+      id: fileId,
+      kind: "preference",
+      policy_decision: "allowed",
+      scope: "user",
+      source_message_ids: [fileId],
+      validity: "valid",
+      version: 2,
+      write_action: "update",
+      write_reason: "user_governance_update",
+    } as const;
+    const detail = { current_revision: revision, memory: snapshot, revisions: [revision] };
+    const fetchMock = vi.fn<typeof fetch>((input, init) => {
+      const request = asRequest(input, init);
+      captured.push(request.clone());
+      const path = new URL(request.url).pathname;
+      const root = `/api/v1/workspaces/${workspaceId}/memories`;
+      if (request.method === "GET" && path === root) {
+        return Promise.resolve(jsonResponse({ memories: [snapshot] }));
+      }
+      if (request.method === "DELETE" && path === `${root}/${memoryId}`) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      if (request.method === "POST" && path.endsWith("/feedback")) {
+        return Promise.resolve(
+          jsonResponse({
+            actor_user_id: fileId,
+            created_at: snapshot.updated_at,
+            id: candidateId,
+            memory_id: memoryId,
+            memory_revision_id: fileId,
+            reason: null,
+            updated_at: snapshot.updated_at,
+            value: "helpful",
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse(detail));
+    });
+    const api = await loadChatApi(fetchMock);
+
+    await expect(
+      api.listMemories(workspaceId, {
+        kind: "preference",
+        query: "钢铁",
+        scope: "user",
+        status: "confirmed",
+      }),
+    ).resolves.toMatchObject([{ id: memoryId, revision: 4 }]);
+    await expect(api.getMemory(workspaceId, memoryId)).resolves.toMatchObject({
+      memory: { id: memoryId },
+    });
+    await expect(
+      api.updateMemory(workspaceId, memoryId, 4, {
+        content: "钢铁报告默认使用中文回答。",
+        expires_at: null,
+        kind: "preference",
+        scope: "user",
+      }),
+    ).resolves.toMatchObject({ memory: { revision: 4 } });
+    await expect(api.disableMemory(workspaceId, memoryId, 4)).resolves.toBeDefined();
+    await expect(api.enableMemory(workspaceId, memoryId, 4)).resolves.toBeDefined();
+    await expect(
+      api.recordMemoryFeedback(workspaceId, memoryId, 4, {
+        memory_revision_id: fileId,
+        reason: null,
+        value: "helpful",
+      }),
+    ).resolves.toMatchObject({ value: "helpful" });
+    await expect(api.deleteMemory(workspaceId, memoryId, 4)).resolves.toBeUndefined();
+
+    const listRequest = captured[0];
+    const search = new URL(listRequest?.url ?? "https://invalid.example").searchParams;
+    expect(search.get("query")).toBe("钢铁");
+    expect(search.get("status")).toBe("confirmed");
+    for (const request of captured.filter((item) => item.method !== "GET")) {
+      expect(request.headers.get("if-match")).toBe('"4"');
+    }
   });
 
   it("hashes once, posts the presigned multipart without credentials, then completes parsing", async () => {
@@ -381,33 +484,45 @@ describe("chat REST API", () => {
             {
               decision_reason: "included",
               estimated_token_count: 5,
+              feedback_score: null,
               included: true,
               message_role: "user",
               ordinal: 1,
+              relevance_score: null,
               source_id: "question",
               source_kind: "user_question",
+              source_revision_id: null,
+              source_scope: null,
               source_sha256: null,
               source_version: "v1",
             },
             {
               decision_reason: "not_available",
               estimated_token_count: 0,
+              feedback_score: null,
               included: false,
               message_role: null,
               ordinal: 2,
+              relevance_score: null,
               source_id: "conversation-summary",
               source_kind: "conversation_summary",
+              source_revision_id: null,
+              source_scope: null,
               source_sha256: null,
               source_version: "v1",
             },
             {
               decision_reason: "included",
               estimated_token_count: 8,
+              feedback_score: null,
               included: true,
               message_role: "user",
               ordinal: 3,
+              relevance_score: null,
               source_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
               source_kind: "tool_observation",
+              source_revision_id: null,
+              source_scope: null,
               source_sha256: "a".repeat(64),
               source_version: "tool-observation-v1",
             },

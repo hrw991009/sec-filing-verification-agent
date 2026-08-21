@@ -533,7 +533,7 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
     assert [value.query for value in tool.invocations] == ["steel", "copper"]
     assert provider.remaining == 0
     assert len(provider.requests) == 3
-    assert [len(manifest.sources) for manifest in manifests.manifests] == [4, 5, 6]
+    assert [len(manifest.sources) for manifest in manifests.manifests] == [5, 6, 7]
     assert [event.event_type for event in events].count(AgentEventType.TOOL_COMPLETED) == 2
     assert events[-1].payload["state_revision"] == 12
     for request in provider.requests:

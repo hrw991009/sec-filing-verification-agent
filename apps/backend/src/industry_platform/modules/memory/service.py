@@ -7,14 +7,22 @@ from uuid import UUID
 from industry_platform.modules.memory.domain import (
     MAX_MEMORY_LIST_SIZE,
     CandidateCreationResult,
+    ChangeMemoryStatus,
     CreateMemoryCandidate,
+    DeleteMemory,
     Memory,
     MemoryCandidate,
     MemoryDetail,
+    MemoryFeedback,
+    MemoryKind,
     MemoryRequestRejectedError,
     MemoryResolutionResult,
+    MemoryScope,
+    MemoryStatus,
+    RecordMemoryFeedback,
     RejectMemoryCandidate,
     ResolveMemoryCandidate,
+    UpdateMemory,
     assess_memory_candidate,
     build_candidate_content,
     canonical_fingerprint,
@@ -145,15 +153,63 @@ class MemoryApplicationService:
         self,
         scope: WorkspaceScope,
         *,
+        query: str | None = None,
+        status: MemoryStatus | None = None,
+        memory_scope: MemoryScope | None = None,
+        kind: MemoryKind | None = None,
         limit: int = 20,
     ) -> tuple[Memory, ...]:
         self._require(scope, WorkspaceAction.VIEW)
         self._require_limit(limit)
-        return await self._repository.list_memories(scope, limit=limit)
+        normalized_query = None if query is None else query.strip()
+        if normalized_query is not None and not 1 <= len(normalized_query) <= 200:
+            raise MemoryRequestRejectedError
+        return await self._repository.list_memories(
+            scope,
+            query=normalized_query,
+            status=status,
+            memory_scope=memory_scope,
+            kind=kind,
+            limit=limit,
+        )
 
     async def get_memory(self, scope: WorkspaceScope, memory_id: UUID) -> MemoryDetail:
         self._require(scope, WorkspaceAction.VIEW)
         return await self._repository.get_memory(scope, memory_id)
+
+    async def update_memory(
+        self,
+        scope: WorkspaceScope,
+        command: UpdateMemory,
+    ) -> MemoryDetail:
+        self._require(scope, WorkspaceAction.CREATE_RESOURCE)
+        if command.expires_at is not None and command.expires_at <= self._clock():
+            raise MemoryRequestRejectedError
+        return await self._repository.update_memory(scope, command)
+
+    async def change_status(
+        self,
+        scope: WorkspaceScope,
+        command: ChangeMemoryStatus,
+    ) -> MemoryDetail:
+        self._require(scope, WorkspaceAction.CREATE_RESOURCE)
+        return await self._repository.change_status(scope, command)
+
+    async def delete_memory(
+        self,
+        scope: WorkspaceScope,
+        command: DeleteMemory,
+    ) -> bool:
+        self._require(scope, WorkspaceAction.CREATE_RESOURCE)
+        return await self._repository.delete_memory(scope, command)
+
+    async def record_feedback(
+        self,
+        scope: WorkspaceScope,
+        command: RecordMemoryFeedback,
+    ) -> MemoryFeedback:
+        self._require(scope, WorkspaceAction.VIEW)
+        return await self._repository.record_feedback(scope, command)
 
     @staticmethod
     def _require(scope: WorkspaceScope, action: WorkspaceAction) -> None:

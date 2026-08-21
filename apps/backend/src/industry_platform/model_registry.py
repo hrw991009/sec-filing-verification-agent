@@ -57,6 +57,7 @@ from industry_platform.modules.jobs.models import (
 from industry_platform.modules.memory.models import (
     MemoryCandidateRecord,
     MemoryCandidateSourceRecord,
+    MemoryFeedbackRecord,
     MemoryRecord,
     MemoryRevisionRecord,
     MemoryRevisionSourceRecord,
@@ -112,6 +113,7 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     MemoryCandidateRecord,
     MemoryCandidateSourceRecord,
     MemoryRevisionSourceRecord,
+    MemoryFeedbackRecord,
 )
 
 metadata: MetaData = Base.metadata

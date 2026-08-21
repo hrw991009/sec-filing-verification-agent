@@ -158,16 +158,16 @@ D3-01～D3-11 的冻结范围已经全部进入正式实现并通过本地验收
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
 | D4-01 | 从会话创建可控记忆 | R2 + NEW | 候选摘要、确认/编辑、保存、来源、置信度和用户开关 | 组件、API、权限和敏感内容策略测试 | `implemented_pending_verification` | `complete` |
-| D4-02 | 记忆检索与删除 | R2 + NEW | 回答显示使用的记忆；搜索、停用、过期、删除后立即不再召回 | 删除后下一次回答不使用、跨租户为 0 | `planned` | `complete` |
-| D4-03 | Short-term Memory 与 Context manifest | NEW | Thread 消息引用、摘要、compaction revision、freshness、实际注入清单；不自动提升为 Long-term Memory | 压缩、过期、上下文预算、与 State/Checkpoint/Long-term Memory 分层测试 | `thin_slice` | `complete` |
+| D4-02 | 记忆检索与删除 | R2 + NEW | 回答显示使用的记忆；搜索、停用、过期、删除后立即不再召回 | 删除后下一次回答不使用、跨租户为 0 | `implemented_pending_verification` | `complete` |
+| D4-03 | Short-term Memory 与 Context manifest | NEW | Thread 消息引用、摘要、compaction revision、freshness、实际注入清单；不自动提升为 Long-term Memory | 压缩、过期、上下文预算、与 State/Checkpoint/Long-term Memory 分层测试 | `implemented_pending_verification` | `complete` |
 | D4-04 | 唯一 typed Research L3 graph | R2 + NEW | clarification、ResearchBrief、plan、Observation→Evidence、Claim support/refute/uncertain 和可解释草稿 | 确定 Fake 下状态/Event 序列、scope、coverage/conflict 可复现 | `planned` | `complete` |
 | D4-05 | Memory/Research Learning Workbench | R2 + NEW | Memory 候选/确认/召回/冲突/修改/删除、Context manifest、Plan/Action/Observation/Evidence/Claim 图和不确定项 | 真实 Event/manifest 驱动；刷新、修改、删除后的 UI 与下一 Run 一致 | `planned` | `complete` |
 | D4-06 | Claim 与证据图 | R2 + NEW | 关键 Claim、Evidence/Entity 基础图、locator、support/refute/uncertain、coverage/conflict | 图节点/边可反查，缺证据必须显示 uncertain | `planned` | `complete` |
-| D4-07 | Memory/Research 预算与策略边界 | NEW | Context、Token、费用、时间、Tool allowlist；不存原始 CoT、不执行模型代码 | 预算耗尽、跨租户、错误 Memory/Evidence 和审计测试 | `planned` | `complete` |
+| D4-07 | Memory/Research 预算与策略边界 | NEW | Context、Token、费用、时间、Tool allowlist；不存原始 CoT、不执行模型代码 | 预算耗尽、跨租户、错误 Memory/Evidence 和审计测试 | `thin_slice` | `complete` |
 
 Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进。五步开始前 D4-01～D4-07 均保持 `planned`；单步只有代码或页面而未通过该步的真实链路、权限、失败、契约和评测条件时，只能记录过程状态，不能提前标记 `complete`。
 
-2026-08-20 已完成步骤 1 的本地纵向验收：正式 Conversation/Message→候选→用户编辑/确认→Memory/不可变 Revision→刷新恢复链路通过，create/update/merge/reject、敏感策略、来源失效、幂等、并发 CAS、复合外键和跨 Workspace 负向均由真实 PostgreSQL 与 HTTP 测试覆盖；统一门禁为 Python 911、Vitest 57、Playwright 5 条全部通过，OpenAPI 确定性、构建、依赖审计及受控路径/49-commit Secret 扫描通过。由于尚未 commit/push 并取得干净 GitHub CI，D4-01 保持 `implemented_pending_verification`；D4-03 只完成 Short-term 写入建模，尚无 Runtime Context 注入，因此为 `thin_slice`。D4-02 与步骤 2～5 仍为 `planned`。
+2026-08-20 已完成步骤 1、2 的本地纵向验收：正式 Conversation/Message→候选→用户确认→跨 Conversation 的下一次正式 Run→PostgreSQL 重新授权召回→`ContextCompilerV1` ModelInput/manifest→Trace/Workbench→修改、反馈、停用、过期、删除与下一次召回链路通过；真实浏览器确认被纳入 Memory 实际送入模型并可反查 revision，真实 PostgreSQL 验证更新生效、稳定排除原因、重复删除、在线 deletion residual=0 和跨 Workspace 召回为 0。版本化 `day4-memory-v1`/`memory-scorer-v1` 固定质量、污染、删除、Token 与 latency 指标口径。PostgreSQL/Redis/MinIO 全部强制开启时 Python 916 条、Vitest 60 条、Playwright 5 条全部通过，Ruff、mypy、构建、OpenAPI 确定性、依赖审计与受控路径 Secret 扫描通过。由于尚未 commit/push 并取得干净 GitHub CI，D4-01～D4-03 保持 `implemented_pending_verification`；D4-07 只完成 Memory 预算和策略边界，Research 部分尚未开始，因此为 `thin_slice`。D4-04～D4-06 与步骤 3～5 仍为 `planned`。
 
 ## 7. Day 5：Agent Knowledge 与 Durable Research L4
 

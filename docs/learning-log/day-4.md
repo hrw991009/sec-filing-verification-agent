@@ -6,7 +6,7 @@
 >
 > 相关决策：[系统架构](../architecture.md)第 6.5～6.6、10.3、12、15.1、15.4、15.6、18 节，[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)
 >
-> 当前状态：Day 3 门禁已关闭；步骤 1 已完成本地实现与统一门禁，等待提交后的干净 CI 复核；步骤 2～5 尚未开始。
+> 当前状态：Day 3 门禁已关闭；步骤 1、2 已完成本地实现与统一门禁，等待提交后的干净 CI 复核；步骤 3～5 尚未开始。
 
 ## 1. 执行边界
 
@@ -82,7 +82,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 | 步骤 | 当前状态 | 关闭条件 |
 |---|---|---|
 | 1. 可控 Memory 写入 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 2. Memory 召回与治理 | `planned` | 本文步骤 2 的全部验收条件通过 |
+| 2. Memory 召回与治理 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
 | 3. Evidence/Claim 账本 | `planned` | 本文步骤 3 的全部验收条件通过 |
 | 4. Research L3 graph | `planned` | 本文步骤 4 的全部验收条件通过 |
 | 5. Workbench/Eval/Day 4 门禁 | `planned` | 本文步骤 5、Day 4 门禁及适用 DoD 全部通过 |
@@ -102,6 +102,22 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 安全与供应链：Python/Node audit 均无已知漏洞；受控路径及 49 个 Git 提交的 Gitleaks 无发现；AuditLog 只含 id、decision、revision、scope、source count 和 trace id，测试确认敏感正文不进入响应或审计 metadata。
 - 依赖/许可证 `N/A`：本步骤没有新增 Python、Node、服务或 Provider 依赖，锁文件和 NOTICE 无变化；复核人 Codex，2026-08-20。
 - 尚未远端验证：当前没有执行 commit、push 或 GitHub CI，因此步骤状态保持 `implemented_pending_verification`；这不阻塞继续由项目所有者审阅本地切片，但不能表述为干净 CI 已通过。
+
+### 3.2 步骤 2 本地验收记录
+
+复核人：Codex；复核日期：2026-08-20。
+
+- 正式下一次 Run：真实 Chromium 在 Conversation A 确认 Memory 后新建 Conversation B；测试驱动只替换外部 Provider，正式 Job/Loader、`UnifiedAgentRuntime`、`ContextCompilerV1`、Context manifest、Event/Trace 与 PostgreSQL 链路不变。Trace 明确显示 Long-term Memory“已送入模型”，并可导航到对应 revision 后继续治理。
+- ModelInput/manifest：契约测试同时断言被纳入 Memory 正文实际存在于 Provider `ModelRequest`，manifest 只保留 id/digest/revision/scope/ranking 元数据；排除项不进入 ModelInput，纳入项 Token 总数与预算快照一致。Short-term、Long-term、summary、附件、问题与 Observation 保持独立 source kind 和稳定顺序。
+- 召回策略与权限：真实 PostgreSQL 以 current goal、scope、freshness、status/expiry、敏感度、反馈、重复、冲突和预算执行确定性选择；Conversation B 只能召回本 Workspace 当前用户的相关 Memory，同题的外部 Workspace Memory 候选数为 0。
+- 治理与删除：搜索、反馈、修改、停用、启用、过期和删除均走正式 HTTP/Application/Repository；修改后召回 content v2，负反馈、停用与过期分别给出稳定排除原因。删除与重复删除均成功，随后召回、列表、详情、Revision 正文和 Revision source 的在线 residual 均为 0；备份介质擦除仍属于 Day 7 保留策略，不在本步冒充完成。
+- Workbench：正式 Memory 管理页支持列表、搜索、筛选、详情、Revision、修改、scope/kind/expiry、停用/启用、反馈和删除确认；共享 Memory 对非 owner 只读。失败或 stale revision 后重新加载服务端，不用乐观 UI 假装成功；Trace 展示 scope、version、relevance、feedback、Token 与排除原因。
+- Eval：`day4-memory-v1` 通过共享 Harness Scenario loader，`memory-scorer-v1` 输出 write accuracy、retrieval precision/utility、pollution、conflict handling、edit effectiveness、deletion residual、input token 和 latency，并为每项比例固定 numerator/denominator。JSON/Markdown 是确定性 fixture 基线，不冒充真实 Provider 质量结论。
+- 契约与迁移：`d7c91e4a62bf` 在 fresh PostgreSQL 上完成步骤 2 schema upgrade，Memory migration 与治理测试 4/4 通过；OpenAPI/TypeScript 连续两次生成 SHA-256 一致。HTTP 使用统一 problem+json；本步未新增 SSE Event type，故 SSE schema 变更为 `N/A`（原因：召回事实进入既有 Context manifest/Trace，治理是同步资源操作；复核人 Codex，2026-08-20）。
+- 完整本地门禁：PostgreSQL/Redis/MinIO 全部强制开启时 Python `916 passed`、无 skip；Ruff、mypy 321 个源文件、Python wheel/sdist、ESLint、类型检查、15 个 Vitest 文件共 60 条测试、生产构建和 Playwright 5/5 通过。Python/Node audit 无已知漏洞，受控代码/测试/文档/Eval 路径 Gitleaks 无发现。
+- 依赖/许可证 `N/A`：本步骤未新增 Python、Node、服务或 Provider 依赖，`uv.lock`、`pnpm-lock.yaml` 与 NOTICE 无变化；复核人 Codex，2026-08-20。
+- 本机运行时偏差：仓库固定 Node `24.16.0`，当前本机为 `24.19.0`，pnpm 因此给出 engine warning；上述门禁均通过，但精确 Node 版本的干净环境复核仍必须由 CI 完成。
+- 尚未远端验证：当前没有执行 commit、push 或 GitHub CI，因此步骤 2 与相关能力矩阵项保持 `implemented_pending_verification`/`thin_slice`，不得表述为干净 CI 已通过。
 
 ## 4. 每一步的详细实施说明
 

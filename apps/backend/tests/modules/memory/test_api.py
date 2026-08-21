@@ -181,6 +181,7 @@ def memory_detail() -> MemoryDetail:
         editor_user_id=USER_ID,
         source_message_ids=(MESSAGE_ID,),
         validity=MemoryRevisionValidity.VALID,
+        expires_at=None,
         created_at=NOW,
     )
     memory = Memory(
@@ -193,6 +194,7 @@ def memory_detail() -> MemoryDetail:
         status=MemoryStatus.CONFIRMED,
         current_revision_id=REVISION_ID,
         current_version=1,
+        revision=1,
         expires_at=None,
         created_at=NOW,
         updated_at=NOW,

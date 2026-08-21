@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,10 +17,13 @@ from industry_platform.modules.conversations.models import (
     MessageStatus,
     Turn,
 )
+from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.identity.models import AuditLog, AuditOutcome
 from industry_platform.modules.memory.domain import (
     CandidateCreationResult,
+    ChangeMemoryStatus,
     CreateMemoryCandidate,
+    DeleteMemory,
     Memory,
     MemoryCandidate,
     MemoryCandidateEditRequiredError,
@@ -28,7 +31,9 @@ from industry_platform.modules.memory.domain import (
     MemoryCandidateStatus,
     MemoryConflictError,
     MemoryDetail,
+    MemoryFeedback,
     MemoryIdempotencyConflictError,
+    MemoryKind,
     MemoryNotFoundError,
     MemoryPersistenceError,
     MemoryPolicyAssessment,
@@ -36,12 +41,15 @@ from industry_platform.modules.memory.domain import (
     MemoryResolutionResult,
     MemoryRevision,
     MemoryRevisionValidity,
+    MemoryScope,
     MemorySourceMessage,
     MemorySourceNotFoundError,
     MemoryStatus,
     MemoryWriteAction,
+    RecordMemoryFeedback,
     RejectMemoryCandidate,
     ResolveMemoryCandidate,
+    UpdateMemory,
     hash_idempotency_key,
     require_memory_content,
     utc_now,
@@ -49,6 +57,7 @@ from industry_platform.modules.memory.domain import (
 from industry_platform.modules.memory.models import (
     MemoryCandidateRecord,
     MemoryCandidateSourceRecord,
+    MemoryFeedbackRecord,
     MemoryRecord,
     MemoryRevisionRecord,
     MemoryRevisionSourceRecord,
@@ -59,6 +68,10 @@ from industry_platform.modules.workspaces.domain import WorkspaceScope
 MEMORY_CANDIDATE_AUDIT_ACTION = "memory.candidate.created"
 MEMORY_CANDIDATE_REJECTED_AUDIT_ACTION = "memory.candidate.rejected"
 MEMORY_RESOLVED_AUDIT_ACTION = "memory.resolved"
+MEMORY_UPDATED_AUDIT_ACTION = "memory.updated"
+MEMORY_STATUS_AUDIT_ACTION = "memory.status_changed"
+MEMORY_DELETED_AUDIT_ACTION = "memory.deleted"
+MEMORY_FEEDBACK_AUDIT_ACTION = "memory.feedback.recorded"
 MEMORY_RESOURCE_TYPE = "memory"
 MEMORY_CANDIDATE_RESOURCE_TYPE = "memory_candidate"
 MEMORY_WRITE_REASON = "user_selected_conversation_messages"
@@ -346,7 +359,7 @@ class SqlAlchemyMemoryRepository:
                     )
                     if (
                         memory.status is MemoryStatus.DELETED
-                        or memory.current_version != command.expected_target_revision
+                        or memory.revision != command.expected_target_revision
                     ):
                         raise MemoryConflictError
                     revision = MemoryRevisionRecord(
@@ -363,11 +376,13 @@ class SqlAlchemyMemoryRepository:
                         policy_decision=candidate.policy_decision,
                         editor_user_id=scope.user_id,
                         validity=MemoryRevisionValidity.VALID,
+                        expires_at=command.expires_at,
                         created_at=now,
                     )
                     session.add(revision)
                     memory.current_revision_id = revision.id
                     memory.current_version = revision.version
+                    memory.revision += 1
                     memory.scope = command.scope
                     memory.kind = command.kind
                     memory.confidence = candidate.confidence
@@ -489,34 +504,337 @@ class SqlAlchemyMemoryRepository:
         self,
         scope: WorkspaceScope,
         *,
+        query: str | None,
+        status: MemoryStatus | None,
+        memory_scope: MemoryScope | None,
+        kind: MemoryKind | None,
         limit: int,
     ) -> tuple[Memory, ...]:
+        if status is MemoryStatus.DELETED:
+            return ()
+        now = self._clock()
         try:
             async with self._session_factory() as session:
+                statement = (
+                    select(MemoryRecord)
+                    .join(
+                        MemoryRevisionRecord,
+                        and_(
+                            MemoryRevisionRecord.id == MemoryRecord.current_revision_id,
+                            MemoryRevisionRecord.memory_id == MemoryRecord.id,
+                            MemoryRevisionRecord.workspace_id == MemoryRecord.workspace_id,
+                        ),
+                    )
+                    .where(
+                        MemoryRecord.workspace_id == scope.workspace_id,
+                        or_(
+                            MemoryRecord.owner_user_id == scope.user_id,
+                            and_(
+                                MemoryRecord.scope == MemoryScope.WORKSPACE,
+                                MemoryRecord.status != MemoryStatus.DELETED,
+                            ),
+                        ),
+                    )
+                )
+                statement = statement.where(MemoryRecord.status != MemoryStatus.DELETED)
+                if status is MemoryStatus.EXPIRED:
+                    statement = statement.where(
+                        or_(
+                            MemoryRecord.status == MemoryStatus.EXPIRED,
+                            and_(
+                                MemoryRecord.status == MemoryStatus.CONFIRMED,
+                                MemoryRecord.expires_at.is_not(None),
+                                MemoryRecord.expires_at <= now,
+                            ),
+                        )
+                    )
+                elif status is MemoryStatus.CONFIRMED:
+                    statement = statement.where(
+                        MemoryRecord.status == MemoryStatus.CONFIRMED,
+                        or_(
+                            MemoryRecord.expires_at.is_(None),
+                            MemoryRecord.expires_at > now,
+                        ),
+                    )
+                elif status is not None:
+                    statement = statement.where(MemoryRecord.status == status)
+                if query is not None:
+                    statement = statement.where(
+                        MemoryRevisionRecord.content.contains(query, autoescape=True)
+                    )
+                if memory_scope is not None:
+                    statement = statement.where(MemoryRecord.scope == memory_scope)
+                if kind is not None:
+                    statement = statement.where(MemoryRecord.kind == kind)
                 records = (
                     (
                         await session.execute(
-                            select(MemoryRecord)
-                            .where(
-                                MemoryRecord.workspace_id == scope.workspace_id,
-                                MemoryRecord.owner_user_id == scope.user_id,
-                            )
-                            .order_by(MemoryRecord.updated_at.desc(), MemoryRecord.id.desc())
-                            .limit(limit)
+                            statement.order_by(
+                                MemoryRecord.updated_at.desc(), MemoryRecord.id.desc()
+                            ).limit(limit)
                         )
                     )
                     .scalars()
                     .all()
                 )
-                return tuple(self._memory_snapshot(record) for record in records)
+                return tuple(self._memory_snapshot(record, now=now) for record in records)
         except SQLAlchemyError as error:
             raise MemoryPersistenceError(sqlstate=safe_sqlstate(error)) from error
 
     async def get_memory(self, scope: WorkspaceScope, memory_id: UUID) -> MemoryDetail:
         try:
             async with self._session_factory() as session:
-                return await self._memory_detail(session, scope, memory_id)
+                return await self._memory_detail(
+                    session,
+                    scope,
+                    memory_id,
+                    include_shared=True,
+                )
         except MemoryNotFoundError:
+            raise
+        except SQLAlchemyError as error:
+            raise MemoryPersistenceError(sqlstate=safe_sqlstate(error)) from error
+
+    async def update_memory(
+        self,
+        scope: WorkspaceScope,
+        command: UpdateMemory,
+    ) -> MemoryDetail:
+        now = self._clock()
+        try:
+            async with self._session_factory() as session, session.begin():
+                memory = await self._memory_record(
+                    session,
+                    scope,
+                    command.memory_id,
+                    lock=True,
+                )
+                if memory.revision != command.expected_revision:
+                    raise MemoryConflictError
+                source_ids = await self._revision_source_ids(
+                    session,
+                    memory.current_revision_id,
+                )
+                revision = MemoryRevisionRecord(
+                    id=uuid4(),
+                    memory_id=memory.id,
+                    workspace_id=scope.workspace_id,
+                    owner_user_id=scope.user_id,
+                    version=memory.current_version + 1,
+                    content=command.content,
+                    scope=command.scope,
+                    kind=command.kind,
+                    write_action=MemoryWriteAction.UPDATE,
+                    write_reason="user_governance_update",
+                    policy_decision=MemoryPolicyDecision.ALLOWED,
+                    editor_user_id=scope.user_id,
+                    validity=MemoryRevisionValidity.VALID,
+                    expires_at=command.expires_at,
+                    created_at=now,
+                )
+                session.add(revision)
+                session.add_all(
+                    MemoryRevisionSourceRecord(
+                        revision_id=revision.id,
+                        message_id=message_id,
+                        memory_id=memory.id,
+                        workspace_id=scope.workspace_id,
+                        ordinal=ordinal,
+                        created_at=now,
+                    )
+                    for ordinal, message_id in enumerate(source_ids)
+                )
+                memory.current_revision_id = revision.id
+                memory.current_version = revision.version
+                memory.revision += 1
+                memory.scope = command.scope
+                memory.kind = command.kind
+                memory.status = MemoryStatus.CONFIRMED
+                memory.expires_at = command.expires_at
+                memory.updated_at = now
+                self._audit(
+                    session,
+                    scope,
+                    action=MEMORY_UPDATED_AUDIT_ACTION,
+                    memory=memory,
+                    trace_id=command.trace_id,
+                    now=now,
+                    metadata={"memory_revision": revision.version},
+                )
+                await session.flush()
+                detail = await self._memory_detail(session, scope, memory.id)
+            return detail
+        except (MemoryConflictError, MemoryNotFoundError):
+            raise
+        except SQLAlchemyError as error:
+            raise MemoryPersistenceError(sqlstate=safe_sqlstate(error)) from error
+
+    async def change_status(
+        self,
+        scope: WorkspaceScope,
+        command: ChangeMemoryStatus,
+    ) -> MemoryDetail:
+        now = self._clock()
+        try:
+            async with self._session_factory() as session, session.begin():
+                memory = await self._memory_record(
+                    session,
+                    scope,
+                    command.memory_id,
+                    lock=True,
+                )
+                if memory.revision != command.expected_revision:
+                    raise MemoryConflictError
+                if (
+                    command.status is MemoryStatus.CONFIRMED
+                    and memory.expires_at is not None
+                    and memory.expires_at <= now
+                ):
+                    raise MemoryConflictError
+                if memory.status is not command.status:
+                    memory.status = command.status
+                    memory.revision += 1
+                    memory.updated_at = now
+                    self._audit(
+                        session,
+                        scope,
+                        action=MEMORY_STATUS_AUDIT_ACTION,
+                        memory=memory,
+                        trace_id=command.trace_id,
+                        now=now,
+                        metadata={"status": command.status.value},
+                    )
+                await session.flush()
+                detail = await self._memory_detail(session, scope, memory.id)
+            return detail
+        except (MemoryConflictError, MemoryNotFoundError):
+            raise
+        except SQLAlchemyError as error:
+            raise MemoryPersistenceError(sqlstate=safe_sqlstate(error)) from error
+
+    async def delete_memory(
+        self,
+        scope: WorkspaceScope,
+        command: DeleteMemory,
+    ) -> bool:
+        now = self._clock()
+        try:
+            async with self._session_factory() as session, session.begin():
+                memory = await self._memory_record(
+                    session,
+                    scope,
+                    command.memory_id,
+                    lock=True,
+                    include_deleted=True,
+                )
+                if memory.status is MemoryStatus.DELETED:
+                    return False
+                if memory.revision != command.expected_revision:
+                    raise MemoryConflictError
+                memory.status = MemoryStatus.DELETED
+                memory.deleted_at = now
+                memory.revision += 1
+                memory.updated_at = now
+                await session.execute(
+                    update(MemoryRevisionRecord)
+                    .where(
+                        MemoryRevisionRecord.memory_id == memory.id,
+                        MemoryRevisionRecord.workspace_id == scope.workspace_id,
+                    )
+                    .values(
+                        content="[deleted]",
+                        validity=MemoryRevisionValidity.WITHDRAWN,
+                    )
+                )
+                await session.execute(
+                    delete(MemoryRevisionSourceRecord).where(
+                        MemoryRevisionSourceRecord.memory_id == memory.id,
+                        MemoryRevisionSourceRecord.workspace_id == scope.workspace_id,
+                    )
+                )
+                await session.execute(
+                    update(MemoryCandidateRecord)
+                    .where(
+                        MemoryCandidateRecord.resolved_memory_id == memory.id,
+                        MemoryCandidateRecord.workspace_id == scope.workspace_id,
+                    )
+                    .values(suggested_content=None, updated_at=now)
+                )
+                self._audit(
+                    session,
+                    scope,
+                    action=MEMORY_DELETED_AUDIT_ACTION,
+                    memory=memory,
+                    trace_id=command.trace_id,
+                    now=now,
+                    metadata={"deletion_residual": 0},
+                )
+            return True
+        except (MemoryConflictError, MemoryNotFoundError):
+            raise
+        except SQLAlchemyError as error:
+            raise MemoryPersistenceError(sqlstate=safe_sqlstate(error)) from error
+
+    async def record_feedback(
+        self,
+        scope: WorkspaceScope,
+        command: RecordMemoryFeedback,
+    ) -> MemoryFeedback:
+        now = self._clock()
+        try:
+            async with self._session_factory() as session, session.begin():
+                memory = await self._memory_record(
+                    session,
+                    scope,
+                    command.memory_id,
+                    lock=True,
+                    include_shared=True,
+                )
+                if (
+                    memory.revision != command.expected_revision
+                    or memory.current_revision_id != command.memory_revision_id
+                ):
+                    raise MemoryConflictError
+                feedback = await session.scalar(
+                    select(MemoryFeedbackRecord)
+                    .where(
+                        MemoryFeedbackRecord.memory_id == memory.id,
+                        MemoryFeedbackRecord.memory_revision_id == command.memory_revision_id,
+                        MemoryFeedbackRecord.actor_user_id == scope.user_id,
+                    )
+                    .with_for_update()
+                )
+                if feedback is None:
+                    feedback = MemoryFeedbackRecord(
+                        id=uuid4(),
+                        workspace_id=scope.workspace_id,
+                        memory_id=memory.id,
+                        memory_revision_id=command.memory_revision_id,
+                        actor_user_id=scope.user_id,
+                        value=command.value,
+                        reason=command.reason,
+                        schema_version=1,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    session.add(feedback)
+                else:
+                    feedback.value = command.value
+                    feedback.reason = command.reason
+                    feedback.updated_at = now
+                self._audit(
+                    session,
+                    scope,
+                    action=MEMORY_FEEDBACK_AUDIT_ACTION,
+                    memory=memory,
+                    trace_id=command.trace_id,
+                    now=now,
+                    metadata={"feedback": command.value.value},
+                )
+                await session.flush()
+                snapshot = self._feedback_snapshot(feedback)
+            return snapshot
+        except (MemoryConflictError, MemoryNotFoundError):
             raise
         except SQLAlchemyError as error:
             raise MemoryPersistenceError(sqlstate=safe_sqlstate(error)) from error
@@ -586,6 +904,7 @@ class SqlAlchemyMemoryRepository:
             status=MemoryStatus.CONFIRMED,
             current_revision_id=revision_id,
             current_version=1,
+            revision=1,
             expires_at=command.expires_at,
             created_at=now,
             updated_at=now,
@@ -604,6 +923,7 @@ class SqlAlchemyMemoryRepository:
             policy_decision=candidate.policy_decision,
             editor_user_id=scope.user_id,
             validity=MemoryRevisionValidity.VALID,
+            expires_at=command.expires_at,
             created_at=now,
         )
         return memory, revision
@@ -635,12 +955,24 @@ class SqlAlchemyMemoryRepository:
         memory_id: UUID,
         *,
         lock: bool = False,
+        include_shared: bool = False,
+        include_deleted: bool = False,
     ) -> MemoryRecord:
+        authorization = (
+            or_(
+                MemoryRecord.owner_user_id == scope.user_id,
+                MemoryRecord.scope == MemoryScope.WORKSPACE,
+            )
+            if include_shared
+            else MemoryRecord.owner_user_id == scope.user_id
+        )
         statement = select(MemoryRecord).where(
             MemoryRecord.id == memory_id,
             MemoryRecord.workspace_id == scope.workspace_id,
-            MemoryRecord.owner_user_id == scope.user_id,
+            authorization,
         )
+        if not include_deleted:
+            statement = statement.where(MemoryRecord.status != MemoryStatus.DELETED)
         if lock:
             statement = statement.with_for_update()
         memory = await session.scalar(statement)
@@ -665,6 +997,23 @@ class SqlAlchemyMemoryRepository:
             .all()
         )
         return tuple(rows)
+
+    async def _revision_source_ids(
+        self,
+        session: AsyncSession,
+        revision_id: UUID,
+    ) -> tuple[UUID, ...]:
+        return tuple(
+            (
+                await session.execute(
+                    select(MemoryRevisionSourceRecord.message_id)
+                    .where(MemoryRevisionSourceRecord.revision_id == revision_id)
+                    .order_by(MemoryRevisionSourceRecord.ordinal)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     async def _require_candidate_sources_available(
         self,
@@ -725,7 +1074,15 @@ class SqlAlchemyMemoryRepository:
             updated_at=record.updated_at,
         )
 
-    def _memory_snapshot(self, record: MemoryRecord) -> Memory:
+    def _memory_snapshot(self, record: MemoryRecord, *, now: datetime | None = None) -> Memory:
+        selected_now = self._clock() if now is None else now
+        status = record.status
+        if (
+            status is MemoryStatus.CONFIRMED
+            and record.expires_at is not None
+            and record.expires_at <= selected_now
+        ):
+            status = MemoryStatus.EXPIRED
         return Memory(
             memory_id=record.id,
             owner_user_id=record.owner_user_id,
@@ -733,9 +1090,10 @@ class SqlAlchemyMemoryRepository:
             scope=record.scope,
             kind=record.kind,
             confidence=record.confidence,
-            status=record.status,
+            status=status,
             current_revision_id=record.current_revision_id,
             current_version=record.current_version,
+            revision=record.revision,
             expires_at=record.expires_at,
             created_at=record.created_at,
             updated_at=record.updated_at,
@@ -746,8 +1104,15 @@ class SqlAlchemyMemoryRepository:
         session: AsyncSession,
         scope: WorkspaceScope,
         memory_id: UUID,
+        *,
+        include_shared: bool = False,
     ) -> MemoryDetail:
-        memory = await self._memory_record(session, scope, memory_id)
+        memory = await self._memory_record(
+            session,
+            scope,
+            memory_id,
+            include_shared=include_shared,
+        )
         revisions = (
             (
                 await session.execute(
@@ -755,7 +1120,7 @@ class SqlAlchemyMemoryRepository:
                     .where(
                         MemoryRevisionRecord.memory_id == memory.id,
                         MemoryRevisionRecord.workspace_id == scope.workspace_id,
-                        MemoryRevisionRecord.owner_user_id == scope.user_id,
+                        MemoryRevisionRecord.owner_user_id == memory.owner_user_id,
                     )
                     .order_by(MemoryRevisionRecord.version.desc())
                 )
@@ -800,6 +1165,49 @@ class SqlAlchemyMemoryRepository:
         )
 
     @staticmethod
+    def _feedback_snapshot(record: MemoryFeedbackRecord) -> MemoryFeedback:
+        return MemoryFeedback(
+            feedback_id=record.id,
+            memory_id=record.memory_id,
+            memory_revision_id=record.memory_revision_id,
+            actor_user_id=record.actor_user_id,
+            value=record.value,
+            reason=record.reason,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+
+    @staticmethod
+    def _audit(
+        session: AsyncSession,
+        scope: WorkspaceScope,
+        *,
+        action: str,
+        memory: MemoryRecord,
+        trace_id: TraceId,
+        now: datetime,
+        metadata: dict[str, object],
+    ) -> None:
+        session.add(
+            AuditLog(
+                id=uuid4(),
+                workspace_id=scope.workspace_id,
+                actor_user_id=scope.user_id,
+                action=action,
+                resource_type=MEMORY_RESOURCE_TYPE,
+                resource_id=memory.id,
+                outcome=AuditOutcome.SUCCEEDED,
+                trace_id=trace_id,
+                sanitized_metadata={
+                    **metadata,
+                    "resource_revision": memory.revision,
+                },
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+    @staticmethod
     def _revision_snapshot(
         record: MemoryRevisionRecord,
         source_message_ids: tuple[UUID, ...],
@@ -816,6 +1224,7 @@ class SqlAlchemyMemoryRepository:
             editor_user_id=record.editor_user_id,
             source_message_ids=source_message_ids,
             validity=record.validity,
+            expires_at=record.expires_at,
             created_at=record.created_at,
         )
 

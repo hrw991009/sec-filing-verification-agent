@@ -9,14 +9,22 @@ from industry_platform.core.http import get_trace_id, problem_openapi_response, 
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.memory.domain import (
+    ChangeMemoryStatus,
     CreateMemoryCandidate,
+    DeleteMemory,
     Memory,
     MemoryCandidate,
     MemoryDetail,
+    MemoryFeedback,
+    MemoryKind,
     MemoryRequestRejectedError,
     MemoryRevision,
+    MemoryScope,
+    MemoryStatus,
+    RecordMemoryFeedback,
     RejectMemoryCandidate,
     ResolveMemoryCandidate,
+    UpdateMemory,
 )
 from industry_platform.modules.memory.ports import MemoryUseCase
 from industry_platform.modules.memory.resources import MemoryResources, get_memory_resources
@@ -27,10 +35,13 @@ from industry_platform.modules.memory.schemas import (
     MemoryCandidateResponse,
     MemoryCollectionResponse,
     MemoryDetailResponse,
+    MemoryFeedbackResponse,
     MemoryResolutionResponse,
     MemoryResponse,
     MemoryRevisionResponse,
+    RecordMemoryFeedbackRequest,
     ResolveMemoryCandidateRequest,
+    UpdateMemoryRequest,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
@@ -162,7 +173,7 @@ async def confirm_memory_candidate(
         ),
     )
     set_no_store_headers(response)
-    _set_revision_header(response, result.detail.memory.current_version)
+    _set_revision_header(response, result.detail.memory.revision)
     return MemoryResolutionResponse(
         memory=_detail_response(result.detail),
         action=result.action,
@@ -203,9 +214,20 @@ async def list_memories(
     response: Response,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
     service: Annotated[MemoryUseCase, Depends(get_memory_service)],
+    query: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    memory_status: Annotated[MemoryStatus | None, Query(alias="status")] = None,
+    memory_scope: Annotated[MemoryScope | None, Query(alias="scope")] = None,
+    kind: Annotated[MemoryKind | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> MemoryCollectionResponse:
-    memories = await service.list_memories(_workspace_scope(principal, workspace_id), limit=limit)
+    memories = await service.list_memories(
+        _workspace_scope(principal, workspace_id),
+        query=query,
+        status=memory_status,
+        memory_scope=memory_scope,
+        kind=kind,
+        limit=limit,
+    )
     set_no_store_headers(response)
     return MemoryCollectionResponse(memories=[_memory_response(memory) for memory in memories])
 
@@ -220,8 +242,162 @@ async def get_memory(
 ) -> MemoryDetailResponse:
     detail = await service.get_memory(_workspace_scope(principal, workspace_id), memory_id)
     set_no_store_headers(response)
-    _set_revision_header(response, detail.memory.current_version)
+    _set_revision_header(response, detail.memory.revision)
     return _detail_response(detail)
+
+
+@router.patch("/{memory_id}", response_model=MemoryDetailResponse, responses=_RESPONSES)
+async def update_memory(
+    workspace_id: UUID,
+    memory_id: UUID,
+    payload: UpdateMemoryRequest,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[MemoryUseCase, Depends(get_memory_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> MemoryDetailResponse:
+    detail = await service.update_memory(
+        _workspace_scope(principal, workspace_id),
+        UpdateMemory(
+            memory_id=memory_id,
+            expected_revision=_parse_if_match(if_match),
+            content=payload.content,
+            scope=payload.scope,
+            kind=payload.kind,
+            expires_at=payload.expires_at,
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    _set_revision_header(response, detail.memory.revision)
+    return _detail_response(detail)
+
+
+async def _change_memory_status(
+    *,
+    workspace_id: UUID,
+    memory_id: UUID,
+    target_status: MemoryStatus,
+    request: Request,
+    response: Response,
+    principal: AuthenticatedPrincipal,
+    service: MemoryUseCase,
+    if_match: str,
+) -> MemoryDetailResponse:
+    detail = await service.change_status(
+        _workspace_scope(principal, workspace_id),
+        ChangeMemoryStatus(
+            memory_id=memory_id,
+            expected_revision=_parse_if_match(if_match),
+            status=target_status,
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    _set_revision_header(response, detail.memory.revision)
+    return _detail_response(detail)
+
+
+@router.post("/{memory_id}/disable", response_model=MemoryDetailResponse, responses=_RESPONSES)
+async def disable_memory(
+    workspace_id: UUID,
+    memory_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[MemoryUseCase, Depends(get_memory_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> MemoryDetailResponse:
+    return await _change_memory_status(
+        workspace_id=workspace_id,
+        memory_id=memory_id,
+        target_status=MemoryStatus.DISABLED,
+        request=request,
+        response=response,
+        principal=principal,
+        service=service,
+        if_match=if_match,
+    )
+
+
+@router.post("/{memory_id}/enable", response_model=MemoryDetailResponse, responses=_RESPONSES)
+async def enable_memory(
+    workspace_id: UUID,
+    memory_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[MemoryUseCase, Depends(get_memory_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> MemoryDetailResponse:
+    return await _change_memory_status(
+        workspace_id=workspace_id,
+        memory_id=memory_id,
+        target_status=MemoryStatus.CONFIRMED,
+        request=request,
+        response=response,
+        principal=principal,
+        service=service,
+        if_match=if_match,
+    )
+
+
+@router.delete(
+    "/{memory_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    responses=_RESPONSES,
+)
+async def delete_memory(
+    workspace_id: UUID,
+    memory_id: UUID,
+    request: Request,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[MemoryUseCase, Depends(get_memory_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> Response:
+    await service.delete_memory(
+        _workspace_scope(principal, workspace_id),
+        DeleteMemory(
+            memory_id=memory_id,
+            expected_revision=_parse_if_match(if_match),
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    set_no_store_headers(response)
+    return response
+
+
+@router.post(
+    "/{memory_id}/feedback",
+    response_model=MemoryFeedbackResponse,
+    responses=_RESPONSES,
+)
+async def record_memory_feedback(
+    workspace_id: UUID,
+    memory_id: UUID,
+    payload: RecordMemoryFeedbackRequest,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[MemoryUseCase, Depends(get_memory_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> MemoryFeedbackResponse:
+    feedback = await service.record_feedback(
+        _workspace_scope(principal, workspace_id),
+        RecordMemoryFeedback(
+            memory_id=memory_id,
+            expected_revision=_parse_if_match(if_match),
+            memory_revision_id=payload.memory_revision_id,
+            value=payload.value,
+            reason=payload.reason,
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    return _feedback_response(feedback)
 
 
 def _parse_if_match(value: str) -> int:
@@ -284,6 +460,7 @@ def _memory_response(memory: Memory) -> MemoryResponse:
         status=memory.status,
         current_revision_id=memory.current_revision_id,
         current_version=memory.current_version,
+        revision=memory.revision,
         expires_at=memory.expires_at,
         created_at=memory.created_at,
         updated_at=memory.updated_at,
@@ -303,6 +480,7 @@ def _revision_response(revision: MemoryRevision) -> MemoryRevisionResponse:
         editor_user_id=revision.editor_user_id,
         source_message_ids=list(revision.source_message_ids),
         validity=revision.validity,
+        expires_at=revision.expires_at,
         created_at=revision.created_at,
     )
 
@@ -312,4 +490,17 @@ def _detail_response(detail: MemoryDetail) -> MemoryDetailResponse:
         memory=_memory_response(detail.memory),
         current_revision=_revision_response(detail.current_revision),
         revisions=[_revision_response(revision) for revision in detail.revisions],
+    )
+
+
+def _feedback_response(feedback: MemoryFeedback) -> MemoryFeedbackResponse:
+    return MemoryFeedbackResponse(
+        id=feedback.feedback_id,
+        memory_id=feedback.memory_id,
+        memory_revision_id=feedback.memory_revision_id,
+        actor_user_id=feedback.actor_user_id,
+        value=feedback.value,
+        reason=feedback.reason,
+        created_at=feedback.created_at,
+        updated_at=feedback.updated_at,
     )

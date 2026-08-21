@@ -33,7 +33,7 @@ from industry_platform.modules.agent_runtime.adapters.persistence import (
     SqlAlchemyContextManifestStore,
 )
 from industry_platform.modules.agent_runtime.context_compiler import (
-    ContextCompilerV0,
+    ContextCompilerV1,
     Utf8UpperBoundTokenCounter,
 )
 from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunStopReason
@@ -62,6 +62,7 @@ from industry_platform.modules.jobs.domain import (
 )
 from industry_platform.modules.jobs.models import Job
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.memory.adapters.context import SqlAlchemyMemoryContextLoader
 from industry_platform.server import create_selector_event_loop
 from industry_platform.workers.runtime import (
     DirectAnswerJobHandler,
@@ -197,7 +198,7 @@ async def execute_browser_run(
             schema_version=1,
             profile_version="direct-answer-v0",
             prompt_version="direct-answer-prompt-v0",
-            context_compiler_version="context-v0",
+            context_compiler_version="context-v1",
             output_contract_version="final-markdown-v1",
             model="openai-compatible/e2e-test-provider",
             max_input_tokens=2_048,
@@ -207,14 +208,18 @@ async def execute_browser_run(
         provider = BrowserSuccessModelProvider(run_id)
         control = SqlAlchemyAgentRunControl(session_factory)
         runtime = DirectAnswerRuntime(
-            context_compiler=ContextCompilerV0(token_counter=Utf8UpperBoundTokenCounter()),
+            context_compiler=ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter()),
             context_manifest_store=SqlAlchemyContextManifestStore(session_factory),
             model_provider=provider,
             event_committer=SqlAlchemyAgentEventCommitter(session_factory),
             cancellation_probe=control,
         )
         execution = DirectAnswerRunExecutionService(
-            loader=SqlAlchemyDirectAnswerRunLoader(session_factory, policy),
+            loader=SqlAlchemyDirectAnswerRunLoader(
+                session_factory,
+                policy,
+                memory_context_loader=SqlAlchemyMemoryContextLoader(session_factory),
+            ),
             runtime=UnifiedAgentRuntime(direct_answer_runtime=runtime),
             terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),
         )

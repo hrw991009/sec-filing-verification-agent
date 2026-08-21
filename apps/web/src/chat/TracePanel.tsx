@@ -7,6 +7,7 @@ interface TracePanelProps {
   readonly activeRun: ActiveRun | null;
   readonly events: readonly (AgentStreamEvent | AgentTrace["events"][number])[];
   readonly onClose: () => void;
+  readonly onOpenMemory: (memoryId: string) => void;
   readonly onRetry: (() => void) | undefined;
   readonly trace: AgentTrace | null;
   readonly traceError: string | null;
@@ -38,6 +39,20 @@ const toolDetailNames: Readonly<Record<string, string>> = {
   tool_version: "工具版本",
 };
 
+const memoryDecisionNames: Readonly<Record<string, string>> = {
+  excluded_conflicted: "与更高优先级 Memory 冲突",
+  excluded_deleted: "已删除",
+  excluded_disabled: "已停用",
+  excluded_duplicate: "重复内容",
+  excluded_expired: "已过期",
+  excluded_negative_feedback: "用户反馈为不相关",
+  excluded_not_relevant: "与当前目标不相关",
+  excluded_sensitive: "敏感内容策略排除",
+  excluded_stale: "来源或事实已过时",
+  excluded_token_budget: "Context Token 预算不足",
+  not_available: "当前不可用",
+};
+
 function traceEventType(event: TracePanelProps["events"][number]): string {
   return "event_type" in event ? event.event_type : event.type;
 }
@@ -46,6 +61,7 @@ export function TracePanel({
   activeRun,
   events,
   onClose,
+  onOpenMemory,
   onRetry,
   trace,
   traceError,
@@ -213,8 +229,32 @@ export function TracePanel({
                                     ? ""
                                     : ` · 摘要 ${source.source_sha256.slice(0, 12)}…`
                                 }`
-                              : source.decision_reason}
+                              : (memoryDecisionNames[source.decision_reason] ??
+                                source.decision_reason)}
                           </span>
+                          {source.source_kind === "long_term_memory" ? (
+                            <div className="source-item__memory">
+                              <small>
+                                {source.source_scope === "user" ? "仅自己" : "Workspace"} ·{" "}
+                                {source.source_version}
+                                {source.relevance_score === null
+                                  ? ""
+                                  : ` · 相关度 ${source.relevance_score.toFixed(2)}`}
+                                {source.feedback_score === null
+                                  ? ""
+                                  : ` · 反馈 ${String(source.feedback_score)}`}
+                              </small>
+                              <button
+                                className="compact-button"
+                                onClick={() => {
+                                  onOpenMemory(source.source_id);
+                                }}
+                                type="button"
+                              >
+                                查看 Memory revision
+                              </button>
+                            </div>
+                          ) : null}
                         </li>
                       ))}
                     </ol>

@@ -284,6 +284,10 @@ def test_trace_returns_only_the_safe_workspace_scoped_projection(
         "estimated_token_count": 70,
         "message_role": "user",
         "source_sha256": None,
+        "source_revision_id": None,
+        "source_scope": None,
+        "relevance_score": None,
+        "feedback_score": None,
     }
     assert document["events"][-1]["details"] == {"stop_reason": "final"}
     assert "private user question" not in response.text.casefold()

@@ -6,7 +6,7 @@ import type { ActiveRun } from "./chat-workbench-model";
 import { roleNames } from "./chat-workbench-model";
 import { Icon } from "./icons";
 
-export type WorkbenchView = "chat" | "data" | "industry";
+export type WorkbenchView = "chat" | "data" | "industry" | "memory";
 
 interface ChatTopbarProps {
   readonly currentUser: CurrentUser;
@@ -62,6 +62,7 @@ export function ChatTopbar({
             ["chat", "Agent"],
             ["industry", "行业情报"],
             ["data", "数据库"],
+            ["memory", "Memory"],
           ] as const
         ).map(([target, label]) => (
           <button

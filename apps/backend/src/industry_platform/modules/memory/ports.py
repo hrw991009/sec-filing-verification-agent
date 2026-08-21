@@ -5,15 +5,23 @@ from uuid import UUID
 
 from industry_platform.modules.memory.domain import (
     CandidateCreationResult,
+    ChangeMemoryStatus,
     CreateMemoryCandidate,
+    DeleteMemory,
     Memory,
     MemoryCandidate,
     MemoryDetail,
+    MemoryFeedback,
+    MemoryKind,
     MemoryPolicyAssessment,
     MemoryResolutionResult,
+    MemoryScope,
     MemorySourceMessage,
+    MemoryStatus,
+    RecordMemoryFeedback,
     RejectMemoryCandidate,
     ResolveMemoryCandidate,
+    UpdateMemory,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
@@ -70,10 +78,26 @@ class MemoryRepository(Protocol):
         self,
         scope: WorkspaceScope,
         *,
+        query: str | None,
+        status: MemoryStatus | None,
+        memory_scope: MemoryScope | None,
+        kind: MemoryKind | None,
         limit: int,
     ) -> tuple[Memory, ...]: ...
 
     async def get_memory(self, scope: WorkspaceScope, memory_id: UUID) -> MemoryDetail: ...
+
+    async def update_memory(self, scope: WorkspaceScope, command: UpdateMemory) -> MemoryDetail: ...
+
+    async def change_status(
+        self, scope: WorkspaceScope, command: ChangeMemoryStatus
+    ) -> MemoryDetail: ...
+
+    async def delete_memory(self, scope: WorkspaceScope, command: DeleteMemory) -> bool: ...
+
+    async def record_feedback(
+        self, scope: WorkspaceScope, command: RecordMemoryFeedback
+    ) -> MemoryFeedback: ...
 
 
 class MemoryUseCase(Protocol):
@@ -113,7 +137,23 @@ class MemoryUseCase(Protocol):
         self,
         scope: WorkspaceScope,
         *,
+        query: str | None = None,
+        status: MemoryStatus | None = None,
+        memory_scope: MemoryScope | None = None,
+        kind: MemoryKind | None = None,
         limit: int = 20,
     ) -> tuple[Memory, ...]: ...
 
     async def get_memory(self, scope: WorkspaceScope, memory_id: UUID) -> MemoryDetail: ...
+
+    async def update_memory(self, scope: WorkspaceScope, command: UpdateMemory) -> MemoryDetail: ...
+
+    async def change_status(
+        self, scope: WorkspaceScope, command: ChangeMemoryStatus
+    ) -> MemoryDetail: ...
+
+    async def delete_memory(self, scope: WorkspaceScope, command: DeleteMemory) -> bool: ...
+
+    async def record_feedback(
+        self, scope: WorkspaceScope, command: RecordMemoryFeedback
+    ) -> MemoryFeedback: ...

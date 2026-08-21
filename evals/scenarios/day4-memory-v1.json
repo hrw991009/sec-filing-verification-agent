@@ -1,0 +1,470 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day4-memory",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-write",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-write",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Remember my preferred report language." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-write", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Memory write fixture accepted.",
+        "memory_eval": {
+          "write_expected": 1,
+          "write_correct": 1,
+          "included_total": 0,
+          "included_relevant": 0,
+          "useful_included": 0,
+          "irrelevant_candidates": 0,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 180,
+          "latency_ms": 24
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "memory-write-accuracy", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-write", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Candidate-first confirmed Memory write."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-related-recall",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-related-recall",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Which language should the steel report use?" },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-related-recall", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The steel report should use the confirmed language.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 1,
+          "included_relevant": 1,
+          "useful_included": 1,
+          "irrelevant_candidates": 0,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 244,
+          "latency_ms": 31
+        }
+      },
+      "scorers": [
+        {
+          "category": "result",
+          "name": "memory-retrieval-precision",
+          "version": "v1",
+          "parameters": {}
+        },
+        { "category": "result", "name": "memory-utility", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-related-recall", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Cross-Thread related recall with manifest and ModelInput agreement."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-unrelated",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-unrelated",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Summarize copper demand." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-unrelated", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "No unrelated Memory was injected.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 0,
+          "included_relevant": 0,
+          "useful_included": 0,
+          "irrelevant_candidates": 1,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 170,
+          "latency_ms": 22
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "memory-pollution", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-unrelated", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Unrelated Memory is explainably excluded."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-conflict",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-conflict",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Apply the newest steel report preference." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-conflict", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The newer preference wins and the older one is marked conflicted.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 1,
+          "included_relevant": 1,
+          "useful_included": 1,
+          "irrelevant_candidates": 0,
+          "irrelevant_included": 0,
+          "conflict_expected": 1,
+          "conflict_handled": 1,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 268,
+          "latency_ms": 34
+        }
+      },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "memory-conflict-handling",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-conflict", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Stable rank and explicit conflict reason."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-edit",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-edit",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Use my updated steel report language." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-edit", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Only the updated revision was used.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 1,
+          "included_relevant": 1,
+          "useful_included": 1,
+          "irrelevant_candidates": 0,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 1,
+          "edit_effective": 1,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 248,
+          "latency_ms": 29
+        }
+      },
+      "scorers": [
+        {
+          "category": "result",
+          "name": "memory-edit-effectiveness",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-edit", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Next Run reloads the current revision from PostgreSQL."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-delete",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-delete",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Verify that a deleted Memory is absent." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-delete", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Deletion residual is zero.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 0,
+          "included_relevant": 0,
+          "useful_included": 0,
+          "irrelevant_candidates": 0,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 1,
+          "deletion_residual_refs": 0,
+          "input_tokens": 166,
+          "latency_ms": 21
+        }
+      },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "memory-deletion-residual",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-delete", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Search, detail, next Run, and source links have no residual."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-budget",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-budget",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Apply Memory under a constrained Context budget." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 512,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-budget", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The manifest records deterministic token-budget exclusion.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 0,
+          "included_relevant": 0,
+          "useful_included": 0,
+          "irrelevant_candidates": 1,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 152,
+          "latency_ms": 20
+        }
+      },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "memory-context-budget",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-budget", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Required framing remains; optional Memory gets an explicit reason."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-cross-tenant",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-cross-tenant",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory", "version": "v1" },
+        "input": { "question": "Attempt a cross-tenant Memory recall." },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/day4-cross-tenant", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "No unauthorized Memory is visible or injected.",
+        "memory_eval": {
+          "write_expected": 0,
+          "write_correct": 0,
+          "included_total": 0,
+          "included_relevant": 0,
+          "useful_included": 0,
+          "irrelevant_candidates": 1,
+          "irrelevant_included": 0,
+          "conflict_expected": 0,
+          "conflict_handled": 0,
+          "edit_expected": 0,
+          "edit_effective": 0,
+          "deletion_expected": 0,
+          "deletion_residual_refs": 0,
+          "input_tokens": 164,
+          "latency_ms": 19
+        }
+      },
+      "scorers": [
+        {
+          "category": "trajectory",
+          "name": "memory-scope-isolation",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-cross-tenant", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Workspace and user scope are reauthorized before compilation."
+    }
+  ]
+}

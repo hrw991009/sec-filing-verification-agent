@@ -10,6 +10,7 @@ from industry_platform.modules.memory.domain import (
     MAX_MEMORY_CONTENT_LENGTH,
     MAX_MEMORY_SOURCE_MESSAGES,
     MemoryCandidateStatus,
+    MemoryFeedbackValue,
     MemoryKind,
     MemoryPolicyDecision,
     MemoryPolicyReason,
@@ -101,6 +102,7 @@ class MemoryRevisionResponse(StrictMemoryModel):
     editor_user_id: UUID
     source_message_ids: list[UUID]
     validity: MemoryRevisionValidity
+    expires_at: datetime | None
     created_at: datetime
 
 
@@ -114,6 +116,7 @@ class MemoryResponse(StrictMemoryModel):
     status: MemoryStatus
     current_revision_id: UUID
     current_version: int
+    revision: int
     expires_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -133,3 +136,30 @@ class MemoryResolutionResponse(StrictMemoryModel):
     memory: MemoryDetailResponse
     action: MemoryWriteAction
     created: bool
+
+
+class UpdateMemoryRequest(StrictMemoryModel):
+    content: MemoryContent
+    scope: MemoryScope
+    kind: MemoryKind
+    expires_at: datetime | None = None
+
+
+class RecordMemoryFeedbackRequest(StrictMemoryModel):
+    memory_revision_id: UUID
+    value: MemoryFeedbackValue
+    reason: Annotated[
+        str | None,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+    ] = None
+
+
+class MemoryFeedbackResponse(StrictMemoryModel):
+    id: UUID
+    memory_id: UUID
+    memory_revision_id: UUID
+    actor_user_id: UUID
+    value: MemoryFeedbackValue
+    reason: str | None
+    created_at: datetime
+    updated_at: datetime

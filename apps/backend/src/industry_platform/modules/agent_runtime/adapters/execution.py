@@ -14,6 +14,7 @@ from industry_platform.modules.agent_runtime.context import (
     MAX_CONTEXT_ATTACHMENTS,
     AttachmentContextSource,
     BackgroundRunPrincipal,
+    MemoryContextBundle,
     TrustedRuntimeContext,
 )
 from industry_platform.modules.agent_runtime.domain import (
@@ -100,6 +101,19 @@ class AttachmentObjectReader(Protocol):
     ) -> bytes: ...
 
 
+class MemoryContextLoader(Protocol):
+    """Reload authorized Memory candidates for one queued Run."""
+
+    async def load(
+        self,
+        scope: WorkspaceScope,
+        *,
+        conversation_id: UUID,
+        current_goal: str,
+        max_input_tokens: int,
+    ) -> MemoryContextBundle: ...
+
+
 type AttachmentRow = tuple[
     int,
     UUID,
@@ -126,6 +140,7 @@ class SqlAlchemyDirectAnswerRunLoader:
     policy: DirectAnswerRuntimePolicy
     tool_policy: ToolL2RuntimePolicy | None = None
     attachment_object_reader: AttachmentObjectReader | None = None
+    memory_context_loader: MemoryContextLoader | None = None
 
     async def load(self, run_id: UUID) -> DirectAnswerExecutionInput:
         if run_id.int == 0:
@@ -313,6 +328,20 @@ class SqlAlchemyDirectAnswerRunLoader:
             workspace_id=record.workspace_id,
             rows=attachment_rows,
         )
+        memory_context = (
+            MemoryContextBundle()
+            if self.memory_context_loader is None
+            else await self.memory_context_loader.load(
+                scope,
+                conversation_id=record.conversation_id,
+                current_goal=question,
+                max_input_tokens=(
+                    self.tool_policy.max_input_tokens
+                    if tool_enabled and self.tool_policy is not None
+                    else self.policy.max_input_tokens
+                ),
+            )
+        )
         command: ProductionAgentRunCommand
         if tool_enabled:
             if self.tool_policy is None or not isinstance(industry_code, str):
@@ -346,6 +375,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                 conversation_summary=("Current industry snapshot for this Turn: " + industry_code),
                 conversation_summary_version="turn-industry-snapshot-v1",
                 attachments=attachments,
+                memory_context=memory_context,
                 side_effect_idempotency_keys=(None,) * self.tool_policy.tool_call_limit,
             )
         else:
@@ -358,6 +388,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                 manifest_id=uuid5(run_id, "direct-answer-context-manifest-v1"),
                 user_question=question,
                 attachments=attachments,
+                memory_context=memory_context,
             )
         return DirectAnswerExecutionInput(
             command=command,

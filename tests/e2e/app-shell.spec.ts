@@ -232,13 +232,15 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByText(expectedAnswer, { exact: true })).toBeVisible();
   });
 
-  test("creates, edits, confirms, and restores a Memory revision", async ({ page }) => {
+  test("creates, restores, governs, and deletes a Memory revision", async ({ page }) => {
     test.setTimeout(75_000);
     const uniquePart = [Date.now(), test.info().workerIndex].join("-");
     const email = `memory-${uniquePart}@example.com`;
     const password = "Browser!Pass123";
     const sourceMessage = `请记住我的回答偏好 ${uniquePart}`;
     const confirmedContent = `默认使用中文和项目符号回答（${uniquePart}）。`;
+    const updatedContent = `默认使用中文、项目符号和简短结论回答（${uniquePart}）。`;
+    const recallQuestion = `回答应该使用什么语言和格式（${uniquePart}）？`;
 
     await page.goto("/");
     await page.getByRole("button", { exact: true, name: "创建账户" }).click();
@@ -286,6 +288,57 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByText("Memory 已确认")).toBeVisible();
     await expect(page.getByText(confirmedContent, { exact: true })).toBeVisible();
     await expect(page.getByText(/创建新记忆 · Revision 1/u)).toBeVisible();
+    await page.getByRole("button", { name: "完成" }).click();
+
+    await page.getByRole("button", { name: "新建会话" }).click();
+    const recallResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      const pathname = new URL(response.url()).pathname;
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/conversations$/u.test(pathname) &&
+        response.status() === 202
+      );
+    });
+    await page.getByLabel("输入问题").fill(recallQuestion);
+    await page.getByRole("button", { name: "发送问题" }).click();
+    const recallReceipt = parseStartTurnReceipt(
+      (await (await recallResponsePromise).json()) as unknown,
+    );
+    await executeBrowserCreatedRun(recallReceipt);
+    await expect(page.getByRole("button", { exact: true, name: "停止" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "打开运行轨迹" }).click();
+    const tracePanel = page.getByLabel("Agent 运行轨迹");
+    const memorySource = tracePanel
+      .getByText("长期 Memory", { exact: true })
+      .locator("xpath=ancestor::li");
+    await expect(memorySource).toContainText("已送入模型");
+    await memorySource.getByRole("button", { name: "查看 Memory revision" }).click();
+    await expect(page.getByRole("heading", { name: "Memory 管理" })).toBeVisible();
+    await expect(page.getByLabel("当前正文")).toHaveValue(confirmedContent);
+
+    await page.getByLabel("当前正文").fill(updatedContent);
+    await page.getByRole("button", { name: "保存新 revision" }).click();
+    await expect(page.getByText(/revision 2 · content v2/u)).toBeVisible();
+    await expect(page.getByLabel("当前正文")).toHaveValue(updatedContent);
+
+    const feedbackResponse = page.waitForResponse((response) => {
+      const request = response.request();
+      return request.method() === "POST" && new URL(response.url()).pathname.endsWith("/feedback");
+    });
+    await page.getByRole("button", { name: "有帮助" }).click();
+    expect((await feedbackResponse).status()).toBe(200);
+
+    await page.getByRole("button", { name: "停用" }).click();
+    await expect(page.getByRole("button", { name: "恢复启用" })).toBeVisible();
+    await page.getByRole("button", { name: "恢复启用" }).click();
+    await expect(page.getByRole("button", { name: "停用" })).toBeVisible();
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "删除" }).click();
+    await expect(page.getByText("没有符合条件的 Memory。")).toBeVisible();
+    await expect(page.getByText(updatedContent, { exact: true })).toHaveCount(0);
   });
 
   test("uses the industry-scoped Web Tool and exposes its safe Inspector", async ({ page }) => {

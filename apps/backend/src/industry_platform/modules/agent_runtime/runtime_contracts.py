@@ -7,9 +7,11 @@ from uuid import UUID
 
 from industry_platform.modules.agent_runtime.context import (
     CONTEXT_COMPILER_V0,
+    CONTEXT_COMPILER_V1,
     MAX_CONTEXT_QUESTION_LENGTH,
     MAX_CONTEXT_SUMMARY_LENGTH,
     AttachmentContextSource,
+    MemoryContextBundle,
     validate_attachment_context_sources,
 )
 from industry_platform.modules.agent_runtime.domain import (
@@ -58,8 +60,8 @@ class DirectAnswerRuntimePolicy:
         ):
             if not _VERSION_PATTERN.fullmatch(value):
                 raise ValueError(f"{field_name} is invalid")
-        if self.context_compiler_version != CONTEXT_COMPILER_V0:
-            raise ValueError("Direct Answer requires Context Compiler v0")
+        if self.context_compiler_version not in {CONTEXT_COMPILER_V0, CONTEXT_COMPILER_V1}:
+            raise ValueError("Direct Answer Context Compiler is unsupported")
         if self.output_contract_version != FINAL_MARKDOWN_CONTRACT_VERSION:
             raise ValueError("Direct Answer final output contract is unsupported")
         if not _MODEL_PATTERN.fullmatch(self.model):
@@ -88,6 +90,7 @@ class DirectAnswerRunCommand:
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
     attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
+    memory_context: MemoryContextBundle = field(default_factory=MemoryContextBundle, repr=False)
 
     def __post_init__(self) -> None:
         validate_run_state(self.run, self.state)

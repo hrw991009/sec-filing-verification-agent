@@ -281,6 +281,8 @@ class DirectAnswerRuntime(RuntimeTransitionSupport):
                     conversation_summary=command.conversation_summary,
                     conversation_summary_version=command.conversation_summary_version,
                     attachments=command.attachments,
+                    short_term_memory=command.memory_context.short_term,
+                    long_term_memories=command.memory_context.long_term,
                 )
             )
         except RuntimeDeadlineExceeded:
