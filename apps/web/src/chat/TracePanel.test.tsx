@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AgentTrace } from "./chat-api";
@@ -110,12 +111,17 @@ const trace = {
 } satisfies AgentTrace;
 
 describe("Tool Inspector", () => {
-  it("shows allowlisted Tool facts and Observation correlation without raw arguments", () => {
+  it("shows allowlisted Tool facts and promotes a completed Observation", async () => {
+    const user = userEvent.setup();
+    const onNormalizeObservation = vi.fn();
     render(
       <TracePanel
         activeRun={null}
+        evidencePromotionError={null}
+        evidencePromotionKey={null}
         events={trace.events}
         onClose={vi.fn()}
+        onNormalizeObservation={onNormalizeObservation}
         onOpenMemory={vi.fn()}
         onRetry={undefined}
         trace={trace}
@@ -129,5 +135,10 @@ describe("Tool Inspector", () => {
     expect(within(inspector).getByText("模型可见信封摘要")).toBeVisible();
     expect(within(inspector).queryByText(/must-not-render/u)).not.toBeInTheDocument();
     expect(screen.getByText(/摘要 aaaaaaaaaaaa/u)).toBeVisible();
+    await user.click(within(inspector).getByRole("button", { name: "提升为 Evidence" }));
+    expect(onNormalizeObservation).toHaveBeenCalledWith(
+      "66666666-6666-4666-8666-666666666666",
+      "55555555-5555-4555-8555-555555555555",
+    );
   });
 });

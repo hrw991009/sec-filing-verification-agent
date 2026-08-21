@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
 from industry_platform.modules.agent_runtime.adapters.execution import (
@@ -24,7 +24,11 @@ from industry_platform.modules.agent_runtime.context_compiler import (
     ContextCompilerV1,
     Utf8UpperBoundTokenCounter,
 )
-from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunBudget
+from industry_platform.modules.agent_runtime.domain import (
+    AgentRunStatus,
+    AgentStepKind,
+    RunBudget,
+)
 from industry_platform.modules.agent_runtime.execution import DirectAnswerRunExecutionService
 from industry_platform.modules.agent_runtime.model import (
     ModelFinishReason,
@@ -33,6 +37,7 @@ from industry_platform.modules.agent_runtime.model import (
     ModelStreamItem,
     ModelUsage,
 )
+from industry_platform.modules.agent_runtime.models import AgentStepRecord
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
 from industry_platform.modules.agent_runtime.tool_runtime import ToolL2Runtime, UnifiedAgentRuntime
@@ -50,6 +55,27 @@ from industry_platform.modules.conversations.domain import StartDirectAnswerTurn
 from industry_platform.modules.conversations.management import ConversationManagementService
 from industry_platform.modules.conversations.models import Message, MessageRole, MessageStatus
 from industry_platform.modules.conversations.service import ConversationApplicationService
+from industry_platform.modules.evidence.adapters.sqlalchemy import SqlAlchemyEvidenceRepository
+from industry_platform.modules.evidence.domain import (
+    ClaimEvidenceInput,
+    ClaimEvidenceRelation,
+    ClaimVerificationStatus,
+    CreateClaim,
+    EvidenceDecision,
+    EvidenceDecisionReason,
+    EvidenceStatus,
+    InvalidateEvidence,
+    NormalizeObservation,
+    RelationStatus,
+)
+from industry_platform.modules.evidence.models import (
+    ClaimEvidenceRecord,
+    EvidenceNormalizationDecisionRecord,
+    EvidenceRecord,
+    GraphEdgeRecord,
+)
+from industry_platform.modules.evidence.normalizer import parse_persisted_observation
+from industry_platform.modules.evidence.service import EvidenceApplicationService
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.identity.models import (
     User,
@@ -70,7 +96,10 @@ from industry_platform.modules.industry.domain import (
     SourceKind,
     provider_for_kind,
 )
+from industry_platform.modules.industry.models import DataSourceRecord, SourceItemRecord
 from industry_platform.modules.industry.tool import IndustryWebSearchTool
+from industry_platform.modules.research.domain import ResearchRunStatus
+from industry_platform.modules.research.models import ResearchRunRecord
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceScope
@@ -105,6 +134,16 @@ class FrozenNewsProvider:
                     title="Public transport transition",
                     summary="A frozen official-source contract fixture.",
                     locator="https://www.worldbank.org/en/news/transport-transition",
+                    published_at=self.now,
+                    metadata={"category": "Feature Story"},
+                ),
+                ProviderItem(
+                    kind=SourceKind.NEWS,
+                    provider=ProviderCode.WORLD_BANK_NEWS,
+                    external_id="day3-production-web-2",
+                    title="Uncollected transport source",
+                    summary="This source deliberately lacks an immutable local snapshot.",
+                    locator="https://www.worldbank.org/en/news/uncollected-transport-source",
                     published_at=self.now,
                     metadata={"category": "Feature Story"},
                 ),
@@ -329,6 +368,148 @@ def test_web_turn_executes_through_production_loader_unified_runtime_and_trace(
             assert call.resolved_tool_name == "industry.web_search"
             assert audit is not None
             assert audit.status == "completed"
+
+            assert call.observation is not None
+            observation = parse_persisted_observation(
+                call.observation,
+                run_id=call.run_id,
+                workspace_id=call.workspace_id,
+            )
+            collected_source = observation.sources[0]
+            async with session_factory.begin() as session:
+                data_source = await session.scalar(
+                    select(DataSourceRecord).where(
+                        DataSourceRecord.version == collected_source.source_version
+                    )
+                )
+                final_step = await session.scalar(
+                    select(AgentStepRecord).where(
+                        AgentStepRecord.run_id == receipt.run_id,
+                        AgentStepRecord.kind == AgentStepKind.FINAL,
+                    )
+                )
+                assert data_source is not None
+                assert final_step is not None
+                session.add(
+                    SourceItemRecord(
+                        id=uuid4(),
+                        workspace_id=workspace_id,
+                        industry_id=SMART_TRANSPORT_INDUSTRY_ID,
+                        data_source_id=data_source.id,
+                        source_kind=SourceKind.NEWS,
+                        external_id="day4-evidence-snapshot-1",
+                        title="Public transport transition",
+                        summary="A frozen official-source contract fixture.",
+                        locator=collected_source.locator,
+                        published_at=now,
+                        collected_at=now,
+                        content_sha256=bytes.fromhex(collected_source.content_sha256),
+                        source_metadata={"category": "Feature Story"},
+                        usage_constraints=data_source.usage_constraints,
+                    )
+                )
+                research_run_id = uuid4()
+                session.add(
+                    ResearchRunRecord(
+                        id=research_run_id,
+                        workspace_id=workspace_id,
+                        owner_user_id=user_id,
+                        agent_run_id=receipt.run_id,
+                        status=ResearchRunStatus.DRAFT,
+                        revision=1,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+
+            evidence_service = EvidenceApplicationService(
+                SqlAlchemyEvidenceRepository(session_factory),
+                clock=lambda: now + timedelta(minutes=1),
+            )
+            normalized = await evidence_service.normalize_observation(
+                WorkspaceScope(workspace_id, user_id, "owner"),
+                NormalizeObservation(
+                    tool_call_id=call.id,
+                    observation_id=observation.observation_id,
+                    trace_id=TraceId("day4-evidence-normalize"),
+                ),
+            )
+            repeated_normalization = await evidence_service.normalize_observation(
+                WorkspaceScope(workspace_id, user_id, "owner"),
+                NormalizeObservation(
+                    tool_call_id=call.id,
+                    observation_id=observation.observation_id,
+                    trace_id=TraceId("day4-evidence-normalize-retry"),
+                ),
+            )
+            assert tuple(item.decision for item in normalized.items) == (
+                EvidenceDecision.ACCEPTED,
+                EvidenceDecision.REJECTED,
+            )
+            assert normalized.items[1].reason is EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
+            accepted_evidence = normalized.items[0].evidence
+            assert accepted_evidence is not None
+            assert accepted_evidence.origin_run_id == receipt.run_id
+            assert accepted_evidence.origin_tool_call_id == call.id
+            assert repeated_normalization.items[0].evidence == accepted_evidence
+
+            claim = await evidence_service.create_claim(
+                WorkspaceScope(workspace_id, user_id, "owner"),
+                CreateClaim(
+                    research_run_id=research_run_id,
+                    statement="Public transport is transitioning.",
+                    confidence=0.8,
+                    relations=(
+                        ClaimEvidenceInput(
+                            evidence_id=accepted_evidence.evidence_id,
+                            relation=ClaimEvidenceRelation.SUPPORTS,
+                        ),
+                    ),
+                    origin_run_id=receipt.run_id,
+                    origin_step_id=final_step.id,
+                    trace_id=TraceId("day4-claim-create"),
+                ),
+            )
+            assert claim.verification_status is ClaimVerificationStatus.SUPPORTED
+            assert claim.coverage == 1
+            graph = await evidence_service.get_claim_graph(
+                WorkspaceScope(workspace_id, user_id, "owner"), research_run_id
+            )
+            assert len(graph.nodes) == 2
+            assert len(graph.edges) == 1
+
+            invalidated = await evidence_service.invalidate_evidence(
+                WorkspaceScope(workspace_id, user_id, "owner"),
+                InvalidateEvidence(
+                    evidence_id=accepted_evidence.evidence_id,
+                    expected_revision=1,
+                    status=EvidenceStatus.TOMBSTONED,
+                    reason="Source withdrawn by an operator",
+                    trace_id=TraceId("day4-evidence-invalidate"),
+                ),
+                invalidated_at=now + timedelta(minutes=2),
+            )
+            recomputed_claim = await evidence_service.get_claim(
+                WorkspaceScope(workspace_id, user_id, "owner"), claim.claim_id
+            )
+            assert invalidated.excerpt is None
+            assert invalidated.revision == 2
+            assert recomputed_claim.verification_status is ClaimVerificationStatus.UNCERTAIN
+            assert recomputed_claim.coverage == 0
+            assert recomputed_claim.relations[0].status is RelationStatus.INVALIDATED
+
+            async with session_factory() as session:
+                assert await session.scalar(select(func.count()).select_from(EvidenceRecord)) == 1
+                assert (
+                    await session.scalar(
+                        select(func.count()).select_from(EvidenceNormalizationDecisionRecord)
+                    )
+                    == 2
+                )
+                assert (
+                    await session.scalar(select(func.count()).select_from(ClaimEvidenceRecord)) == 1
+                )
+                assert await session.scalar(select(func.count()).select_from(GraphEdgeRecord)) == 1
 
             scope = WorkspaceScope(workspace_id, user_id, "owner")
             trace = await SqlAlchemyAgentTraceQuery(session_factory).get(

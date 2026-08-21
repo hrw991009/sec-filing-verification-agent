@@ -10,6 +10,8 @@ import {
 } from "react";
 
 import { DataExplorerWorkspace } from "../data-explorer/DataExplorerWorkspace";
+import { EvidenceWorkspace } from "../evidence/EvidenceWorkspace";
+import { normalizeObservation } from "../evidence/evidence-api";
 import { IndustryWorkspace } from "../industry/IndustryWorkspace";
 import { getIndustryPreference, listIndustries, type Industry } from "../industry/industry-api";
 
@@ -107,6 +109,10 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const [memoryDialogError, setMemoryDialogError] = useState<string | null>(null);
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [focusedMemoryId, setFocusedMemoryId] = useState<string | null>(null);
+  const [focusedEvidenceId, setFocusedEvidenceId] = useState<string | null>(null);
+  const [evidenceRefreshToken, setEvidenceRefreshToken] = useState(0);
+  const [evidencePromotionKey, setEvidencePromotionKey] = useState<string | null>(null);
+  const [evidencePromotionError, setEvidencePromotionError] = useState<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(workspaceId);
   const workspaceGenerationRef = useRef({ value: 0, workspaceId });
@@ -500,6 +506,10 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     setMemoryResolution(null);
     setMemoryDialogError(null);
     setMemoryBusy(false);
+    setFocusedEvidenceId(null);
+    setEvidenceRefreshToken(0);
+    setEvidencePromotionKey(null);
+    setEvidencePromotionError(null);
     setQuestion("");
     setComposerAttachments([]);
     setComposerError(null);
@@ -1216,6 +1226,36 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
       ? trace.events
       : (panelActiveRun?.events ?? []);
 
+  async function promoteObservation(toolCallId: string, observationId: string): Promise<void> {
+    const requestedWorkspaceId = workspaceId;
+    const key = `${toolCallId}:${observationId}`;
+    setEvidencePromotionKey(key);
+    setEvidencePromotionError(null);
+    try {
+      const result = await normalizeObservation(requestedWorkspaceId, {
+        observation_id: observationId,
+        tool_call_id: toolCallId,
+      });
+      if (workspaceIdRef.current !== requestedWorkspaceId) return;
+      const accepted = result.items.find((item) => item.evidence !== null)?.evidence ?? null;
+      if (accepted === null) {
+        const reasons = result.items.map((item) => item.reason).join("、");
+        setEvidencePromotionError(`没有来源通过 Evidence 门禁：${reasons}`);
+        return;
+      }
+      setFocusedEvidenceId(accepted.id);
+      setEvidenceRefreshToken((current) => current + 1);
+      setView("evidence");
+      setTraceOpen(false);
+    } catch (caught: unknown) {
+      if (workspaceIdRef.current === requestedWorkspaceId) {
+        setEvidencePromotionError(`Evidence 提升失败：${publicError(caught)}`);
+      }
+    } finally {
+      if (workspaceIdRef.current === requestedWorkspaceId) setEvidencePromotionKey(null);
+    }
+  }
+
   return (
     <main className="chat-shell">
       <ChatTopbar
@@ -1349,6 +1389,8 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
 
           <TracePanel
             activeRun={panelActiveRun}
+            evidencePromotionError={evidencePromotionError}
+            evidencePromotionKey={evidencePromotionKey}
             events={traceEvents}
             onClose={() => {
               setTraceOpen(false);
@@ -1359,6 +1401,9 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
               setView("memory");
               setTraceOpen(false);
             }}
+            onNormalizeObservation={(toolCallId, observationId) =>
+              void promoteObservation(toolCallId, observationId)
+            }
             trace={trace}
             traceError={traceError}
             traceState={traceState}
@@ -1388,6 +1433,13 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
           canManage={canCompose}
           focusedMemoryId={focusedMemoryId}
           userId={currentUser.user.id}
+          workspaceId={workspaceId}
+        />
+      ) : view === "evidence" ? (
+        <EvidenceWorkspace
+          canManage={canCompose}
+          focusedEvidenceId={focusedEvidenceId}
+          refreshToken={evidenceRefreshToken}
           workspaceId={workspaceId}
         />
       ) : (

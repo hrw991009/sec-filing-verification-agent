@@ -8,7 +8,7 @@ import sys
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from browser_driver_support import (
     BrowserSuccessDriverError,
@@ -48,6 +48,7 @@ from industry_platform.modules.agent_runtime.tool_runtime import ToolL2Runtime, 
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import ToolL2RuntimePolicy
 from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
 from industry_platform.modules.conversations.models import Message, MessageRole, MessageStatus
+from industry_platform.modules.evidence.normalizer import parse_persisted_observation
 from industry_platform.modules.industry.domain import (
     SMART_TRANSPORT_INDUSTRY_ID,
     ProviderCode,
@@ -59,6 +60,7 @@ from industry_platform.modules.industry.domain import (
     SourceKind,
     provider_for_kind,
 )
+from industry_platform.modules.industry.models import DataSourceRecord, SourceItemRecord
 from industry_platform.modules.industry.tool import IndustryWebSearchTool
 from industry_platform.modules.jobs.domain import JobStatus
 from industry_platform.modules.jobs.models import Job
@@ -285,12 +287,50 @@ async def execute_browser_web_run(
             or len(provider.requests) != 2
         ):
             raise BrowserSuccessDriverError("The Web Tool terminal facts are inconsistent")
+        if call.observation is None:
+            raise BrowserSuccessDriverError("The Web Tool Observation is missing")
+        observation = parse_persisted_observation(
+            call.observation,
+            run_id=call.run_id,
+            workspace_id=call.workspace_id,
+        )
+        if len(observation.sources) != 1:
+            raise BrowserSuccessDriverError("The Web Tool source set is inconsistent")
+        source = observation.sources[0]
+        async with session_factory.begin() as session:
+            data_source = await session.scalar(
+                select(DataSourceRecord).where(
+                    DataSourceRecord.provider == ProviderCode.WORLD_BANK_NEWS,
+                    DataSourceRecord.version == source.source_version,
+                )
+            )
+            if data_source is None:
+                raise BrowserSuccessDriverError("The Web source catalog entry is missing")
+            session.add(
+                SourceItemRecord(
+                    id=uuid4(),
+                    workspace_id=call.workspace_id,
+                    industry_id=SMART_TRANSPORT_INDUSTRY_ID,
+                    data_source_id=data_source.id,
+                    source_kind=SourceKind.NEWS,
+                    external_id=f"day4-browser-evidence-{run_id}",
+                    title="Public transport transition",
+                    summary="A frozen official-source contract fixture.",
+                    locator=source.locator,
+                    published_at=source.observed_at,
+                    collected_at=source.observed_at,
+                    content_sha256=bytes.fromhex(source.content_sha256),
+                    source_metadata={"category": "Feature Story"},
+                    usage_constraints=data_source.usage_constraints,
+                )
+            )
         return {
             "schema_version": 1,
             "run_id": str(run_id),
             "job_id": str(job_id),
             "disposition": disposition.value,
             "provider_calls": len(provider.requests),
+            "source_snapshot_count": 1,
             "answer_sha256": hashlib.sha256(provider.answer.encode()).hexdigest(),
         }
     finally:

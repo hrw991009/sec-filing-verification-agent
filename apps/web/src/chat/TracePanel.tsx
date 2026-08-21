@@ -6,7 +6,10 @@ import { Icon } from "./icons";
 interface TracePanelProps {
   readonly activeRun: ActiveRun | null;
   readonly events: readonly (AgentStreamEvent | AgentTrace["events"][number])[];
+  readonly evidencePromotionError: string | null;
+  readonly evidencePromotionKey: string | null;
   readonly onClose: () => void;
+  readonly onNormalizeObservation: (toolCallId: string, observationId: string) => void;
   readonly onOpenMemory: (memoryId: string) => void;
   readonly onRetry: (() => void) | undefined;
   readonly trace: AgentTrace | null;
@@ -59,8 +62,11 @@ function traceEventType(event: TracePanelProps["events"][number]): string {
 
 export function TracePanel({
   activeRun,
+  evidencePromotionError,
+  evidencePromotionKey,
   events,
   onClose,
+  onNormalizeObservation,
   onOpenMemory,
   onRetry,
   trace,
@@ -178,26 +184,54 @@ export function TracePanel({
                   <span>{toolEvents.length} 个事实</span>
                 </div>
                 <ol className="tool-inspector-list">
-                  {toolEvents.map((event) => (
-                    <li
-                      className="tool-inspector-event"
-                      key={`${String(event.sequence)}-${event.event_type}`}
-                    >
-                      <strong>{eventNames[event.event_type] ?? event.event_type}</strong>
-                      <span>sequence {event.sequence}</span>
-                      <dl>
-                        {Object.entries(event.details)
-                          .filter(([name]) => toolDetailNames[name] !== undefined)
-                          .map(([name, value]) => (
-                            <div key={name}>
-                              <dt>{toolDetailNames[name]}</dt>
-                              <dd>{String(value)}</dd>
-                            </div>
-                          ))}
-                      </dl>
-                    </li>
-                  ))}
+                  {toolEvents.map((event) => {
+                    const callId = event.details.call_id;
+                    const observationId = event.details.observation_id;
+                    const canNormalize =
+                      event.event_type === "agent.tool.completed" &&
+                      typeof callId === "string" &&
+                      typeof observationId === "string";
+                    const promotionKey = canNormalize ? `${callId}:${observationId}` : null;
+                    return (
+                      <li
+                        className="tool-inspector-event"
+                        key={`${String(event.sequence)}-${event.event_type}`}
+                      >
+                        <strong>{eventNames[event.event_type] ?? event.event_type}</strong>
+                        <span>sequence {event.sequence}</span>
+                        <dl>
+                          {Object.entries(event.details)
+                            .filter(([name]) => toolDetailNames[name] !== undefined)
+                            .map(([name, value]) => (
+                              <div key={name}>
+                                <dt>{toolDetailNames[name]}</dt>
+                                <dd>{String(value)}</dd>
+                              </div>
+                            ))}
+                        </dl>
+                        {canNormalize ? (
+                          <button
+                            className="compact-button tool-inspector-event__promote"
+                            disabled={evidencePromotionKey === promotionKey}
+                            onClick={() => {
+                              onNormalizeObservation(callId, observationId);
+                            }}
+                            type="button"
+                          >
+                            {evidencePromotionKey === promotionKey
+                              ? "正在校验来源…"
+                              : "提升为 Evidence"}
+                          </button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ol>
+                {evidencePromotionError === null ? null : (
+                  <p className="trace-promotion-error" role="alert">
+                    {evidencePromotionError}
+                  </p>
+                )}
                 <p className="trace-safety-note">
                   仅显示 allowlist 内的策略、预算、稳定错误码与摘要；原始参数、凭据和 Provider
                   响应不会进入 Inspector。

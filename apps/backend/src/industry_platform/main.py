@@ -85,6 +85,16 @@ from industry_platform.modules.data_explorer.resources import (
     create_data_explorer_resources,
 )
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
+from industry_platform.modules.evidence.domain import (
+    ClaimNotFoundError,
+    EvidenceConflictError,
+    EvidenceNotFoundError,
+    EvidencePersistenceError,
+    EvidenceRequestRejectedError,
+    ResearchRunNotFoundError,
+)
+from industry_platform.modules.evidence.resources import create_evidence_resources
+from industry_platform.modules.evidence.router import router as evidence_router
 from industry_platform.modules.files.resources import create_file_resources
 from industry_platform.modules.files.router import router as file_router
 from industry_platform.modules.files.service import (
@@ -222,6 +232,7 @@ def create_app(
                 ),
             )
             memory_resources = create_memory_resources(database_session_factory)
+            evidence_resources = create_evidence_resources(database_session_factory)
             file_resources = create_file_resources(
                 active_settings,
                 database_session_factory,
@@ -255,6 +266,7 @@ def create_app(
             application.state.workspace_resources = workspace_resources
             application.state.conversation_resources = conversation_resources
             application.state.memory_resources = memory_resources
+            application.state.evidence_resources = evidence_resources
             application.state.file_resources = file_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.agent_trace_resources = agent_trace_resources
@@ -293,6 +305,7 @@ def create_app(
             "Authorization",
             "Content-Type",
             "Idempotency-Key",
+            "If-Match",
             "Last-Event-ID",
             CSRF_PROOF_HEADER_NAME,
         ],
@@ -307,6 +320,70 @@ def create_app(
     application.include_router(file_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
     application.include_router(data_explorer_router, prefix="/api/v1")
+    application.include_router(evidence_router, prefix="/api/v1")
+
+    @application.exception_handler(EvidenceNotFoundError)
+    @application.exception_handler(ResearchRunNotFoundError)
+    @application.exception_handler(ClaimNotFoundError)
+    async def handle_evidence_not_found(
+        request: Request,
+        _error: EvidenceNotFoundError | ResearchRunNotFoundError | ClaimNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Evidence resource not found",
+            code="EVIDENCE_RESOURCE_NOT_FOUND",
+            detail="The requested Evidence resource does not exist or is unavailable.",
+            problem_type="urn:iip:problem:evidence-resource-not-found",
+        )
+
+    @application.exception_handler(EvidenceConflictError)
+    async def handle_evidence_conflict(
+        request: Request,
+        _error: EvidenceConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Evidence revision conflict",
+            code="EVIDENCE_REVISION_CONFLICT",
+            detail="The Evidence ledger changed. Reload it before retrying.",
+            problem_type="urn:iip:problem:evidence-revision-conflict",
+        )
+
+    @application.exception_handler(EvidenceRequestRejectedError)
+    async def handle_evidence_request_rejected(
+        request: Request,
+        _error: EvidenceRequestRejectedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Evidence request rejected",
+            code="EVIDENCE_REQUEST_REJECTED",
+            detail="The Evidence request violates a ledger contract.",
+            problem_type="urn:iip:problem:evidence-request-rejected",
+        )
+
+    @application.exception_handler(EvidencePersistenceError)
+    async def handle_evidence_persistence_error(
+        request: Request,
+        error: EvidencePersistenceError,
+    ) -> JSONResponse:
+        logger.exception(
+            "Evidence persistence unavailable trace_id=%s sqlstate=%s",
+            get_trace_id(request),
+            error.sqlstate,
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Evidence service unavailable",
+            code="EVIDENCE_SERVICE_UNAVAILABLE",
+            detail="Evidence is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:evidence-service-unavailable",
+        )
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(

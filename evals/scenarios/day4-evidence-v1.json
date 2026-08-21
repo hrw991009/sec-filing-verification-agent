@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day4-evidence",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day4-evidence-web-snapshot",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-evidence-web-snapshot",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "evidence-web-normalization", "version": "v1" },
+        "input": { "question": "Promote an exact public-source Observation." },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "evidence-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "evidence/web-exact-snapshot", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The exact authorized Web snapshot becomes active Evidence.",
+        "evidence_eval": {
+          "validity_expected": 1,
+          "validity_correct": 1,
+          "attribution_expected": 1,
+          "attribution_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "coverage_expected": 0,
+          "coverage_correct": 0,
+          "conflict_expected": 0,
+          "conflict_correct": 0,
+          "resolvability_expected": 1,
+          "resolvability_correct": 1,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "normalization_latency_ms": 21
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "evidence-validity", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-evidence-web-snapshot", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Exact Observation, SourceItem, provider version, hash, license, and Workspace authorization agree."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-evidence-web-reject",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-evidence-web-reject",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "evidence-web-normalization", "version": "v1" },
+        "input": { "question": "Reject a Web Observation without an immutable snapshot." },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "evidence-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "evidence/web-missing-snapshot", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The candidate is rejected with source_snapshot_missing.",
+        "evidence_eval": {
+          "validity_expected": 1,
+          "validity_correct": 1,
+          "attribution_expected": 0,
+          "attribution_correct": 0,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "coverage_expected": 0,
+          "coverage_correct": 0,
+          "conflict_expected": 0,
+          "conflict_correct": 0,
+          "resolvability_expected": 0,
+          "resolvability_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "normalization_latency_ms": 18
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "evidence-rejection", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-evidence-web-reject", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "No display-only citation is promoted without an immutable source resource."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-evidence-sql-result",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-evidence-sql-result",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "evidence-sql-normalization", "version": "v1" },
+        "input": { "question": "Promote a bounded Text2SQL result." },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "evidence-sql-toolset-v1",
+        "available_tools": [{ "name": "database.text2sql", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "evidence/sql-exact-query-run", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The SQL Evidence resolves to its QueryRun and SchemaSnapshot.",
+        "evidence_eval": {
+          "validity_expected": 1,
+          "validity_correct": 1,
+          "attribution_expected": 1,
+          "attribution_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "coverage_expected": 0,
+          "coverage_correct": 0,
+          "conflict_expected": 0,
+          "conflict_correct": 0,
+          "resolvability_expected": 1,
+          "resolvability_correct": 1,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "normalization_latency_ms": 32
+        }
+      },
+      "scorers": [
+        {
+          "category": "evidence",
+          "name": "evidence-attribution",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-evidence-sql-result", "version": "v1" }],
+      "artifact_refs": [{ "name": "query-result/day4-evidence", "version": "v1" }],
+      "human_notes": "Locator fixes QueryRun, connection, schema hash, source table and columns, and row range."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-evidence-source-policy",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-evidence-source-policy",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "evidence-source-policy", "version": "v1" },
+        "input": {
+          "question": "Reject a source with a mismatched hash or prohibited Evidence terms."
+        },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "evidence-policy-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "evidence/source-policy-reject", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Hash mismatch and prohibited terms are stable rejection reasons.",
+        "evidence_eval": {
+          "validity_expected": 1,
+          "validity_correct": 1,
+          "attribution_expected": 0,
+          "attribution_correct": 0,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "coverage_expected": 0,
+          "coverage_correct": 0,
+          "conflict_expected": 0,
+          "conflict_correct": 0,
+          "resolvability_expected": 0,
+          "resolvability_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "normalization_latency_ms": 20
+        }
+      },
+      "scorers": [
+        {
+          "category": "evidence",
+          "name": "evidence-source-policy",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-evidence-source-policy", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The Normalizer never trusts model text as proof of source integrity or license."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-evidence-claim-conflict",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-evidence-claim-conflict",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "evidence-claim-ledger", "version": "v1" },
+        "input": { "question": "Compute Claim coverage and conflict from persisted relations." },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "evidence-claim-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "evidence/claim-conflict", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Active supports and refutes relations produce a conflicted Claim with full coverage.",
+        "evidence_eval": {
+          "validity_expected": 0,
+          "validity_correct": 0,
+          "attribution_expected": 1,
+          "attribution_correct": 1,
+          "claim_support_expected": 1,
+          "claim_support_correct": 1,
+          "coverage_expected": 1,
+          "coverage_correct": 1,
+          "conflict_expected": 1,
+          "conflict_correct": 1,
+          "resolvability_expected": 0,
+          "resolvability_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "normalization_latency_ms": 27
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "claim-ledger", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-evidence-claim-conflict", "version": "v1" }],
+      "artifact_refs": [{ "name": "claim-graph/day4-conflict", "version": "v1" }],
+      "human_notes": "Claim status, coverage, and graph edges are derived only from persisted active relations."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-evidence-invalidation-auth",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-evidence-invalidation-auth",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "evidence-governance", "version": "v1" },
+        "input": { "question": "Invalidate Evidence and probe it from another Workspace." },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "evidence-governance-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "evidence/invalidation-auth", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Invalidated Evidence exposes no excerpt and cross-Workspace leakage is zero.",
+        "evidence_eval": {
+          "validity_expected": 0,
+          "validity_correct": 0,
+          "attribution_expected": 0,
+          "attribution_correct": 0,
+          "claim_support_expected": 1,
+          "claim_support_correct": 1,
+          "coverage_expected": 1,
+          "coverage_correct": 1,
+          "conflict_expected": 0,
+          "conflict_correct": 0,
+          "resolvability_expected": 0,
+          "resolvability_correct": 0,
+          "authorization_probes": 2,
+          "authorization_leaks": 0,
+          "normalization_latency_ms": 26
+        }
+      },
+      "scorers": [
+        {
+          "category": "evidence",
+          "name": "evidence-authorization",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-evidence-invalidation-auth", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Read-time reauthorization and tombstoning remove excerpts and active Claim relations."
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 >
 > 相关决策：[系统架构](../architecture.md)第 6.5～6.6、10.3、12、15.1、15.4、15.6、18 节，[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)
 >
-> 当前状态：Day 3 门禁已关闭；步骤 1、2 已完成本地实现与统一门禁，等待提交后的干净 CI 复核；步骤 3～5 尚未开始。
+> 当前状态：Day 3 门禁已关闭；步骤 1～3 已完成本地实现与统一门禁，等待提交后的干净 CI 复核；步骤 4～5 尚未开始。
 
 ## 1. 执行边界
 
@@ -83,7 +83,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 |---|---|---|
 | 1. 可控 Memory 写入 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
 | 2. Memory 召回与治理 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 3. Evidence/Claim 账本 | `planned` | 本文步骤 3 的全部验收条件通过 |
+| 3. Evidence/Claim 账本 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
 | 4. Research L3 graph | `planned` | 本文步骤 4 的全部验收条件通过 |
 | 5. Workbench/Eval/Day 4 门禁 | `planned` | 本文步骤 5、Day 4 门禁及适用 DoD 全部通过 |
 
@@ -118,6 +118,24 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 依赖/许可证 `N/A`：本步骤未新增 Python、Node、服务或 Provider 依赖，`uv.lock`、`pnpm-lock.yaml` 与 NOTICE 无变化；复核人 Codex，2026-08-20。
 - 本机运行时偏差：仓库固定 Node `24.16.0`，当前本机为 `24.19.0`，pnpm 因此给出 engine warning；上述门禁均通过，但精确 Node 版本的干净环境复核仍必须由 CI 完成。
 - 尚未远端验证：当前没有执行 commit、push 或 GitHub CI，因此步骤 2 与相关能力矩阵项保持 `implemented_pending_verification`/`thin_slice`，不得表述为干净 CI 已通过。
+
+### 3.3 步骤 3 本地验收记录
+
+复核人：Codex；复核日期：2026-08-21。
+
+- 正式来源链路：Day 3 `industry.web_search:v1` 与 `database.text2sql:v1` 均通过统一 `ToolL2Runtime` 产生正式 PostgreSQL ToolCall/Observation；Normalizer 重新计算 Tool schema/content/envelope hash，不接受客户端重组的候选。
+- Web/行业提升：真实 Web Conversation→Job/Outbox→Runtime→Tool→Observation 链路中，只有具备同 Workspace 不可变 SourceItem、精确 Provider version/hash 和允许许可的一项成为 Evidence；缺少快照的第二项保存 `source_snapshot_missing` 拒绝决策，重复归一化返回同一 Evidence。
+- Text2SQL 提升：独立 PostgreSQL 只读账号完成实际 SELECT；QueryRun 精确绑定 AgentRun/ToolCall，并携带 completed 状态、SchemaSnapshot、validated SQL、QueryResult 和 result hash。`sql_result_v1` locator 可反查 connection、QueryRun、SchemaSnapshot/hash、允许表、源列和行范围；跨 Workspace 读取为 0。
+- Claim 与图：supports/refutes/context、supported/refuted/uncertain/conflicted、coverage 与 conflict 使用纯 domain 规则；Claim→Evidence 节点/边只由正式关系生成。Evidence tombstone 后 excerpt 清空、relation/node/edge 失效，Claim 从 supported 重算为 uncertain、coverage 从 1 降为 0。
+- 权限与生命周期：来源版本/hash/许可、locator、依赖、当前连接 allowlist 和 Workspace 在提升/读取时分别复核；去重不跨授权角色、来源版本或 Workspace；所有写操作保留审计与资源 revision，失效使用 `If-Match`。
+- Workbench：Trace completed Tool 事件可发起“提升为 Evidence”，成功进入正式 Inspector；页面显示来源版本/hash/许可/授权快照/normalizer、Evidence→Observation→ToolCall→Step/Run 反向 Trace、Claim coverage/conflict/关系，并从 API 在刷新后恢复。
+- Eval：`day4-evidence-v1` 通过共享 Harness loader，`evidence-scorer-v1` 分开报告 validity、attribution、Claim support、coverage、conflict、citation resolvability、authorization leakage 和 latency；JSON/Markdown 是确定性合同基线，不冒充实时 Provider 或 Research L3 质量。
+- 迁移与契约：`f2a4c6e8b013` 已在 fresh PostgreSQL 通过 migration smoke；OpenAPI 和 TypeScript 契约由正式应用生成。未新增 SSE Event type，故 SSE schema 变更为 `N/A`（原因：提升与治理是同步资源决议，origin 复用既有 Tool Event/Trace；复核人 Codex，2026-08-21）。
+- 完整本地门禁：PostgreSQL/Redis/MinIO 全部强制开启时 Python `927 passed`、无 skip，包含 Evidence HTTP 权限/Revision 契约、fresh migration smoke、Web/Claim 与独立只读账号 Text2SQL Evidence 集成；354 个 Python 文件通过 format，Ruff、mypy 342 个源文件和 Python wheel/sdist 构建通过。Web format/lint/typecheck、16 个 Vitest 文件共 61 条测试、生产构建和 Playwright 5/5 通过；其中浏览器从正式 Trace 提升 Evidence 并在刷新后恢复 Inspector lineage。OpenAPI/TypeScript 连续两次生成 SHA-256 一致。
+- 安全与供应链：Python/Node audit 均无已知漏洞；受控源码、测试、文档、Eval 路径及 51 个 Git 提交的 Gitleaks 扫描无发现。普通日志、Trace 和 AuditLog 不保存 Secret、原始 Tool 参数、Provider 原始响应或 chain-of-thought。
+- 依赖/许可证 `N/A`：本步骤未新增 Python、Node、服务或 Provider 依赖；SQL lineage 复用 Day 3 已锁定的 SQLGlot，锁文件和 NOTICE 无变化；复核人 Codex，2026-08-21。
+- 尚未远端验证：当前没有执行 commit、push 或 GitHub CI，因此步骤 3 保持 `implemented_pending_verification`；D4-04 Research L3、完整 D4-05 Workbench 和 Message/Report Citation 未完成，不能据本步骤提前进入 Day 5。
+- 本机运行时偏差：仓库固定 Node `24.16.0`，当前本机为 `24.19.0`，pnpm 给出 engine warning；所有上述 Web 门禁仍通过，但精确版本的干净环境复核必须由 CI 完成。
 
 ## 4. 每一步的详细实施说明
 

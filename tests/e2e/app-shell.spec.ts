@@ -104,6 +104,7 @@ async function executeBrowserCreatedWebRun(receipt: StartTurnReceipt): Promise<v
     result.job_id !== receipt.jobId ||
     result.disposition !== "succeeded" ||
     result.provider_calls !== 2 ||
+    result.source_snapshot_count !== 1 ||
     typeof result.answer_sha256 !== "string" ||
     !/^[0-9a-f]{64}$/u.test(result.answer_sha256)
   ) {
@@ -385,6 +386,23 @@ test.describe("browser identity lifecycle", () => {
     await expect(inspector).toContainText("industry.web_search");
     await expect(inspector).toContainText("模型可见信封摘要");
     await expect(inspector).not.toContainText("transport policy");
+
+    await inspector.getByRole("button", { name: "提升为 Evidence" }).click();
+    await expect(page.getByRole("heading", { name: "Evidence Inspector" })).toBeVisible();
+    await expect(
+      page.getByText("Public transport transition", { exact: true }).first(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /Public transport transition/u }).click();
+    const evidenceDetail = page.getByRole("region", { name: "Evidence 详情" });
+    await expect(evidenceDetail).toContainText(receipt.agentRunId);
+    await expect(evidenceDetail).toContainText("evidence-normalizer-v1");
+    await expect(evidenceDetail).toContainText("industry_source_v1");
+
+    await page.reload();
+    await page.getByRole("button", { name: "Evidence" }).click();
+    await expect(
+      page.getByText("Public transport transition", { exact: true }).first(),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "数据库" }).click();
     await expect(page.getByRole("heading", { name: "数据库与安全 Text2SQL" })).toBeVisible();

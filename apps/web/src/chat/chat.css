@@ -1243,6 +1243,20 @@
   line-height: 1.55;
 }
 
+.tool-inspector-event__promote {
+  margin-top: 0.65rem;
+}
+
+.trace-promotion-error {
+  margin: 0.6rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.55rem;
+  background: #fae8e4;
+  color: #98463b;
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
 .manifest-card + .manifest-card {
   margin-top: 0.55rem;
 }

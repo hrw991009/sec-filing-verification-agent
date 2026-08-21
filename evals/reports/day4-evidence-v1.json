@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "day4-evidence",
+  "dataset_version": "v1",
+  "scorer_version": "evidence-scorer-v1",
+  "case_count": 6,
+  "metrics": {
+    "validity_accuracy": { "numerator": 4, "denominator": 4, "value": 1.0 },
+    "attribution_accuracy": { "numerator": 3, "denominator": 3, "value": 1.0 },
+    "claim_support_accuracy": { "numerator": 2, "denominator": 2, "value": 1.0 },
+    "coverage_accuracy": { "numerator": 2, "denominator": 2, "value": 1.0 },
+    "conflict_accuracy": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "citation_resolvability": { "numerator": 2, "denominator": 2, "value": 1.0 },
+    "authorization_leakage": { "numerator": 0, "denominator": 2, "value": 0.0 },
+    "average_normalization_latency_ms": { "numerator": 144, "denominator": 6, "value": 24.0 }
+  }
+}

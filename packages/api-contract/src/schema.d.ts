@@ -374,6 +374,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Evidence */
+        get: operations["list_evidence_api_v1_workspaces__workspace_id__evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/evidence/normalizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Normalize Observation */
+        post: operations["normalize_observation_api_v1_workspaces__workspace_id__evidence_normalizations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Evidence */
+        get: operations["get_evidence_api_v1_workspaces__workspace_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/evidence/{evidence_id}/invalidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invalidate Evidence */
+        post: operations["invalidate_evidence_api_v1_workspaces__workspace_id__evidence__evidence_id__invalidate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/files/presign": {
         parameters: {
             query?: never;
@@ -774,6 +842,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/research-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Research Runs */
+        get: operations["list_research_runs_api_v1_workspaces__workspace_id__research_runs_get"];
+        put?: never;
+        /** Create Research Run */
+        post: operations["create_research_run_api_v1_workspaces__workspace_id__research_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Claims */
+        get: operations["list_claims_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims_get"];
+        put?: never;
+        /** Create Claim */
+        post: operations["create_claim_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/claims/{claim_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Claim */
+        get: operations["get_claim_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims__claim_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Claim Graph */
+        get: operations["get_claim_graph_api_v1_workspaces__workspace_id__research_runs__research_run_id__graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -893,6 +1031,28 @@ export interface components {
              */
             id: string;
         };
+        /** AuthorizationSnapshotResponse */
+        AuthorizationSnapshotResponse: {
+            /** Action */
+            action: string;
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Role */
+            role: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
         /**
          * ChangePasswordRequest
          * @description Current proof and policy-compliant replacement accepted from one user.
@@ -951,6 +1111,57 @@ export interface components {
          * @enum {string}
          */
         ChartType: "table" | "line" | "bar" | "pie" | "scatter";
+        /** ClaimEvidenceInputRequest */
+        ClaimEvidenceInputRequest: {
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            relation: components["schemas"]["ClaimEvidenceRelation"];
+        };
+        /**
+         * ClaimEvidenceRelation
+         * @enum {string}
+         */
+        ClaimEvidenceRelation: "supports" | "refutes" | "context";
+        /** ClaimEvidenceResponse */
+        ClaimEvidenceResponse: {
+            evidence: components["schemas"]["EvidenceResponse"];
+            /** Ordinal */
+            ordinal: number;
+            /**
+             * Origin Run Id
+             * Format: uuid
+             */
+            origin_run_id: string;
+            /**
+             * Origin Step Id
+             * Format: uuid
+             */
+            origin_step_id: string;
+            relation: components["schemas"]["ClaimEvidenceRelation"];
+            /** Relation Version */
+            relation_version: number;
+            status: components["schemas"]["RelationStatus"];
+        };
+        /** ClaimGraphResponse */
+        ClaimGraphResponse: {
+            /** Edges */
+            edges: components["schemas"]["GraphEdgeResponse"][];
+            /** Nodes */
+            nodes: components["schemas"]["GraphNodeResponse"][];
+            /**
+             * Research Run Id
+             * Format: uuid
+             */
+            research_run_id: string;
+        };
+        /**
+         * ClaimVerificationStatus
+         * @enum {string}
+         */
+        ClaimVerificationStatus: "supported" | "refuted" | "uncertain" | "conflicted";
         /** CollectionRunCollectionResponse */
         CollectionRunCollectionResponse: {
             /** Runs */
@@ -1251,6 +1462,25 @@ export interface components {
              */
             updated_at: string;
         };
+        /** CreateClaimRequest */
+        CreateClaimRequest: {
+            /** Confidence */
+            confidence: number;
+            /**
+             * Origin Run Id
+             * Format: uuid
+             */
+            origin_run_id: string;
+            /**
+             * Origin Step Id
+             * Format: uuid
+             */
+            origin_step_id: string;
+            /** Relations */
+            relations?: components["schemas"]["ClaimEvidenceInputRequest"][];
+            /** Statement */
+            statement: string;
+        };
         /** CreateCollectionScheduleRequest */
         CreateCollectionScheduleRequest: {
             /**
@@ -1297,6 +1527,14 @@ export interface components {
             message_ids: string[];
             /** @default user */
             scope: components["schemas"]["MemoryScope"];
+        };
+        /** CreateResearchRunRequest */
+        CreateResearchRunRequest: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
         };
         /**
          * CurrentUserResponse
@@ -1379,6 +1617,133 @@ export interface components {
          * @enum {string}
          */
         DependencyStatus: "ok" | "failed";
+        /** EvidenceCollectionResponse */
+        EvidenceCollectionResponse: {
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceResponse"][];
+        };
+        /**
+         * EvidenceDecision
+         * @enum {string}
+         */
+        EvidenceDecision: "accepted" | "rejected";
+        /**
+         * EvidenceDecisionReason
+         * @enum {string}
+         */
+        EvidenceDecisionReason: "accepted" | "observation_not_found" | "observation_invalid" | "unsupported_source" | "locator_invalid" | "source_version_missing" | "source_snapshot_missing" | "source_hash_mismatch" | "license_not_allowed" | "dependency_unavailable" | "content_too_large" | "resource_unauthorized";
+        /**
+         * EvidenceKind
+         * @enum {string}
+         */
+        EvidenceKind: "web_snapshot" | "sql_result" | "news" | "policy" | "bidding" | "stock";
+        /** EvidenceNormalizationItemResponse */
+        EvidenceNormalizationItemResponse: {
+            decision: components["schemas"]["EvidenceDecision"];
+            evidence: components["schemas"]["EvidenceResponse"] | null;
+            reason: components["schemas"]["EvidenceDecisionReason"];
+            /** Source Ordinal */
+            source_ordinal: number;
+        };
+        /** EvidenceNormalizationResponse */
+        EvidenceNormalizationResponse: {
+            /** Items */
+            items: components["schemas"]["EvidenceNormalizationItemResponse"][];
+            /** Normalizer Version */
+            normalizer_version: string;
+            /**
+             * Observation Id
+             * Format: uuid
+             */
+            observation_id: string;
+            /**
+             * Tool Call Id
+             * Format: uuid
+             */
+            tool_call_id: string;
+        };
+        /** EvidenceResponse */
+        EvidenceResponse: {
+            authorization_snapshot: components["schemas"]["AuthorizationSnapshotResponse"];
+            /** Canonical Url */
+            canonical_url: string | null;
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Excerpt */
+            excerpt: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invalidated At */
+            invalidated_at: string | null;
+            /** Invalidation Reason */
+            invalidation_reason: string | null;
+            kind: components["schemas"]["EvidenceKind"];
+            /** License Or Terms */
+            license_or_terms: string;
+            /** Locator */
+            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"];
+            /** Normalizer Version */
+            normalizer_version: string;
+            /**
+             * Origin Observation Id
+             * Format: uuid
+             */
+            origin_observation_id: string;
+            /**
+             * Origin Run Id
+             * Format: uuid
+             */
+            origin_run_id: string;
+            /** Origin Source Ordinal */
+            origin_source_ordinal: number;
+            /**
+             * Origin Step Id
+             * Format: uuid
+             */
+            origin_step_id: string;
+            /**
+             * Origin Tool Call Id
+             * Format: uuid
+             */
+            origin_tool_call_id: string;
+            /**
+             * Retrieved At
+             * Format: date-time
+             */
+            retrieved_at: string;
+            /** Revision */
+            revision: number;
+            /** Source Published At */
+            source_published_at: string | null;
+            /** Source Resource Version */
+            source_resource_version: string;
+            status: components["schemas"]["EvidenceStatus"];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /**
+         * EvidenceStatus
+         * @enum {string}
+         */
+        EvidenceStatus: "active" | "superseded" | "tombstoned" | "unavailable";
         /** ExecuteQueryRequest */
         ExecuteQueryRequest: {
             chart?: components["schemas"]["ChartRequestBody"];
@@ -1459,6 +1824,48 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** GraphEdgeResponse */
+        GraphEdgeResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            relation: components["schemas"]["ClaimEvidenceRelation"];
+            /**
+             * Source Node Id
+             * Format: uuid
+             */
+            source_node_id: string;
+            status: components["schemas"]["RelationStatus"];
+            /**
+             * Target Node Id
+             * Format: uuid
+             */
+            target_node_id: string;
+        };
+        /** GraphNodeResponse */
+        GraphNodeResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            node_type: components["schemas"]["GraphNodeType"];
+            /**
+             * Resource Id
+             * Format: uuid
+             */
+            resource_id: string;
+            status: components["schemas"]["RelationStatus"];
+        };
+        /**
+         * GraphNodeType
+         * @enum {string}
+         */
+        GraphNodeType: "claim" | "evidence" | "entity";
         IdempotencyKey: string;
         /** IndexSchemaResponse */
         IndexSchemaResponse: {
@@ -1510,6 +1917,38 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** IndustrySourceLocatorResponse */
+        IndustrySourceLocatorResponse: {
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "industry_source_v1";
+            /** Provider */
+            provider: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Source Item Id
+             * Format: uuid
+             */
+            source_item_id: string;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Version */
+            source_version: string;
+        };
+        /** InvalidateEvidenceRequest */
+        InvalidateEvidenceRequest: {
+            /** Reason */
+            reason: string;
+            status: components["schemas"]["EvidenceStatus"];
         };
         /**
          * LivenessResponse
@@ -1830,6 +2269,19 @@ export interface components {
         ModelRole: "system" | "user" | "assistant";
         /** Format: uuid */
         NonNilUuid: string;
+        /** NormalizeObservationRequest */
+        NormalizeObservationRequest: {
+            /**
+             * Observation Id
+             * Format: uuid
+             */
+            observation_id: string;
+            /**
+             * Tool Call Id
+             * Format: uuid
+             */
+            tool_call_id: string;
+        };
         /**
          * ProviderCode
          * @description Exact allowlisted external integrations.
@@ -2024,11 +2476,108 @@ export interface components {
             user: components["schemas"]["AuthenticatedUser"];
             workspace: components["schemas"]["RegisteredWorkspace"];
         };
+        /**
+         * RelationStatus
+         * @enum {string}
+         */
+        RelationStatus: "active" | "invalidated";
         /** RenameConversationRequest */
         RenameConversationRequest: {
             /** Title */
             title: string;
         };
+        /** ResearchClaimCollectionResponse */
+        ResearchClaimCollectionResponse: {
+            /** Claims */
+            claims: components["schemas"]["ResearchClaimResponse"][];
+        };
+        /** ResearchClaimResponse */
+        ResearchClaimResponse: {
+            /** Confidence */
+            confidence: number;
+            /** Conflict */
+            conflict: boolean;
+            /** Coverage */
+            coverage: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Relations */
+            relations: components["schemas"]["ClaimEvidenceResponse"][];
+            /**
+             * Research Run Id
+             * Format: uuid
+             */
+            research_run_id: string;
+            /** Revision */
+            revision: number;
+            /** Statement */
+            statement: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            verification_status: components["schemas"]["ClaimVerificationStatus"];
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /** ResearchRunCollectionResponse */
+        ResearchRunCollectionResponse: {
+            /** Research Runs */
+            research_runs: components["schemas"]["ResearchRunResponse"][];
+        };
+        /** ResearchRunResponse */
+        ResearchRunResponse: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Owner User Id
+             * Format: uuid
+             */
+            owner_user_id: string;
+            /** Revision */
+            revision: number;
+            status: components["schemas"]["ResearchRunStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /**
+         * ResearchRunStatus
+         * @enum {string}
+         */
+        ResearchRunStatus: "draft" | "active" | "completed" | "failed" | "cancelled";
         /** ResolveMemoryCandidateRequest */
         ResolveMemoryCandidateRequest: {
             /** @default create */
@@ -2120,6 +2669,44 @@ export interface components {
          * @enum {string}
          */
         SourceKind: "news" | "policy" | "tender" | "stock";
+        /** SqlResultLocatorResponse */
+        SqlResultLocatorResponse: {
+            /** Columns */
+            columns: string[];
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "sql_result_v1";
+            /**
+             * Query Run Id
+             * Format: uuid
+             */
+            query_run_id: string;
+            /** Row End */
+            row_end: number;
+            /** Row Start */
+            row_start: number;
+            /**
+             * Schema Snapshot Id
+             * Format: uuid
+             */
+            schema_snapshot_id: string;
+            /** Schema Snapshot Sha256 */
+            schema_snapshot_sha256: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Tables */
+            tables: string[];
+        };
         /** StartConversationTurnRequest */
         StartConversationTurnRequest: {
             /** Attachment Ids */
@@ -5516,6 +6103,727 @@ export interface operations {
                 };
             };
             /** @description Data Explorer temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    list_evidence_api_v1_workspaces__workspace_id__evidence_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["EvidenceStatus"] | null;
+                kind?: components["schemas"]["EvidenceKind"] | null;
+                origin_run_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceCollectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    normalize_observation_api_v1_workspaces__workspace_id__evidence_normalizations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NormalizeObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceNormalizationResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_evidence_api_v1_workspaces__workspace_id__evidence__evidence_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    invalidate_evidence_api_v1_workspaces__workspace_id__evidence__evidence_id__invalidate_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                workspace_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvalidateEvidenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -10777,6 +12085,1079 @@ export interface operations {
                 };
             };
             /** @description Data Explorer temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    list_research_runs_api_v1_workspaces__workspace_id__research_runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunCollectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    create_research_run_api_v1_workspaces__workspace_id__research_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateResearchRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    list_claims_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchClaimCollectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    create_claim_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchClaimResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_claim_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims__claim_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchClaimResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_claim_graph_api_v1_workspaces__workspace_id__research_runs__research_run_id__graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClaimGraphResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence revision conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Evidence service temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;
