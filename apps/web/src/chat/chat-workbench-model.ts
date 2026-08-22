@@ -67,12 +67,16 @@ export const runStatusNames: Record<string, string> = {
   failed: "失败",
   queued: "排队中",
   running: "运行中",
+  paused: "已暂停",
 };
 
 export const eventNames: Record<string, string> = {
   "agent.model.completed": "模型响应完成",
   "agent.model.delta": "收到流式片段",
   "agent.model.started": "模型调用开始",
+  "agent.research.node_completed": "Research 节点完成",
+  "agent.research.node_failed": "Research 节点失败",
+  "agent.research.node_started": "Research 节点开始",
   "agent.run.cancelled": "运行已取消",
   "agent.run.completed": "运行已完成",
   "agent.run.failed": "运行失败",
@@ -95,8 +99,10 @@ export const eventNames: Record<string, string> = {
 export const sourceNames: Record<string, string> = {
   attachment: "附件",
   conversation_summary: "会话摘要",
+  long_term_memory: "长期 Memory",
   runtime_context_projection: "Workspace 安全投影",
   system_instructions: "系统指令",
+  short_term_memory: "当前 Thread Memory",
   tool_observation: "工具观察结果",
   user_question: "当前问题",
 };

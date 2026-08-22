@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "day4-memory",
+  "dataset_version": "v1",
+  "scorer_version": "memory-scorer-v1",
+  "case_count": 8,
+  "metrics": {
+    "write_accuracy": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "retrieval_precision": { "numerator": 3, "denominator": 3, "value": 1.0 },
+    "utility": { "numerator": 3, "denominator": 3, "value": 1.0 },
+    "pollution": { "numerator": 0, "denominator": 3, "value": 0.0 },
+    "conflict_handling": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "edit_effectiveness": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "deletion_residual": { "numerator": 0, "denominator": 1, "value": 0.0 },
+    "average_input_tokens": { "numerator": 1592, "denominator": 8, "value": 199.0 },
+    "average_latency_ms": { "numerator": 200, "denominator": 8, "value": 25.0 }
+  }
+}

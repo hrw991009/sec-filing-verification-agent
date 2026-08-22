@@ -39,6 +39,8 @@ CONTEXT_COMPILER_V0: Final = "context-v0"
 CONTEXT_COMPILER_V1: Final = "context-v1"
 RUNTIME_CONTEXT_PROJECTION_V0: Final = "runtime-context-projection-v0"
 TOOL_OBSERVATION_CONTEXT_VERSION: Final = "tool-observation-v1"
+SHORT_TERM_MEMORY_CONTEXT_VERSION: Final = "short-term-memory-v1"
+LONG_TERM_MEMORY_CONTEXT_VERSION: Final = "long-term-memory-v1"
 
 MAX_CONTEXT_SYSTEM_INSTRUCTIONS_LENGTH: Final = 20_000
 MAX_CONTEXT_QUESTION_LENGTH: Final = 20_000
@@ -52,8 +54,16 @@ MAX_CONTEXT_TOOL_OBSERVATION_TEXT_LENGTH: Final = 50_000
 # Observation; the Context token budget remains the stricter model-call gate.
 MAX_CONTEXT_TOOL_OBSERVATION_LOCATOR_BYTES: Final = 256 * 1_024
 MAX_CONTEXT_TOOL_OBSERVATIONS: Final = 8
+MAX_CONTEXT_LONG_TERM_MEMORY_CANDIDATES: Final = 20
+MAX_CONTEXT_INCLUDED_LONG_TERM_MEMORIES: Final = 6
+MAX_CONTEXT_MEMORY_CONTENT_LENGTH: Final = 4_000
 MAX_CONTEXT_RESPONSE_SCHEMA_BYTES: Final = 100_000
-MAX_CONTEXT_MANIFEST_SOURCES: Final = 4 + MAX_CONTEXT_ATTACHMENTS + MAX_CONTEXT_TOOL_OBSERVATIONS
+MAX_CONTEXT_MANIFEST_SOURCES: Final = (
+    5
+    + MAX_CONTEXT_ATTACHMENTS
+    + MAX_CONTEXT_TOOL_OBSERVATIONS
+    + MAX_CONTEXT_LONG_TERM_MEMORY_CANDIDATES
+)
 
 _VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:+/-]{0,127}$")
 _SECRET_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}$")
@@ -97,6 +107,8 @@ class ContextSourceKind(StrEnum):
     ATTACHMENT = "attachment"
     USER_QUESTION = "user_question"
     TOOL_OBSERVATION = "tool_observation"
+    SHORT_TERM_MEMORY = "short_term_memory"
+    LONG_TERM_MEMORY = "long_term_memory"
 
 
 class ContextDecisionReason(StrEnum):
@@ -105,6 +117,15 @@ class ContextDecisionReason(StrEnum):
     INCLUDED = "included"
     NOT_AVAILABLE = "not_available"
     EXCLUDED_TOKEN_BUDGET = "excluded_token_budget"  # noqa: S105 - audit decision code
+    EXCLUDED_NOT_RELEVANT = "excluded_not_relevant"
+    EXCLUDED_STALE = "excluded_stale"
+    EXCLUDED_CONFLICTED = "excluded_conflicted"
+    EXCLUDED_DUPLICATE = "excluded_duplicate"
+    EXCLUDED_SENSITIVE = "excluded_sensitive"
+    EXCLUDED_DISABLED = "excluded_disabled"
+    EXCLUDED_EXPIRED = "excluded_expired"
+    EXCLUDED_DELETED = "excluded_deleted"
+    EXCLUDED_NEGATIVE_FEEDBACK = "excluded_negative_feedback"
 
 
 class ContextBudgetExceededError(RuntimeError):
@@ -397,6 +418,141 @@ def validate_tool_observation_context_sources(
 
 
 @dataclass(frozen=True, slots=True)
+class ShortTermMemoryContextSource:
+    """One current Thread summary reloaded from its authoritative message references."""
+
+    state_id: UUID
+    workspace_id: UUID
+    conversation_id: UUID
+    owner_user_id: UUID
+    source_message_ids: tuple[UUID, ...]
+    compaction_revision: int
+    freshness_at: datetime
+    summary: str = field(repr=False)
+    content_sha256: str = ""
+    context_version: str = SHORT_TERM_MEMORY_CONTEXT_VERSION
+
+    def __post_init__(self) -> None:
+        for identifier, field_name in (
+            (self.state_id, "Short-term Memory state ID"),
+            (self.workspace_id, "Short-term Memory Workspace ID"),
+            (self.conversation_id, "Short-term Memory Conversation ID"),
+            (self.owner_user_id, "Short-term Memory owner ID"),
+        ):
+            require_non_nil_uuid(identifier, field_name=field_name)
+        source_ids = tuple(self.source_message_ids)
+        if not 1 <= len(source_ids) <= 8 or len(source_ids) != len(set(source_ids)):
+            raise ValueError("Short-term Memory source references are invalid")
+        for source_id in source_ids:
+            require_non_nil_uuid(source_id, field_name="Short-term Memory source Message ID")
+        if isinstance(self.compaction_revision, bool) or self.compaction_revision < 1:
+            raise ValueError("Short-term Memory compaction revision is invalid")
+        require_utc(self.freshness_at, field_name="Short-term Memory freshness")
+        summary = _normalize_text(
+            self.summary,
+            maximum=MAX_CONTEXT_MEMORY_CONTENT_LENGTH,
+            field_name="Short-term Memory summary",
+        )
+        digest = hashlib.sha256(summary.encode("utf-8")).hexdigest()
+        if self.content_sha256 and self.content_sha256 != digest:
+            raise ValueError("Short-term Memory summary does not match its digest")
+        if self.context_version != SHORT_TERM_MEMORY_CONTEXT_VERSION:
+            raise ValueError("Short-term Memory Context version is unsupported")
+        object.__setattr__(self, "source_message_ids", source_ids)
+        object.__setattr__(self, "summary", summary)
+        object.__setattr__(self, "content_sha256", digest)
+
+
+@dataclass(frozen=True, slots=True)
+class LongTermMemoryContextSource:
+    """One authorized current Memory revision and its deterministic recall decision."""
+
+    memory_id: UUID
+    revision_id: UUID
+    workspace_id: UUID
+    owner_user_id: UUID
+    revision: int
+    scope: str
+    kind: str
+    decision_reason: ContextDecisionReason
+    relevance_score: float
+    feedback_score: int
+    updated_at: datetime
+    content: str | None = field(default=None, repr=False)
+    content_sha256: str | None = None
+    context_version: str = LONG_TERM_MEMORY_CONTEXT_VERSION
+
+    def __post_init__(self) -> None:
+        for identifier, field_name in (
+            (self.memory_id, "Long-term Memory ID"),
+            (self.revision_id, "Long-term Memory revision ID"),
+            (self.workspace_id, "Long-term Memory Workspace ID"),
+            (self.owner_user_id, "Long-term Memory owner ID"),
+        ):
+            require_non_nil_uuid(identifier, field_name=field_name)
+        if isinstance(self.revision, bool) or self.revision < 1:
+            raise ValueError("Long-term Memory revision is invalid")
+        if self.scope not in {"user", "workspace"}:
+            raise ValueError("Long-term Memory scope is invalid")
+        if self.kind not in {"preference", "fact", "instruction", "note"}:
+            raise ValueError("Long-term Memory kind is invalid")
+        if not 0 <= self.relevance_score <= 1:
+            raise ValueError("Long-term Memory relevance score is invalid")
+        if isinstance(self.feedback_score, bool) or not -1 <= self.feedback_score <= 1:
+            raise ValueError("Long-term Memory feedback score is invalid")
+        require_utc(self.updated_at, field_name="Long-term Memory update time")
+        if self.context_version != LONG_TERM_MEMORY_CONTEXT_VERSION:
+            raise ValueError("Long-term Memory Context version is unsupported")
+        if self.decision_reason is ContextDecisionReason.INCLUDED:
+            if self.content is None:
+                raise ValueError("Eligible Long-term Memory requires content")
+            content = _normalize_text(
+                self.content,
+                maximum=MAX_CONTEXT_MEMORY_CONTENT_LENGTH,
+                field_name="Long-term Memory content",
+            )
+            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            if self.content_sha256 is not None and self.content_sha256 != digest:
+                raise ValueError("Long-term Memory content does not match its digest")
+            object.__setattr__(self, "content", content)
+            object.__setattr__(self, "content_sha256", digest)
+        elif self.content is not None:
+            raise ValueError("Excluded Long-term Memory must not carry model-visible content")
+        elif self.content_sha256 is not None and not _SHA256_PATTERN.fullmatch(self.content_sha256):
+            raise ValueError("Long-term Memory digest is invalid")
+
+
+def validate_long_term_memory_context_sources(
+    memories: tuple[LongTermMemoryContextSource, ...],
+    *,
+    workspace_id: UUID,
+    user_id: UUID,
+) -> tuple[LongTermMemoryContextSource, ...]:
+    """Freeze a bounded, ordered selection without allowing private cross-user scope."""
+
+    selected = tuple(memories)
+    if len(selected) > MAX_CONTEXT_LONG_TERM_MEMORY_CANDIDATES:
+        raise ValueError("Long-term Memory Context exceeds the candidate limit")
+    if len({memory.memory_id for memory in selected}) != len(selected):
+        raise ValueError("Long-term Memory Context IDs must be unique")
+    if any(
+        memory.workspace_id != workspace_id
+        or (memory.scope == "user" and memory.owner_user_id != user_id)
+        for memory in selected
+    ):
+        raise ValueError("Long-term Memory Context authorization is invalid")
+    return selected
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryContextBundle:
+    """Fresh Short/Long-term Memory selection loaded for one queued Run."""
+
+    short_term: ShortTermMemoryContextSource | None = field(default=None, repr=False)
+    long_term: tuple[LongTermMemoryContextSource, ...] = field(default=(), repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class ContextCompilationInput:
     """All explicit inputs needed to compile one bounded model request."""
 
@@ -416,6 +572,11 @@ class ContextCompilationInput:
     conversation_summary: str | None = field(default=None, repr=False)
     conversation_summary_version: str | None = None
     attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
+    short_term_memory: ShortTermMemoryContextSource | None = field(default=None, repr=False)
+    long_term_memories: tuple[LongTermMemoryContextSource, ...] = field(
+        default=(),
+        repr=False,
+    )
     tool_observations: tuple[ToolObservationContextSource, ...] = field(
         default=(),
         repr=False,
@@ -496,6 +657,27 @@ class ContextCompilationInput:
                 workspace_id=self.run.workspace_id,
             ),
         )
+        if self.short_term_memory is not None:
+            short_term = self.short_term_memory
+            if (
+                short_term.workspace_id != self.run.workspace_id
+                or short_term.conversation_id != self.run.thread_id
+                or short_term.owner_user_id != self.run.user_id
+                or short_term.freshness_at > self.compiled_at
+            ):
+                raise ValueError("Short-term Memory Context does not match the current Run")
+        memories = validate_long_term_memory_context_sources(
+            self.long_term_memories,
+            workspace_id=self.run.workspace_id,
+            user_id=self.run.user_id,
+        )
+        if any(memory.updated_at > self.compiled_at for memory in memories):
+            raise ValueError("Long-term Memory update time is after Context compilation")
+        if self.compiler_version == CONTEXT_COMPILER_V0 and (
+            self.short_term_memory is not None or memories
+        ):
+            raise ValueError("Context Compiler v0 cannot include Memory sources")
+        object.__setattr__(self, "long_term_memories", memories)
         observations = validate_tool_observation_context_sources(
             self.tool_observations,
             workspace_id=self.run.workspace_id,
@@ -539,6 +721,10 @@ class ContextSourceManifestEntry:
     estimated_token_count: int
     message_role: ModelRole | None
     source_sha256: str | None = None
+    source_revision_id: UUID | None = None
+    source_scope: str | None = None
+    relevance_score: float | None = None
+    feedback_score: int | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.ordinal, bool) or not 1 <= self.ordinal <= MAX_CONTEXT_MANIFEST_SOURCES:
@@ -560,14 +746,49 @@ class ContextSourceManifestEntry:
             or self.message_role is not None
         ):
             raise ValueError("An excluded Context source cannot claim model input")
+        if self.source_revision_id is not None:
+            require_non_nil_uuid(self.source_revision_id, field_name="Context source revision ID")
+        if self.source_scope is not None and self.source_scope not in {"user", "workspace"}:
+            raise ValueError("Context source scope is invalid")
+        if self.relevance_score is not None and not 0 <= self.relevance_score <= 1:
+            raise ValueError("Context source relevance score is invalid")
+        if self.feedback_score is not None and (
+            isinstance(self.feedback_score, bool) or not -1 <= self.feedback_score <= 1
+        ):
+            raise ValueError("Context source feedback score is invalid")
         if self.source_kind in {
             ContextSourceKind.ATTACHMENT,
             ContextSourceKind.TOOL_OBSERVATION,
         }:
             if not _SHA256_PATTERN.fullmatch(self.source_sha256 or ""):
                 raise ValueError("Hashed Context source digest is invalid")
-        elif self.source_sha256 is not None:
+        elif self.source_sha256 is not None and (
+            self.source_kind
+            not in {
+                ContextSourceKind.SHORT_TERM_MEMORY,
+                ContextSourceKind.LONG_TERM_MEMORY,
+            }
+            or not _SHA256_PATTERN.fullmatch(self.source_sha256)
+        ):
             raise ValueError("Only hashed Context sources may record a digest")
+        if self.source_kind is ContextSourceKind.LONG_TERM_MEMORY:
+            if (
+                self.source_revision_id is None
+                or self.source_scope is None
+                or self.relevance_score is None
+                or self.feedback_score is None
+            ):
+                raise ValueError("Long-term Memory manifest source is incomplete")
+        elif any(
+            value is not None
+            for value in (
+                self.source_revision_id,
+                self.source_scope,
+                self.relevance_score,
+                self.feedback_score,
+            )
+        ):
+            raise ValueError("Only Long-term Memory sources may record recall factors")
 
 
 @dataclass(frozen=True, slots=True)
@@ -651,16 +872,23 @@ class ContextManifest:
         kinds = tuple(source.source_kind for source in sources)
         attachment_count = kinds.count(ContextSourceKind.ATTACHMENT)
         observation_count = kinds.count(ContextSourceKind.TOOL_OBSERVATION)
+        short_term_count = kinds.count(ContextSourceKind.SHORT_TERM_MEMORY)
+        long_term_count = kinds.count(ContextSourceKind.LONG_TERM_MEMORY)
         common_order_is_invalid = (
             not 4 <= len(sources) <= MAX_CONTEXT_MANIFEST_SOURCES
             or kinds[:3] != expected_prefix
             or attachment_count > MAX_CONTEXT_ATTACHMENTS
             or observation_count > MAX_CONTEXT_TOOL_OBSERVATIONS
+            or short_term_count > 1
+            or long_term_count > MAX_CONTEXT_LONG_TERM_MEMORY_CANDIDATES
             or any(source.ordinal != ordinal for ordinal, source in enumerate(sources, start=1))
         )
         if self.compiler_version == CONTEXT_COMPILER_V0:
-            version_order_is_invalid = kinds[-1] is not ContextSourceKind.USER_QUESTION or any(
-                kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:-1]
+            version_order_is_invalid = (
+                short_term_count != 0
+                or long_term_count != 0
+                or kinds[-1] is not ContextSourceKind.USER_QUESTION
+                or any(kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:-1])
             )
         elif self.compiler_version == CONTEXT_COMPILER_V1:
             question_indexes = tuple(
@@ -669,11 +897,21 @@ class ContextManifest:
             version_order_is_invalid = len(question_indexes) != 1
             if not version_order_is_invalid:
                 question_index = question_indexes[0]
+                prefix = kinds[3:question_index]
+                phase = 0
+                for kind in prefix:
+                    if kind is ContextSourceKind.SHORT_TERM_MEMORY and phase == 0:
+                        phase = 1
+                    elif kind is ContextSourceKind.LONG_TERM_MEMORY and phase <= 1:
+                        phase = 2
+                    elif kind is ContextSourceKind.ATTACHMENT and phase <= 2:
+                        phase = 3
+                    else:
+                        version_order_is_invalid = True
+                        break
                 version_order_is_invalid = (
-                    question_index < 3
-                    or any(
-                        kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:question_index]
-                    )
+                    version_order_is_invalid
+                    or question_index < 3
                     or any(
                         kind is not ContextSourceKind.TOOL_OBSERVATION
                         for kind in kinds[question_index + 1 :]
@@ -697,6 +935,13 @@ class ContextManifest:
         )
         if len(observation_ids) != len(set(observation_ids)):
             raise ValueError("Context manifest Tool Observation source IDs must be unique")
+        memory_ids = tuple(
+            source.source_id
+            for source in sources
+            if source.source_kind is ContextSourceKind.LONG_TERM_MEMORY
+        )
+        if len(memory_ids) != len(set(memory_ids)):
+            raise ValueError("Context manifest Long-term Memory source IDs must be unique")
         object.__setattr__(self, "sources", sources)
 
 

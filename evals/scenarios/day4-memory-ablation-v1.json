@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day4-memory-ablation",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-ablation-off",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-ablation-off",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory-off", "version": "v1" },
+        "input": { "question": "Which language and format should the steel report use?" },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-memory-off-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "memory/ablation-same-input-off", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Without confirmed Memory the answer cannot recover the user's preference.",
+        "memory_ablation_eval": {
+          "mode": "off",
+          "task_quality_expected": 1,
+          "task_quality_correct": 0,
+          "pollution_opportunities": 1,
+          "pollution_events": 0,
+          "conflict_expected": 1,
+          "conflict_handled": 0,
+          "input_tokens": 180,
+          "latency_ms": 24
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "memory-ablation", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-ablation-off", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Same question and provider fixture as the on case; only the versioned Memory context profile differs."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-memory-ablation-on",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-memory-ablation-on",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "direct-answer-memory-on", "version": "v1" },
+        "input": { "question": "Which language and format should the steel report use?" },
+        "runtime_version": "direct-answer-runtime-v0",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v0",
+        "context_version": "context-memory-on-v1",
+        "toolset_version": "toolset-none-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "memory/ablation-same-input-on", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "With confirmed Memory the answer uses Chinese, bullets, and a concise conclusion.",
+        "memory_ablation_eval": {
+          "mode": "on",
+          "task_quality_expected": 1,
+          "task_quality_correct": 1,
+          "pollution_opportunities": 1,
+          "pollution_events": 0,
+          "conflict_expected": 1,
+          "conflict_handled": 1,
+          "input_tokens": 244,
+          "latency_ms": 31
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "memory-ablation", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-memory-ablation-on", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The on mode uses the confirmed non-conflicted revision selected by the Context Compiler."
+    }
+  ]
+}

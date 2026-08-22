@@ -19,6 +19,16 @@ export type FileDownload = components["schemas"]["FileDownloadResponse"];
 export type AttachmentMediaType = components["schemas"]["AttachmentMediaType"];
 export type StartTurnRequest = components["schemas"]["StartConversationTurnRequest"];
 export type StartTurnReceipt = components["schemas"]["StartConversationTurnResponse"];
+export type CreateMemoryCandidateRequest = components["schemas"]["CreateMemoryCandidateRequest"];
+export type MemoryCandidate = components["schemas"]["MemoryCandidateResponse"];
+export type MemoryCandidateCreated = components["schemas"]["MemoryCandidateCreatedResponse"];
+export type ResolveMemoryCandidateRequest = components["schemas"]["ResolveMemoryCandidateRequest"];
+export type MemoryResolution = components["schemas"]["MemoryResolutionResponse"];
+export type MemorySnapshot = components["schemas"]["MemoryResponse"];
+export type MemoryDetail = components["schemas"]["MemoryDetailResponse"];
+export type UpdateMemoryRequest = components["schemas"]["UpdateMemoryRequest"];
+export type RecordMemoryFeedbackRequest = components["schemas"]["RecordMemoryFeedbackRequest"];
+export type MemoryFeedback = components["schemas"]["MemoryFeedbackResponse"];
 
 export interface ConversationPage {
   readonly conversations: ConversationSummary[];
@@ -32,6 +42,19 @@ export interface ConversationMessagePage {
 
 export interface PageOptions {
   readonly cursor?: string;
+  readonly limit?: number;
+}
+
+export interface MemoryCandidateListOptions {
+  readonly conversationId?: string;
+  readonly limit?: number;
+}
+
+export interface MemoryListOptions {
+  readonly query?: string;
+  readonly status?: components["schemas"]["MemoryStatus"];
+  readonly scope?: components["schemas"]["MemoryScope"];
+  readonly kind?: components["schemas"]["MemoryKind"];
   readonly limit?: number;
 }
 
@@ -189,6 +212,230 @@ export function deleteConversation(workspaceId: string, conversationId: string):
       headers: authorization(accessToken),
       params: {
         path: { conversation_id: conversationId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function createMemoryCandidate(
+  workspaceId: string,
+  request: CreateMemoryCandidateRequest,
+  idempotencyKey: string,
+): Promise<MemoryCandidateCreated> {
+  if (!IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+    throw new TypeError("The Memory idempotency key is invalid.");
+  }
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/candidates", {
+      body: request,
+      headers: authorization(accessToken),
+      params: {
+        header: { "Idempotency-Key": idempotencyKey },
+        path: { workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function listMemoryCandidates(
+  workspaceId: string,
+  options: MemoryCandidateListOptions = {},
+): Promise<MemoryCandidate[]> {
+  const limit = options.limit ?? DEFAULT_PAGE_SIZE;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_PAGE_SIZE) {
+    throw new RangeError("The Memory candidate page size must be between 1 and 100.");
+  }
+  return authenticatedData(async (accessToken) => {
+    const result = await apiClient.GET("/api/v1/workspaces/{workspace_id}/memories/candidates", {
+      headers: authorization(accessToken),
+      params: {
+        path: { workspace_id: workspaceId },
+        query: {
+          conversation_id: options.conversationId ?? null,
+          limit,
+        },
+      },
+    });
+    const page = unwrapData<components["schemas"]["MemoryCandidateCollectionResponse"]>(result);
+    return { data: page.candidates, response: result.response };
+  });
+}
+
+export function getMemoryCandidate(
+  workspaceId: string,
+  candidateId: string,
+): Promise<MemoryCandidate> {
+  return authenticatedData((accessToken) =>
+    apiClient.GET("/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}", {
+      headers: authorization(accessToken),
+      params: { path: { candidate_id: candidateId, workspace_id: workspaceId } },
+    }),
+  );
+}
+
+export function confirmMemoryCandidate(
+  workspaceId: string,
+  candidateId: string,
+  revision: number,
+  request: ResolveMemoryCandidateRequest,
+): Promise<MemoryResolution> {
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new RangeError("The Memory candidate revision is invalid.");
+  }
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}/confirm", {
+      body: request,
+      headers: authorization(accessToken),
+      params: {
+        header: { "If-Match": `"${String(revision)}"` },
+        path: { candidate_id: candidateId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function rejectMemoryCandidate(
+  workspaceId: string,
+  candidateId: string,
+  revision: number,
+): Promise<MemoryCandidate> {
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new RangeError("The Memory candidate revision is invalid.");
+  }
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/candidates/{candidate_id}/reject", {
+      headers: authorization(accessToken),
+      params: {
+        header: { "If-Match": `"${String(revision)}"` },
+        path: { candidate_id: candidateId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function listMemories(
+  workspaceId: string,
+  options: MemoryListOptions | number = {},
+): Promise<MemorySnapshot[]> {
+  const normalized = typeof options === "number" ? { limit: options } : options;
+  const limit = normalized.limit ?? DEFAULT_PAGE_SIZE;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_PAGE_SIZE) {
+    throw new RangeError("The Memory page size must be between 1 and 100.");
+  }
+  return authenticatedData(async (accessToken) => {
+    const result = await apiClient.GET("/api/v1/workspaces/{workspace_id}/memories", {
+      headers: authorization(accessToken),
+      params: {
+        path: { workspace_id: workspaceId },
+        query: {
+          kind: normalized.kind ?? null,
+          limit,
+          query: normalized.query ?? null,
+          scope: normalized.scope ?? null,
+          status: normalized.status ?? null,
+        },
+      },
+    });
+    const page = unwrapData<components["schemas"]["MemoryCollectionResponse"]>(result);
+    return { data: page.memories, response: result.response };
+  });
+}
+
+export function getMemory(workspaceId: string, memoryId: string): Promise<MemoryDetail> {
+  return authenticatedData((accessToken) =>
+    apiClient.GET("/api/v1/workspaces/{workspace_id}/memories/{memory_id}", {
+      headers: authorization(accessToken),
+      params: { path: { memory_id: memoryId, workspace_id: workspaceId } },
+    }),
+  );
+}
+
+function memoryRevisionHeader(revision: number): { readonly "If-Match": string } {
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new RangeError("The Memory resource revision is invalid.");
+  }
+  return { "If-Match": `"${String(revision)}"` };
+}
+
+export function updateMemory(
+  workspaceId: string,
+  memoryId: string,
+  revision: number,
+  request: UpdateMemoryRequest,
+): Promise<MemoryDetail> {
+  return authenticatedData((accessToken) =>
+    apiClient.PATCH("/api/v1/workspaces/{workspace_id}/memories/{memory_id}", {
+      body: request,
+      headers: authorization(accessToken),
+      params: {
+        header: memoryRevisionHeader(revision),
+        path: { memory_id: memoryId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function disableMemory(
+  workspaceId: string,
+  memoryId: string,
+  revision: number,
+): Promise<MemoryDetail> {
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/{memory_id}/disable", {
+      headers: authorization(accessToken),
+      params: {
+        header: memoryRevisionHeader(revision),
+        path: { memory_id: memoryId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function enableMemory(
+  workspaceId: string,
+  memoryId: string,
+  revision: number,
+): Promise<MemoryDetail> {
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/{memory_id}/enable", {
+      headers: authorization(accessToken),
+      params: {
+        header: memoryRevisionHeader(revision),
+        path: { memory_id: memoryId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function deleteMemory(
+  workspaceId: string,
+  memoryId: string,
+  revision: number,
+): Promise<void> {
+  return authenticatedCommand((accessToken) =>
+    apiClient.DELETE("/api/v1/workspaces/{workspace_id}/memories/{memory_id}", {
+      headers: authorization(accessToken),
+      params: {
+        header: memoryRevisionHeader(revision),
+        path: { memory_id: memoryId, workspace_id: workspaceId },
+      },
+    }),
+  );
+}
+
+export function recordMemoryFeedback(
+  workspaceId: string,
+  memoryId: string,
+  revision: number,
+  request: RecordMemoryFeedbackRequest,
+): Promise<MemoryFeedback> {
+  return authenticatedData((accessToken) =>
+    apiClient.POST("/api/v1/workspaces/{workspace_id}/memories/{memory_id}/feedback", {
+      body: request,
+      headers: authorization(accessToken),
+      params: {
+        header: memoryRevisionHeader(revision),
+        path: { memory_id: memoryId, workspace_id: workspaceId },
       },
     }),
   );
@@ -410,6 +657,24 @@ function traceNullableTimestamp(value: Record<string, unknown>, fieldName: strin
   return value[fieldName] === null ? null : traceTimestamp(value, fieldName);
 }
 
+function traceNullableUuid(value: Record<string, unknown>, fieldName: string): string | null {
+  return value[fieldName] === null ? null : traceUuid(value, fieldName);
+}
+
+function traceNullableNumber(
+  value: Record<string, unknown>,
+  fieldName: string,
+  minimum: number,
+  maximum: number,
+): number | null {
+  const field = value[fieldName];
+  if (field === null) return null;
+  if (typeof field !== "number" || !Number.isFinite(field) || field < minimum || field > maximum) {
+    throw new AgentTraceContractError(`${fieldName} is invalid.`);
+  }
+  return field;
+}
+
 function traceEnum<const Values extends readonly string[]>(
   value: Record<string, unknown>,
   fieldName: string,
@@ -473,9 +738,25 @@ const sourceKinds = [
   "attachment",
   "user_question",
   "tool_observation",
+  "short_term_memory",
+  "long_term_memory",
 ] as const;
-const decisionReasons = ["included", "not_available", "excluded_token_budget"] as const;
+const decisionReasons = [
+  "included",
+  "not_available",
+  "excluded_token_budget",
+  "excluded_not_relevant",
+  "excluded_stale",
+  "excluded_conflicted",
+  "excluded_duplicate",
+  "excluded_sensitive",
+  "excluded_disabled",
+  "excluded_expired",
+  "excluded_deleted",
+  "excluded_negative_feedback",
+] as const;
 const messageRoles = ["system", "user", "assistant"] as const;
+const memoryScopes = ["user", "workspace"] as const;
 const traceEventTypes = [
   "agent.run.queued",
   "agent.run.started",
@@ -499,6 +780,9 @@ const traceEventTypes = [
   "agent.tool.cancelled",
   "agent.artifact.created",
   "agent.checkpoint.saved",
+  "agent.research.node_started",
+  "agent.research.node_completed",
+  "agent.research.node_failed",
 ] as const;
 
 function parseTraceRun(value: unknown): AgentTraceRun {
@@ -551,13 +835,23 @@ function parseContextSource(value: unknown): AgentTraceContextSource {
     decision_reason: traceEnum(source, "decision_reason", decisionReasons),
     estimated_token_count: traceInteger(source, "estimated_token_count"),
     included: traceBoolean(source, "included"),
+    feedback_score:
+      source.feedback_score === null ? null : traceInteger(source, "feedback_score", -1),
     message_role: traceNullableEnum(source, "message_role", messageRoles),
     ordinal: traceInteger(source, "ordinal", 1),
+    relevance_score: traceNullableNumber(source, "relevance_score", 0, 1),
     source_id: traceString(source, "source_id"),
     source_kind: traceEnum(source, "source_kind", sourceKinds),
+    source_revision_id: traceNullableUuid(source, "source_revision_id"),
+    source_scope: traceNullableEnum(source, "source_scope", memoryScopes),
     source_sha256: traceNullableString(source, "source_sha256"),
     source_version: traceString(source, "source_version"),
   };
+  const hasCompleteMemoryRankingMetadata =
+    parsed.source_revision_id !== null &&
+    parsed.source_scope !== null &&
+    parsed.relevance_score !== null &&
+    parsed.feedback_score !== null;
   if (
     (parsed.included &&
       (parsed.decision_reason !== "included" ||
@@ -567,8 +861,10 @@ function parseContextSource(value: unknown): AgentTraceContextSource {
       (parsed.decision_reason === "included" ||
         parsed.estimated_token_count !== 0 ||
         parsed.message_role !== null)) ||
-    (parsed.source_kind === "attachment" || parsed.source_kind === "tool_observation") !==
-      (parsed.source_sha256 !== null)
+    ((parsed.source_kind === "attachment" || parsed.source_kind === "tool_observation") &&
+      parsed.source_sha256 === null) ||
+    (parsed.source_kind === "long_term_memory") !== hasCompleteMemoryRankingMetadata ||
+    (parsed.feedback_score !== null && parsed.feedback_score > 1)
   ) {
     throw new AgentTraceContractError("A Trace Context source decision is inconsistent.");
   }

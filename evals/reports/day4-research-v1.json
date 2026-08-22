@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "day4-research",
+  "dataset_version": "v1",
+  "scorer_version": "research-scorer-v1",
+  "case_count": 10,
+  "metrics": {
+    "scope_accuracy": { "numerator": 10, "denominator": 10, "value": 1.0 },
+    "trajectory_accuracy": { "numerator": 10, "denominator": 10, "value": 1.0 },
+    "claim_support_accuracy": { "numerator": 4, "denominator": 4, "value": 1.0 },
+    "uncertainty_accuracy": { "numerator": 4, "denominator": 4, "value": 1.0 },
+    "budget_compliance": { "numerator": 10, "denominator": 10, "value": 1.0 },
+    "cancellation_accuracy": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "authorization_leakage": { "numerator": 0, "denominator": 2, "value": 0.0 },
+    "average_steps": { "numerator": 47, "denominator": 10, "value": 4.7 },
+    "average_total_tokens": { "numerator": 6020, "denominator": 10, "value": 602.0 },
+    "average_cost_micro_usd": { "numerator": 4440, "denominator": 10, "value": 444.0 },
+    "average_latency_ms": { "numerator": 3845, "denominator": 10, "value": 384.5 }
+  },
+  "same_question_comparison": {
+    "l0": {
+      "case_count": 1,
+      "steps": 1,
+      "total_tokens": 240,
+      "cost_micro_usd": 100,
+      "latency_ms": 120,
+      "evidence_count": 0,
+      "claim_count": 0,
+      "uncertainty_count": 1
+    },
+    "l2": {
+      "case_count": 1,
+      "steps": 4,
+      "total_tokens": 620,
+      "cost_micro_usd": 400,
+      "latency_ms": 310,
+      "evidence_count": 1,
+      "claim_count": 1,
+      "uncertainty_count": 0
+    },
+    "l3": {
+      "case_count": 1,
+      "steps": 8,
+      "total_tokens": 1180,
+      "cost_micro_usd": 900,
+      "latency_ms": 720,
+      "evidence_count": 3,
+      "claim_count": 2,
+      "uncertainty_count": 1
+    }
+  }
+}

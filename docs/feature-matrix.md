@@ -17,7 +17,7 @@
 当前状态只使用：
 
 - `complete`：冻结范围内已经逐条评审全局 Definition of Done，所有适用项通过，所有 `N/A` 都有具体理由与复核人，并附实际证据；
-- `implemented_pending_verification`：正式代码、迁移或文档已经实现，但本轮适用的统一门禁、真实依赖验证或干净 CI 尚未全部实际通过；它不是完成状态；
+- `implemented_pending_verification`：正式代码、迁移或文档已经实现，但本轮适用的统一门禁、真实依赖验证、干净 CI、目标分支合并或所有者验收尚未全部实际通过；它不是完成状态；
 - `thin_slice`：已有部分真实链路，但冻结范围仍有缺口；
 - `contract_only`：只有正式契约或 readiness，没有真实用户闭环；
 - `blocked`：存在已记录且当前无法解除的外部阻塞；
@@ -157,15 +157,25 @@ D3-01～D3-11 的冻结范围已经全部进入正式实现并通过本地验收
 
 | ID | 目标能力与用户结果 | 来源 | 冻结的七天范围 | 验收证据 | 当前状态 | Day 7 |
 |---|---|---|---|---|---|---|
-| D4-01 | 从会话创建可控记忆 | R2 + NEW | 候选摘要、确认/编辑、保存、来源、置信度和用户开关 | 组件、API、权限和敏感内容策略测试 | `planned` | `complete` |
-| D4-02 | 记忆检索与删除 | R2 + NEW | 回答显示使用的记忆；搜索、停用、过期、删除后立即不再召回 | 删除后下一次回答不使用、跨租户为 0 | `planned` | `complete` |
-| D4-03 | Short-term Memory 与 Context manifest | NEW | Thread 消息引用、摘要、compaction revision、freshness、实际注入清单；不自动提升为 Long-term Memory | 压缩、过期、上下文预算、与 State/Checkpoint/Long-term Memory 分层测试 | `planned` | `complete` |
-| D4-04 | 唯一 typed Research L3 graph | R2 + NEW | clarification、ResearchBrief、plan、Observation→Evidence、Claim support/refute/uncertain 和可解释草稿 | 确定 Fake 下状态/Event 序列、scope、coverage/conflict 可复现 | `planned` | `complete` |
-| D4-05 | Memory/Research Learning Workbench | R2 + NEW | Memory 候选/确认/召回/冲突/修改/删除、Context manifest、Plan/Action/Observation/Evidence/Claim 图和不确定项 | 真实 Event/manifest 驱动；刷新、修改、删除后的 UI 与下一 Run 一致 | `planned` | `complete` |
-| D4-06 | Claim 与证据图 | R2 + NEW | 关键 Claim、Evidence/Entity 基础图、locator、support/refute/uncertain、coverage/conflict | 图节点/边可反查，缺证据必须显示 uncertain | `planned` | `complete` |
-| D4-07 | Memory/Research 预算与策略边界 | NEW | Context、Token、费用、时间、Tool allowlist；不存原始 CoT、不执行模型代码 | 预算耗尽、跨租户、错误 Memory/Evidence 和审计测试 | `planned` | `complete` |
+| D4-01 | 从会话创建可控记忆 | R2 + NEW | 候选摘要、确认/编辑、保存、来源、置信度和用户开关 | 组件、API、权限和敏感内容策略测试 | `implemented_pending_verification` | `complete` |
+| D4-02 | 记忆检索与删除 | R2 + NEW | 回答显示使用的记忆；搜索、停用、过期、删除后立即不再召回 | 删除后下一次回答不使用、跨租户为 0 | `implemented_pending_verification` | `complete` |
+| D4-03 | Short-term Memory 与 Context manifest | NEW | Thread 消息引用、摘要、compaction revision、freshness、实际注入清单；不自动提升为 Long-term Memory | 压缩、过期、上下文预算、与 State/Checkpoint/Long-term Memory 分层测试 | `implemented_pending_verification` | `complete` |
+| D4-04 | 唯一 typed Research L3 graph | R2 + NEW | clarification、ResearchBrief、plan、Observation→Evidence、Claim support/refute/uncertain 和可解释草稿 | 确定 Fake 下状态/Event 序列、scope、coverage/conflict 可复现 | `implemented_pending_verification` | `complete` |
+| D4-05 | Memory/Research Learning Workbench | R2 + NEW | Memory 候选/确认/召回/冲突/修改/删除、Context manifest、Plan/Action/Observation/Evidence/Claim 图和不确定项 | 真实 Event/manifest 驱动；刷新、修改、删除后的 UI 与下一 Run 一致 | `implemented_pending_verification` | `complete` |
+| D4-06 | Claim 与证据图 | R2 + NEW | 关键 Claim、Evidence/Entity 基础图、locator、support/refute/uncertain、coverage/conflict | 图节点/边可反查，缺证据必须显示 uncertain | `implemented_pending_verification` | `complete` |
+| D4-07 | Memory/Research 预算与策略边界 | NEW | Context、Token、费用、时间、Tool allowlist；不存原始 CoT、不执行模型代码 | 预算耗尽、跨租户、错误 Memory/Evidence 和审计测试 | `implemented_pending_verification` | `complete` |
 
-Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进。五步开始前 D4-01～D4-07 均保持 `planned`；单步只有代码或页面而未通过该步的真实链路、权限、失败、契约和评测条件时，只能记录过程状态，不能提前标记 `complete`。
+Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进。单步只有代码或页面而未通过该步的真实链路、权限、失败、契约和评测条件时，只能记录过程状态，不能提前标记 `complete`。
+
+2026-08-20 已完成步骤 1、2 的本地纵向验收：正式 Conversation/Message→候选→用户确认→跨 Conversation 的下一次正式 Run→PostgreSQL 重新授权召回→`ContextCompilerV1` ModelInput/manifest→Trace/Workbench→修改、反馈、停用、过期、删除与下一次召回链路通过；真实浏览器确认被纳入 Memory 实际送入模型并可反查 revision，真实 PostgreSQL 验证更新生效、稳定排除原因、重复删除、在线 deletion residual=0 和跨 Workspace 召回为 0。版本化 `day4-memory-v1`/`memory-scorer-v1` 固定质量、污染、删除、Token 与 latency 指标口径。PostgreSQL/Redis/MinIO 全部强制开启时 Python 916 条、Vitest 60 条、Playwright 5 条全部通过，Ruff、mypy、构建、OpenAPI 确定性、依赖审计与受控路径 Secret 扫描通过。由于尚未 commit/push 并取得干净 GitHub CI，D4-01～D4-03 保持 `implemented_pending_verification`；D4-07 只完成 Memory 预算和策略边界，Research 部分尚未开始，因此为 `thin_slice`。
+
+2026-08-21 已完成步骤 3 的本地纵向实现：Day 3 Web/行业与 Text2SQL 正式 Observation 经同一 Normalizer 校验 Tool 信封、当前授权、版本/hash、许可、typed locator 和底层依赖后成为 Evidence 或稳定 rejected decision；`ResearchClaim`、supports/refutes/context、coverage/conflict 和 Claim→Evidence 派生图落入 PostgreSQL，Evidence 失效会清空 excerpt、使关系/图失效并重算 Claim。Trace 可发起提升，Evidence Inspector 可刷新恢复并反查 Run/Step/ToolCall/Observation、来源版本和 normalizer；`day4-evidence-v1`/`evidence-scorer-v1` 固定 attribution、支持度、coverage、conflict、可解析率、权限泄漏和 latency 口径。由于尚未 commit/push 并取得干净 CI，D4-06 为 `implemented_pending_verification`；D4-05 只完成 Memory 与 Evidence Inspector 切片，Research Plan/时间线仍未完成，故为 `thin_slice`。该段记录步骤 3 验收时点；步骤 4 的后续状态见下一段。
+
+2026-08-21 已完成步骤 4 的本地纵向实现：显式 ResearchBrief 与唯一 `research-l3-graph-v1` 通过 202 + Idempotency-Key、同一 ResearchRun/AgentRun/Job/Outbox、统一 Runtime 内的既有 bounded Tool loop、Evidence/Claim Application Service 和 PostgreSQL L3 draft 串成正式链路。确定 Fake 证明 accepted Evidence→supported Claim→explainable draft；真实行业 Tool 缺少不可变快照时证明 rejected decision→uncertain Claim→uncertain draft。取消、deadline、invalid output、max steps、Token/费用和跨 Workspace 路径均有明确终态；迁移、生成契约、真实依赖、Python/Web/浏览器、构建、audit 和 Secret 门禁通过。D4-04、D4-07 保持 `implemented_pending_verification`；该时点 D4-05 仍为 `thin_slice`、步骤 5 仍为 `planned`，后续本地收口见下一段。
+
+2026-08-22 已完成步骤 5 的本地收口：Research Workbench 从正式 OpenAPI/Event/Trace/资源 API 展示 Brief、Plan、节点/Step、usage、Evidence/Claim、coverage/conflict、uncertain draft、失败/取消/预算和刷新恢复，并与 Evidence Inspector 双向导航；真实 Chromium Research L3 链贯穿 PostgreSQL Job/Outbox、统一 Runtime、Web Tool、Normalizer、Claim 和 draft。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 和 Research 使用独立规则 Scorer，同题 L0/L2/L3 同时报告质量代理、步骤、Token、费用和延迟。全量门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip，migration 全历史往返、OpenAPI hash、build、audit、受控路径及 53 个可达提交的 Gitleaks 均通过；后端总体覆盖率 82.12%，前端关键状态分支 100%。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，已在学习日志记录原因、风险、CI 不退化缓解与复核人，须在 Day 7 总门禁前补齐。该段保留步骤 5 本地关闭时点的事实；远端分支复核见下一段。
+
+2026-08-22 五个步骤已分别形成提交并推送到 `feat/day-4`，最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过全部 7 个适用 Job，包含 Browser E2E、Python/Web 质量、真实 PostgreSQL/Redis/MinIO 集成、依赖审计和完整历史 Secret 扫描；此前步骤 4 的失败运行已由最终提交修复并被该成功运行取代。该证据关闭了“未提交、未 push、无干净分支 CI”的缺口，但 GitHub `main` 仍为 `2791123`，没有 Day 4 PR/合并提交，项目所有者最终 Trace/复盘也未记录。故 D4-01～D4-07 继续保持 `implemented_pending_verification`，待合入 `main`、合并提交 CI 全绿和所有者复核后统一更新为 `complete`；当前不得进入 Day 5。覆盖率 85% 例外继续作为 Day 7 前必须清偿的登记项，不因分支 CI 通过而删除。
 
 ## 7. Day 5：Agent Knowledge 与 Durable Research L4
 

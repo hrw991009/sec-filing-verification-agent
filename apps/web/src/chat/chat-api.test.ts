@@ -7,6 +7,8 @@ const turnId = "44444444-4444-4444-8444-444444444444";
 const runId = "55555555-5555-4555-8555-555555555555";
 const stepId = "66666666-6666-4666-8666-666666666666";
 const fileId = "77777777-7777-4777-8777-777777777777";
+const candidateId = "88888888-1111-4111-8111-888888888888";
+const memoryId = "99999999-1111-4111-8111-999999999999";
 
 afterEach(() => {
   vi.resetModules();
@@ -162,6 +164,238 @@ describe("chat REST API", () => {
     ).toBe("25");
   });
 
+  it("uses generated Memory contracts with idempotency and revision preconditions", async () => {
+    const captured: Request[] = [];
+    const candidate = {
+      confidence: 0.95,
+      conversation_id: conversationId,
+      created_at: "2026-08-20T08:00:00Z",
+      id: candidateId,
+      policy_decision: "allowed",
+      policy_reason: "user_authored",
+      resolved_memory_id: null,
+      revision: 1,
+      source_message_ids: [fileId],
+      status: "candidate",
+      suggested_content: "默认使用中文回答。",
+      suggested_expires_at: null,
+      suggested_scope: "user",
+      updated_at: "2026-08-20T08:00:00Z",
+      write_reason: "user_selected_conversation_messages",
+    };
+    const fetchMock = vi.fn<typeof fetch>((input, init) => {
+      const request = asRequest(input, init);
+      captured.push(request.clone());
+      const path = new URL(request.url).pathname;
+      const root = `/api/v1/workspaces/${workspaceId}/memories`;
+      if (request.method === "POST" && path === `${root}/candidates`) {
+        return Promise.resolve(jsonResponse({ ...candidate, created: true }, 201));
+      }
+      if (request.method === "GET" && path === `${root}/candidates`) {
+        return Promise.resolve(jsonResponse({ candidates: [candidate] }));
+      }
+      if (request.method === "POST" && path.endsWith(`/${candidateId}/confirm`)) {
+        return Promise.resolve(
+          jsonResponse({
+            action: "create",
+            created: true,
+            memory: {
+              current_revision: {
+                content: "默认使用中文回答。",
+                created_at: "2026-08-20T08:01:00Z",
+                editor_user_id: fileId,
+                expires_at: null,
+                id: fileId,
+                kind: "preference",
+                policy_decision: "allowed",
+                scope: "user",
+                source_message_ids: [fileId],
+                validity: "valid",
+                version: 1,
+                write_action: "create",
+                write_reason: "user_selected_conversation_messages",
+              },
+              memory: {
+                confidence: 0.95,
+                created_at: "2026-08-20T08:01:00Z",
+                current_revision_id: fileId,
+                current_version: 1,
+                expires_at: null,
+                id: memoryId,
+                kind: "preference",
+                owner_user_id: fileId,
+                revision: 1,
+                scope: "user",
+                source_conversation_id: conversationId,
+                status: "confirmed",
+                updated_at: "2026-08-20T08:01:00Z",
+              },
+              revisions: [],
+            },
+          }),
+        );
+      }
+      if (request.method === "POST" && path.endsWith(`/${candidateId}/reject`)) {
+        return Promise.resolve(jsonResponse({ ...candidate, revision: 2, status: "rejected" }));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    const api = await loadChatApi(fetchMock);
+
+    await expect(
+      api.createMemoryCandidate(
+        workspaceId,
+        {
+          conversation_id: conversationId,
+          message_ids: [fileId],
+          scope: "user",
+        },
+        "memory-create-1",
+      ),
+    ).resolves.toMatchObject({ id: candidateId });
+    await expect(
+      api.listMemoryCandidates(workspaceId, { conversationId, limit: 10 }),
+    ).resolves.toMatchObject([{ id: candidateId }]);
+    await expect(
+      api.confirmMemoryCandidate(workspaceId, candidateId, 1, {
+        action: "create",
+        content: "默认使用中文回答。",
+        expires_at: null,
+        kind: "preference",
+        scope: "user",
+        target_memory_id: null,
+        target_revision: null,
+      }),
+    ).resolves.toMatchObject({ memory: { memory: { id: memoryId } } });
+    await expect(api.rejectMemoryCandidate(workspaceId, candidateId, 1)).resolves.toMatchObject({
+      status: "rejected",
+    });
+
+    const createRequest = captured.find(
+      (request) =>
+        request.method === "POST" && new URL(request.url).pathname.endsWith("/candidates"),
+    );
+    expect(createRequest?.headers.get("idempotency-key")).toBe("memory-create-1");
+    const confirmRequest = captured.find((request) =>
+      new URL(request.url).pathname.endsWith(`/${candidateId}/confirm`),
+    );
+    const rejectRequest = captured.find((request) =>
+      new URL(request.url).pathname.endsWith(`/${candidateId}/reject`),
+    );
+    expect(confirmRequest?.headers.get("if-match")).toBe('"1"');
+    expect(rejectRequest?.headers.get("if-match")).toBe('"1"');
+    const listRequest = captured.find(
+      (request) =>
+        request.method === "GET" && new URL(request.url).pathname.endsWith("/candidates"),
+    );
+    expect(
+      listRequest === undefined
+        ? null
+        : new URL(listRequest.url).searchParams.get("conversation_id"),
+    ).toBe(conversationId);
+  });
+
+  it("uses resource revisions for Memory search, governance, deletion, and feedback", async () => {
+    const captured: Request[] = [];
+    const snapshot = {
+      confidence: 0.95,
+      created_at: "2026-08-20T08:01:00Z",
+      current_revision_id: fileId,
+      current_version: 2,
+      expires_at: null,
+      id: memoryId,
+      kind: "preference",
+      owner_user_id: fileId,
+      revision: 4,
+      scope: "user",
+      source_conversation_id: conversationId,
+      status: "confirmed",
+      updated_at: "2026-08-20T08:02:00Z",
+    } as const;
+    const revision = {
+      content: "钢铁报告默认使用中文回答。",
+      created_at: "2026-08-20T08:02:00Z",
+      editor_user_id: fileId,
+      expires_at: null,
+      id: fileId,
+      kind: "preference",
+      policy_decision: "allowed",
+      scope: "user",
+      source_message_ids: [fileId],
+      validity: "valid",
+      version: 2,
+      write_action: "update",
+      write_reason: "user_governance_update",
+    } as const;
+    const detail = { current_revision: revision, memory: snapshot, revisions: [revision] };
+    const fetchMock = vi.fn<typeof fetch>((input, init) => {
+      const request = asRequest(input, init);
+      captured.push(request.clone());
+      const path = new URL(request.url).pathname;
+      const root = `/api/v1/workspaces/${workspaceId}/memories`;
+      if (request.method === "GET" && path === root) {
+        return Promise.resolve(jsonResponse({ memories: [snapshot] }));
+      }
+      if (request.method === "DELETE" && path === `${root}/${memoryId}`) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      if (request.method === "POST" && path.endsWith("/feedback")) {
+        return Promise.resolve(
+          jsonResponse({
+            actor_user_id: fileId,
+            created_at: snapshot.updated_at,
+            id: candidateId,
+            memory_id: memoryId,
+            memory_revision_id: fileId,
+            reason: null,
+            updated_at: snapshot.updated_at,
+            value: "helpful",
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse(detail));
+    });
+    const api = await loadChatApi(fetchMock);
+
+    await expect(
+      api.listMemories(workspaceId, {
+        kind: "preference",
+        query: "钢铁",
+        scope: "user",
+        status: "confirmed",
+      }),
+    ).resolves.toMatchObject([{ id: memoryId, revision: 4 }]);
+    await expect(api.getMemory(workspaceId, memoryId)).resolves.toMatchObject({
+      memory: { id: memoryId },
+    });
+    await expect(
+      api.updateMemory(workspaceId, memoryId, 4, {
+        content: "钢铁报告默认使用中文回答。",
+        expires_at: null,
+        kind: "preference",
+        scope: "user",
+      }),
+    ).resolves.toMatchObject({ memory: { revision: 4 } });
+    await expect(api.disableMemory(workspaceId, memoryId, 4)).resolves.toBeDefined();
+    await expect(api.enableMemory(workspaceId, memoryId, 4)).resolves.toBeDefined();
+    await expect(
+      api.recordMemoryFeedback(workspaceId, memoryId, 4, {
+        memory_revision_id: fileId,
+        reason: null,
+        value: "helpful",
+      }),
+    ).resolves.toMatchObject({ value: "helpful" });
+    await expect(api.deleteMemory(workspaceId, memoryId, 4)).resolves.toBeUndefined();
+
+    const listRequest = captured[0];
+    const search = new URL(listRequest?.url ?? "https://invalid.example").searchParams;
+    expect(search.get("query")).toBe("钢铁");
+    expect(search.get("status")).toBe("confirmed");
+    for (const request of captured.filter((item) => item.method !== "GET")) {
+      expect(request.headers.get("if-match")).toBe('"4"');
+    }
+  });
+
   it("hashes once, posts the presigned multipart without credentials, then completes parsing", async () => {
     const captured: Request[] = [];
     const storageCapture: {
@@ -250,33 +484,45 @@ describe("chat REST API", () => {
             {
               decision_reason: "included",
               estimated_token_count: 5,
+              feedback_score: null,
               included: true,
               message_role: "user",
               ordinal: 1,
+              relevance_score: null,
               source_id: "question",
               source_kind: "user_question",
+              source_revision_id: null,
+              source_scope: null,
               source_sha256: null,
               source_version: "v1",
             },
             {
               decision_reason: "not_available",
               estimated_token_count: 0,
+              feedback_score: null,
               included: false,
               message_role: null,
               ordinal: 2,
+              relevance_score: null,
               source_id: "conversation-summary",
               source_kind: "conversation_summary",
+              source_revision_id: null,
+              source_scope: null,
               source_sha256: null,
               source_version: "v1",
             },
             {
               decision_reason: "included",
               estimated_token_count: 8,
+              feedback_score: null,
               included: true,
               message_role: "user",
               ordinal: 3,
+              relevance_score: null,
               source_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
               source_kind: "tool_observation",
+              source_revision_id: null,
+              source_scope: null,
               source_sha256: "a".repeat(64),
               source_version: "tool-observation-v1",
             },
@@ -294,19 +540,31 @@ describe("chat REST API", () => {
           schema_version: 1,
           sequence: 1,
         },
+        {
+          details: {
+            graph_version: "research-l3-v1",
+            node: "scope_validation",
+            research_state_schema_version: "research-state-v1",
+            state_revision: 2,
+          },
+          event_type: "agent.research.node_completed",
+          occurred_at: "2026-08-14T06:00:01Z",
+          schema_version: 1,
+          sequence: 2,
+        },
       ],
       run: {
         conversation_id: conversationId,
         created_at: "2026-08-14T06:00:00Z",
         deadline: "2026-08-14T06:01:00Z",
-        event_count: 1,
+        event_count: 2,
         event_stream_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
         harness_version: "harness-v0",
         max_cost_micro_usd: 1000,
         max_steps: 2,
         max_total_tokens: 3000,
         run_id: runId,
-        run_type: "direct_answer",
+        run_type: "research",
         runtime_version: "runtime-v0",
         schema_version: 1,
         started_at: "2026-08-14T06:00:01Z",
@@ -331,7 +589,7 @@ describe("chat REST API", () => {
           completed_at: null,
           error_code: null,
           kind: "model",
-          last_event_sequence: 1,
+          last_event_sequence: 2,
           sequence: 1,
           started_at: "2026-08-14T06:00:01Z",
           status: "running",
@@ -362,6 +620,10 @@ describe("chat REST API", () => {
     expect(result.context_manifests[0]?.sources[2]).toMatchObject({
       source_kind: "tool_observation",
       source_sha256: "a".repeat(64),
+    });
+    expect(result.events[1]).toMatchObject({
+      details: { node: "scope_validation", state_revision: 2 },
+      event_type: "agent.research.node_completed",
     });
     const firstCall = fetchMock.mock.calls[0];
     const request = asRequest(firstCall?.[0] ?? "https://invalid.example", firstCall?.[1]);

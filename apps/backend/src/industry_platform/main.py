@@ -85,6 +85,16 @@ from industry_platform.modules.data_explorer.resources import (
     create_data_explorer_resources,
 )
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
+from industry_platform.modules.evidence.domain import (
+    ClaimNotFoundError,
+    EvidenceConflictError,
+    EvidenceNotFoundError,
+    EvidencePersistenceError,
+    EvidenceRequestRejectedError,
+    ResearchRunNotFoundError,
+)
+from industry_platform.modules.evidence.resources import create_evidence_resources
+from industry_platform.modules.evidence.router import router as evidence_router
 from industry_platform.modules.files.resources import create_file_resources
 from industry_platform.modules.files.router import router as file_router
 from industry_platform.modules.files.service import (
@@ -143,6 +153,21 @@ from industry_platform.modules.jobs.domain import (
     ScheduleTriggerConflictError,
 )
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.memory.domain import (
+    MemoryCandidateEditRequiredError,
+    MemoryCandidateNotFoundError,
+    MemoryConflictError,
+    MemoryNotFoundError,
+    MemoryPersistenceError,
+    MemoryRequestRejectedError,
+    MemorySourceNotFoundError,
+)
+from industry_platform.modules.memory.resources import create_memory_resources
+from industry_platform.modules.memory.router import router as memory_router
+from industry_platform.modules.research.adapters.sqlalchemy import ResearchPersistenceError
+from industry_platform.modules.research.resources import create_research_resources
+from industry_platform.modules.research.router import router as research_router
+from industry_platform.modules.research.service import ResearchNotFoundError
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
     WorkspaceAccessDeniedError,
@@ -210,6 +235,9 @@ def create_app(
                     and active_settings.agent_model_route.supports_image_input
                 ),
             )
+            memory_resources = create_memory_resources(database_session_factory)
+            evidence_resources = create_evidence_resources(database_session_factory)
+            research_resources = create_research_resources(database_session_factory)
             file_resources = create_file_resources(
                 active_settings,
                 database_session_factory,
@@ -242,6 +270,9 @@ def create_app(
             application.state.identity_resources = identity_resources
             application.state.workspace_resources = workspace_resources
             application.state.conversation_resources = conversation_resources
+            application.state.memory_resources = memory_resources
+            application.state.evidence_resources = evidence_resources
+            application.state.research_resources = research_resources
             application.state.file_resources = file_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.agent_trace_resources = agent_trace_resources
@@ -280,6 +311,7 @@ def create_app(
             "Authorization",
             "Content-Type",
             "Idempotency-Key",
+            "If-Match",
             "Last-Event-ID",
             CSRF_PROOF_HEADER_NAME,
         ],
@@ -289,10 +321,104 @@ def create_app(
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(workspace_router, prefix="/api/v1")
     application.include_router(conversation_router, prefix="/api/v1")
+    application.include_router(memory_router, prefix="/api/v1")
     application.include_router(agent_run_router, prefix="/api/v1")
     application.include_router(file_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
     application.include_router(data_explorer_router, prefix="/api/v1")
+    application.include_router(evidence_router, prefix="/api/v1")
+    application.include_router(research_router, prefix="/api/v1")
+
+    @application.exception_handler(ResearchNotFoundError)
+    async def handle_research_not_found(
+        request: Request,
+        _error: ResearchNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Research Run not found",
+            code="RESEARCH_RUN_NOT_FOUND",
+            detail="The requested Research Run does not exist or is unavailable.",
+            problem_type="urn:iip:problem:research-run-not-found",
+        )
+
+    @application.exception_handler(ResearchPersistenceError)
+    async def handle_research_unavailable(
+        request: Request,
+        _error: ResearchPersistenceError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Research service unavailable",
+            code="RESEARCH_UNAVAILABLE",
+            detail="Research facts could not be loaded safely.",
+            problem_type="urn:iip:problem:research-unavailable",
+        )
+
+    @application.exception_handler(EvidenceNotFoundError)
+    @application.exception_handler(ResearchRunNotFoundError)
+    @application.exception_handler(ClaimNotFoundError)
+    async def handle_evidence_not_found(
+        request: Request,
+        _error: EvidenceNotFoundError | ResearchRunNotFoundError | ClaimNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Evidence resource not found",
+            code="EVIDENCE_RESOURCE_NOT_FOUND",
+            detail="The requested Evidence resource does not exist or is unavailable.",
+            problem_type="urn:iip:problem:evidence-resource-not-found",
+        )
+
+    @application.exception_handler(EvidenceConflictError)
+    async def handle_evidence_conflict(
+        request: Request,
+        _error: EvidenceConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Evidence revision conflict",
+            code="EVIDENCE_REVISION_CONFLICT",
+            detail="The Evidence ledger changed. Reload it before retrying.",
+            problem_type="urn:iip:problem:evidence-revision-conflict",
+        )
+
+    @application.exception_handler(EvidenceRequestRejectedError)
+    async def handle_evidence_request_rejected(
+        request: Request,
+        _error: EvidenceRequestRejectedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Evidence request rejected",
+            code="EVIDENCE_REQUEST_REJECTED",
+            detail="The Evidence request violates a ledger contract.",
+            problem_type="urn:iip:problem:evidence-request-rejected",
+        )
+
+    @application.exception_handler(EvidencePersistenceError)
+    async def handle_evidence_persistence_error(
+        request: Request,
+        error: EvidencePersistenceError,
+    ) -> JSONResponse:
+        logger.exception(
+            "Evidence persistence unavailable trace_id=%s sqlstate=%s",
+            get_trace_id(request),
+            error.sqlstate,
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Evidence service unavailable",
+            code="EVIDENCE_SERVICE_UNAVAILABLE",
+            detail="Evidence is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:evidence-service-unavailable",
+        )
 
     @application.exception_handler(StarletteHTTPException)
     async def handle_http_exception(
@@ -748,6 +874,97 @@ def create_app(
             code="INVALID_CONVERSATION_CURSOR",
             detail="The conversation page cursor is invalid or no longer supported.",
             problem_type="urn:iip:problem:invalid-conversation-cursor",
+        )
+
+    @application.exception_handler(MemoryCandidateNotFoundError)
+    @application.exception_handler(MemoryNotFoundError)
+    async def handle_memory_not_found(
+        request: Request,
+        _error: MemoryCandidateNotFoundError | MemoryNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Memory resource not found",
+            code="MEMORY_NOT_FOUND",
+            detail="The requested Memory resource does not exist in this workspace.",
+            problem_type="urn:iip:problem:memory-not-found",
+        )
+
+    @application.exception_handler(MemorySourceNotFoundError)
+    async def handle_memory_source_not_found(
+        request: Request,
+        _error: MemorySourceNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Memory source not found",
+            code="MEMORY_SOURCE_NOT_FOUND",
+            detail="A selected message is unavailable in this conversation.",
+            problem_type="urn:iip:problem:memory-source-not-found",
+        )
+
+    @application.exception_handler(MemoryConflictError)
+    async def handle_memory_conflict(
+        request: Request,
+        _error: MemoryConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Memory revision conflict",
+            code="MEMORY_CONFLICT",
+            detail="The Memory candidate or target changed. Reload it before deciding again.",
+            problem_type="urn:iip:problem:memory-conflict",
+        )
+
+    @application.exception_handler(MemoryCandidateEditRequiredError)
+    async def handle_memory_edit_required(
+        request: Request,
+        _error: MemoryCandidateEditRequiredError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Memory candidate requires editing",
+            code="MEMORY_CANDIDATE_EDIT_REQUIRED",
+            detail="Review and edit this assistant-only candidate before confirming it.",
+            problem_type="urn:iip:problem:memory-candidate-edit-required",
+        )
+
+    @application.exception_handler(MemoryRequestRejectedError)
+    async def handle_memory_request_rejected(
+        request: Request,
+        _error: MemoryRequestRejectedError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Memory request rejected",
+            code="MEMORY_REQUEST_REJECTED",
+            detail="The Memory request violates content, expiry, or revision requirements.",
+            problem_type="urn:iip:problem:memory-request-rejected",
+        )
+
+    @application.exception_handler(MemoryPersistenceError)
+    async def handle_memory_unavailable(
+        request: Request,
+        error: MemoryPersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "Memory persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Memory service unavailable",
+            code="MEMORY_UNAVAILABLE",
+            detail="Memory is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:memory-unavailable",
         )
 
     @application.exception_handler(ConversationNotFoundError)

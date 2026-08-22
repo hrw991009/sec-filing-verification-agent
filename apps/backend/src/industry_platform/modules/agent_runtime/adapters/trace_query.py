@@ -76,9 +76,9 @@ _SAFE_EVENT_FIELDS: Mapping[AgentEventType, tuple[str, ...]] = {
     AgentEventType.RUN_STARTED: ("state_revision",),
     AgentEventType.RUN_PAUSED: ("state_revision",),
     AgentEventType.RUN_RESUMED: ("state_revision",),
-    AgentEventType.RUN_COMPLETED: ("stop_reason",),
-    AgentEventType.RUN_FAILED: ("stop_reason", "loop_guard"),
-    AgentEventType.RUN_CANCELLED: ("stop_reason", "cancelled_step_id"),
+    AgentEventType.RUN_COMPLETED: ("stop_reason", "research_node"),
+    AgentEventType.RUN_FAILED: ("stop_reason", "loop_guard", "research_node", "error_code"),
+    AgentEventType.RUN_CANCELLED: ("stop_reason", "cancelled_step_id", "research_node"),
     AgentEventType.STEP_STARTED: ("step_id", "step_sequence", "step_kind"),
     AgentEventType.STEP_COMPLETED: (
         "step_id",
@@ -162,7 +162,28 @@ _SAFE_EVENT_FIELDS: Mapping[AgentEventType, tuple[str, ...]] = {
     AgentEventType.TOOL_CANCELLED: ("call_id", "execution_step_id"),
     AgentEventType.ARTIFACT_CREATED: ("artifact_id", "artifact_kind", "version"),
     AgentEventType.CHECKPOINT_SAVED: ("checkpoint_id", "revision"),
+    AgentEventType.RESEARCH_NODE_STARTED: (
+        "node",
+        "graph_version",
+        "research_state_schema_version",
+        "state_revision",
+    ),
+    AgentEventType.RESEARCH_NODE_COMPLETED: (
+        "node",
+        "graph_version",
+        "research_state_schema_version",
+        "state_revision",
+    ),
+    AgentEventType.RESEARCH_NODE_FAILED: (
+        "node",
+        "error_code",
+        "graph_version",
+        "state_revision",
+    ),
 }
+
+if frozenset(_SAFE_EVENT_FIELDS) != frozenset(AgentEventType):
+    raise RuntimeError("Every Agent Event type requires an explicit safe Trace projection")
 
 
 @dataclass(frozen=True, slots=True)
@@ -406,6 +427,22 @@ def _to_context_source(value: object) -> ContextSourceManifestEntry:
         source_sha256=(
             None if value.get("source_sha256") is None else _required_str(value, "source_sha256")
         ),
+        source_revision_id=(
+            None
+            if value.get("source_revision_id") is None
+            else UUID(_required_str(value, "source_revision_id"))
+        ),
+        source_scope=(
+            None if value.get("source_scope") is None else _required_str(value, "source_scope")
+        ),
+        relevance_score=(
+            None
+            if value.get("relevance_score") is None
+            else _required_float(value, "relevance_score")
+        ),
+        feedback_score=(
+            None if value.get("feedback_score") is None else _required_int(value, "feedback_score")
+        ),
     )
 
 
@@ -428,3 +465,10 @@ def _required_bool(value: Mapping[str, object], key: str) -> bool:
     if not isinstance(item, bool):
         raise ValueError("Trace boolean field is invalid")
     return item
+
+
+def _required_float(value: Mapping[str, object], key: str) -> float:
+    item = value.get(key)
+    if isinstance(item, bool) or not isinstance(item, int | float):
+        raise ValueError("Trace numeric field is invalid")
+    return float(item)

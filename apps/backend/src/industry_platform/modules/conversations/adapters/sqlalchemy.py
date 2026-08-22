@@ -38,6 +38,15 @@ from industry_platform.modules.files.domain import AttachmentKind, FileObjectSta
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyJobWriter
 from industry_platform.modules.jobs.models import OutboxEvent
+from industry_platform.modules.research.domain import (
+    RESEARCH_GRAPH_VERSION,
+    RESEARCH_STATE_SCHEMA_VERSION,
+    ResearchRunStatus,
+    initial_research_state_document,
+    research_brief_id_for_run,
+    research_run_id_for_agent_run,
+)
+from industry_platform.modules.research.models import ResearchBriefRecord, ResearchRunRecord
 
 
 @dataclass(slots=True)
@@ -131,6 +140,12 @@ class SqlAlchemyDirectAnswerTurnWriter:
                 loop_level="l2",
                 tool_call_limit=CONVERSATION_WEB_TOOL_CALL_LIMIT,
             )
+        elif run.run_type is AgentRunType.RESEARCH:
+            queued_payload.update(
+                loop_level="l3",
+                graph_version=RESEARCH_GRAPH_VERSION,
+                tool_call_limit=CONVERSATION_WEB_TOOL_CALL_LIMIT,
+            )
         self.session.add(
             Turn(
                 id=prepared.turn_id,
@@ -218,6 +233,52 @@ class SqlAlchemyDirectAnswerTurnWriter:
                 payload=queued_payload,
             )
         )
+        if prepared.research_brief is not None:
+            research_run_id = research_run_id_for_agent_run(run.run_id)
+            self.session.add(
+                ResearchRunRecord(
+                    id=research_run_id,
+                    workspace_id=run.workspace_id,
+                    owner_user_id=run.user_id,
+                    agent_run_id=run.run_id,
+                    status=ResearchRunStatus.DRAFT,
+                    revision=1,
+                    graph_version=RESEARCH_GRAPH_VERSION,
+                    state_schema_version=RESEARCH_STATE_SCHEMA_VERSION,
+                    current_node=None,
+                    state=initial_research_state_document(
+                        research_run_id=research_run_id,
+                        agent_run_id=run.run_id,
+                        workspace_id=run.workspace_id,
+                    ),
+                    error_summary=None,
+                    created_at=run.created_at,
+                    updated_at=run.created_at,
+                )
+            )
+            await self.session.flush()
+            self.session.add(
+                ResearchBriefRecord(
+                    id=research_brief_id_for_run(research_run_id),
+                    workspace_id=run.workspace_id,
+                    research_run_id=research_run_id,
+                    revision=1,
+                    original_question=prepared.research_brief.original_question,
+                    confirmed_scope=list(prepared.research_brief.confirmed_scope),
+                    exclusions=list(prepared.research_brief.exclusions),
+                    completion_criteria=list(prepared.research_brief.completion_criteria),
+                    budget={
+                        "schema_version": run.budget.schema_version,
+                        "max_steps": run.budget.max_steps,
+                        "max_total_tokens": run.budget.max_total_tokens,
+                        "max_cost_micro_usd": run.budget.max_cost_micro_usd,
+                        "deadline": run.budget.deadline.isoformat(),
+                    },
+                    confirmed_by_user_id=run.user_id,
+                    confirmed_at=run.created_at,
+                    created_at=run.created_at,
+                )
+            )
         await self.session.flush()
         return DirectAnswerTurnReceipt(
             conversation_id=prepared.conversation_id,

@@ -16,6 +16,10 @@ interface StartTurnReceipt {
   readonly jobId: string;
 }
 
+interface StartResearchReceipt extends StartTurnReceipt {
+  readonly researchRunId: string;
+}
+
 function requireRecord(value: unknown, fieldName: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new TypeError(`${fieldName} must be an object.`);
@@ -37,6 +41,16 @@ function parseStartTurnReceipt(value: unknown): StartTurnReceipt {
     agentRunId: requireUuid(receipt, "agent_run_id"),
     conversationId: requireUuid(receipt, "conversation_id"),
     jobId: requireUuid(receipt, "job_id"),
+  };
+}
+
+function parseStartResearchReceipt(value: unknown): StartResearchReceipt {
+  const receipt = requireRecord(value, "Start Research receipt");
+  return {
+    agentRunId: requireUuid(receipt, "agent_run_id"),
+    conversationId: requireUuid(receipt, "conversation_id"),
+    jobId: requireUuid(receipt, "job_id"),
+    researchRunId: requireUuid(receipt, "research_run_id"),
   };
 }
 
@@ -104,10 +118,50 @@ async function executeBrowserCreatedWebRun(receipt: StartTurnReceipt): Promise<v
     result.job_id !== receipt.jobId ||
     result.disposition !== "succeeded" ||
     result.provider_calls !== 2 ||
+    result.source_snapshot_count !== 1 ||
     typeof result.answer_sha256 !== "string" ||
     !/^[0-9a-f]{64}$/u.test(result.answer_sha256)
   ) {
     throw new Error("The Web Tool driver returned inconsistent terminal facts.");
+  }
+}
+
+async function executeBrowserCreatedResearchRun(receipt: StartResearchReceipt): Promise<void> {
+  const uvArguments = [
+    "run",
+    ...(process.env.CI === "true" ? [] : ["--env-file", ".env"]),
+    "--locked",
+    "--package",
+    "industry-platform-backend",
+    "python",
+    "apps/backend/tests/day4_browser_research_driver.py",
+    "--run-id",
+    receipt.agentRunId,
+    "--research-run-id",
+    receipt.researchRunId,
+    "--job-id",
+    receipt.jobId,
+  ];
+  const { stdout } = await execFileAsync("uv", uvArguments, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    timeout: 60_000,
+    windowsHide: true,
+  });
+  const result = requireRecord(JSON.parse(stdout.trim()) as unknown, "Research driver result");
+  if (
+    result.schema_version !== 1 ||
+    result.run_id !== receipt.agentRunId ||
+    result.research_run_id !== receipt.researchRunId ||
+    result.job_id !== receipt.jobId ||
+    result.disposition !== "succeeded" ||
+    result.provider_calls !== 2 ||
+    result.completed_node_count !== 8 ||
+    result.draft_status !== "uncertain_draft" ||
+    typeof result.draft_sha256 !== "string" ||
+    !/^[0-9a-f]{64}$/u.test(result.draft_sha256)
+  ) {
+    throw new Error("The Research driver returned inconsistent terminal facts.");
   }
 }
 
@@ -232,6 +286,115 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByText(expectedAnswer, { exact: true })).toBeVisible();
   });
 
+  test("creates, restores, governs, and deletes a Memory revision", async ({ page }) => {
+    test.setTimeout(75_000);
+    const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+    const email = `memory-${uniquePart}@example.com`;
+    const password = "Browser!Pass123";
+    const sourceMessage = `请记住我的回答偏好 ${uniquePart}`;
+    const confirmedContent = `默认使用中文和项目符号回答（${uniquePart}）。`;
+    const updatedContent = `默认使用中文、项目符号和简短结论回答（${uniquePart}）。`;
+    const recallQuestion = `回答应该使用什么语言和格式（${uniquePart}）？`;
+
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "创建账户" }).click();
+    await page.getByLabel("邮箱").fill(email);
+    await page.getByLabel("密码").fill(password);
+    await page.getByRole("button", { name: "创建账户并进入" }).click();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+
+    const startResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      const pathname = new URL(response.url()).pathname;
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/conversations$/u.test(pathname) &&
+        response.status() === 202
+      );
+    });
+
+    await page.getByLabel("输入问题").fill(sourceMessage);
+    await page.getByRole("button", { name: "发送问题" }).click();
+    const startResponse = await startResponsePromise;
+    const receipt = parseStartTurnReceipt((await startResponse.json()) as unknown);
+    await executeBrowserCreatedRun(receipt);
+    await expect(page.getByRole("button", { exact: true, name: "停止" })).toHaveCount(0);
+
+    const sourceCard = page
+      .getByText(sourceMessage, { exact: true })
+      .locator("xpath=ancestor::article");
+    await sourceCard.getByRole("button", { name: "选择为记忆来源" }).click();
+    await page.getByRole("button", { name: "生成记忆候选" }).click();
+    await expect(page.getByRole("heading", { name: "确认要长期保存的内容" })).toBeVisible();
+
+    await page.getByLabel("最终确认内容").fill(confirmedContent);
+    await page.getByLabel("记忆类型").selectOption("preference");
+    await page.getByRole("button", { name: "创建新记忆" }).click();
+    await expect(page.getByText("Memory 已确认")).toBeVisible();
+    await expect(page.getByText(confirmedContent, { exact: true })).toBeVisible();
+    await expect(page.getByText(/创建新记忆 · Revision 1/u)).toBeVisible();
+    await page.getByRole("button", { name: "完成" }).click();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+    await page.getByRole("button", { name: new RegExp(sourceMessage, "u") }).click();
+    await page.getByRole("button", { name: "记忆记录 1" }).click();
+    await expect(page.getByText("Memory 已确认")).toBeVisible();
+    await expect(page.getByText(confirmedContent, { exact: true })).toBeVisible();
+    await expect(page.getByText(/创建新记忆 · Revision 1/u)).toBeVisible();
+    await page.getByRole("button", { name: "完成" }).click();
+
+    await page.getByRole("button", { name: "新建会话" }).click();
+    const recallResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      const pathname = new URL(response.url()).pathname;
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/conversations$/u.test(pathname) &&
+        response.status() === 202
+      );
+    });
+    await page.getByLabel("输入问题").fill(recallQuestion);
+    await page.getByRole("button", { name: "发送问题" }).click();
+    const recallReceipt = parseStartTurnReceipt(
+      (await (await recallResponsePromise).json()) as unknown,
+    );
+    await executeBrowserCreatedRun(recallReceipt);
+    await expect(page.getByRole("button", { exact: true, name: "停止" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "打开运行轨迹" }).click();
+    const tracePanel = page.getByLabel("Agent 运行轨迹");
+    const memorySource = tracePanel
+      .getByText("长期 Memory", { exact: true })
+      .locator("xpath=ancestor::li");
+    await expect(memorySource).toContainText("已送入模型");
+    await memorySource.getByRole("button", { name: "查看 Memory revision" }).click();
+    await expect(page.getByRole("heading", { name: "Memory 管理" })).toBeVisible();
+    await expect(page.getByLabel("当前正文")).toHaveValue(confirmedContent);
+
+    await page.getByLabel("当前正文").fill(updatedContent);
+    await page.getByRole("button", { name: "保存新 revision" }).click();
+    await expect(page.getByText(/revision 2 · content v2/u)).toBeVisible();
+    await expect(page.getByLabel("当前正文")).toHaveValue(updatedContent);
+
+    const feedbackResponse = page.waitForResponse((response) => {
+      const request = response.request();
+      return request.method() === "POST" && new URL(response.url()).pathname.endsWith("/feedback");
+    });
+    await page.getByRole("button", { name: "有帮助" }).click();
+    expect((await feedbackResponse).status()).toBe(200);
+
+    await page.getByRole("button", { name: "停用" }).click();
+    await expect(page.getByRole("button", { name: "恢复启用" })).toBeVisible();
+    await page.getByRole("button", { name: "恢复启用" }).click();
+    await expect(page.getByRole("button", { name: "停用" })).toBeVisible();
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "删除" }).click();
+    await expect(page.getByText("没有符合条件的 Memory。")).toBeVisible();
+    await expect(page.getByText(updatedContent, { exact: true })).toHaveCount(0);
+  });
+
   test("uses the industry-scoped Web Tool and exposes its safe Inspector", async ({ page }) => {
     test.setTimeout(75_000);
     const uniquePart = [Date.now(), test.info().workerIndex].join("-");
@@ -277,6 +440,23 @@ test.describe("browser identity lifecycle", () => {
     await expect(inspector).toContainText("模型可见信封摘要");
     await expect(inspector).not.toContainText("transport policy");
 
+    await inspector.getByRole("button", { name: "提升为 Evidence" }).click();
+    await expect(page.getByRole("heading", { name: "Evidence Inspector" })).toBeVisible();
+    await expect(
+      page.getByText("Public transport transition", { exact: true }).first(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /Public transport transition/u }).click();
+    const evidenceDetail = page.getByRole("region", { name: "Evidence 详情" });
+    await expect(evidenceDetail).toContainText(receipt.agentRunId);
+    await expect(evidenceDetail).toContainText("evidence-normalizer-v1");
+    await expect(evidenceDetail).toContainText("industry_source_v1");
+
+    await page.reload();
+    await page.getByRole("button", { name: "Evidence" }).click();
+    await expect(
+      page.getByText("Public transport transition", { exact: true }).first(),
+    ).toBeVisible();
+
     await page.getByRole("button", { name: "数据库" }).click();
     await expect(page.getByRole("heading", { name: "数据库与安全 Text2SQL" })).toBeVisible();
     await expect(page.getByText(/完整 AST allowlist/u)).toBeVisible();
@@ -285,6 +465,65 @@ test.describe("browser identity lifecycle", () => {
     await page.getByRole("button", { name: "Agent" }).click();
     await page.getByRole("button", { name: new RegExp(question, "u") }).click();
     await expect(page.getByText(answer, { exact: true })).toBeVisible();
+  });
+
+  test("creates, explains, links, and restores a Research L3 draft", async ({ page }) => {
+    test.setTimeout(75_000);
+    const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+    const email = `research-${uniquePart}@example.com`;
+    const password = "Browser!Pass123";
+    const question = `查找智慧交通公共政策更新 ${uniquePart}`;
+
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "创建账户" }).click();
+    await page.getByLabel("邮箱").fill(email);
+    await page.getByLabel("密码").fill(password);
+    await page.getByRole("button", { name: "创建账户并进入" }).click();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Research" }).click();
+    await expect(page.getByRole("heading", { name: "Research Workbench" })).toBeVisible();
+    await expect(page.getByLabel("Research 行业")).toHaveValue(
+      "5ae94c40-4441-5e6f-b4cb-0679e8a92f9e",
+    );
+
+    const startResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/research-runs$/u.test(new URL(response.url()).pathname) &&
+        response.status() === 202
+      );
+    });
+    await page.getByLabel("Research 原始问题").fill(question);
+    await page.getByLabel("Research 已确认范围").fill("智慧交通公共新闻\n政策更新");
+    await page.getByLabel("Research 排除项").fill("投资建议");
+    await page.getByRole("button", { name: "确认 Brief 并开始" }).click();
+    const receipt = parseStartResearchReceipt(
+      (await (await startResponsePromise).json()) as unknown,
+    );
+
+    await executeBrowserCreatedResearchRun(receipt);
+    await page.getByRole("button", { name: "刷新服务端状态" }).click();
+    const detail = page.getByRole("article", { name: "Research 详情" });
+    await expect(detail.getByRole("heading", { name: question })).toBeVisible();
+    await expect(detail.getByText("uncertain_draft")).toBeVisible();
+    await expect(detail.getByText("不确定项：uncertain", { exact: true })).toBeVisible();
+    await expect(detail.getByText("校验研究范围").first()).toBeVisible();
+    await expect(detail.getByText("保存 L3 草稿").last()).toBeVisible();
+    await expect(detail.getByText(/coverage 0%/u)).toBeVisible();
+    await expect(detail.getByText("$0.000080", { exact: true })).toBeVisible();
+
+    await detail.getByRole("button", { name: "查看完整 Evidence/Claim 图" }).click();
+    await expect(page.getByRole("heading", { name: "Evidence Inspector" })).toBeVisible();
+    await expect(page.getByText(/public update remains uncertain/u)).toBeVisible();
+    await page.getByRole("button", { name: "打开 Research 时间线" }).click();
+    await expect(page.getByRole("heading", { name: question })).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Research" }).click();
+    await expect(page.getByRole("heading", { name: question })).toBeVisible();
+    await expect(page.getByText("uncertain_draft")).toBeVisible();
   });
 
   test("creates, stops, and restores a real Day 2 conversation", async ({ page }) => {

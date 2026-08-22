@@ -6,7 +6,11 @@ import { Icon } from "./icons";
 interface TracePanelProps {
   readonly activeRun: ActiveRun | null;
   readonly events: readonly (AgentStreamEvent | AgentTrace["events"][number])[];
+  readonly evidencePromotionError: string | null;
+  readonly evidencePromotionKey: string | null;
   readonly onClose: () => void;
+  readonly onNormalizeObservation: (toolCallId: string, observationId: string) => void;
+  readonly onOpenMemory: (memoryId: string) => void;
   readonly onRetry: (() => void) | undefined;
   readonly trace: AgentTrace | null;
   readonly traceError: string | null;
@@ -38,14 +42,39 @@ const toolDetailNames: Readonly<Record<string, string>> = {
   tool_version: "工具版本",
 };
 
+const memoryDecisionNames: Readonly<Record<string, string>> = {
+  excluded_conflicted: "与更高优先级 Memory 冲突",
+  excluded_deleted: "已删除",
+  excluded_disabled: "已停用",
+  excluded_duplicate: "重复内容",
+  excluded_expired: "已过期",
+  excluded_negative_feedback: "用户反馈为不相关",
+  excluded_not_relevant: "与当前目标不相关",
+  excluded_sensitive: "敏感内容策略排除",
+  excluded_stale: "来源或事实已过时",
+  excluded_token_budget: "Context Token 预算不足",
+  not_available: "当前不可用",
+};
+
 function traceEventType(event: TracePanelProps["events"][number]): string {
   return "event_type" in event ? event.event_type : event.type;
 }
 
+function runTypeName(runType: AgentTrace["run"]["run_type"] | undefined): string {
+  if (runType === "direct_answer") return "Direct Answer L0";
+  if (runType === "tool_loop") return "Tool Loop L2";
+  if (runType === "research") return "Evidence Research L3";
+  return "Agent Runtime";
+}
+
 export function TracePanel({
   activeRun,
+  evidencePromotionError,
+  evidencePromotionKey,
   events,
   onClose,
+  onNormalizeObservation,
+  onOpenMemory,
   onRetry,
   trace,
   traceError,
@@ -105,9 +134,7 @@ export function TracePanel({
             )}
             <div className="trace-status">
               <div>
-                <strong>
-                  {trace?.run.run_type === "direct_answer" ? "Direct Answer L0" : "Tool Loop L2"}
-                </strong>
+                <strong>{runTypeName(trace?.run.run_type)}</strong>
                 <span>{trace?.run.runtime_version ?? "Runtime 正在记录事件"}</span>
               </div>
               <span className={`status-pill status-pill--${status ?? "running"}`}>
@@ -162,26 +189,54 @@ export function TracePanel({
                   <span>{toolEvents.length} 个事实</span>
                 </div>
                 <ol className="tool-inspector-list">
-                  {toolEvents.map((event) => (
-                    <li
-                      className="tool-inspector-event"
-                      key={`${String(event.sequence)}-${event.event_type}`}
-                    >
-                      <strong>{eventNames[event.event_type] ?? event.event_type}</strong>
-                      <span>sequence {event.sequence}</span>
-                      <dl>
-                        {Object.entries(event.details)
-                          .filter(([name]) => toolDetailNames[name] !== undefined)
-                          .map(([name, value]) => (
-                            <div key={name}>
-                              <dt>{toolDetailNames[name]}</dt>
-                              <dd>{String(value)}</dd>
-                            </div>
-                          ))}
-                      </dl>
-                    </li>
-                  ))}
+                  {toolEvents.map((event) => {
+                    const callId = event.details.call_id;
+                    const observationId = event.details.observation_id;
+                    const canNormalize =
+                      event.event_type === "agent.tool.completed" &&
+                      typeof callId === "string" &&
+                      typeof observationId === "string";
+                    const promotionKey = canNormalize ? `${callId}:${observationId}` : null;
+                    return (
+                      <li
+                        className="tool-inspector-event"
+                        key={`${String(event.sequence)}-${event.event_type}`}
+                      >
+                        <strong>{eventNames[event.event_type] ?? event.event_type}</strong>
+                        <span>sequence {event.sequence}</span>
+                        <dl>
+                          {Object.entries(event.details)
+                            .filter(([name]) => toolDetailNames[name] !== undefined)
+                            .map(([name, value]) => (
+                              <div key={name}>
+                                <dt>{toolDetailNames[name]}</dt>
+                                <dd>{String(value)}</dd>
+                              </div>
+                            ))}
+                        </dl>
+                        {canNormalize ? (
+                          <button
+                            className="compact-button tool-inspector-event__promote"
+                            disabled={evidencePromotionKey === promotionKey}
+                            onClick={() => {
+                              onNormalizeObservation(callId, observationId);
+                            }}
+                            type="button"
+                          >
+                            {evidencePromotionKey === promotionKey
+                              ? "正在校验来源…"
+                              : "提升为 Evidence"}
+                          </button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ol>
+                {evidencePromotionError === null ? null : (
+                  <p className="trace-promotion-error" role="alert">
+                    {evidencePromotionError}
+                  </p>
+                )}
                 <p className="trace-safety-note">
                   仅显示 allowlist 内的策略、预算、稳定错误码与摘要；原始参数、凭据和 Provider
                   响应不会进入 Inspector。
@@ -213,8 +268,32 @@ export function TracePanel({
                                     ? ""
                                     : ` · 摘要 ${source.source_sha256.slice(0, 12)}…`
                                 }`
-                              : source.decision_reason}
+                              : (memoryDecisionNames[source.decision_reason] ??
+                                source.decision_reason)}
                           </span>
+                          {source.source_kind === "long_term_memory" ? (
+                            <div className="source-item__memory">
+                              <small>
+                                {source.source_scope === "user" ? "仅自己" : "Workspace"} ·{" "}
+                                {source.source_version}
+                                {source.relevance_score === null
+                                  ? ""
+                                  : ` · 相关度 ${source.relevance_score.toFixed(2)}`}
+                                {source.feedback_score === null
+                                  ? ""
+                                  : ` · 反馈 ${String(source.feedback_score)}`}
+                              </small>
+                              <button
+                                className="compact-button"
+                                onClick={() => {
+                                  onOpenMemory(source.source_id);
+                                }}
+                                type="button"
+                              >
+                                查看 Memory revision
+                              </button>
+                            </div>
+                          ) : null}
                         </li>
                       ))}
                     </ol>

@@ -15,7 +15,9 @@ from industry_platform.modules.agent_runtime.context import (
     MAX_CONTEXT_TOOL_OBSERVATION_TEXT_LENGTH,
     ContextBudgetExceededError,
     ContextCompilationInput,
+    ContextDecisionReason,
     ContextSourceKind,
+    LongTermMemoryContextSource,
     ToolObservationContextSource,
     TrustedRuntimeContext,
 )
@@ -53,6 +55,8 @@ STEP_ID = UUID("77777777-7777-4777-8777-777777777777")
 MANIFEST_ID = UUID("88888888-8888-4888-8888-888888888888")
 OBSERVATION_ID = UUID("99999999-9999-4999-8999-999999999999")
 TOOL_CALL_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+MEMORY_ID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+MEMORY_REVISION_ID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
 NOW = datetime(2026, 8, 16, 2, 0, tzinfo=UTC)
 
 SECRET_REFERENCE = "provider/context-v1-secret-must-not-leak"  # noqa: S105
@@ -127,6 +131,7 @@ def compilation(
     max_input_tokens: int = 512,
     selected_budget: RunBudget | None = None,
     response_schema: dict[str, object] | None = None,
+    long_term_memories: tuple[LongTermMemoryContextSource, ...] = (),
 ) -> ContextCompilationInput:
     run_budget = selected_budget or budget()
     run = AgentRun(
@@ -196,12 +201,39 @@ def compilation(
         max_output_tokens=128,
         compiled_at=NOW + timedelta(seconds=3),
         tool_observations=(observation(),) if tool_observations is None else tool_observations,
+        long_term_memories=long_term_memories,
         response_schema=response_schema,
     )
 
 
 def compiler() -> ContextCompilerV1:
     return ContextCompilerV1(token_counter=WordTokenCounter())
+
+
+def recalled_memory(
+    *,
+    reason: ContextDecisionReason = ContextDecisionReason.INCLUDED,
+) -> LongTermMemoryContextSource:
+    content = "Steel reports should be answered in Chinese."
+    return LongTermMemoryContextSource(
+        memory_id=MEMORY_ID,
+        revision_id=MEMORY_REVISION_ID,
+        workspace_id=WORKSPACE_ID,
+        owner_user_id=USER_ID,
+        revision=3,
+        scope="user",
+        kind="preference",
+        decision_reason=reason,
+        relevance_score=0.75,
+        feedback_score=1,
+        updated_at=NOW + timedelta(seconds=2),
+        content=content if reason is ContextDecisionReason.INCLUDED else None,
+        content_sha256=(
+            hashlib.sha256(content.encode()).hexdigest()
+            if reason is ContextDecisionReason.INCLUDED
+            else None
+        ),
+    )
 
 
 def test_v1_appends_observation_after_original_question_and_records_only_manifest_metadata() -> (
@@ -226,6 +258,7 @@ def test_v1_appends_observation_after_original_question_and_records_only_manifes
         ContextSourceKind.SYSTEM_INSTRUCTIONS,
         ContextSourceKind.RUNTIME_CONTEXT_PROJECTION,
         ContextSourceKind.CONVERSATION_SUMMARY,
+        ContextSourceKind.SHORT_TERM_MEMORY,
         ContextSourceKind.USER_QUESTION,
         ContextSourceKind.TOOL_OBSERVATION,
     )
@@ -235,6 +268,59 @@ def test_v1_appends_observation_after_original_question_and_records_only_manifes
     assert observation_source.source_sha256 == observation().envelope_sha256
     assert observation().model_text not in repr(compiled.manifest)
     assert compiled.manifest.compiler_version == CONTEXT_COMPILER_V1
+
+
+def test_v1_memory_manifest_matches_the_actual_model_input_and_keeps_only_references() -> None:
+    memory = recalled_memory()
+    compiled = compiler().compile(compilation(long_term_memories=(memory,)))
+
+    memory_messages = tuple(
+        message
+        for message in compiled.request.messages
+        if "User-confirmed Long-term Memory" in message.content
+    )
+    assert len(memory_messages) == 1
+    assert memory.content is not None
+    assert memory.content in memory_messages[0].content
+    source = next(
+        item
+        for item in compiled.manifest.sources
+        if item.source_kind is ContextSourceKind.LONG_TERM_MEMORY
+    )
+    assert source.source_id == str(MEMORY_ID)
+    assert source.source_revision_id == MEMORY_REVISION_ID
+    assert source.source_version == "revision-3"
+    assert source.source_scope == "user"
+    assert source.relevance_score == 0.75
+    assert source.feedback_score == 1
+    assert source.included is True
+    assert source.estimated_token_count > 0
+    assert memory.content not in repr(compiled.manifest)
+    assert sum(item.estimated_token_count for item in compiled.manifest.sources) == (
+        compiled.manifest.budget.estimated_input_tokens
+    )
+
+
+def test_v1_records_memory_budget_exclusion_without_putting_content_in_model_input() -> None:
+    baseline = compiler().compile(compilation())
+    memory = recalled_memory()
+    assert memory.content is not None
+    compiled = compiler().compile(
+        compilation(
+            long_term_memories=(memory,),
+            max_input_tokens=baseline.manifest.budget.estimated_input_tokens,
+        )
+    )
+
+    assert all(memory.content not in message.content for message in compiled.request.messages)
+    source = next(
+        item
+        for item in compiled.manifest.sources
+        if item.source_kind is ContextSourceKind.LONG_TERM_MEMORY
+    )
+    assert source.included is False
+    assert source.decision_reason is ContextDecisionReason.EXCLUDED_TOKEN_BUDGET
+    assert source.estimated_token_count == 0
 
 
 def test_v1_treats_prompt_injection_as_user_data_and_never_serializes_trusted_context() -> None:

@@ -122,6 +122,30 @@ def assert_head_schema(probe: PostgresProbe, expected_head: str) -> None:
         )
         assert_foreign_key(
             inspector,
+            source_table="memory_candidate_sources",
+            constraint_name="fk_memory_candidate_sources_message_workspace",
+            constrained_columns=("message_id", "workspace_id"),
+            referred_table="conversation_messages",
+            referred_columns=("id", "workspace_id"),
+            on_delete="RESTRICT",
+        )
+        assert_foreign_key(
+            inspector,
+            source_table="memory_revisions",
+            constraint_name="fk_memory_revisions_memory_workspace_owner",
+            constrained_columns=("memory_id", "workspace_id", "owner_user_id"),
+            referred_table="memories",
+            referred_columns=("id", "workspace_id", "owner_user_id"),
+            on_delete="RESTRICT",
+        )
+        assert_check_contains(
+            inspector,
+            table_name="memory_candidates",
+            constraint_name="ck_memory_candidates_lifecycle_consistent",
+            fragments=("candidate", "confirmed", "rejected", "resolution_fingerprint"),
+        )
+        assert_foreign_key(
+            inspector,
             source_table="refresh_sessions",
             constraint_name=("fk_refresh_sessions_family_user_refresh_session_families"),
             constrained_columns=("rotation_family_id", "user_id"),

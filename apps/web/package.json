@@ -8,6 +8,7 @@
     "dev": "vite",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run src/chat/chat-workbench-model.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/chat/chat-workbench-model.ts --coverage.thresholds.lines=75 --coverage.thresholds.statements=75 --coverage.thresholds.functions=75 --coverage.thresholds.branches=75",
     "test:watch": "vitest",
     "typecheck": "tsc -b"
   },
@@ -31,6 +32,7 @@
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-basic-ssl": "2.3.0",
     "@vitejs/plugin-react": "6.0.5",
+    "@vitest/coverage-v8": "4.1.10",
     "jsdom": "30.0.1",
     "typescript": "6.0.2",
     "vite": "8.2.0",

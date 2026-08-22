@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AgentTrace } from "./chat-api";
@@ -30,11 +31,15 @@ const trace = {
         {
           decision_reason: "included",
           estimated_token_count: 24,
+          feedback_score: null,
           included: true,
           message_role: "user",
           ordinal: 5,
+          relevance_score: null,
           source_id: "55555555-5555-4555-8555-555555555555",
           source_kind: "tool_observation",
+          source_revision_id: null,
+          source_scope: null,
           source_sha256: "a".repeat(64),
           source_version: "tool-observation-v1",
         },
@@ -106,12 +111,18 @@ const trace = {
 } satisfies AgentTrace;
 
 describe("Tool Inspector", () => {
-  it("shows allowlisted Tool facts and Observation correlation without raw arguments", () => {
+  it("shows allowlisted Tool facts and promotes a completed Observation", async () => {
+    const user = userEvent.setup();
+    const onNormalizeObservation = vi.fn();
     render(
       <TracePanel
         activeRun={null}
+        evidencePromotionError={null}
+        evidencePromotionKey={null}
         events={trace.events}
         onClose={vi.fn()}
+        onNormalizeObservation={onNormalizeObservation}
+        onOpenMemory={vi.fn()}
         onRetry={undefined}
         trace={trace}
         traceError={null}
@@ -124,5 +135,30 @@ describe("Tool Inspector", () => {
     expect(within(inspector).getByText("模型可见信封摘要")).toBeVisible();
     expect(within(inspector).queryByText(/must-not-render/u)).not.toBeInTheDocument();
     expect(screen.getByText(/摘要 aaaaaaaaaaaa/u)).toBeVisible();
+    await user.click(within(inspector).getByRole("button", { name: "提升为 Evidence" }));
+    expect(onNormalizeObservation).toHaveBeenCalledWith(
+      "66666666-6666-4666-8666-666666666666",
+      "55555555-5555-4555-8555-555555555555",
+    );
+  });
+
+  it("labels a Research Run as L3 instead of a Tool L2 Run", () => {
+    render(
+      <TracePanel
+        activeRun={null}
+        evidencePromotionError={null}
+        evidencePromotionKey={null}
+        events={[]}
+        onClose={vi.fn()}
+        onNormalizeObservation={vi.fn()}
+        onOpenMemory={vi.fn()}
+        onRetry={undefined}
+        trace={{ ...trace, events: [], run: { ...trace.run, run_type: "research" } }}
+        traceError={null}
+        traceState="ready"
+      />,
+    );
+
+    expect(screen.getByText("Evidence Research L3")).toBeVisible();
   });
 });

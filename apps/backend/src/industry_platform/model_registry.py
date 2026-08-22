@@ -25,6 +25,14 @@ from industry_platform.modules.data_explorer.models import (
     SampleCompanyMetricRecord,
     SchemaSnapshotRecord,
 )
+from industry_platform.modules.evidence.models import (
+    ClaimEvidenceRecord,
+    EvidenceNormalizationDecisionRecord,
+    EvidenceRecord,
+    GraphEdgeRecord,
+    GraphNodeRecord,
+    ResearchClaimRecord,
+)
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.identity.models import (
     AuditLog,
@@ -53,6 +61,21 @@ from industry_platform.modules.jobs.models import (
     OutboxEvent,
     Schedule,
     ScheduleOccurrence,
+)
+from industry_platform.modules.memory.models import (
+    MemoryCandidateRecord,
+    MemoryCandidateSourceRecord,
+    MemoryFeedbackRecord,
+    MemoryRecord,
+    MemoryRevisionRecord,
+    MemoryRevisionSourceRecord,
+    ThreadMemoryStateRecord,
+)
+from industry_platform.modules.research.models import (
+    ResearchBriefRecord,
+    ResearchDraftRecord,
+    ResearchPlanRecord,
+    ResearchRunRecord,
 )
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
@@ -98,6 +121,23 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     QueryRunRecord,
     QueryResultRecord,
     ChartSpecRecord,
+    ResearchRunRecord,
+    ResearchBriefRecord,
+    ResearchPlanRecord,
+    ResearchDraftRecord,
+    EvidenceRecord,
+    EvidenceNormalizationDecisionRecord,
+    ResearchClaimRecord,
+    ClaimEvidenceRecord,
+    GraphNodeRecord,
+    GraphEdgeRecord,
+    ThreadMemoryStateRecord,
+    MemoryRecord,
+    MemoryRevisionRecord,
+    MemoryCandidateRecord,
+    MemoryCandidateSourceRecord,
+    MemoryRevisionSourceRecord,
+    MemoryFeedbackRecord,
 )
 
 metadata: MetaData = Base.metadata

@@ -1,0 +1,642 @@
+{
+  "schema_version": 1,
+  "dataset_id": "day4-research",
+  "dataset_version": "v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-same-question-l0",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-same-question-l0",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "same-question-l0", "version": "v1" },
+        "input": {
+          "question": "What changed in the target industry's public market update, and how certain are we?"
+        },
+        "runtime_version": "direct-answer-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "direct-answer-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "no-tools-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "research/same-question-l0", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "L0 answers directly but marks that it has no retrieved Evidence.",
+        "research_eval": {
+          "comparison_tier": "l0",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "uncertainty_expected": 1,
+          "uncertainty_correct": 1,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 1,
+          "total_tokens": 240,
+          "cost_micro_usd": 100,
+          "latency_ms": 120,
+          "evidence_count": 0,
+          "claim_count": 0,
+          "uncertainty_count": 1
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-same-l0", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The shared question baseline records that L0 has no tool-backed Evidence."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-same-question-l2",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-same-question-l2",
+        "scenario_version": "v1",
+        "run_type": "tool_loop",
+        "profile": { "name": "same-question-l2", "version": "v1" },
+        "input": {
+          "question": "What changed in the target industry's public market update, and how certain are we?"
+        },
+        "runtime_version": "tool-l2-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "tool-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 6,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "research/same-question-l2", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "L2 answers from one bounded tool loop and one supported Claim.",
+        "research_eval": {
+          "comparison_tier": "l2",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 1,
+          "claim_support_correct": 1,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 4,
+          "total_tokens": 620,
+          "cost_micro_usd": 400,
+          "latency_ms": 310,
+          "evidence_count": 1,
+          "claim_count": 1,
+          "uncertainty_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-same-l2", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The shared question L2 fixture stays a bounded single-tool trajectory."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-same-question-l3",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-same-question-l3",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "same-question-l3", "version": "v1" },
+        "input": {
+          "question": "What changed in the target industry's public market update, and how certain are we?"
+        },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 8192,
+          "max_cost_micro_usd": 40000,
+          "timeout_seconds": 60
+        },
+        "deterministic_fixture_refs": [{ "name": "research/same-question-l3", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "L3 produces a structured draft with three Evidence items, two Claims, and one explicit uncertainty.",
+        "research_eval": {
+          "comparison_tier": "l3",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 1,
+          "claim_support_correct": 1,
+          "uncertainty_expected": 1,
+          "uncertainty_correct": 1,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 8,
+          "total_tokens": 1180,
+          "cost_micro_usd": 900,
+          "latency_ms": 720,
+          "evidence_count": 3,
+          "claim_count": 2,
+          "uncertainty_count": 1
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-same-l3", "version": "v1" }],
+      "artifact_refs": [{ "name": "research-draft/day4-same-question", "version": "v1" }],
+      "human_notes": "The L3 fixture expands breadth and preserves an unresolved gap instead of hiding it."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-scope-rejected",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-scope-rejected",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-scope-policy", "version": "v1" },
+        "input": { "question": "Run research with an empty inclusion boundary." },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "research/invalid-scope", "version": "v1" }]
+      },
+      "expected_stop_reason": "runtime_error",
+      "expected_behavior": {
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 1,
+          "total_tokens": 0,
+          "cost_micro_usd": 0,
+          "latency_ms": 15,
+          "evidence_count": 0,
+          "claim_count": 0,
+          "uncertainty_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "trajectory", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-scope-rejected", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Scope validation fails before retrieval and does not invent a draft."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-evidence-gap",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-evidence-gap",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-evidence-gap", "version": "v1" },
+        "input": { "question": "Draft a finding when no immutable source snapshot is available." },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 8192,
+          "max_cost_micro_usd": 40000,
+          "timeout_seconds": 60
+        },
+        "deterministic_fixture_refs": [
+          { "name": "research/missing-source-snapshot", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The draft remains uncertain and the unsupported Claim is not marked verified.",
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 1,
+          "claim_support_correct": 1,
+          "uncertainty_expected": 1,
+          "uncertainty_correct": 1,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 8,
+          "total_tokens": 920,
+          "cost_micro_usd": 750,
+          "latency_ms": 650,
+          "evidence_count": 0,
+          "claim_count": 1,
+          "uncertainty_count": 1
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-evidence-gap", "version": "v1" }],
+      "artifact_refs": [{ "name": "research-draft/day4-evidence-gap", "version": "v1" }],
+      "human_notes": "The deterministic browser chain exercises this exact uncertain-draft boundary."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-conflict",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-conflict",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-conflict", "version": "v1" },
+        "input": {
+          "question": "Draft a conclusion from one supporting and one refuting Evidence item."
+        },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 8192,
+          "max_cost_micro_usd": 40000,
+          "timeout_seconds": 60
+        },
+        "deterministic_fixture_refs": [{ "name": "research/conflicting-evidence", "version": "v1" }]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The draft preserves the conflict and does not collapse it into certainty.",
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 1,
+          "claim_support_correct": 1,
+          "uncertainty_expected": 1,
+          "uncertainty_correct": 1,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 8,
+          "total_tokens": 1100,
+          "cost_micro_usd": 820,
+          "latency_ms": 690,
+          "evidence_count": 2,
+          "claim_count": 1,
+          "uncertainty_count": 1
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-conflict", "version": "v1" }],
+      "artifact_refs": [{ "name": "claim-graph/day4-research-conflict", "version": "v1" }],
+      "human_notes": "Conflict is a first-class output, not a prompt-only warning."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-tool-failure",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-tool-failure",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-tool-failure", "version": "v1" },
+        "input": { "question": "Stop safely when the bounded search tool fails." },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 8,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "research/tool-failure", "version": "v1" }]
+      },
+      "expected_stop_reason": "tool_error",
+      "expected_behavior": {
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 3,
+          "total_tokens": 300,
+          "cost_micro_usd": 200,
+          "latency_ms": 240,
+          "evidence_count": 0,
+          "claim_count": 0,
+          "uncertainty_count": 0
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-quality",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-tool-failure", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The terminal Run records tool_error without a fabricated draft."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-step-budget",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-step-budget",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-budget", "version": "v1" },
+        "input": { "question": "Stop the research graph at its configured step ceiling." },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 4,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "research/step-budget", "version": "v1" }]
+      },
+      "expected_stop_reason": "max_steps",
+      "expected_behavior": {
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 4,
+          "total_tokens": 480,
+          "cost_micro_usd": 350,
+          "latency_ms": 300,
+          "evidence_count": 0,
+          "claim_count": 0,
+          "uncertainty_count": 0
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-quality",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-step-budget", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Budget exhaustion is an expected bounded terminal state."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-cancelled",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-cancelled",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-cancellation", "version": "v1" },
+        "input": { "question": "Cancel a queued Research Run before the next node." },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 8,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 20000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [{ "name": "research/cancelled", "version": "v1" }]
+      },
+      "expected_stop_reason": "cancelled",
+      "expected_behavior": {
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 1,
+          "cancellation_correct": 1,
+          "authorization_probes": 0,
+          "authorization_leaks": 0,
+          "steps": 2,
+          "total_tokens": 180,
+          "cost_micro_usd": 120,
+          "latency_ms": 140,
+          "evidence_count": 0,
+          "claim_count": 0,
+          "uncertainty_count": 0
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-quality",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-cancelled", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Cancellation stays on the shared AgentRun lifecycle and does not advance the graph."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "day4-research-workspace-authorization",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "day4-research-workspace-authorization",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "research-authorization", "version": "v1" },
+        "input": {
+          "question": "Complete a Research Run and probe its detail and Claim graph from another Workspace."
+        },
+        "runtime_version": "research-l3-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "research-l3-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "research-web-toolset-v1",
+        "available_tools": [{ "name": "industry.web_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 8192,
+          "max_cost_micro_usd": 40000,
+          "timeout_seconds": 60
+        },
+        "deterministic_fixture_refs": [
+          { "name": "research/workspace-authorization", "version": "v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The owner can read the draft while two cross-Workspace probes disclose nothing.",
+        "research_eval": {
+          "comparison_tier": "none",
+          "scope_expected": 1,
+          "scope_correct": 1,
+          "trajectory_expected": 1,
+          "trajectory_correct": 1,
+          "claim_support_expected": 0,
+          "claim_support_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "budget_expected": 1,
+          "budget_correct": 1,
+          "cancellation_expected": 0,
+          "cancellation_correct": 0,
+          "authorization_probes": 2,
+          "authorization_leaks": 0,
+          "steps": 8,
+          "total_tokens": 1000,
+          "cost_micro_usd": 800,
+          "latency_ms": 660,
+          "evidence_count": 1,
+          "claim_count": 1,
+          "uncertainty_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "research-quality", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/day4-research-authorization", "version": "v1" }],
+      "artifact_refs": [{ "name": "claim-graph/day4-research-authorization", "version": "v1" }],
+      "human_notes": "Research detail, Trace, Claim, and Evidence reads all reauthorize Workspace ownership."
+    }
+  ]
+}

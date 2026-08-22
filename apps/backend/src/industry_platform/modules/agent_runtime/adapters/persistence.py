@@ -20,6 +20,7 @@ from industry_platform.modules.agent_runtime.delivery import (
 from industry_platform.modules.agent_runtime.domain import (
     TERMINAL_RUN_STATUSES,
     AgentRunStatus,
+    AgentRunType,
     AgentStepKind,
     AgentStepStatus,
     RunStopReason,
@@ -141,6 +142,18 @@ class SqlAlchemyAgentEventCommitter:
             run.status = AgentRunStatus.RUNNING
             run.started_at = event.occurred_at
             run.state_revision = _optional_int(payload, "state_revision") or 1
+            await _project_research_lifecycle(session, run, event)
+            return
+        if event.event_type in {
+            AgentEventType.RESEARCH_NODE_STARTED,
+            AgentEventType.RESEARCH_NODE_COMPLETED,
+            AgentEventType.RESEARCH_NODE_FAILED,
+        }:
+            node_revision = _required_int(payload, "state_revision")
+            if node_revision <= run.state_revision:
+                raise AgentEventPersistenceError()
+            run.state_revision = node_revision
+            await _project_research_lifecycle(session, run, event)
             return
         if event.event_type is AgentEventType.STEP_STARTED:
             step_id = _required_uuid(payload, "step_id")
@@ -239,6 +252,7 @@ class SqlAlchemyAgentEventCommitter:
             }[event.event_type]
             run.stop_reason = RunStopReason(_required_str(payload, "stop_reason"))
             run.terminal_at = event.occurred_at
+            await _project_research_lifecycle(session, run, event)
             await _settle_interrupted_tool_facts(session, event)
             if event.event_type is AgentEventType.RUN_CANCELLED:
                 await _settle_cancelled_step(session, run, event)
@@ -246,6 +260,79 @@ class SqlAlchemyAgentEventCommitter:
                 await _persist_final_message(session, run, event.occurred_at)
             else:
                 await _persist_partial_message(session, run, event)
+
+
+async def _project_research_lifecycle(
+    session: object,
+    run: AgentRunRecord,
+    event: AgentEvent,
+) -> None:
+    """Update only the Research domain extension; Agent events remain the execution truth."""
+
+    if run.run_type is not AgentRunType.RESEARCH:
+        return
+    if not isinstance(session, AsyncSession):
+        raise AgentEventPersistenceError()
+    from industry_platform.modules.research.domain import ResearchNode, ResearchRunStatus
+    from industry_platform.modules.research.models import ResearchRunRecord
+
+    research = await session.scalar(
+        select(ResearchRunRecord)
+        .where(
+            ResearchRunRecord.agent_run_id == run.id,
+            ResearchRunRecord.workspace_id == run.workspace_id,
+            ResearchRunRecord.owner_user_id == run.user_id,
+        )
+        .with_for_update()
+    )
+    if research is None:
+        raise AgentEventPersistenceError()
+    if event.event_type is AgentEventType.RUN_STARTED:
+        research.status = ResearchRunStatus.ACTIVE
+    elif event.event_type in {
+        AgentEventType.RESEARCH_NODE_STARTED,
+        AgentEventType.RESEARCH_NODE_COMPLETED,
+        AgentEventType.RESEARCH_NODE_FAILED,
+    }:
+        research.current_node = ResearchNode(_required_str(event.payload, "node"))
+        if event.event_type is AgentEventType.RESEARCH_NODE_FAILED:
+            research.error_summary = _required_str(event.payload, "error_code")
+    elif event.event_type in {
+        AgentEventType.RUN_COMPLETED,
+        AgentEventType.RUN_FAILED,
+        AgentEventType.RUN_CANCELLED,
+    }:
+        research.status = {
+            AgentEventType.RUN_COMPLETED: ResearchRunStatus.COMPLETED,
+            AgentEventType.RUN_FAILED: ResearchRunStatus.FAILED,
+            AgentEventType.RUN_CANCELLED: ResearchRunStatus.CANCELLED,
+        }[event.event_type]
+        state = dict(research.state)
+        terminal_error = (
+            run.stop_reason.value
+            if event.event_type is AgentEventType.RUN_FAILED and run.stop_reason is not None
+            else state.get("error_summary")
+        )
+        state.update(
+            status=run.status.value,
+            step_count=run.step_count,
+            input_tokens_used=run.input_tokens_used,
+            output_tokens_used=run.output_tokens_used,
+            cost_micro_usd=run.cost_micro_usd,
+            stop_reason=run.stop_reason.value if run.stop_reason is not None else None,
+            cancel_requested=event.event_type is AgentEventType.RUN_CANCELLED,
+            approval_status=(
+                "required" if run.stop_reason is RunStopReason.APPROVAL_REQUIRED else "not_required"
+            ),
+            error_summary=terminal_error,
+        )
+        research.state = state
+        if event.event_type is AgentEventType.RUN_FAILED:
+            research.error_summary = str(terminal_error)
+    else:
+        raise AgentEventPersistenceError()
+    research.revision += 1
+    research.updated_at = event.occurred_at
 
 
 async def _locked_tool_facts(

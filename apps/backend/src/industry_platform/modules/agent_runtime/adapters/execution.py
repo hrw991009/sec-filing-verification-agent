@@ -14,6 +14,7 @@ from industry_platform.modules.agent_runtime.context import (
     MAX_CONTEXT_ATTACHMENTS,
     AttachmentContextSource,
     BackgroundRunPrincipal,
+    MemoryContextBundle,
     TrustedRuntimeContext,
 )
 from industry_platform.modules.agent_runtime.domain import (
@@ -68,12 +69,15 @@ from industry_platform.modules.identity.models import (
     WorkspaceStatus,
 )
 from industry_platform.modules.industry.models import IndustryRecord
+from industry_platform.modules.research.domain import ResearchBrief, ResearchBriefInput
+from industry_platform.modules.research.models import ResearchBriefRecord, ResearchRunRecord
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
     WorkspaceScope,
 )
 from industry_platform.modules.workspaces.policy import scope_allows
+from industry_platform.workflows.research.contracts import ResearchL3RunCommand
 
 
 class DirectAnswerRunNotExecutableError(RuntimeError):
@@ -98,6 +102,19 @@ class AttachmentObjectReader(Protocol):
         object_key: str,
         maximum_bytes: int,
     ) -> bytes: ...
+
+
+class MemoryContextLoader(Protocol):
+    """Reload authorized Memory candidates for one queued Run."""
+
+    async def load(
+        self,
+        scope: WorkspaceScope,
+        *,
+        conversation_id: UUID,
+        current_goal: str,
+        max_input_tokens: int,
+    ) -> MemoryContextBundle: ...
 
 
 type AttachmentRow = tuple[
@@ -126,6 +143,7 @@ class SqlAlchemyDirectAnswerRunLoader:
     policy: DirectAnswerRuntimePolicy
     tool_policy: ToolL2RuntimePolicy | None = None
     attachment_object_reader: AttachmentObjectReader | None = None
+    memory_context_loader: MemoryContextLoader | None = None
 
     async def load(self, run_id: UUID) -> DirectAnswerExecutionInput:
         if run_id.int == 0:
@@ -230,6 +248,27 @@ class SqlAlchemyDirectAnswerRunLoader:
                     .tuples()
                     .all(),
                 )
+                research_row = None
+                if record.run_type is AgentRunType.RESEARCH:
+                    research_row = (
+                        await session.execute(
+                            select(ResearchRunRecord, ResearchBriefRecord)
+                            .join(
+                                ResearchBriefRecord,
+                                and_(
+                                    ResearchBriefRecord.research_run_id == ResearchRunRecord.id,
+                                    ResearchBriefRecord.workspace_id
+                                    == ResearchRunRecord.workspace_id,
+                                ),
+                            )
+                            .where(
+                                ResearchRunRecord.agent_run_id == record.id,
+                                ResearchRunRecord.workspace_id == record.workspace_id,
+                                ResearchRunRecord.owner_user_id == record.user_id,
+                                ResearchBriefRecord.revision == 1,
+                            )
+                        )
+                    ).one_or_none()
         except SQLAlchemyError as error:
             raise DirectAnswerRunLoadError(sqlstate=safe_sqlstate(error)) from None
 
@@ -286,7 +325,8 @@ class SqlAlchemyDirectAnswerRunLoader:
             updated_at=record.updated_at,
             stop_reason=record.stop_reason,
         )
-        tool_enabled = record.run_type is AgentRunType.TOOL_LOOP
+        research_enabled = record.run_type is AgentRunType.RESEARCH
+        tool_enabled = record.run_type is AgentRunType.TOOL_LOOP or research_enabled
         if tool_enabled and (
             self.tool_policy is None
             or search_mode is not TurnSearchMode.WEB
@@ -296,6 +336,8 @@ class SqlAlchemyDirectAnswerRunLoader:
             raise DirectAnswerRunNotExecutableError
         if not tool_enabled and search_mode is not TurnSearchMode.NONE:
             raise DirectAnswerRunNotExecutableError
+        if research_enabled and research_row is None:
+            raise DirectAnswerRunNotExecutableError
         runtime_context = TrustedRuntimeContext(
             principal=BackgroundRunPrincipal(
                 user_id=record.user_id,
@@ -303,7 +345,11 @@ class SqlAlchemyDirectAnswerRunLoader:
             ),
             workspace_scope=scope,
             capabilities=frozenset(
-                {WorkspaceAction.VIEW, WorkspaceAction.RUN_TOOL}
+                {
+                    WorkspaceAction.VIEW,
+                    WorkspaceAction.RUN_TOOL,
+                    *({WorkspaceAction.RUN_RESEARCH} if research_enabled else set()),
+                }
                 if tool_enabled
                 else {WorkspaceAction.VIEW}
             ),
@@ -313,11 +359,25 @@ class SqlAlchemyDirectAnswerRunLoader:
             workspace_id=record.workspace_id,
             rows=attachment_rows,
         )
+        memory_context = (
+            MemoryContextBundle()
+            if self.memory_context_loader is None
+            else await self.memory_context_loader.load(
+                scope,
+                conversation_id=record.conversation_id,
+                current_goal=question,
+                max_input_tokens=(
+                    self.tool_policy.max_input_tokens
+                    if tool_enabled and self.tool_policy is not None
+                    else self.policy.max_input_tokens
+                ),
+            )
+        )
         command: ProductionAgentRunCommand
         if tool_enabled:
             if self.tool_policy is None or not isinstance(industry_code, str):
                 raise DirectAnswerRunNotExecutableError
-            command = ToolL2RunCommand(
+            loop_command = ToolL2RunCommand(
                 run=run,
                 state=state,
                 policy=self.tool_policy,
@@ -346,8 +406,41 @@ class SqlAlchemyDirectAnswerRunLoader:
                 conversation_summary=("Current industry snapshot for this Turn: " + industry_code),
                 conversation_summary_version="turn-industry-snapshot-v1",
                 attachments=attachments,
+                memory_context=memory_context,
                 side_effect_idempotency_keys=(None,) * self.tool_policy.tool_call_limit,
+                embedded_in_research=research_enabled,
             )
+            if research_enabled:
+                if research_row is None:
+                    raise DirectAnswerRunNotExecutableError
+                research_record, brief_record = research_row
+                brief = ResearchBrief(
+                    brief_id=brief_record.id,
+                    research_run_id=research_record.id,
+                    workspace_id=research_record.workspace_id,
+                    revision=brief_record.revision,
+                    input=ResearchBriefInput(
+                        original_question=brief_record.original_question,
+                        confirmed_scope=tuple(brief_record.confirmed_scope),
+                        exclusions=tuple(brief_record.exclusions),
+                        completion_criteria=tuple(brief_record.completion_criteria),
+                    ),
+                    budget=budget,
+                    confirmed_by_user_id=brief_record.confirmed_by_user_id,
+                    confirmed_at=brief_record.confirmed_at,
+                    created_at=brief_record.created_at,
+                )
+                command = ResearchL3RunCommand(
+                    run=run,
+                    state=state,
+                    research_run_id=research_record.id,
+                    brief=brief,
+                    loop_command=loop_command,
+                    plan_id=uuid5(run_id, "research-plan-v1"),
+                    draft_id=uuid5(run_id, "research-draft-v1"),
+                )
+            else:
+                command = loop_command
         else:
             command = DirectAnswerRunCommand(
                 run=run,
@@ -358,6 +451,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                 manifest_id=uuid5(run_id, "direct-answer-context-manifest-v1"),
                 user_question=question,
                 attachments=attachments,
+                memory_context=memory_context,
             )
         return DirectAnswerExecutionInput(
             command=command,

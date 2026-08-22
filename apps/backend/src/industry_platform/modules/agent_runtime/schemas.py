@@ -90,6 +90,10 @@ class ContextSourceResponse(StrictAgentTraceModel):
     estimated_token_count: int
     message_role: ModelRole | None
     source_sha256: str | None
+    source_revision_id: UUID | None
+    source_scope: str | None
+    relevance_score: float | None
+    feedback_score: int | None
 
 
 class ContextBudgetResponse(StrictAgentTraceModel):
@@ -208,6 +212,10 @@ def agent_trace_response(trace: AgentTrace) -> AgentTraceResponse:
                         estimated_token_count=source.estimated_token_count,
                         message_role=source.message_role,
                         source_sha256=source.source_sha256,
+                        source_revision_id=source.source_revision_id,
+                        source_scope=source.source_scope,
+                        relevance_score=source.relevance_score,
+                        feedback_score=source.feedback_score,
                     )
                     for source in manifest.sources
                 ],

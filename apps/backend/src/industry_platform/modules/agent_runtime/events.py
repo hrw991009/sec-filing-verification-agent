@@ -44,6 +44,9 @@ class AgentEventType(StrEnum):
     TOOL_CANCELLED = "agent.tool.cancelled"
     ARTIFACT_CREATED = "agent.artifact.created"
     CHECKPOINT_SAVED = "agent.checkpoint.saved"
+    RESEARCH_NODE_STARTED = "agent.research.node_started"
+    RESEARCH_NODE_COMPLETED = "agent.research.node_completed"
+    RESEARCH_NODE_FAILED = "agent.research.node_failed"
 
 
 TERMINAL_AGENT_EVENT_TYPES: Final = frozenset(

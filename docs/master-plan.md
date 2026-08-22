@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`1.7.0`
+> 版本：`1.7.1`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-12`
+> 修订日期：`2026-08-22`
 >
 > 状态：Agent-first 执行基线
 >
@@ -713,6 +713,8 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 11. Day 4：Agent Memory、Evidence 与 Deep Research L3
 
+> 执行状态（2026-08-22）：五个纵向步骤已在 `feat/day-4` 完成并推送；最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 通过全部 7 个适用 Job。GitHub `main` 仍为 `2791123`，尚无 Day 4 PR/合并提交，项目所有者最终 Trace/复盘也未记录，因此当前仍是 Day 4 收口，D4-01～D4-07 保持 `implemented_pending_verification`。核心 Domain/Application/Research workflow 85% 覆盖率作为已说明原因、风险、缓解和复核人的 Day 4 例外登记，必须在 Day 7 总门禁前达到 90%；它不是永久豁免。详细证据见 [Day 4 学习日志](learning-log/day-4.md) 和 [能力矩阵](feature-matrix.md)。本次只同步执行状态，不改变 Day 4～Day 7 的冻结范围、架构边界或验收门禁。
+
 ### 学习主题
 
 - Short-term/Long-term Memory 的写入、召回、更新、反馈、遗忘与评测，以及它们与 Context、State、Checkpoint、Knowledge 的边界。
@@ -1048,3 +1050,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 1.5.0 | 2026-08-12 | 将七天计划重构为 Agent-first：补充统一 Runtime/Harness、Context/State/Memory/Checkpoint/Trace 边界、L0～L6 Deep Research 演进和轨迹评测；保留必要工程底座，压缩非 Harness 安全与外围平台篇幅 | 用户 |
 | 1.6.0 | 2026-08-12 | 明确 Tool、Short/Long-term Memory、Knowledge/RAG 均属于 P0 Agent 核心栈；增加 Memory 契约与 Eval、Memory/RAG 消融门禁，并说明 RAG 仅因依赖顺序安排在 Day 6，不降低优先级 | 用户 |
 | 1.7.0 | 2026-08-12 | 按能力依赖与每日学习负担均衡 Day 2～Day 7：Runtime/Harness v0 → Tool loop → Memory/Evidence/L3 → Knowledge/Durable L4 → Hybrid RAG/L5 → 综合 Eval；Scenario、Scorer、Fault 与 Agent Learning Workbench 逐日累积，保留完整前端交互并简化重复的非 Agent 安全与运维学习内容 | 用户 |
+| 1.7.1 | 2026-08-22 | 同步 Day 4 五步提交、分支 CI、覆盖率例外和 `main` 尚未合并的实际状态；不改变冻结范围、架构或门禁 | 用户授权的文档收口 |
