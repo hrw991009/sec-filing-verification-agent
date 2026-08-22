@@ -121,4 +121,4 @@ TracePanel 只在 completed Tool 事件同时具有 call/observation ID 时显�
 - 浏览器提升与刷新恢复：`tests/e2e/app-shell.spec.ts`；
 - 数据集与报告：`evals/scenarios/day4-evidence-v1.json`、`evals/reports/day4-evidence-v1.json`、`evals/reports/day4-evidence-v1.md`。
 
-步骤 3 只完成本地验收，等待 commit/push 后的干净 CI。Research L3 已在步骤 4 完成本地实现并继续复用本账本；Message/Report Citation、文档/多模态 locator 和 Verifier 仍按 Day 5～6 后续步骤推进。
+步骤 3 的本地验收、commit/push 和最终分支 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 均已通过；Research L3 已在步骤 4 完成并继续复用本账本。GitHub `main` 尚无 Day 4 合并提交，项目所有者最终 Trace/复盘也未记录，因此 D4-06 仍保持 `implemented_pending_verification`，待合并提交 CI 和所有者复核后关闭。Message/Report Citation、文档/多模态 locator 和 Verifier 仍按 Day 5～6 后续步骤推进。

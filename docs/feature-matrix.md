@@ -17,7 +17,7 @@
 当前状态只使用：
 
 - `complete`：冻结范围内已经逐条评审全局 Definition of Done，所有适用项通过，所有 `N/A` 都有具体理由与复核人，并附实际证据；
-- `implemented_pending_verification`：正式代码、迁移或文档已经实现，但本轮适用的统一门禁、真实依赖验证或干净 CI 尚未全部实际通过；它不是完成状态；
+- `implemented_pending_verification`：正式代码、迁移或文档已经实现，但本轮适用的统一门禁、真实依赖验证、干净 CI、目标分支合并或所有者验收尚未全部实际通过；它不是完成状态；
 - `thin_slice`：已有部分真实链路，但冻结范围仍有缺口；
 - `contract_only`：只有正式契约或 readiness，没有真实用户闭环；
 - `blocked`：存在已记录且当前无法解除的外部阻塞；
@@ -173,7 +173,9 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 
 2026-08-21 已完成步骤 4 的本地纵向实现：显式 ResearchBrief 与唯一 `research-l3-graph-v1` 通过 202 + Idempotency-Key、同一 ResearchRun/AgentRun/Job/Outbox、统一 Runtime 内的既有 bounded Tool loop、Evidence/Claim Application Service 和 PostgreSQL L3 draft 串成正式链路。确定 Fake 证明 accepted Evidence→supported Claim→explainable draft；真实行业 Tool 缺少不可变快照时证明 rejected decision→uncertain Claim→uncertain draft。取消、deadline、invalid output、max steps、Token/费用和跨 Workspace 路径均有明确终态；迁移、生成契约、真实依赖、Python/Web/浏览器、构建、audit 和 Secret 门禁通过。D4-04、D4-07 保持 `implemented_pending_verification`；该时点 D4-05 仍为 `thin_slice`、步骤 5 仍为 `planned`，后续本地收口见下一段。
 
-2026-08-22 已完成步骤 5 的本地收口：Research Workbench 从正式 OpenAPI/Event/Trace/资源 API 展示 Brief、Plan、节点/Step、usage、Evidence/Claim、coverage/conflict、uncertain draft、失败/取消/预算和刷新恢复，并与 Evidence Inspector 双向导航；真实 Chromium Research L3 链贯穿 PostgreSQL Job/Outbox、统一 Runtime、Web Tool、Normalizer、Claim 和 draft。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 和 Research 使用独立规则 Scorer，同题 L0/L2/L3 同时报告质量代理、步骤、Token、费用和延迟。全量门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip，migration 全历史往返、OpenAPI hash、build、audit、受控路径及 53 个可达提交的 Gitleaks 均通过；后端总体覆盖率 82.12%，前端关键状态分支 100%。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，已在学习日志记录原因、风险、CI 不退化缓解与复核人，须在 Day 7 总门禁前补齐。由于没有 commit/push/干净 CI 和项目所有者最终复盘，D4-01～D4-07 均保持 `implemented_pending_verification`，不得进入 Day 5。
+2026-08-22 已完成步骤 5 的本地收口：Research Workbench 从正式 OpenAPI/Event/Trace/资源 API 展示 Brief、Plan、节点/Step、usage、Evidence/Claim、coverage/conflict、uncertain draft、失败/取消/预算和刷新恢复，并与 Evidence Inspector 双向导航；真实 Chromium Research L3 链贯穿 PostgreSQL Job/Outbox、统一 Runtime、Web Tool、Normalizer、Claim 和 draft。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 和 Research 使用独立规则 Scorer，同题 L0/L2/L3 同时报告质量代理、步骤、Token、费用和延迟。全量门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip，migration 全历史往返、OpenAPI hash、build、audit、受控路径及 53 个可达提交的 Gitleaks 均通过；后端总体覆盖率 82.12%，前端关键状态分支 100%。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，已在学习日志记录原因、风险、CI 不退化缓解与复核人，须在 Day 7 总门禁前补齐。该段保留步骤 5 本地关闭时点的事实；远端分支复核见下一段。
+
+2026-08-22 五个步骤已分别形成提交并推送到 `feat/day-4`，最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过全部 7 个适用 Job，包含 Browser E2E、Python/Web 质量、真实 PostgreSQL/Redis/MinIO 集成、依赖审计和完整历史 Secret 扫描；此前步骤 4 的失败运行已由最终提交修复并被该成功运行取代。该证据关闭了“未提交、未 push、无干净分支 CI”的缺口，但 GitHub `main` 仍为 `2791123`，没有 Day 4 PR/合并提交，项目所有者最终 Trace/复盘也未记录。故 D4-01～D4-07 继续保持 `implemented_pending_verification`，待合入 `main`、合并提交 CI 全绿和所有者复核后统一更新为 `complete`；当前不得进入 Day 5。覆盖率 85% 例外继续作为 Day 7 前必须清偿的登记项，不因分支 CI 通过而删除。
 
 ## 7. Day 5：Agent Knowledge 与 Durable Research L4
 

@@ -2,11 +2,11 @@
 
 面向行业研究与企业知识工作的多模态行业智能工作台。
 
-当前状态：Day 1 的新仓工程执行门禁以及 Day 2/3 Agent 门禁已经通过，D1-01～D1-08、D1-10～D1-12、D2-01～D2-09 与 D3-01～D3-11 均为 `complete`。Day 4 的五个步骤已完成仓库内实现和统一的本地验收，D4-01～D4-07 均为 `implemented_pending_verification`；本次没有 commit/push 或新的干净 GitHub CI，项目所有者最终复盘也尚未记录，因此不得提前标为 `complete` 或进入 Day 5。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 4 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
+当前状态：Day 1 的新仓工程执行门禁以及 Day 2/3 Agent 门禁已经通过，D1-01～D1-08、D1-10～D1-12、D2-01～D2-09 与 D3-01～D3-11 均为 `complete`。Day 4 的五个步骤已完成仓库内实现和统一的本地验收，五个步骤提交已推送到 `feat/day-4`；分支最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过全部 7 个适用 Job。GitHub `main` 当前仍为 `2791123`，没有 Day 4 PR 或合并提交，项目所有者最终 Trace/复盘也尚未记录，因此 D4-01～D4-07 继续保持 `implemented_pending_verification`，当前仍处于 Day 4 收口，不能提前进入 Day 5。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 4 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
 
 ## 文档入口
 
-- [七天主计划 v1.7.0（当前权威执行基线）](docs/master-plan.md)
+- [七天主计划 v1.7.1（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [七天目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -43,7 +43,7 @@
 
 Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 的五个切片已经完成仓库内实现与全量本地验收：同一 `UnifiedAgentRuntime` 执行 L0/L1/L2，生产 Conversation/Job 可物化行业限定的 Web L2 command；Tool Inspector、行业页、数据库浏览、安全 Text2SQL、受校验表格/图表、陈旧 QueryRun 对账、24 条累计 Scenario 和 trajectory report 均已落地。真实 PostgreSQL/Redis/MinIO、4 条浏览器旅程、依赖/许可证/来源/隐私与 Secret 门禁均通过；[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 全绿，D3-01～D3-11 已复核为 `complete`。Day 7 前仍须完成参考仓 D1-09 外部凭据处置，以及显式物理 Run purge 与隔离备份恢复演练。
 
-Day 4 本地实现已串起 Conversation/Memory/Context manifest、Observation→Evidence→Claim、显式 ResearchBrief、唯一 typed Research L3 graph 与正式 Workbench。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 与 Research 使用独立规则 Scorer，并提供同题 L0/L2/L3 的步骤、Token、费用、延迟和 Evidence/Claim/uncertain 对照。当前本地门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip；后端总体覆盖率 82.12%，前端关键状态分支 100%。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，具体原因、风险、CI 不退化缓解和复核人已记录在 Day 4 学习日志；它必须在 Day 7 总门禁前补齐，且当前仍需提交后的干净 CI 才能关闭 Day 4。
+Day 4 实现已串起 Conversation/Memory/Context manifest、Observation→Evidence→Claim、显式 ResearchBrief、唯一 typed Research L3 graph 与正式 Workbench。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 与 Research 使用独立规则 Scorer，并提供同题 L0/L2/L3 的步骤、Token、费用、延迟和 Evidence/Claim/uncertain 对照。本地门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip；后端总体覆盖率 82.12%，前端关键状态分支 100%。分支 CI 已再次验证 Python/Web 质量、真实 PostgreSQL/Redis/MinIO、Browser E2E、依赖审计和完整历史 Secret 扫描。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，具体原因、风险、CI 85% 不退化缓解和复核人已记录在 Day 4 学习日志；它是必须在 Day 7 总门禁前清偿的已登记例外，不因本次分支 CI 通过而消失。
 
 ## 执行基线与安装
 
@@ -282,7 +282,9 @@ finally {
 
 Day 3 已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright 4 条均通过，真实 PostgreSQL/Redis/MinIO 无 skip，migration 往返、OpenAPI `api:check`、Python/Web build 与 audit、受控路径和 44-commit Gitleaks 也通过。证据和限制见 [Day 3 学习日志](docs/learning-log/day-3.md)。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 的 head 已合入 `main`，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 对应的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在干净环境通过全部 7 个适用 Job；D3-01～D3-11 已复核为 `complete`，可以进入 Day 4。
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2/Day 3 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 7 发布标签。后续开发以 [七天主计划 v1.7.0](docs/master-plan.md) 为权威执行基线。
+Day 4 的五个实现提交已推送到 `feat/day-4`。最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 对应的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job；它关闭了“未提交/未 push/无干净分支 CI”的旧状态。GitHub `main` 尚无 Day 4 合并提交，当前也没有 `feat/day-4` PR；只有 Day 4 进入 `main`、合并提交 CI 通过并完成项目所有者 Trace/复盘后，D4-01～D4-07 才能改为 `complete`。
+
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2～Day 4 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 7 发布标签。后续开发以 [七天主计划 v1.7.1](docs/master-plan.md) 为权威执行基线。
 
 ## 常见问题
 

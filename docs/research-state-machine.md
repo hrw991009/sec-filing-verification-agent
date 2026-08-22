@@ -1,7 +1,8 @@
 # Research L3 状态机与运行边界
 
-> 版本：1.1（Day 4 步骤 5）  
-> 更新日期：2026-08-21  
+> 版本：1.2（Day 4 远端分支验证）
+>
+> 更新日期：2026-08-22
 > 当前能力：Evidence Research L3  
 > 明确不含：durable resume、HITL、Verifier、bounded revise、多 Agent
 
@@ -156,7 +157,7 @@ Apache-2.0 OR MIT、xxhash 为 BSD-2-Clause、uuid-utils 为 BSD-3-Clause；未�
 
 | 层级 | 当前状态 | 能力 |
 |---|---|---|
-| L3 Evidence Research | Day 4 本地已实现，待提交后 CI | Brief、Plan、唯一 graph、Evidence/Claim、可解释/uncertain 草稿 |
+| L3 Evidence Research | Day 4 已实现且分支 CI 通过；待合入 `main` 与所有者复盘 | Brief、Plan、唯一 graph、Evidence/Claim、可解释/uncertain 草稿 |
 | L4 Durable Research | 未实现（Day 5） | PostgreSQL Checkpoint、CAS、interrupt/resume、持久审批、副作用恢复 |
 | L5 Verified Research | 未实现（Day 6） | Evidence-aware Verifier、bounded revise、complete/partial/uncertain Report |
 

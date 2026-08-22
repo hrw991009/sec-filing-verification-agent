@@ -41,4 +41,6 @@
 
 自动验证覆盖候选/确认/修改/停用/删除、无关与冲突召回、Evidence 正常/拒绝/失效、Research scope/Tool/Provider/预算/取消、跨 Workspace、唯一终态、safe Trace、刷新恢复、Memory off/on 和 L0/L2/L3 对照。
 
+最终功能分支提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过 Python/Web 质量、真实 PostgreSQL/Redis/MinIO 集成、Browser E2E、Python/Node 依赖审计与完整历史 Secret 扫描共 7 个适用 Job。核心 Day 4 合集 85% 覆盖率例外仍按学习日志登记，并由 CI 85% 不退化门槛约束；Day 7 前必须补到 90%。GitHub `main` 尚未合入 Day 4，因此本结论是已验证功能分支的安全复核，不是主分支发布批准。
+
 剩余限制不是安全豁免：Day 4 不提供 durable graph resume、持久 HITL、Verifier/bounded revise、文档/多模态 Evidence、最终 Report/Citation 完整门禁或物理 purge。它们分别属于 Day 5～7；UI 和文档必须明确显示当前能力，不把普通 state 持久化或 uncertain draft 冒充这些能力。

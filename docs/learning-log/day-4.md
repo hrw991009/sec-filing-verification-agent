@@ -2,11 +2,11 @@
 
 > 制定日期：2026-08-20
 >
-> 计划基线：[七天主计划](../master-plan.md) 1.7.0 Day 4
+> 计划基线：[七天主计划](../master-plan.md) 1.7.1 Day 4
 >
 > 相关决策：[系统架构](../architecture.md)第 6.5～6.6、10.3、12、15.1、15.4、15.6、18 节，[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)
 >
-> 当前状态：Day 3 门禁已关闭；Day 4 步骤 1～5 已完成仓库内实现与统一的本地验收，D4-01～D4-07 均保持 `implemented_pending_verification`。本次未 commit/push，也没有新的干净 GitHub CI，因此尚未进入 Day 5。
+> 当前状态：Day 3 门禁已关闭；Day 4 步骤 1～5 已完成仓库内实现与统一的本地验收，五个提交已推送到 `feat/day-4`，最终提交 `b99ca7a` 的 GitHub CI `32547497639` 已通过全部 7 个适用 Job。GitHub `main` 仍为 `2791123`，没有 Day 4 PR/合并提交，项目所有者最终 Trace/复盘也尚未记录，因此 D4-01～D4-07 保持 `implemented_pending_verification`，当前仍在 Day 4 收口，尚未进入 Day 5。
 
 ## 1. 执行边界
 
@@ -81,11 +81,11 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 | 步骤 | 当前状态 | 关闭条件 |
 |---|---|---|
-| 1. 可控 Memory 写入 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 2. Memory 召回与治理 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 3. Evidence/Claim 账本 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 4. Research L3 graph | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 5. Workbench/Eval/Day 4 门禁 | `implemented_pending_verification` | 本地实现与统一门禁已通过；提交后的干净 CI 与项目所有者最终复盘通过后关闭 |
+| 1. 可控 Memory 写入 | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
+| 2. Memory 召回与治理 | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
+| 3. Evidence/Claim 账本 | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
+| 4. Research L3 graph | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
+| 5. Workbench/Eval/Day 4 门禁 | `implemented_pending_verification` | 本地门禁与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和项目所有者最终 Trace/复盘关闭 |
 
 状态只随实际证据更新。代码存在、页面截图、单条漂亮答案、Mock success 或局部绿色测试都不能把任一步改为完成。
 
@@ -165,7 +165,18 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 覆盖率：后端全量 statement/branch 综合覆盖率 `82.12%`，超过整体 80% 门槛；前端关键 `chat-workbench-model.ts` 的 statement/branch/function/line 均为 `100%`，超过 75% 门槛。Day 4 选定 Domain/Application/Research workflow 合集为 `85%`，未达到目标 90%，记录为明确例外：原因是 PostgreSQL adapters 与公开 API/E2E 已覆盖主要纵向链，但多个纯校验失败分支尚未逐一补齐；风险是罕见畸形输入的分支回归发现较晚；缓解为 CI 固定 85% 不退化、全量 80%、真实集成和权限/失败 E2E，并在进入 Day 7 完整门禁前补到 90%。例外复核人 Codex，2026-08-22；它不等于豁免远端 CI。
 - 安全与供应链：受控源码/测试/文档/Eval 路径与完整历史 Gitleaks 无发现（当前受控路径含未提交变化，历史扫描 53 个可达提交）；`uv audit --locked` 与 `pnpm audit --audit-level high` 无已知漏洞。覆盖率工具锁定 `pytest-cov>=7.1.0,<8.0.0` 与匹配 Vitest 的 `@vitest/coverage-v8==4.1.10`，许可证均为 MIT；Day 4 LangGraph 许可证结论保持不变。安全/隐私和生命周期复核见 [Day 4 专项复核](../security/day-4-memory-research-review.md)。
 - 生命周期、Citation 与 N/A：在线 Memory deletion residual 为 0；Evidence tombstone/Claim 重算通过；备份一致性、恢复核对和回滚步骤已文档化，完整隔离恢复/物理 purge 按主计划保留为 Day 7，未虚报完成。Evidence scorer 的当前 locator 可解析率为 `2/2`，Research L3 不生成 Message/Report Citation，因此不存在新增悬空 Citation；最终 Report/Citation 完整门禁仍归 Day 6。durable graph resume/HITL/Verifier/bounded revise 为阶段性 `N/A`，原因是主计划明确分别归 Day 5/6，Day 4 用唯一终态、停止原因和 hard-stop 收敛替代；复核人 Codex，2026-08-22。
-- 尚未远端验证：本次没有 commit、push 或 GitHub CI。步骤 1～5 与 D4-01～D4-07 只能保持 `implemented_pending_verification`；项目所有者还需完成最终 Trace/复盘抽样，随后提交、推送并取得干净 CI，才能更新为 `complete` 并进入 Day 5。
+- 当时尚未远端验证：步骤 5 本地收口时还没有 commit、push 或 GitHub CI，因此当时步骤 1～5 与 D4-01～D4-07 只能保持 `implemented_pending_verification`。后续提交与分支 CI 结果见 3.6；本段不覆盖本地关闭时点的原始记录。
+
+### 3.6 提交、分支 CI 与最终关闭审计
+
+复核人：Codex；复核日期：2026-08-22。
+
+- 提交与推送：五个步骤依次形成 `4243cb0`、`7f8c7ac`、`446c9cc`、`27b75ea`、`b99ca7a`，均已推送到 `origin/feat/day-4`；工作树审计时本地分支与远端分支指向同一最终提交。
+- 干净分支 CI：最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 状态为 `success`。7 个适用 Job 全部通过：Browser E2E、Python dependency audit、PostgreSQL integration、Python quality、Secret history、Node dependency audit、Web quality；覆盖率门槛也在正式 CI 步骤中执行。步骤 4 提交曾有失败运行 `32541399291`，最终提交修复后由成功运行取代，不以 rerun 掩盖失败。
+- 覆盖率例外：最终 CI 保持 Day 4 核心合集 85% 不退化、后端全量 80% 和前端关键状态 75% 门槛；本地测得 85%/82.12%/100%。核心合集距离 90% 的原因、风险、缓解和复核人仍以 3.5 为准，必须在 Day 7 总门禁前清偿，不能因 CI 通过删去。
+- 主分支审计：GitHub `main` 当前仍为 `279112383bc70e9be10481b11c7d38e08538c7c7`，`feat/day-4` 没有 open/closed/merged PR，也没有 Day 4 合并提交。用户所说的“合并”已被确认至少覆盖五个步骤在功能分支上的提交收拢，但尚不能表述为已合入 `main`。
+- 文档审计：README、主计划、架构、能力矩阵、Harness、Memory/Evidence/Research 策略、运行手册和安全复核统一改为“分支 CI 已通过、`main` 合并待完成”；本次文档变更发生在 `b99ca7a` 之后，只能以本地格式/diff/Secret 检查验收，后续仍需随 Day 4 合并进入 CI。
+- 最终结论：远端提交与分支 CI 缺口已经关闭；剩余关闭条件仅为 Day 4 文档随实现合入 `main`、合并提交 CI 全绿，以及项目所有者用 Trace/运行证据完成复盘。满足后再把步骤 1～5 与 D4-01～D4-07 统一改为 `complete` 并进入 Day 5。
 
 ## 4. 每一步的详细实施说明
 
@@ -540,7 +551,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 1. 主计划 Day 4 五条验收门禁全部通过。
 2. 全局 Definition of Done 和 Agent 追加 Definition of Done 的所有适用项通过。
 3. 每个 N/A 都有具体理由、复核人和日期，且没有把用户旅程、权限、失败/恢复或安全标为 N/A。
-4. 本地全量门禁和干净 CI 均通过，不能以定向绿色测试替代。
+4. 本地全量门禁、最终功能分支 CI 和 `main` 合并提交 CI 均通过，不能以定向绿色测试或仅分支绿色替代。
 5. 学习者能用 Trace 和运行证据回答复盘题，而不是只复述名词。
 6. D4-01～D4-07 才从过程状态更新为 complete；任何一项未满足则不进入 Day 5。
 7. 完成步骤 1～5 与 D4-01～D4-07 的双向映射审计；每个能力项至少有一个实现证据、一个测试证据和一个用户可见验收证据，且不存在无人负责的门禁。

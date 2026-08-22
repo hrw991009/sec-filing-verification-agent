@@ -2,6 +2,7 @@
 
 > 适用范围：可治理 Memory、Evidence/Claim、ResearchBrief、Research L3 graph、Agent Learning Workbench 和 Day 4 Eval。  
 > 继承范围：身份、Workspace、Job/Outbox、SSE 和基础备份遵循 [Day 2 手册](day-2-agent-runtime.md)；行业/Web Tool 与来源 readiness 遵循 [Day 3 手册](day-3-agent-tools.md)。
+> 已验证基线：`feat/day-4` 提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过 7 个适用 Job；GitHub `main` 尚未合入 Day 4。
 
 ## 1. 启动与迁移
 
@@ -82,4 +83,4 @@ Day 4 只文档化和自动验证在线删除/失效语义；完整物理 purge 
 
 ## 7. 验收边界
 
-完整门禁以根 [README 统一验证](../../README.md#统一验证)为准。Day 4 的本地全绿只能把步骤 1～5 记为 `implemented_pending_verification`；还需用户完成 Trace/复盘抽样、提交、push 和干净 CI，才能把 D4-01～D4-07 改为 `complete` 并进入 Day 5。
+完整门禁以根 [README 统一验证](../../README.md#统一验证)为准。Day 4 的本地全绿、五个提交、push 和最终功能分支 CI 已完成；当前仍以 `implemented_pending_verification` 记录步骤 1～5 与 D4-01～D4-07，因为 GitHub `main` 尚无 Day 4 合并提交，且项目所有者最终 Trace/复盘未记录。将本次文档与实现合入 `main`、确认合并提交 CI 全绿并完成所有者复盘后，才能统一改为 `complete` 并进入 Day 5。核心 Domain/Application/Research workflow 85% 覆盖率例外必须保留登记，并在 Day 7 总门禁前补到 90%。

@@ -94,7 +94,7 @@ Fake Industry Lookup 不访问网络、Shell、数据库或 Secret，只用于�
 
 Day 4 没有复制本 Harness。L0、L2 与 Research L3 仍由相同的 `HarnessRunner`/`UnifiedAgentRuntime`、Context Compiler、Model/Tool Port、预算、Event/Trace 和 stop reason 合同执行；LangGraph 只编排唯一 typed Research graph，`research_loop` 复用既有 bounded Tool loop。Memory、Evidence/Claim 和 Research 各自拥有 typed contract、provenance 与 Scorer，并只在 Context/Workbench 处汇合。
 
-累计 Scenario 从 Day 2/3 的 24 条扩为 50 条，但旧数据集和报告未被改写。Day 4 的独立报告位于 `evals/reports/day4-memory-v1.*`、`day4-memory-ablation-v1.*`、`day4-evidence-v1.*`、`day4-research-v1.*` 和 `day4-v1.*`；报告是确定性契约基线，真实 PostgreSQL 集成与 Playwright 是纵向实现的 pass/fail authority。当前 Day 4 仍等待提交后的干净 CI 与项目所有者最终复盘，不能从本段推导为 `complete`。
+累计 Scenario 从 Day 2/3 的 24 条扩为 50 条，但旧数据集和报告未被改写。Day 4 的独立报告位于 `evals/reports/day4-memory-v1.*`、`day4-memory-ablation-v1.*`、`day4-evidence-v1.*`、`day4-research-v1.*` 和 `day4-v1.*`；报告是确定性契约基线，真实 PostgreSQL 集成与 Playwright 是纵向实现的 pass/fail authority。Day 4 最终分支提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 已通过 7 个适用 Job；当前只等待 Day 4 合入 `main`、合并提交 CI 与项目所有者最终 Trace/复盘，不能从本段提前推导为 `complete`。
 
 ## 9. 代码与验证入口
 
