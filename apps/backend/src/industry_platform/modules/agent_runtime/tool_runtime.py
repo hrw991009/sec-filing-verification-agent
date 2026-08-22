@@ -8,7 +8,12 @@ from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from industry_platform.workflows.research.contracts import ResearchL3RunCommand
+    from industry_platform.workflows.research.runtime import ResearchL3Runtime
 
 from industry_platform.modules.agent_runtime.context import (
     ContextBudgetExceededError,
@@ -135,6 +140,19 @@ class _ToolLoopStepOutcome:
     state: RunState
     step: AgentStep | None = None
     observation: ToolObservation | None = field(default=None, repr=False)
+    terminated: bool = False
+
+
+@dataclass(slots=True)
+class _ToolLoopSegmentOutcome:
+    """Run-local result for the one shared bounded model/tool loop implementation."""
+
+    run: AgentRun
+    state: RunState
+    steps: list[AgentStep]
+    observations: list[ToolObservationContextSource]
+    final_decision: ToolLoopFinalDecision | None = None
+    final_response: ModelResponse | None = None
     terminated: bool = False
 
 
@@ -1844,7 +1862,7 @@ class ToolL2Runtime(ToolL1Runtime):
     ) -> AsyncGenerator[AgentEvent]:
         """Advance one fresh L2 Run until final or one stable bounded stop."""
 
-        if not isinstance(command, ToolL2RunCommand):
+        if not isinstance(command, ToolL2RunCommand) or command.embedded_in_research:
             raise TypeError("Tool L2 Runtime requires a Tool L2 command")
         run = command.run
         state = command.state
@@ -1932,6 +1950,54 @@ class ToolL2Runtime(ToolL1Runtime):
         )
         decision_schema = tool_loop_decision_response_schema(definitions)
 
+        outcome = _ToolLoopSegmentOutcome(
+            run=run,
+            state=state,
+            steps=steps,
+            observations=observations,
+        )
+        async for event in self._run_loop_segment(
+            command=command,
+            runtime_context=runtime_context,
+            events=events,
+            definitions=definitions,
+            decision_schema=decision_schema,
+            seen_actions=seen_actions,
+            seen_observation_content=seen_observation_content,
+            outcome=outcome,
+        ):
+            yield event
+        if outcome.terminated:
+            return
+        if outcome.final_decision is None or outcome.final_response is None:
+            raise AssertionError("Successful L2 Tool loop lost its final decision")
+        async for event in self._complete_final_decision(
+            command=command,
+            run=outcome.run,
+            state=outcome.state,
+            events=events,
+            steps=outcome.steps,
+            decision=outcome.final_decision,
+            response=outcome.final_response,
+        ):
+            yield event
+
+    async def _run_loop_segment(
+        self,
+        *,
+        command: ToolL2RunCommand,
+        runtime_context: TrustedRuntimeContext,
+        events: list[AgentEvent],
+        definitions: tuple[ToolDefinition, ...],
+        decision_schema: Mapping[str, object],
+        seen_actions: set[tuple[str, str, str]],
+        seen_observation_content: set[tuple[str, str, str]],
+        outcome: _ToolLoopSegmentOutcome,
+    ) -> AsyncGenerator[AgentEvent]:
+        """Advance the one shared bounded loop, leaving finalization to its caller."""
+
+        run = outcome.run
+        state = outcome.state
         for decision_index in range(command.policy.model_call_limit):
             decision_sequence = state.step_count + 1
             if decision_sequence > run.budget.max_steps:
@@ -1939,10 +2005,11 @@ class ToolL2Runtime(ToolL1Runtime):
                     run=run,
                     state=state,
                     events=events,
-                    steps=steps,
+                    steps=outcome.steps,
                     detail="run_step_budget",
                 )
                 await self._commit(events, terminal)
+                outcome.terminated = True
                 yield terminal
                 return
 
@@ -1957,24 +2024,26 @@ class ToolL2Runtime(ToolL1Runtime):
                 system_instructions=self._loop_instructions(command, definitions),
                 max_output_tokens=command.policy.max_decision_output_tokens,
                 response_schema=decision_schema,
-                observations=tuple(observations),
+                observations=tuple(outcome.observations),
                 outcome=decision_outcome,
             ):
                 yield event
             run, state = decision_outcome.run, decision_outcome.state
+            outcome.run, outcome.state = run, state
             if decision_outcome.stop_reason is not None:
                 async for terminal in self._terminalize_model_outcome(
                     outcome=decision_outcome,
                     events=events,
-                    prior_steps=steps,
+                    prior_steps=outcome.steps,
                 ):
                     yield terminal
+                outcome.terminated = True
                 return
             decision_step = decision_outcome.step
             decision_response = decision_outcome.response
             if decision_step is None or decision_response is None:
                 raise AssertionError("Successful L2 decision Model Step lost its result")
-            steps.append(decision_step)
+            outcome.steps.append(decision_step)
 
             exhausted = exhausted_budget_reason(state, run.budget)
             if exhausted is not None:
@@ -1983,12 +2052,13 @@ class ToolL2Runtime(ToolL1Runtime):
                     run=run,
                     state=state,
                     events=events,
-                    steps=tuple(steps),
+                    steps=tuple(outcome.steps),
                     status=AgentRunStatus.FAILED,
                     stop_reason=exhausted,
                     occurred_at=terminal_at,
                 )
                 await self._commit(events, terminal)
+                outcome.terminated = True
                 yield terminal
                 return
 
@@ -2000,39 +2070,33 @@ class ToolL2Runtime(ToolL1Runtime):
                     run=run,
                     state=state,
                     events=events,
-                    steps=tuple(steps),
+                    steps=tuple(outcome.steps),
                     status=AgentRunStatus.FAILED,
                     stop_reason=RunStopReason.INVALID_PROVIDER_RESPONSE,
                     occurred_at=terminal_at,
                     terminal_details={"error_code": "tool_loop_decision_invalid"},
                 )
                 await self._commit(events, terminal)
+                outcome.terminated = True
                 yield terminal
                 return
 
             if isinstance(decision, ToolLoopFinalDecision):
-                async for event in self._complete_final_decision(
-                    command=command,
-                    run=run,
-                    state=state,
-                    events=events,
-                    steps=steps,
-                    decision=decision,
-                    response=decision_response,
-                ):
-                    yield event
+                outcome.final_decision = decision
+                outcome.final_response = decision_response
                 return
 
-            tool_index = len(observations)
+            tool_index = len(outcome.observations)
             if tool_index >= command.policy.tool_call_limit:
                 terminal = self._max_steps_terminal(
                     run=run,
                     state=state,
                     events=events,
-                    steps=steps,
+                    steps=outcome.steps,
                     detail="tool_call_limit_reached",
                 )
                 await self._commit(events, terminal)
+                outcome.terminated = True
                 yield terminal
                 return
             audit = ToolRequestAudit(call_id=command.tool_call_ids[tool_index], action=decision)
@@ -2050,7 +2114,7 @@ class ToolL2Runtime(ToolL1Runtime):
                 command=command,
                 runtime_context=runtime_context,
                 events=events,
-                prior_steps=steps,
+                prior_steps=outcome.steps,
                 action_step=decision_step,
                 action=decision,
                 audit=audit,
@@ -2061,14 +2125,16 @@ class ToolL2Runtime(ToolL1Runtime):
             ):
                 yield event
             if tool_outcome.terminated:
+                outcome.terminated = True
                 return
             run, state = tool_outcome.run, tool_outcome.state
+            outcome.run, outcome.state = run, state
             if tool_outcome.step is None or tool_outcome.observation is None:
                 raise AssertionError("Successful L2 Tool transition lost its result")
-            steps.append(tool_outcome.step)
+            outcome.steps.append(tool_outcome.step)
             observation = tool_outcome.observation
-            observations.append(
-                self._context_observation(observation, ordinal=len(observations) + 1)
+            outcome.observations.append(
+                self._context_observation(observation, ordinal=len(outcome.observations) + 1)
             )
             seen_observation_content.add(
                 (
@@ -2082,10 +2148,11 @@ class ToolL2Runtime(ToolL1Runtime):
             run=run,
             state=state,
             events=events,
-            steps=steps,
+            steps=outcome.steps,
             detail="model_call_limit_reached",
         )
         await self._commit(events, terminal)
+        outcome.terminated = True
         yield terminal
 
     async def _execute_loop_tool_action(
@@ -2994,6 +3061,7 @@ class UnifiedAgentRuntime:
         direct_answer_runtime: object,
         tool_l1_runtime: ToolL1Runtime | None = None,
         tool_l2_runtime: ToolL2Runtime | None = None,
+        research_l3_runtime: ResearchL3Runtime | None = None,
     ) -> None:
         from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 
@@ -3002,18 +3070,26 @@ class UnifiedAgentRuntime:
         self._direct_answer_runtime = direct_answer_runtime
         self._tool_l1_runtime = tool_l1_runtime
         self._tool_l2_runtime = tool_l2_runtime
+        self._research_l3_runtime = research_l3_runtime
 
     async def run(
         self,
-        command: DirectAnswerRunCommand | ToolL1RunCommand | ToolL2RunCommand,
+        command: DirectAnswerRunCommand
+        | ToolL1RunCommand
+        | ToolL2RunCommand
+        | ResearchL3RunCommand,
         runtime_context: TrustedRuntimeContext,
     ) -> AsyncGenerator[AgentEvent]:
+        from industry_platform.workflows.research.contracts import ResearchL3RunCommand
+
         if isinstance(command, DirectAnswerRunCommand):
             selected = self._direct_answer_runtime.run(command, runtime_context)
         elif isinstance(command, ToolL1RunCommand) and self._tool_l1_runtime is not None:
             selected = self._tool_l1_runtime.run(command, runtime_context)
         elif isinstance(command, ToolL2RunCommand) and self._tool_l2_runtime is not None:
             selected = self._tool_l2_runtime.run(command, runtime_context)
+        elif isinstance(command, ResearchL3RunCommand) and self._research_l3_runtime is not None:
+            selected = self._research_l3_runtime.run(command, runtime_context)
         else:
             raise ValueError("Unified Runtime has no implementation for this command")
         async for event in selected:

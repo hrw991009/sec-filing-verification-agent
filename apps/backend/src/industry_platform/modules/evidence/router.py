@@ -29,7 +29,6 @@ from industry_platform.modules.evidence.schemas import (
     ClaimEvidenceResponse,
     ClaimGraphResponse,
     CreateClaimRequest,
-    CreateResearchRunRequest,
     EvidenceCollectionResponse,
     EvidenceNormalizationItemResponse,
     EvidenceNormalizationResponse,
@@ -41,13 +40,10 @@ from industry_platform.modules.evidence.schemas import (
     NormalizeObservationRequest,
     ResearchClaimCollectionResponse,
     ResearchClaimResponse,
-    ResearchRunCollectionResponse,
-    ResearchRunResponse,
     SqlResultLocatorResponse,
 )
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
-from industry_platform.modules.research.domain import CreateResearchRun, ResearchRun
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
 router = APIRouter(tags=["evidence"])
@@ -170,50 +166,6 @@ async def invalidate_evidence(
     set_no_store_headers(response)
     _set_revision_header(response, evidence.revision)
     return _evidence_response(evidence)
-
-
-@router.post(
-    "/workspaces/{workspace_id}/research-runs",
-    response_model=ResearchRunResponse,
-    status_code=status.HTTP_201_CREATED,
-    responses=_RESPONSES,
-)
-async def create_research_run(
-    workspace_id: UUID,
-    payload: CreateResearchRunRequest,
-    request: Request,
-    response: Response,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
-    service: Annotated[EvidenceUseCase, Depends(get_evidence_service)],
-) -> ResearchRunResponse:
-    research_run = await service.create_research_run(
-        _workspace_scope(principal, workspace_id),
-        CreateResearchRun(
-            agent_run_id=payload.agent_run_id,
-            trace_id=TraceId(get_trace_id(request)),
-        ),
-    )
-    set_no_store_headers(response)
-    return _research_run_response(research_run)
-
-
-@router.get(
-    "/workspaces/{workspace_id}/research-runs",
-    response_model=ResearchRunCollectionResponse,
-    responses=_RESPONSES,
-)
-async def list_research_runs(
-    workspace_id: UUID,
-    response: Response,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
-    service: Annotated[EvidenceUseCase, Depends(get_evidence_service)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
-) -> ResearchRunCollectionResponse:
-    runs = await service.list_research_runs(_workspace_scope(principal, workspace_id), limit=limit)
-    set_no_store_headers(response)
-    return ResearchRunCollectionResponse(
-        research_runs=[_research_run_response(item) for item in runs]
-    )
 
 
 @router.post(
@@ -406,19 +358,6 @@ def _normalization_response(result: EvidenceNormalizationResult) -> EvidenceNorm
             )
             for item in result.items
         ],
-    )
-
-
-def _research_run_response(research_run: ResearchRun) -> ResearchRunResponse:
-    return ResearchRunResponse(
-        id=research_run.research_run_id,
-        workspace_id=research_run.workspace_id,
-        owner_user_id=research_run.owner_user_id,
-        agent_run_id=research_run.agent_run_id,
-        status=research_run.status,
-        revision=research_run.revision,
-        created_at=research_run.created_at,
-        updated_at=research_run.updated_at,
     )
 
 

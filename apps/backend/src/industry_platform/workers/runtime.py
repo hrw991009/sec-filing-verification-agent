@@ -61,6 +61,7 @@ from industry_platform.modules.jobs.domain import (
 )
 from industry_platform.modules.jobs.ports import JobApplicationUseCase
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
 
 IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER = "identity.refresh_recovery.cleanup.v1"
 logger = logging.getLogger(__name__)
@@ -245,6 +246,7 @@ class FixedJobHandlerRegistry:
         }
         if direct_answer_use_case is not None:
             handlers[DIRECT_ANSWER_TASK_NAME] = DirectAnswerJobHandler(direct_answer_use_case)
+            handlers[RESEARCH_TASK_NAME] = DirectAnswerJobHandler(direct_answer_use_case)
         if collection_use_case is not None:
             handlers[INDUSTRY_COLLECTION_TASK_NAME] = IndustryCollectionJobHandler(
                 collection_use_case

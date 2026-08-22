@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
 from industry_platform.modules.agent_harness.tool_fakes import fake_lookup_definition
@@ -34,6 +34,7 @@ from industry_platform.modules.agent_runtime.domain import (
     RunBudget,
 )
 from industry_platform.modules.agent_runtime.model import MAX_MODEL_IMAGE_BYTES
+from industry_platform.modules.agent_runtime.models import AgentRunRecord
 from industry_platform.modules.agent_runtime.runtime_contracts import (
     DirectAnswerRunCommand,
     DirectAnswerRuntimePolicy,
@@ -65,8 +66,18 @@ from industry_platform.modules.identity.models import (
     WorkspaceStatus,
 )
 from industry_platform.modules.industry.domain import SMART_TRANSPORT_INDUSTRY_ID
+from industry_platform.modules.jobs.models import Job, OutboxEvent
+from industry_platform.modules.research.domain import (
+    RESEARCH_HARNESS_VERSION,
+    RESEARCH_RUNTIME_VERSION,
+    RESEARCH_TASK_NAME,
+    ResearchBriefInput,
+    research_run_id_for_agent_run,
+)
+from industry_platform.modules.research.models import ResearchBriefRecord, ResearchRunRecord
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceAction
 from industry_platform.server import create_selector_event_loop
+from industry_platform.workflows.research.contracts import ResearchL3RunCommand
 
 from .postgres import PostgresProbe
 
@@ -353,6 +364,130 @@ def test_loader_materializes_a_web_turn_as_the_production_l2_command(
             assert first.command.tool_call_ids == repeated.command.tool_call_ids
             assert first.runtime_context.workspace_scope.workspace_id == WORKSPACE_ID
             assert WorkspaceAction.RUN_TOOL in first.runtime_context.capabilities
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
+def test_research_submission_is_atomic_and_loads_one_stable_l3_command(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            async with session_factory.begin() as session:
+                session.add_all(
+                    (
+                        User(
+                            id=USER_ID,
+                            email="agent-research-loader@example.test",
+                            password_hash=str(USER_ID),
+                            status=UserStatus.ACTIVE,
+                            password_changed_at=NOW,
+                        ),
+                        Workspace(
+                            id=WORKSPACE_ID,
+                            name="Research Workspace",
+                            created_by_user_id=USER_ID,
+                            status=WorkspaceStatus.ACTIVE,
+                        ),
+                        WorkspaceMembership(
+                            id=uuid4(),
+                            workspace_id=WORKSPACE_ID,
+                            user_id=USER_ID,
+                            role=WorkspaceRole.MEMBER,
+                        ),
+                    )
+                )
+
+            application = ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            )
+            request = StartDirectAnswerTurn(
+                workspace_id=WORKSPACE_ID,
+                user_id=USER_ID,
+                trace_id=TraceId("postgres-research-execution-loader"),
+                budget=RunBudget(
+                    schema_version=1,
+                    max_steps=20,
+                    max_total_tokens=12_000,
+                    max_cost_micro_usd=300_000,
+                    deadline=NOW + timedelta(minutes=10),
+                ),
+                runtime_version=RESEARCH_RUNTIME_VERSION,
+                harness_version=RESEARCH_HARNESS_VERSION,
+                idempotency_key="postgres-research-execution-loader-1",
+                question="Compare steel and copper market changes.",
+                search_mode=TurnSearchMode.WEB,
+                industry_id=SMART_TRANSPORT_INDUSTRY_ID,
+                research_brief=ResearchBriefInput(
+                    original_question="Compare steel and copper market changes.",
+                    confirmed_scope=("Public market sources",),
+                    exclusions=("Investment advice",),
+                    completion_criteria=("Produce an attributable L3 draft",),
+                ),
+            )
+
+            receipt = await application.start_direct_answer(request)
+            repeated_receipt = await application.start_direct_answer(request)
+            loader = SqlAlchemyDirectAnswerRunLoader(
+                session_factory,
+                policy(),
+                tool_policy=web_policy(),
+            )
+            first = await loader.load(receipt.run_id)
+            repeated = await loader.load(receipt.run_id)
+
+            assert receipt.created is True
+            assert repeated_receipt.created is False
+            assert repeated_receipt.run_id == receipt.run_id
+            assert isinstance(first.command, ResearchL3RunCommand)
+            assert isinstance(repeated.command, ResearchL3RunCommand)
+            assert first.command.research_run_id == research_run_id_for_agent_run(receipt.run_id)
+            assert first.command.brief.input == request.research_brief
+            assert first.command.brief.budget == request.budget
+            assert first.command.loop_command.embedded_in_research is True
+            assert first.command.plan_id == repeated.command.plan_id
+            assert first.command.draft_id == repeated.command.draft_id
+            assert first.command.loop_command.tool_call_ids == (
+                repeated.command.loop_command.tool_call_ids
+            )
+            assert WorkspaceAction.RUN_RESEARCH in first.runtime_context.capabilities
+            assert WorkspaceAction.RUN_TOOL in first.runtime_context.capabilities
+
+            async with session_factory() as session:
+                research_run = await session.scalar(
+                    select(ResearchRunRecord).where(
+                        ResearchRunRecord.agent_run_id == receipt.run_id
+                    )
+                )
+                brief = await session.scalar(
+                    select(ResearchBriefRecord).where(
+                        ResearchBriefRecord.research_run_id == first.command.research_run_id
+                    )
+                )
+                agent_run = await session.get(AgentRunRecord, receipt.run_id)
+                job = await session.get(Job, receipt.job_id)
+                outbox = await session.get(OutboxEvent, receipt.outbox_event_id)
+
+            assert research_run is not None
+            assert brief is not None
+            assert agent_run is not None
+            assert job is not None
+            assert outbox is not None
+            assert research_run.workspace_id == WORKSPACE_ID
+            assert research_run.agent_run_id == agent_run.id
+            assert research_run.state["run_id"] == str(agent_run.id)
+            assert research_run.state["status"] == "queued"
+            assert research_run.state["brief_revision"] == 1
+            assert brief.original_question == request.question
+            assert brief.budget["max_steps"] == 20
+            assert job.task_name == RESEARCH_TASK_NAME
+            assert outbox.payload["job_id"] == str(job.id)
         finally:
             await engine.dispose()
 

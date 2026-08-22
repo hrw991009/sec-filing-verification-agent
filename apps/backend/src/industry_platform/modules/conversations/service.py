@@ -24,6 +24,7 @@ from industry_platform.modules.jobs.domain import (
     PreparedJobSubmission,
     hash_job_idempotency_key,
 )
+from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
 
 
 class ConversationNotFoundError(LookupError):
@@ -96,7 +97,11 @@ class ConversationApplicationService:
 
         job_definition = JobDefinition(
             scope=ExecutionScope(workspace_id=command.workspace_id),
-            task_name=DIRECT_ANSWER_TASK_NAME,
+            task_name=(
+                RESEARCH_TASK_NAME
+                if command.research_brief is not None
+                else DIRECT_ANSWER_TASK_NAME
+            ),
             queue_name=DIRECT_ANSWER_QUEUE_NAME,
             payload={"agent_run_id": str(run_id), "schema_version": 1},
             available_at=now,
@@ -145,6 +150,7 @@ class ConversationApplicationService:
             industry_id=command.industry_id,
             knowledge_base_ids=command.knowledge_base_ids,
             attachment_ids=command.attachment_ids,
+            research_brief=command.research_brief,
         )
         async with self.transaction_factory() as writer:
             return await writer.submit(prepared)

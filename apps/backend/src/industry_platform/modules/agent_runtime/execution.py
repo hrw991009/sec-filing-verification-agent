@@ -22,8 +22,9 @@ from industry_platform.modules.agent_runtime.events import (
 from industry_platform.modules.agent_runtime.ports import AgentRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRunCommand
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import ToolL2RunCommand
+from industry_platform.workflows.research.contracts import ResearchL3RunCommand
 
-type ProductionAgentRunCommand = DirectAnswerRunCommand | ToolL2RunCommand
+type ProductionAgentRunCommand = DirectAnswerRunCommand | ToolL2RunCommand | ResearchL3RunCommand
 
 logger = logging.getLogger(__name__)
 

@@ -1255,6 +1255,9 @@ class SqlAlchemyEvidenceRepository:
             agent_run_id=record.agent_run_id,
             status=record.status,
             revision=record.revision,
+            graph_version=record.graph_version,
+            state_schema_version=record.state_schema_version,
+            current_node=record.current_node,
             created_at=record.created_at,
             updated_at=record.updated_at,
         )

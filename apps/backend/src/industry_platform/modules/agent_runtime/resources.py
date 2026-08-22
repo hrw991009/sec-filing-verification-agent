@@ -51,8 +51,11 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
 )
 from industry_platform.modules.agent_runtime.trace import AgentTrace
 from industry_platform.modules.conversations.domain import CONVERSATION_WEB_TOOL_CALL_LIMIT
+from industry_platform.modules.evidence.adapters.sqlalchemy import SqlAlchemyEvidenceRepository
+from industry_platform.modules.evidence.service import EvidenceApplicationService
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.memory.adapters.context import SqlAlchemyMemoryContextLoader
+from industry_platform.modules.research.adapters.sqlalchemy import SqlAlchemyResearchQueryRepository
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import (
     RegisteredToolAdapter,
@@ -60,6 +63,7 @@ from industry_platform.modules.tools.registry import (
     ToolRegistry,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceScope
+from industry_platform.workflows.research.runtime import ResearchL3Runtime
 
 UNCONFIGURED_AGENT_MODEL = "openai-compatible/unconfigured"
 
@@ -170,8 +174,11 @@ def create_direct_answer_runtime_resources(
     selected_adapters = tuple(tool_adapters)
     tool_policy: ToolL2RuntimePolicy | None = None
     tool_runtime: ToolL2Runtime | None = None
+    research_runtime: ResearchL3Runtime | None = None
     if selected_adapters:
         registry = ToolRegistry(selected_adapters)
+        shared_tool_compiler = ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter())
+        shared_tool_executor = RegistryToolExecutor(registry)
         tool_policy = ToolL2RuntimePolicy(
             schema_version=1,
             profile_version="conversation-web-l2-v1",
@@ -194,17 +201,31 @@ def create_direct_answer_runtime_resources(
             ),
         )
         tool_runtime = ToolL2Runtime(
-            context_compiler=ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter()),
+            context_compiler=shared_tool_compiler,
             context_manifest_store=manifest_store,
             model_provider=model_provider,
             tool_registry=registry,
-            tool_executor=RegistryToolExecutor(registry),
+            tool_executor=shared_tool_executor,
+            event_committer=event_committer,
+            cancellation_probe=cancellation_probe,
+        )
+        research_runtime = ResearchL3Runtime(
+            workflow_store=SqlAlchemyResearchQueryRepository(session_factory),
+            evidence_service=EvidenceApplicationService(
+                SqlAlchemyEvidenceRepository(session_factory)
+            ),
+            context_compiler=shared_tool_compiler,
+            context_manifest_store=manifest_store,
+            model_provider=model_provider,
+            tool_registry=registry,
+            tool_executor=shared_tool_executor,
             event_committer=event_committer,
             cancellation_probe=cancellation_probe,
         )
     runtime = UnifiedAgentRuntime(
         direct_answer_runtime=direct_runtime,
         tool_l2_runtime=tool_runtime,
+        research_l3_runtime=research_runtime,
     )
     execution_service = DirectAnswerRunExecutionService(
         loader=SqlAlchemyDirectAnswerRunLoader(

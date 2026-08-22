@@ -164,6 +164,10 @@ from industry_platform.modules.memory.domain import (
 )
 from industry_platform.modules.memory.resources import create_memory_resources
 from industry_platform.modules.memory.router import router as memory_router
+from industry_platform.modules.research.adapters.sqlalchemy import ResearchPersistenceError
+from industry_platform.modules.research.resources import create_research_resources
+from industry_platform.modules.research.router import router as research_router
+from industry_platform.modules.research.service import ResearchNotFoundError
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
     WorkspaceAccessDeniedError,
@@ -233,6 +237,7 @@ def create_app(
             )
             memory_resources = create_memory_resources(database_session_factory)
             evidence_resources = create_evidence_resources(database_session_factory)
+            research_resources = create_research_resources(database_session_factory)
             file_resources = create_file_resources(
                 active_settings,
                 database_session_factory,
@@ -267,6 +272,7 @@ def create_app(
             application.state.conversation_resources = conversation_resources
             application.state.memory_resources = memory_resources
             application.state.evidence_resources = evidence_resources
+            application.state.research_resources = research_resources
             application.state.file_resources = file_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.agent_trace_resources = agent_trace_resources
@@ -321,6 +327,35 @@ def create_app(
     application.include_router(industry_router, prefix="/api/v1")
     application.include_router(data_explorer_router, prefix="/api/v1")
     application.include_router(evidence_router, prefix="/api/v1")
+    application.include_router(research_router, prefix="/api/v1")
+
+    @application.exception_handler(ResearchNotFoundError)
+    async def handle_research_not_found(
+        request: Request,
+        _error: ResearchNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Research Run not found",
+            code="RESEARCH_RUN_NOT_FOUND",
+            detail="The requested Research Run does not exist or is unavailable.",
+            problem_type="urn:iip:problem:research-run-not-found",
+        )
+
+    @application.exception_handler(ResearchPersistenceError)
+    async def handle_research_unavailable(
+        request: Request,
+        _error: ResearchPersistenceError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Research service unavailable",
+            code="RESEARCH_UNAVAILABLE",
+            detail="Research facts could not be loaded safely.",
+            problem_type="urn:iip:problem:research-unavailable",
+        )
 
     @application.exception_handler(EvidenceNotFoundError)
     @application.exception_handler(ResearchRunNotFoundError)

@@ -71,7 +71,12 @@ from industry_platform.modules.memory.models import (
     MemoryRevisionSourceRecord,
     ThreadMemoryStateRecord,
 )
-from industry_platform.modules.research.models import ResearchRunRecord
+from industry_platform.modules.research.models import (
+    ResearchBriefRecord,
+    ResearchDraftRecord,
+    ResearchPlanRecord,
+    ResearchRunRecord,
+)
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
 REGISTERED_MODELS: tuple[type[Base], ...] = (
@@ -117,6 +122,9 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     QueryResultRecord,
     ChartSpecRecord,
     ResearchRunRecord,
+    ResearchBriefRecord,
+    ResearchPlanRecord,
+    ResearchDraftRecord,
     EvidenceRecord,
     EvidenceNormalizationDecisionRecord,
     ResearchClaimRecord,

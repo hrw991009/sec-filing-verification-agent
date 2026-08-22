@@ -140,6 +140,9 @@ class ResearchRunResponse(StrictLedgerModel):
     agent_run_id: UUID
     status: ResearchRunStatus
     revision: int
+    graph_version: str
+    state_schema_version: int
+    current_node: str | None
     created_at: datetime
     updated_at: datetime
 

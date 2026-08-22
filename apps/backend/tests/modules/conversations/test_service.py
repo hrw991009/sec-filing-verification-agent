@@ -22,6 +22,7 @@ from industry_platform.modules.conversations.submission import (
     SubmitConversationTurn,
 )
 from industry_platform.modules.identity.domain import TraceId
+from industry_platform.modules.research.domain import ResearchBriefInput
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
 NOW = datetime(2026, 8, 13, 8, 0, tzinfo=UTC)
@@ -222,3 +223,35 @@ async def test_submission_materializes_web_mode_as_a_bounded_tool_run() -> None:
     assert prepared.run.budget.max_total_tokens == 8_192
     assert prepared.search_mode is TurnSearchMode.WEB
     assert prepared.industry_id == INDUSTRY_ID
+
+
+@pytest.mark.asyncio
+async def test_research_brief_prepares_one_research_run_and_the_research_job() -> None:
+    writer = RecordingWriter()
+    research_request = replace(
+        request(),
+        runtime_version="agent-runtime-v1",
+        harness_version="harness-research-v1",
+        search_mode=TurnSearchMode.WEB,
+        industry_id=INDUSTRY_ID,
+        question="Compare current steel and copper changes.",
+        research_brief=ResearchBriefInput(
+            original_question="Compare current steel and copper changes.",
+            confirmed_scope=("Public market sources",),
+            exclusions=("Investment advice",),
+            completion_criteria=("Produce an attributable L3 draft",),
+        ),
+    )
+
+    await service(writer).start_direct_answer(research_request)
+
+    prepared = writer.prepared[0]
+    assert prepared.run.run_type.value == "research"
+    assert prepared.run.runtime_version == "agent-runtime-v1"
+    assert prepared.run.harness_version == "harness-research-v1"
+    assert prepared.job.task_name == "agent.run.research"
+    assert prepared.job.payload == {
+        "agent_run_id": str(prepared.run.run_id),
+        "schema_version": 1,
+    }
+    assert prepared.research_brief == research_request.research_brief

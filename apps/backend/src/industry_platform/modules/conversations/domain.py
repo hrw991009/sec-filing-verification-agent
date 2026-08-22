@@ -24,6 +24,10 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
 )
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.domain import JobRequestFingerprint, PreparedJobSubmission
+from industry_platform.modules.research.domain import (
+    RESEARCH_RUNTIME_VERSION,
+    ResearchBriefInput,
+)
 
 MAX_CONVERSATION_TITLE_LENGTH: Final = 160
 MAX_USER_MESSAGE_LENGTH: Final = MAX_CONTEXT_QUESTION_LENGTH
@@ -63,6 +67,7 @@ class StartDirectAnswerTurn:
     industry_id: UUID | None = None
     knowledge_base_ids: tuple[UUID, ...] = ()
     attachment_ids: tuple[UUID, ...] = ()
+    research_brief: ResearchBriefInput | None = None
 
     def __post_init__(self) -> None:
         for value, field_name in (
@@ -117,6 +122,11 @@ class StartDirectAnswerTurn:
         for attachment_id in attachment_ids:
             require_non_nil_uuid(attachment_id, field_name="Turn attachment ID")
         object.__setattr__(self, "attachment_ids", attachment_ids)
+        if self.research_brief is not None:
+            if self.search_mode is not TurnSearchMode.WEB:
+                raise ValueError("Research requires the Web Tool surface")
+            if self.research_brief.original_question != self.question.strip():
+                raise ValueError("Research Brief cannot rewrite the original question")
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,6 +145,7 @@ class PreparedDirectAnswerTurn:
     industry_id: UUID | None = None
     knowledge_base_ids: tuple[UUID, ...] = ()
     attachment_ids: tuple[UUID, ...] = ()
+    research_brief: ResearchBriefInput | None = None
 
     def __post_init__(self) -> None:
         for value, field_name in (
@@ -164,6 +175,8 @@ class PreparedDirectAnswerTurn:
         for attachment_id in attachment_ids:
             require_non_nil_uuid(attachment_id, field_name="Prepared attachment ID")
         object.__setattr__(self, "attachment_ids", attachment_ids)
+        if (self.run.run_type is AgentRunType.RESEARCH) != (self.research_brief is not None):
+            raise ValueError("Prepared Research facts do not match the Agent Run type")
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +224,16 @@ def fingerprint_direct_answer_turn(
         "attachment_ids": [str(value) for value in command.attachment_ids],
         "new_conversation_title": command.new_conversation_title,
         "question": command.question,
+        "research_brief": (
+            None
+            if command.research_brief is None
+            else {
+                "original_question": command.research_brief.original_question,
+                "confirmed_scope": list(command.research_brief.confirmed_scope),
+                "exclusions": list(command.research_brief.exclusions),
+                "completion_criteria": list(command.research_brief.completion_criteria),
+            }
+        ),
         "run_id": str(run_id),
         "runtime_version": command.runtime_version,
         "search_mode": command.search_mode.value,
@@ -241,12 +264,16 @@ def build_queued_run(
 
     require_utc(created_at, field_name="Run creation time")
     run_type = (
-        AgentRunType.TOOL_LOOP
+        AgentRunType.RESEARCH
+        if command.research_brief is not None
+        else AgentRunType.TOOL_LOOP
         if command.search_mode is TurnSearchMode.WEB
         else AgentRunType.DIRECT_ANSWER
     )
     expected_runtime_version = (
-        TOOL_L2_RUNTIME_VERSION
+        RESEARCH_RUNTIME_VERSION
+        if run_type is AgentRunType.RESEARCH
+        else TOOL_L2_RUNTIME_VERSION
         if run_type is AgentRunType.TOOL_LOOP
         else "direct-answer-runtime-v0"
     )

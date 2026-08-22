@@ -384,11 +384,15 @@ class ToolL2RunCommand:
     attachments: tuple[AttachmentContextSource, ...] = field(default=(), repr=False)
     memory_context: MemoryContextBundle = field(default_factory=MemoryContextBundle, repr=False)
     side_effect_idempotency_keys: tuple[str | None, ...] = field(default=(), repr=False)
+    embedded_in_research: bool = False
 
     def __post_init__(self) -> None:
         validate_run_state(self.run, self.state)
         if (
-            self.run.run_type is not AgentRunType.TOOL_LOOP
+            self.run.run_type
+            not in (
+                {AgentRunType.RESEARCH} if self.embedded_in_research else {AgentRunType.TOOL_LOOP}
+            )
             or self.run.status is not AgentRunStatus.QUEUED
             or self.state.status is not AgentRunStatus.QUEUED
             or self.state.revision != 0
