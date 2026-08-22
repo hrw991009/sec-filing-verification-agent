@@ -2,11 +2,11 @@
 
 > 制定日期：2026-08-20
 >
-> 计划基线：[七天主计划](../master-plan.md) 1.7.1 Day 4
+> 计划基线：[七天主计划](../master-plan.md) 1.7.2 Day 4
 >
 > 相关决策：[系统架构](../architecture.md)第 6.5～6.6、10.3、12、15.1、15.4、15.6、18 节，[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)
 >
-> 当前状态：Day 3 门禁已关闭；Day 4 步骤 1～5 已完成仓库内实现与统一的本地验收，五个提交已推送到 `feat/day-4`，最终提交 `b99ca7a` 的 GitHub CI `32547497639` 已通过全部 7 个适用 Job。GitHub `main` 仍为 `2791123`，没有 Day 4 PR/合并提交，项目所有者最终 Trace/复盘也尚未记录，因此 D4-01～D4-07 保持 `implemented_pending_verification`，当前仍在 Day 4 收口，尚未进入 Day 5。
+> 当前状态：Day 3、Day 4 门禁均已关闭。Day 4 步骤 1～5、正式 Trace/Eval/DoD 复核和项目所有者授权收口已经完成；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 `c0b854e` 的 GitHub CI `32549438592` 通过全部 7 个适用 Job。D4-01～D4-07 与步骤 1～5 均为 `complete`，可以进入 Day 5；核心合集 85% 覆盖率仍是 Day 7 前补到 90% 的明确债务。
 
 ## 1. 执行边界
 
@@ -81,11 +81,11 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 | 步骤 | 当前状态 | 关闭条件 |
 |---|---|---|
-| 1. 可控 Memory 写入 | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
-| 2. Memory 召回与治理 | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
-| 3. Evidence/Claim 账本 | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
-| 4. Research L3 graph | `implemented_pending_verification` | 本地验收与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和所有者总复核统一关闭 |
-| 5. Workbench/Eval/Day 4 门禁 | `implemented_pending_verification` | 本地门禁与最终分支 CI 已通过；待 `main` 合并、合并提交 CI 和项目所有者最终 Trace/复盘关闭 |
+| 1. 可控 Memory 写入 | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
+| 2. Memory 召回与治理 | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
+| 3. Evidence/Claim 账本 | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
+| 4. Research L3 graph | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
+| 5. Workbench/Eval/Day 4 门禁 | `complete` | 正式 Trace/Eval/DoD、功能分支 CI、`main` 合并提交 CI 与授权收口均已通过 |
 
 状态只随实际证据更新。代码存在、页面截图、单条漂亮答案、Mock success 或局部绿色测试都不能把任一步改为完成。
 
@@ -167,16 +167,29 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 生命周期、Citation 与 N/A：在线 Memory deletion residual 为 0；Evidence tombstone/Claim 重算通过；备份一致性、恢复核对和回滚步骤已文档化，完整隔离恢复/物理 purge 按主计划保留为 Day 7，未虚报完成。Evidence scorer 的当前 locator 可解析率为 `2/2`，Research L3 不生成 Message/Report Citation，因此不存在新增悬空 Citation；最终 Report/Citation 完整门禁仍归 Day 6。durable graph resume/HITL/Verifier/bounded revise 为阶段性 `N/A`，原因是主计划明确分别归 Day 5/6，Day 4 用唯一终态、停止原因和 hard-stop 收敛替代；复核人 Codex，2026-08-22。
 - 当时尚未远端验证：步骤 5 本地收口时还没有 commit、push 或 GitHub CI，因此当时步骤 1～5 与 D4-01～D4-07 只能保持 `implemented_pending_verification`。后续提交与分支 CI 结果见 3.6；本段不覆盖本地关闭时点的原始记录。
 
-### 3.6 提交、分支 CI 与最终关闭审计
+### 3.6 提交、分支/主分支 CI 与最终关闭审计
 
 复核人：Codex；复核日期：2026-08-22。
 
-- 提交与推送：五个步骤依次形成 `4243cb0`、`7f8c7ac`、`446c9cc`、`27b75ea`、`b99ca7a`，均已推送到 `origin/feat/day-4`；工作树审计时本地分支与远端分支指向同一最终提交。
+- 提交与推送：五个步骤依次形成 `4243cb0`、`7f8c7ac`、`446c9cc`、`27b75ea`、`b99ca7a`，收口文档形成 `9c9a630`，均已推送到 `origin/feat/day-4`。
 - 干净分支 CI：最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 状态为 `success`。7 个适用 Job 全部通过：Browser E2E、Python dependency audit、PostgreSQL integration、Python quality、Secret history、Node dependency audit、Web quality；覆盖率门槛也在正式 CI 步骤中执行。步骤 4 提交曾有失败运行 `32541399291`，最终提交修复后由成功运行取代，不以 rerun 掩盖失败。
 - 覆盖率例外：最终 CI 保持 Day 4 核心合集 85% 不退化、后端全量 80% 和前端关键状态 75% 门槛；本地测得 85%/82.12%/100%。核心合集距离 90% 的原因、风险、缓解和复核人仍以 3.5 为准，必须在 Day 7 总门禁前清偿，不能因 CI 通过删去。
-- 主分支审计：GitHub `main` 当前仍为 `279112383bc70e9be10481b11c7d38e08538c7c7`，`feat/day-4` 没有 open/closed/merged PR，也没有 Day 4 合并提交。用户所说的“合并”已被确认至少覆盖五个步骤在功能分支上的提交收拢，但尚不能表述为已合入 `main`。
-- 文档审计：README、主计划、架构、能力矩阵、Harness、Memory/Evidence/Research 策略、运行手册和安全复核统一改为“分支 CI 已通过、`main` 合并待完成”；本次文档变更发生在 `b99ca7a` 之后，只能以本地格式/diff/Secret 检查验收，后续仍需随 Day 4 合并进入 CI。
-- 最终结论：远端提交与分支 CI 缺口已经关闭；剩余关闭条件仅为 Day 4 文档随实现合入 `main`、合并提交 CI 全绿，以及项目所有者用 Trace/运行证据完成复盘。满足后再把步骤 1～5 与 D4-01～D4-07 统一改为 `complete` 并进入 Day 5。
+- 主分支审计：[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 于 2026-08-22 合入 `main`；合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 状态为 `success`，7 个适用 Job 全部通过：Browser E2E、Python dependency audit、PostgreSQL integration、Python quality、Secret history、Node dependency audit、Web quality。
+- 文档审计：README、主计划、架构、能力矩阵、Harness、Memory/Evidence/Research 策略、运行手册和安全复核统一更新为已发生的 `main` 合并、合并提交 CI 与 Day 4 关闭事实；没有改变技术栈、数据所有权、安全边界、模块职责或 Day 5～7 冻结范围。
+- 最终结论：远端提交、功能分支 CI、`main` 合并提交 CI 与项目所有者授权收口均已完成；步骤 1～5 和 D4-01～D4-07 统一为 `complete`，允许进入 Day 5。85% 核心覆盖率例外继续作为 Day 7 前必须补到 90% 的债务，不因 Day 4 关闭而删除。
+
+### 3.7 Trace 复盘、双向映射与所有者授权
+
+复核人：项目所有者（授权收口）与 Codex；复核日期：2026-08-22。
+
+项目所有者在收到“当前日、上一门禁、本次纵向切片和计划偏差”的证据报告后明确要求完成收口。执行代理据真实 Chromium Research L3 旅程、安全 Trace、`day4-memory-v1`、`day4-memory-ablation-v1`、`day4-evidence-v1`、`day4-research-v1` 与 `day4-v1` 报告完成以下复盘；此处如实记录证据来源，不声称确定性 fixture 是真实 Provider 质量。
+
+1. **为什么多个节点不等于多个 Agent**：八个 L3 节点共享同一个 AgentRun、`UnifiedAgentRuntime`、Context Compiler、ToolExecutor、Budget、Event sequence、stop reason 与 Trace；节点只是同一 typed graph 中的职责分段，没有独立权限、工具循环或公共 Runtime。
+2. **Short-term Memory、Long-term Memory、State 与 Context 的区别**：Short-term Memory 是 Thread 内消息引用、摘要和 freshness 投影；Long-term Memory 是跨 Thread、用户可治理的版本化事实；State 是当前 Run 随 Step 演进的业务状态；Context 是某一次模型调用实际看到的有界输入。它们通过 manifest 关联，但所有权、生命周期和用途不同。
+3. **Observation 如何成为 Evidence**：Tool Observation 默认不可信；只有重新验证当前 Workspace/底层资源权限、Tool/schema/envelope hash、来源版本与许可、typed locator、content hash 和敏感内容边界，并经过版本化 Normalizer 决策后，才能成为 active Evidence。拒绝项保留稳定原因，不能被 Claim 或 finalizer 改写成有效证据。
+4. **为什么 L3 还不是完整可恢复研究**：L3 保存 Research State、Event 和业务事实，但没有把 LangGraph state 映射为版本化 Agent Checkpoint，也没有 interrupt/resume token、持久 Approval、CAS 和副作用账本；Worker hard stop 只能收敛为明确终态，不能从最后节点安全恢复。这些能力属于 Day 5 的 L4。
+
+双向映射复核确认：D4-01～D4-03 由正式 Memory 写入、跨 Thread 召回、Context manifest、治理和 deletion residual 证据覆盖；D4-04 与 D4-07 由唯一 Research L3 graph、预算/取消/失败和安全边界覆盖；D4-05 由正式 Workbench、刷新恢复和 L0/L2/L3 对照覆盖；D4-06 由 Observation→Evidence→Claim lineage、coverage/conflict、失效重算和授权复核覆盖。每项均具备实现、测试/Eval 与用户可见证据，不存在无人负责的 Day 4 门禁。
 
 ## 4. 每一步的详细实施说明
 

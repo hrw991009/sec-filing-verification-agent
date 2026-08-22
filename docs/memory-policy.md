@@ -120,4 +120,4 @@ JSON/Markdown 基线报告来自冻结 observation fixture，不冒充真实 Pro
 - 浏览器旅程：`tests/e2e/app-shell.spec.ts`
 - 版本化数据集与报告：`evals/scenarios/day4-memory-v1.json`、`evals/reports/day4-memory-v1.json`、`evals/reports/day4-memory-v1.md`
 
-当前已通过本地验收；最终分支提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 也已验证 Memory、真实依赖、Workbench 和安全门禁。Research 预算与策略边界已经随步骤 4/5 实现；但 GitHub `main` 尚无 Day 4 合并提交，项目所有者最终 Trace/复盘也未记录，因此步骤 1/2 与 D4-01～D4-03、D4-07 仍保持 `implemented_pending_verification`。合入 `main`、合并提交 CI 全绿和所有者复核后才能统一标为 `complete`。
+本地验收与最终分支 CI 已验证 Memory、真实依赖、Workbench 和安全门禁，Research 预算与策略边界也已随步骤 4/5 实现。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 全绿，Trace/Eval/DoD 与授权收口完成，因此步骤 1/2 与 D4-01～D4-03、D4-07 为 `complete`。
