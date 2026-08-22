@@ -4,7 +4,6 @@ import { apiClient, unwrapData, withAccessToken } from "../api/api";
 
 export type Evidence = components["schemas"]["EvidenceResponse"];
 export type EvidenceNormalization = components["schemas"]["EvidenceNormalizationResponse"];
-export type ResearchRun = components["schemas"]["ResearchRunResponse"];
 export type ResearchClaim = components["schemas"]["ResearchClaimResponse"];
 export type ClaimGraph = components["schemas"]["ClaimGraphResponse"];
 export type EvidenceStatus = components["schemas"]["EvidenceStatus"];
@@ -98,18 +97,6 @@ export function invalidateEvidence(
       }),
     ),
   );
-}
-
-export function listResearchRuns(workspaceId: string, limit = 20): Promise<ResearchRun[]> {
-  return withAccessToken(async (accessToken) => {
-    const response = unwrapData<components["schemas"]["ResearchRunCollectionResponse"]>(
-      await apiClient.GET("/api/v1/workspaces/{workspace_id}/research-runs", {
-        headers: auth(accessToken),
-        params: { path: { workspace_id: workspaceId }, query: { limit: pageSize(limit) } },
-      }),
-    );
-    return response.research_runs;
-  });
 }
 
 export function listResearchClaims(

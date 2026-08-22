@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "report_id": "day4-memory-evidence-research-contract-regression",
+  "report_version": "v1",
+  "retained_baseline": {
+    "day2_l0_case_count": 9,
+    "day3_l1_case_count": 5,
+    "day3_l2_case_count": 10,
+    "day2_day3_cumulative_case_count": 24,
+    "report_refs": ["evals/reports/day2-v1.json", "evals/reports/day3-v1.json"]
+  },
+  "day4_datasets": [
+    { "id": "day4-memory", "version": "v1", "case_count": 8, "scorer": "memory-scorer-v1" },
+    {
+      "id": "day4-memory-ablation",
+      "version": "v1",
+      "case_count": 2,
+      "scorer": "memory-ablation-scorer-v1"
+    },
+    { "id": "day4-evidence", "version": "v1", "case_count": 6, "scorer": "evidence-scorer-v1" },
+    { "id": "day4-research", "version": "v1", "case_count": 10, "scorer": "research-scorer-v1" }
+  ],
+  "scenario_inventory": {
+    "retained_day2_day3_case_count": 24,
+    "day4_case_count": 26,
+    "cumulative_case_count": 50
+  },
+  "executable_evidence": [
+    {
+      "claim": "The same-input Memory off/on ablation is computed from two versioned cases",
+      "test_ref": "apps/backend/tests/modules/memory/test_eval.py::test_memory_off_on_ablation_matches_its_versioned_report"
+    },
+    {
+      "claim": "Memory metrics are computed by their own fixed-denominator scorer",
+      "test_ref": "apps/backend/tests/modules/memory/test_eval.py::test_memory_dataset_uses_shared_harness_contract_and_matches_report"
+    },
+    {
+      "claim": "Evidence and Claim metrics are computed by their own fixed-denominator scorer",
+      "test_ref": "apps/backend/tests/modules/evidence/test_eval.py::test_evidence_dataset_uses_shared_harness_contract_and_matches_report"
+    },
+    {
+      "claim": "Research metrics and the L0 L2 L3 comparison are computed by an independent scorer",
+      "test_ref": "apps/backend/tests/modules/research/test_eval.py::test_research_dataset_uses_shared_harness_contract_and_matches_report"
+    },
+    {
+      "claim": "Research L3 traverses the formal PostgreSQL Runtime Tool Evidence Claim and safe Trace path",
+      "test_ref": "apps/backend/tests/integration/test_conversation_web_tool_postgres.py::test_research_l3_executes_one_postgres_run_into_an_uncertain_draft"
+    },
+    {
+      "claim": "The Workbench creates explains links and restores a Research L3 draft through formal APIs",
+      "test_ref": "tests/e2e/app-shell.spec.ts::creates, explains, links, and restores a Research L3 draft"
+    }
+  ],
+  "measurement_limits": {
+    "evidence_kind": "deterministic_contract_regression",
+    "real_provider_quality_claim": false,
+    "external_source_freshness_claim": false,
+    "latency_scope": "fixture_values_only_not_external_network_latency",
+    "token_and_cost_scope": "fixture_values_validate_accounting_and_tier_comparison_not_provider_pricing",
+    "citation_scope": "Evidence locators are validated when present; final report Citation completeness remains a Day 6 obligation"
+  },
+  "decision": "retain_the_24_case_day2_day3_baseline_and_add_separate_memory_memory_ablation_evidence_and_research_scorers"
+}

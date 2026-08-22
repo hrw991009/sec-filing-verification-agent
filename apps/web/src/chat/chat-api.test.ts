@@ -540,19 +540,31 @@ describe("chat REST API", () => {
           schema_version: 1,
           sequence: 1,
         },
+        {
+          details: {
+            graph_version: "research-l3-v1",
+            node: "scope_validation",
+            research_state_schema_version: "research-state-v1",
+            state_revision: 2,
+          },
+          event_type: "agent.research.node_completed",
+          occurred_at: "2026-08-14T06:00:01Z",
+          schema_version: 1,
+          sequence: 2,
+        },
       ],
       run: {
         conversation_id: conversationId,
         created_at: "2026-08-14T06:00:00Z",
         deadline: "2026-08-14T06:01:00Z",
-        event_count: 1,
+        event_count: 2,
         event_stream_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
         harness_version: "harness-v0",
         max_cost_micro_usd: 1000,
         max_steps: 2,
         max_total_tokens: 3000,
         run_id: runId,
-        run_type: "direct_answer",
+        run_type: "research",
         runtime_version: "runtime-v0",
         schema_version: 1,
         started_at: "2026-08-14T06:00:01Z",
@@ -577,7 +589,7 @@ describe("chat REST API", () => {
           completed_at: null,
           error_code: null,
           kind: "model",
-          last_event_sequence: 1,
+          last_event_sequence: 2,
           sequence: 1,
           started_at: "2026-08-14T06:00:01Z",
           status: "running",
@@ -608,6 +620,10 @@ describe("chat REST API", () => {
     expect(result.context_manifests[0]?.sources[2]).toMatchObject({
       source_kind: "tool_observation",
       source_sha256: "a".repeat(64),
+    });
+    expect(result.events[1]).toMatchObject({
+      details: { node: "scope_validation", state_revision: 2 },
+      event_type: "agent.research.node_completed",
     });
     const firstCall = fetchMock.mock.calls[0];
     const request = asRequest(firstCall?.[0] ?? "https://invalid.example", firstCall?.[1]);

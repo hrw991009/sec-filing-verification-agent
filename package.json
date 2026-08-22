@@ -14,6 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "preview:web": "pnpm --filter @industry-platform/web run preview",
     "test": "pnpm --recursive --if-present run test",
+    "test:coverage:web": "pnpm --filter @industry-platform/web run test:coverage",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",

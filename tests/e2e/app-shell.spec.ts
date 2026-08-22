@@ -16,6 +16,10 @@ interface StartTurnReceipt {
   readonly jobId: string;
 }
 
+interface StartResearchReceipt extends StartTurnReceipt {
+  readonly researchRunId: string;
+}
+
 function requireRecord(value: unknown, fieldName: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new TypeError(`${fieldName} must be an object.`);
@@ -37,6 +41,16 @@ function parseStartTurnReceipt(value: unknown): StartTurnReceipt {
     agentRunId: requireUuid(receipt, "agent_run_id"),
     conversationId: requireUuid(receipt, "conversation_id"),
     jobId: requireUuid(receipt, "job_id"),
+  };
+}
+
+function parseStartResearchReceipt(value: unknown): StartResearchReceipt {
+  const receipt = requireRecord(value, "Start Research receipt");
+  return {
+    agentRunId: requireUuid(receipt, "agent_run_id"),
+    conversationId: requireUuid(receipt, "conversation_id"),
+    jobId: requireUuid(receipt, "job_id"),
+    researchRunId: requireUuid(receipt, "research_run_id"),
   };
 }
 
@@ -109,6 +123,45 @@ async function executeBrowserCreatedWebRun(receipt: StartTurnReceipt): Promise<v
     !/^[0-9a-f]{64}$/u.test(result.answer_sha256)
   ) {
     throw new Error("The Web Tool driver returned inconsistent terminal facts.");
+  }
+}
+
+async function executeBrowserCreatedResearchRun(receipt: StartResearchReceipt): Promise<void> {
+  const uvArguments = [
+    "run",
+    ...(process.env.CI === "true" ? [] : ["--env-file", ".env"]),
+    "--locked",
+    "--package",
+    "industry-platform-backend",
+    "python",
+    "apps/backend/tests/day4_browser_research_driver.py",
+    "--run-id",
+    receipt.agentRunId,
+    "--research-run-id",
+    receipt.researchRunId,
+    "--job-id",
+    receipt.jobId,
+  ];
+  const { stdout } = await execFileAsync("uv", uvArguments, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    timeout: 60_000,
+    windowsHide: true,
+  });
+  const result = requireRecord(JSON.parse(stdout.trim()) as unknown, "Research driver result");
+  if (
+    result.schema_version !== 1 ||
+    result.run_id !== receipt.agentRunId ||
+    result.research_run_id !== receipt.researchRunId ||
+    result.job_id !== receipt.jobId ||
+    result.disposition !== "succeeded" ||
+    result.provider_calls !== 2 ||
+    result.completed_node_count !== 8 ||
+    result.draft_status !== "uncertain_draft" ||
+    typeof result.draft_sha256 !== "string" ||
+    !/^[0-9a-f]{64}$/u.test(result.draft_sha256)
+  ) {
+    throw new Error("The Research driver returned inconsistent terminal facts.");
   }
 }
 
@@ -412,6 +465,65 @@ test.describe("browser identity lifecycle", () => {
     await page.getByRole("button", { name: "Agent" }).click();
     await page.getByRole("button", { name: new RegExp(question, "u") }).click();
     await expect(page.getByText(answer, { exact: true })).toBeVisible();
+  });
+
+  test("creates, explains, links, and restores a Research L3 draft", async ({ page }) => {
+    test.setTimeout(75_000);
+    const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+    const email = `research-${uniquePart}@example.com`;
+    const password = "Browser!Pass123";
+    const question = `查找智慧交通公共政策更新 ${uniquePart}`;
+
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "创建账户" }).click();
+    await page.getByLabel("邮箱").fill(email);
+    await page.getByLabel("密码").fill(password);
+    await page.getByRole("button", { name: "创建账户并进入" }).click();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Research" }).click();
+    await expect(page.getByRole("heading", { name: "Research Workbench" })).toBeVisible();
+    await expect(page.getByLabel("Research 行业")).toHaveValue(
+      "5ae94c40-4441-5e6f-b4cb-0679e8a92f9e",
+    );
+
+    const startResponsePromise = page.waitForResponse((response) => {
+      const request = response.request();
+      return (
+        request.method() === "POST" &&
+        /^\/api\/v1\/workspaces\/[^/]+\/research-runs$/u.test(new URL(response.url()).pathname) &&
+        response.status() === 202
+      );
+    });
+    await page.getByLabel("Research 原始问题").fill(question);
+    await page.getByLabel("Research 已确认范围").fill("智慧交通公共新闻\n政策更新");
+    await page.getByLabel("Research 排除项").fill("投资建议");
+    await page.getByRole("button", { name: "确认 Brief 并开始" }).click();
+    const receipt = parseStartResearchReceipt(
+      (await (await startResponsePromise).json()) as unknown,
+    );
+
+    await executeBrowserCreatedResearchRun(receipt);
+    await page.getByRole("button", { name: "刷新服务端状态" }).click();
+    const detail = page.getByRole("article", { name: "Research 详情" });
+    await expect(detail.getByRole("heading", { name: question })).toBeVisible();
+    await expect(detail.getByText("uncertain_draft")).toBeVisible();
+    await expect(detail.getByText("不确定项：uncertain", { exact: true })).toBeVisible();
+    await expect(detail.getByText("校验研究范围").first()).toBeVisible();
+    await expect(detail.getByText("保存 L3 草稿").last()).toBeVisible();
+    await expect(detail.getByText(/coverage 0%/u)).toBeVisible();
+    await expect(detail.getByText("$0.000080", { exact: true })).toBeVisible();
+
+    await detail.getByRole("button", { name: "查看完整 Evidence/Claim 图" }).click();
+    await expect(page.getByRole("heading", { name: "Evidence Inspector" })).toBeVisible();
+    await expect(page.getByText(/public update remains uncertain/u)).toBeVisible();
+    await page.getByRole("button", { name: "打开 Research 时间线" }).click();
+    await expect(page.getByRole("heading", { name: question })).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Research" }).click();
+    await expect(page.getByRole("heading", { name: question })).toBeVisible();
+    await expect(page.getByText("uncertain_draft")).toBeVisible();
   });
 
   test("creates, stops, and restores a real Day 2 conversation", async ({ page }) => {

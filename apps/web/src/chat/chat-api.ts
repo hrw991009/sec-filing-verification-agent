@@ -780,6 +780,9 @@ const traceEventTypes = [
   "agent.tool.cancelled",
   "agent.artifact.created",
   "agent.checkpoint.saved",
+  "agent.research.node_started",
+  "agent.research.node_completed",
+  "agent.research.node_failed",
 ] as const;
 
 function parseTraceRun(value: unknown): AgentTraceRun {

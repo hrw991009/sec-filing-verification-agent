@@ -701,7 +701,9 @@ schema/run/scope/ResearchBrief/plan/current node/pending actions
 → approval/cancel/stop reason → sanitized error summary
 ```
 
-LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，不创建 research_steps/research_checkpoints 第二套执行事实。每个安全节点结束后持久化 revision、输入/输出摘要、Evidence、Token、费用和耗时；恢复从最后成功 Checkpoint 继续。Research 必须限制最大步骤、并发、Token、费用、运行时间、revise 次数和 Tool allowlist。副作用在节点重试和 resume 时必须保持幂等。
+从 L4 起，LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，不创建 research_steps/research_checkpoints 第二套执行事实。每个安全节点结束后持久化 revision、输入/输出摘要、Evidence、Token、费用和耗时；恢复从最后成功 Checkpoint 继续。Research 必须限制最大步骤、并发、Token、费用、运行时间、revise 次数和 Tool allowlist。副作用在节点重试和 resume 时必须保持幂等。
+
+当前 Day 4 L3 只实现前半句的统一 Run/Event 与 typed state 审计映射，不创建或声称 durable Checkpoint；Worker hard stop 由现有 Terminalizer 收敛，不能从普通 state 行恢复。Checkpoint、interrupt/resume、持久审批和副作用恢复从 Day 5 L4 才开始。L3 的实际节点、状态、失败和回滚合同见 [Research L3 状态机](research-state-machine.md)。
 
 Verifier 按 Claim 支持度、Citation 可解析性、coverage、conflict 和未决问题执行可判定评分；revise 受次数、Budget 与 deadline 限制。支持不足、冲突未解决或依赖失败时必须输出 partial/uncertain，不能由 finalizer 或 UI 伪装为 complete。
 
@@ -843,7 +845,7 @@ Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c
 
 Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 的五个切片现已完成仓库内实现与本地收口：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Context Compiler v1、Tool Registry/Executor、Event/Trace/ToolCall/ToolRun 原子审计、四个行业与来源/采集链、安全 Text2SQL、受校验 Artifact、陈旧 QueryRun 对账、Tool Inspector、正式行业/数据库/图表页面、24 条累计 Scenario 和 trajectory report 均落地。真实依赖全量 pytest、Web、Playwright、migration、build、audit 与 Secret 扫描通过；普通 Conversation 逻辑删除保留 Tool audit。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job；D3-01～D3-11 已复核为 `complete`。显式物理 Run purge与隔离备份恢复演练保留为 Day 7 发布门禁。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
-当前执行阶段是 Day 4。步骤 1、2 已完成本地实现与统一门禁，等待提交后的干净 CI 复核：D4-01～D4-03 为 `implemented_pending_verification`，D4-07 只完成 Memory 预算与策略边界，仍为 `thin_slice`；D4-04～D4-06 和步骤 3～5 保持 `planned`。具体顺序和逐步验收条件见 [Day 4 五步执行计划](learning-log/day-4.md)。Day 4 只完成可治理 Memory、Observation→Evidence→Claim 与唯一 Research L3 graph，不提前把普通状态持久化写成 durable Checkpoint，也不提前实现 Day 5/6 的 HITL、Verifier 或 bounded revise。
+当前执行阶段仍是 Day 4。步骤 1～5 已完成仓库内实现与统一的本地门禁，D4-01～D4-07 均为 `implemented_pending_verification`：Memory、Evidence/Claim、唯一 Research L3 graph 与正式 Workbench 共用 PostgreSQL、OpenAPI、Event/Trace、Context manifest、`UnifiedAgentRuntime` 和既有 Tool loop；独立 Scorer 保留 24 条 Day 2/3 基线并把累计 Scenario 扩为 50 条。没有第二 Research/Tool/Provider 链，也没有前端事实缓存。具体证据和覆盖率例外见 [Day 4 五步执行计划](learning-log/day-4.md)。本次未 commit/push、没有新的干净 CI，项目所有者最终复盘也尚未记录，因此不能标为 `complete` 或进入 Day 5。Day 4 只完成可治理 Memory、Observation→Evidence→Claim 与唯一 Research L3 graph，不提前把普通状态持久化写成 durable Checkpoint，也不提前实现 Day 5/6 的 HITL、Verifier 或 bounded revise。
 
 ## 21. 初学者术语表
 

@@ -6,7 +6,7 @@
 >
 > 相关决策：[系统架构](../architecture.md)第 6.5～6.6、10.3、12、15.1、15.4、15.6、18 节，[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)
 >
-> 当前状态：Day 3 门禁已关闭；步骤 1～3 已完成本地实现与统一门禁，等待提交后的干净 CI 复核；步骤 4～5 尚未开始。
+> 当前状态：Day 3 门禁已关闭；Day 4 步骤 1～5 已完成仓库内实现与统一的本地验收，D4-01～D4-07 均保持 `implemented_pending_verification`。本次未 commit/push，也没有新的干净 GitHub CI，因此尚未进入 Day 5。
 
 ## 1. 执行边界
 
@@ -84,8 +84,8 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 | 1. 可控 Memory 写入 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
 | 2. Memory 召回与治理 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
 | 3. Evidence/Claim 账本 | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
-| 4. Research L3 graph | `planned` | 本文步骤 4 的全部验收条件通过 |
-| 5. Workbench/Eval/Day 4 门禁 | `planned` | 本文步骤 5、Day 4 门禁及适用 DoD 全部通过 |
+| 4. Research L3 graph | `implemented_pending_verification` | 本地验收已通过；提交后的干净 CI 通过后关闭远端复核 |
+| 5. Workbench/Eval/Day 4 门禁 | `implemented_pending_verification` | 本地实现与统一门禁已通过；提交后的干净 CI 与项目所有者最终复盘通过后关闭 |
 
 状态只随实际证据更新。代码存在、页面截图、单条漂亮答案、Mock success 或局部绿色测试都不能把任一步改为完成。
 
@@ -134,8 +134,38 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 完整本地门禁：PostgreSQL/Redis/MinIO 全部强制开启时 Python `927 passed`、无 skip，包含 Evidence HTTP 权限/Revision 契约、fresh migration smoke、Web/Claim 与独立只读账号 Text2SQL Evidence 集成；354 个 Python 文件通过 format，Ruff、mypy 342 个源文件和 Python wheel/sdist 构建通过。Web format/lint/typecheck、16 个 Vitest 文件共 61 条测试、生产构建和 Playwright 5/5 通过；其中浏览器从正式 Trace 提升 Evidence 并在刷新后恢复 Inspector lineage。OpenAPI/TypeScript 连续两次生成 SHA-256 一致。
 - 安全与供应链：Python/Node audit 均无已知漏洞；受控源码、测试、文档、Eval 路径及 51 个 Git 提交的 Gitleaks 扫描无发现。普通日志、Trace 和 AuditLog 不保存 Secret、原始 Tool 参数、Provider 原始响应或 chain-of-thought。
 - 依赖/许可证 `N/A`：本步骤未新增 Python、Node、服务或 Provider 依赖；SQL lineage 复用 Day 3 已锁定的 SQLGlot，锁文件和 NOTICE 无变化；复核人 Codex，2026-08-21。
-- 尚未远端验证：当前没有执行 commit、push 或 GitHub CI，因此步骤 3 保持 `implemented_pending_verification`；D4-04 Research L3、完整 D4-05 Workbench 和 Message/Report Citation 未完成，不能据本步骤提前进入 Day 5。
+- 尚未远端验证：步骤 3 验收时没有执行 commit、push 或 GitHub CI，因此步骤 3 保持 `implemented_pending_verification`；当时 D4-04 Research L3 尚未完成，其后续本地结果见 3.4。完整 D4-05 Workbench 和 Message/Report Citation 仍未完成，不能提前进入 Day 5。
 - 本机运行时偏差：仓库固定 Node `24.16.0`，当前本机为 `24.19.0`，pnpm 给出 engine warning；所有上述 Web 门禁仍通过，但精确版本的干净环境复核必须由 CI 完成。
+
+### 3.4 步骤 4 本地验收记录
+
+复核人：Codex；复核日期：2026-08-21。
+
+- 用户入口与原子事实：`POST /api/v1/workspaces/{workspace_id}/research-runs` 要求显式 Brief 与 `Idempotency-Key`，返回 `202`。同一 PostgreSQL 事务创建 ResearchRun、Brief、AgentRun、Job、Outbox 和 queued Event；重复请求返回同一资源。member/owner 可创建，viewer 与跨 Workspace 请求不进入服务。
+- 唯一 graph 与 Runtime：正式节点严格为 `clarify_scope → write_research_brief → plan → research_loop → normalize_evidence → synthesize_claims → outline → draft`。LangGraph 只负责编排；`research_loop` 复用唯一 bounded model/tool loop，生产 L2/L3 共用 ContextCompiler、Provider、Registry、ToolExecutor、Event committer 和 CancellationProbe。真实 PostgreSQL 链只有一个 AgentRun 和既有 MODEL/TOOL/MODEL/FINAL 四个 Step，不存在 research_steps/events/checkpoints 或第二条 Tool loop。
+- Brief、State 与草稿：原始问题、确认范围、排除项、完成标准、预算、确认者和 revision 持久化；Planner scope drift 由领域校验拒绝。JSON-safe Research State 与 Run 原子创建，保存 node、Plan、Evidence/Claim refs、Step/Token/费用、取消和 stop reason，但明确不是 durable Checkpoint。草稿固定标为 explainable/uncertain L3 draft，不冒充 verified Report。
+- Evidence/Claim：确定 Fake 路径产生 accepted Evidence、supported Claim 和 explainable draft；真实 `industry.web_search:v1` 在缺少不可变 SourceItem 快照时产生 rejected normalization、uncertain Claim 和 uncertain draft，而不是把 URL、摘要或 `[S1]` 伪装成 Evidence。两条路径都使用步骤 3 的正式 Application Service。
+- 失败与预算：Research 专项测试覆盖取消、deadline、invalid Provider output、max steps、Token 和费用耗尽，并断言只有一个 terminal Event、失败后不保存 Draft；共享 L2 Runtime 的既有回归继续覆盖 Provider timeout/429、Tool deny/error、no-progress 和取消安全点。跨 Workspace 创建/读取不泄漏资源。
+- 迁移与契约：`a3c5e7f9b021` 扩展 research_runs 并创建 briefs/plans/drafts，在 disposable PostgreSQL 完成 upgrade → Alembic check → downgrade → upgrade；OpenAPI 与 TypeScript 连续两次生成 SHA-256 一致。Evidence Inspector 已迁移到新的 `ResearchRunDetailResponse`，没有恢复步骤 3 的旧重复接口。
+- 完整本地门禁：370 个 Python 文件通过 format，Ruff 无问题，mypy 检查 357 个源文件无错误；pytest 940 passed，默认未强制的两个 MinIO 测试随后以 `MINIO_TESTS_REQUIRED=1` 单独执行并 2/2 通过。Web format/lint/typecheck、16 个 Vitest 文件共 61 条测试、生产构建和 Playwright 5/5 通过；wheel/sdist 构建成功。
+- 依赖与安全：精确锁定 `langgraph==1.2.11`；主包、checkpoint/prebuilt/sdk 和 LangChain Core 为 MIT，ormsgpack 为 Apache-2.0 OR MIT，xxhash/uuid-utils 为 BSD。import probe 与 `uv audit --locked` 通过，Python/Node 无已知漏洞；受控路径和 52 个提交的 Gitleaks 扫描无发现。
+- 运行与文档：状态、事件、失败、L3/L4/L5 边界和回滚见 [Research L3 状态机](../research-state-machine.md)。本机 Node 与仓库固定版本均为 `24.16.0`，pnpm 为 `10.10.0`，没有步骤 2 曾记录的 Node engine 偏差。
+- 尚未远端验证：步骤 4 验收时没有执行 commit、push 或 GitHub CI，因此步骤 4、D4-04 和 Research 部分的 D4-07 保持 `implemented_pending_verification`；当时尚未完成的 Research Workbench、对照 Eval 和 Day 4 总门禁，其后续本地结果见 3.5。
+
+### 3.5 步骤 5 本地验收记录
+
+复核人：Codex；复核日期：2026-08-22。
+
+- 正式 Workbench：新增 Research workspace，通过生成 OpenAPI 类型调用 Research create/list/detail、Claim/Evidence graph、Agent cancel 和 safe Trace API；显式展示 Brief、scope/exclusions/criteria、Plan、八个 graph node、统一 Step、usage/stop reason、Evidence/Claim、coverage/conflict、uncertain draft 和不可用状态。Evidence↔Research 可关联导航，刷新后只从 PostgreSQL/API/Event/Trace 重建；没有前端轨迹或分数缓存。
+- 真实用户旅程：Chromium 从页面创建 Research L3，经 ResearchRun/AgentRun/Job/Outbox、统一 Runtime、正式 Web Tool、Evidence Normalizer、Claim 和 draft，再查看安全节点时间线、跳转 Evidence/Claim，并在整页刷新后恢复同一 Run。冻结 Web Provider 缺少不可变 SourceItem snapshot 时稳定得到 rejected Evidence、uncertain Claim 和 uncertain draft，未被伪装成成功。
+- Trace 安全修复：Research 节点 Event 加入后端显式安全字段表，模块导入时强制该表穷举全部 `AgentEventType`；前端 Trace 解码器同步接受三个版本化 Research Event。`error_summary`、Prompt、Tool 原文、Memory/Evidence 正文和 chain-of-thought 不进入 Trace。
+- 独立 Eval：保留 Day 2/3 的 24 条基线；Day 4 使用 8 条 Memory、2 条同输入 Memory off/on、6 条 Evidence/Claim 和 10 条 Research Scenario，累计 50 条。`memory-scorer-v1`、`memory-ablation-scorer-v1`、`evidence-scorer-v1`、`research-scorer-v1` 分开计算；同题 L0/L2/L3 报告同时展示步骤、Token、费用、延迟、Evidence、Claim 和不确定项。执行代理人工抽样同题 L0/L2/L3、Evidence 缺失、冲突、取消与权限 case，确认规则字段与 frozen fixture/Trace ref 一致；这些报告不冒充真实 Provider 质量。
+- Memory 消融：同一问题、Provider fixture、Prompt、Runtime 和预算下，Memory on 相对 off 的规则任务质量 `+1.0`、污染 `0.0`、冲突处理 `+1.0`，fixture 成本为 `+64` input tokens、`+7 ms`。该单一确定性用例不能外推为“Memory 对所有任务都有净收益”。
+- 完整本地门禁：固定 Python 3.13.14、Node 24.16.0、pnpm 10.10.0；373 个 Python 文件通过 format，Ruff 通过，mypy 检查 360 个源文件无问题。真实 PostgreSQL/Redis/MinIO 强制开启且无 skip，pytest `946 passed`；migration smoke 完成全历史 upgrade → Alembic check → downgrade base → upgrade。17 个 Vitest 文件 `75 passed`，全量 Playwright `6 passed`，Python wheel/sdist、Web production build、OpenAPI/TypeScript hash 确定性、Python/Node audit 均通过。
+- 覆盖率：后端全量 statement/branch 综合覆盖率 `82.12%`，超过整体 80% 门槛；前端关键 `chat-workbench-model.ts` 的 statement/branch/function/line 均为 `100%`，超过 75% 门槛。Day 4 选定 Domain/Application/Research workflow 合集为 `85%`，未达到目标 90%，记录为明确例外：原因是 PostgreSQL adapters 与公开 API/E2E 已覆盖主要纵向链，但多个纯校验失败分支尚未逐一补齐；风险是罕见畸形输入的分支回归发现较晚；缓解为 CI 固定 85% 不退化、全量 80%、真实集成和权限/失败 E2E，并在进入 Day 7 完整门禁前补到 90%。例外复核人 Codex，2026-08-22；它不等于豁免远端 CI。
+- 安全与供应链：受控源码/测试/文档/Eval 路径与完整历史 Gitleaks 无发现（当前受控路径含未提交变化，历史扫描 53 个可达提交）；`uv audit --locked` 与 `pnpm audit --audit-level high` 无已知漏洞。覆盖率工具锁定 `pytest-cov>=7.1.0,<8.0.0` 与匹配 Vitest 的 `@vitest/coverage-v8==4.1.10`，许可证均为 MIT；Day 4 LangGraph 许可证结论保持不变。安全/隐私和生命周期复核见 [Day 4 专项复核](../security/day-4-memory-research-review.md)。
+- 生命周期、Citation 与 N/A：在线 Memory deletion residual 为 0；Evidence tombstone/Claim 重算通过；备份一致性、恢复核对和回滚步骤已文档化，完整隔离恢复/物理 purge 按主计划保留为 Day 7，未虚报完成。Evidence scorer 的当前 locator 可解析率为 `2/2`，Research L3 不生成 Message/Report Citation，因此不存在新增悬空 Citation；最终 Report/Citation 完整门禁仍归 Day 6。durable graph resume/HITL/Verifier/bounded revise 为阶段性 `N/A`，原因是主计划明确分别归 Day 5/6，Day 4 用唯一终态、停止原因和 hard-stop 收敛替代；复核人 Codex，2026-08-22。
+- 尚未远端验证：本次没有 commit、push 或 GitHub CI。步骤 1～5 与 D4-01～D4-07 只能保持 `implemented_pending_verification`；项目所有者还需完成最终 Trace/复盘抽样，随后提交、推送并取得干净 CI，才能更新为 `complete` 并进入 Day 5。
 
 ## 4. 每一步的详细实施说明
 
@@ -376,15 +406,13 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 复用 **agent_harness/scenarios.py** 和 HarnessRunner；Fake/Replay 只替换 Provider/Tool 边界。
 - 复用 Evidence/Claim 服务；LangGraph 节点只能调用统一 Runtime 或 Domain/Application Port，不得直接访问 ToolExecutor、Provider SDK、Tool Adapter、数据库连接或具体外部客户端。ToolExecutor 只能由 Runtime 经既有权限、预算、幂等和审计校验后调用。
 
-#### 依赖引入前检查
+#### 依赖引入检查结果
 
-当前 lockfile 尚未包含 LangGraph。开始本步前必须：
-
-1. 用最小兼容性试验确定与 Python 3.13、Pydantic v2、当前异步 Runtime 和锁文件兼容的精确版本。
-2. 将精确依赖写入正式 workspace 并更新 uv.lock，禁止无上限依赖。
-3. 复核许可证、维护状态、已知漏洞和传递依赖；需要时更新 NOTICE。
-4. 证明 LangGraph 只位于 research/workflow adapter，不渗透普通聊天、CRUD、Memory 或入库模块。
-5. 记录卸载/回滚办法：暂停新 Research Run，保留统一 AgentRun/Event/Evidence/Claim 事实，不静默重跑旧任务。
+1. 已通过最小 import、typed graph、异步 Runtime、Python 3.13/Pydantic v2 和真实测试确定 `langgraph==1.2.11`。
+2. 精确依赖已写入 backend workspace 与 `uv.lock`，没有无上限声明。
+3. PyPI/官方 pyproject、本地 wheel metadata 和依赖树共同确认许可证；`uv audit --locked` 与 Node audit 无已知漏洞，当前分发方式不需要额外 NOTICE 归属文本。
+4. LangGraph import 只位于 `workflows/research` adapter；普通聊天、CRUD、Memory、Evidence 和入库模块不依赖它。
+5. 暂停新 Run、保留统一执行/Evidence/Claim 事实、应用先回滚、明确接受 L3 Brief/Plan/Draft 数据损失后才 downgrade/卸载的顺序已写入 [Research L3 状态机](../research-state-machine.md)。
 
 #### 后端工作清单
 

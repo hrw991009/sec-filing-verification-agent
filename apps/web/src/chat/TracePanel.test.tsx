@@ -141,4 +141,24 @@ describe("Tool Inspector", () => {
       "55555555-5555-4555-8555-555555555555",
     );
   });
+
+  it("labels a Research Run as L3 instead of a Tool L2 Run", () => {
+    render(
+      <TracePanel
+        activeRun={null}
+        evidencePromotionError={null}
+        evidencePromotionKey={null}
+        events={[]}
+        onClose={vi.fn()}
+        onNormalizeObservation={vi.fn()}
+        onOpenMemory={vi.fn()}
+        onRetry={undefined}
+        trace={{ ...trace, events: [], run: { ...trace.run, run_type: "research" } }}
+        traceError={null}
+        traceState="ready"
+      />,
+    );
+
+    expect(screen.getByText("Evidence Research L3")).toBeVisible();
+  });
 });

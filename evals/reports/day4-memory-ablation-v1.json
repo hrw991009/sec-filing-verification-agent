@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "day4-memory-ablation",
+  "dataset_version": "v1",
+  "scorer_version": "memory-ablation-scorer-v1",
+  "case_count": 2,
+  "comparison": {
+    "off": {
+      "case_count": 1,
+      "task_quality": { "numerator": 0, "denominator": 1, "value": 0.0 },
+      "pollution": { "numerator": 0, "denominator": 1, "value": 0.0 },
+      "conflict_handling": { "numerator": 0, "denominator": 1, "value": 0.0 },
+      "input_tokens": 180,
+      "latency_ms": 24
+    },
+    "on": {
+      "case_count": 1,
+      "task_quality": { "numerator": 1, "denominator": 1, "value": 1.0 },
+      "pollution": { "numerator": 0, "denominator": 1, "value": 0.0 },
+      "conflict_handling": { "numerator": 1, "denominator": 1, "value": 1.0 },
+      "input_tokens": 244,
+      "latency_ms": 31
+    }
+  },
+  "on_minus_off": {
+    "task_quality": 1.0,
+    "pollution": 0.0,
+    "conflict_handling": 1.0,
+    "input_tokens": 64,
+    "latency_ms": 7
+  }
+}

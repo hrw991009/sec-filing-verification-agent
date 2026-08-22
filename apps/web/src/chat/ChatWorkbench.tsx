@@ -14,6 +14,7 @@ import { EvidenceWorkspace } from "../evidence/EvidenceWorkspace";
 import { normalizeObservation } from "../evidence/evidence-api";
 import { IndustryWorkspace } from "../industry/IndustryWorkspace";
 import { getIndustryPreference, listIndustries, type Industry } from "../industry/industry-api";
+import { ResearchWorkspace } from "../research/ResearchWorkspace";
 
 import {
   cancelRun,
@@ -110,6 +111,7 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [focusedMemoryId, setFocusedMemoryId] = useState<string | null>(null);
   const [focusedEvidenceId, setFocusedEvidenceId] = useState<string | null>(null);
+  const [focusedResearchRunId, setFocusedResearchRunId] = useState<string | null>(null);
   const [evidenceRefreshToken, setEvidenceRefreshToken] = useState(0);
   const [evidencePromotionKey, setEvidencePromotionKey] = useState<string | null>(null);
   const [evidencePromotionError, setEvidencePromotionError] = useState<string | null>(null);
@@ -507,6 +509,7 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     setMemoryDialogError(null);
     setMemoryBusy(false);
     setFocusedEvidenceId(null);
+    setFocusedResearchRunId(null);
     setEvidenceRefreshToken(0);
     setEvidencePromotionKey(null);
     setEvidencePromotionError(null);
@@ -1439,7 +1442,33 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
         <EvidenceWorkspace
           canManage={canCompose}
           focusedEvidenceId={focusedEvidenceId}
+          onOpenResearch={(researchRunId) => {
+            setFocusedResearchRunId(researchRunId);
+            setView("research");
+          }}
           refreshToken={evidenceRefreshToken}
+          workspaceId={workspaceId}
+        />
+      ) : view === "research" ? (
+        <ResearchWorkspace
+          canManage={canCompose}
+          focusedResearchRunId={focusedResearchRunId}
+          industries={industries}
+          key={workspaceId}
+          onOpenAgent={(researchQuestion, mode) => {
+            startNewConversation();
+            setQuestion(researchQuestion);
+            setSearchMode(mode);
+            setView("chat");
+          }}
+          onOpenEvidence={(evidenceId) => {
+            setFocusedEvidenceId(evidenceId);
+            setView("evidence");
+          }}
+          onSelectIndustry={(nextIndustryId) => {
+            setIndustryId(nextIndustryId);
+          }}
+          selectedIndustryId={industryId}
           workspaceId={workspaceId}
         />
       ) : (

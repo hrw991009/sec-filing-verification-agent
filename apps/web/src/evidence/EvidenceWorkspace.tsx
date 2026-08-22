@@ -7,14 +7,13 @@ import {
   invalidateEvidence,
   listEvidence,
   listResearchClaims,
-  listResearchRuns,
   type ClaimGraph,
   type Evidence,
   type EvidenceKind,
   type EvidenceStatus,
   type ResearchClaim,
-  type ResearchRun,
 } from "./evidence-api";
+import { listResearchRuns, type ResearchRun } from "../research/research-api";
 import "./evidence.css";
 
 interface EvidenceWorkspaceProps {
@@ -22,6 +21,7 @@ interface EvidenceWorkspaceProps {
   readonly focusedEvidenceId: string | null;
   readonly refreshToken: number;
   readonly workspaceId: string;
+  readonly onOpenResearch: (researchRunId: string) => void;
 }
 
 type StatusFilter = "" | EvidenceStatus;
@@ -52,6 +52,7 @@ const relationNames: Readonly<Record<string, string>> = {
 export function EvidenceWorkspace({
   canManage,
   focusedEvidenceId,
+  onOpenResearch,
   refreshToken,
   workspaceId,
 }: EvidenceWorkspaceProps) {
@@ -417,6 +418,17 @@ export function EvidenceWorkspace({
               </option>
             ))}
           </select>
+          {selectedResearchRunId === null ? null : (
+            <button
+              className="compact-button"
+              onClick={() => {
+                onOpenResearch(selectedResearchRunId);
+              }}
+              type="button"
+            >
+              打开 Research 时间线
+            </button>
+          )}
           {visibleClaims.length === 0 ? (
             <div className="evidence-empty">
               尚无 Claim；Step 4 的 Research Runtime 将写入这里。

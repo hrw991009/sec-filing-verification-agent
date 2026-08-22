@@ -205,9 +205,15 @@ jobs:
             -c 'set -eu; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; mc mb --ignore-existing "local/$MINIO_BUCKET"; mc anonymous set none "local/$MINIO_BUCKET"'
 
       - name: Exercise PostgreSQL, Redis, and MinIO integration paths
-        run: >-
-          uv run --locked --all-packages pytest
-          apps/backend/tests/integration
+        run: |
+          uv run --locked --all-packages pytest \
+            --cov=industry_platform \
+            --cov-branch \
+            --cov-report=term \
+            --cov-fail-under=80
+          uv run --locked coverage report \
+            --include='apps/backend/src/industry_platform/modules/memory/domain.py,apps/backend/src/industry_platform/modules/memory/service.py,apps/backend/src/industry_platform/modules/memory/eval.py,apps/backend/src/industry_platform/modules/evidence/domain.py,apps/backend/src/industry_platform/modules/evidence/service.py,apps/backend/src/industry_platform/modules/evidence/normalizer.py,apps/backend/src/industry_platform/modules/evidence/eval.py,apps/backend/src/industry_platform/modules/research/domain.py,apps/backend/src/industry_platform/modules/research/service.py,apps/backend/src/industry_platform/modules/research/eval.py,apps/backend/src/industry_platform/workflows/research/*.py' \
+            --fail-under=85
 
   web-quality:
     name: Web quality
@@ -263,6 +269,9 @@ jobs:
 
       - name: Test web workspace
         run: pnpm run test
+
+      - name: Enforce key web state coverage
+        run: pnpm run test:coverage:web
 
       - name: Build web workspace
         run: pnpm run build

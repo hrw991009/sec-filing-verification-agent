@@ -76,9 +76,9 @@ _SAFE_EVENT_FIELDS: Mapping[AgentEventType, tuple[str, ...]] = {
     AgentEventType.RUN_STARTED: ("state_revision",),
     AgentEventType.RUN_PAUSED: ("state_revision",),
     AgentEventType.RUN_RESUMED: ("state_revision",),
-    AgentEventType.RUN_COMPLETED: ("stop_reason",),
-    AgentEventType.RUN_FAILED: ("stop_reason", "loop_guard"),
-    AgentEventType.RUN_CANCELLED: ("stop_reason", "cancelled_step_id"),
+    AgentEventType.RUN_COMPLETED: ("stop_reason", "research_node"),
+    AgentEventType.RUN_FAILED: ("stop_reason", "loop_guard", "research_node", "error_code"),
+    AgentEventType.RUN_CANCELLED: ("stop_reason", "cancelled_step_id", "research_node"),
     AgentEventType.STEP_STARTED: ("step_id", "step_sequence", "step_kind"),
     AgentEventType.STEP_COMPLETED: (
         "step_id",
@@ -162,7 +162,28 @@ _SAFE_EVENT_FIELDS: Mapping[AgentEventType, tuple[str, ...]] = {
     AgentEventType.TOOL_CANCELLED: ("call_id", "execution_step_id"),
     AgentEventType.ARTIFACT_CREATED: ("artifact_id", "artifact_kind", "version"),
     AgentEventType.CHECKPOINT_SAVED: ("checkpoint_id", "revision"),
+    AgentEventType.RESEARCH_NODE_STARTED: (
+        "node",
+        "graph_version",
+        "research_state_schema_version",
+        "state_revision",
+    ),
+    AgentEventType.RESEARCH_NODE_COMPLETED: (
+        "node",
+        "graph_version",
+        "research_state_schema_version",
+        "state_revision",
+    ),
+    AgentEventType.RESEARCH_NODE_FAILED: (
+        "node",
+        "error_code",
+        "graph_version",
+        "state_revision",
+    ),
 }
+
+if frozenset(_SAFE_EVENT_FIELDS) != frozenset(AgentEventType):
+    raise RuntimeError("Every Agent Event type requires an explicit safe Trace projection")
 
 
 @dataclass(frozen=True, slots=True)

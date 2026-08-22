@@ -60,6 +60,13 @@ function traceEventType(event: TracePanelProps["events"][number]): string {
   return "event_type" in event ? event.event_type : event.type;
 }
 
+function runTypeName(runType: AgentTrace["run"]["run_type"] | undefined): string {
+  if (runType === "direct_answer") return "Direct Answer L0";
+  if (runType === "tool_loop") return "Tool Loop L2";
+  if (runType === "research") return "Evidence Research L3";
+  return "Agent Runtime";
+}
+
 export function TracePanel({
   activeRun,
   evidencePromotionError,
@@ -127,9 +134,7 @@ export function TracePanel({
             )}
             <div className="trace-status">
               <div>
-                <strong>
-                  {trace?.run.run_type === "direct_answer" ? "Direct Answer L0" : "Tool Loop L2"}
-                </strong>
+                <strong>{runTypeName(trace?.run.run_type)}</strong>
                 <span>{trace?.run.runtime_version ?? "Runtime 正在记录事件"}</span>
               </div>
               <span className={`status-pill status-pill--${status ?? "running"}`}>

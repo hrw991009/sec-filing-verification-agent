@@ -37,6 +37,12 @@ evals/reports/*
 !evals/reports/day4-memory-v1.md
 !evals/reports/day4-evidence-v1.json
 !evals/reports/day4-evidence-v1.md
+!evals/reports/day4-memory-ablation-v1.json
+!evals/reports/day4-memory-ablation-v1.md
+!evals/reports/day4-research-v1.json
+!evals/reports/day4-research-v1.md
+!evals/reports/day4-v1.json
+!evals/reports/day4-v1.md
 
 # Runtime and infrastructure state
 *.log

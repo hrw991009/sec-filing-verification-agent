@@ -2,7 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Evidence, ResearchClaim, ResearchRun } from "./evidence-api";
+import type { Evidence, ResearchClaim } from "./evidence-api";
+import type { ResearchRun } from "../research/research-api";
 
 const evidenceId = "11111111-1111-4111-8111-111111111111";
 const researchRunId = "22222222-2222-4222-8222-222222222222";
@@ -51,11 +52,39 @@ const evidence: Evidence = {
 
 const researchRun: ResearchRun = {
   agent_run_id: evidence.origin_run_id,
+  agent_status: "running",
+  brief: {
+    budget: {
+      deadline: "2026-08-21T08:10:00Z",
+      max_cost_micro_usd: 300_000,
+      max_steps: 20,
+      max_total_tokens: 12_000,
+    },
+    completion_criteria: ["Produce an attributable L3 draft"],
+    confirmed_at: evidence.created_at,
+    confirmed_by_user_id: evidence.authorization_snapshot.actor_user_id,
+    confirmed_scope: ["Public smart transport news"],
+    exclusions: ["Investment advice"],
+    id: "12121212-1212-4121-8121-121212121212",
+    original_question: "Find a public transport policy update.",
+    revision: 1,
+  },
+  cost_micro_usd: 40,
   created_at: evidence.created_at,
+  current_node: "synthesize_claims",
+  draft: null,
+  event_count: 18,
+  graph_version: "research-l3-graph-v1",
   id: researchRunId,
+  input_tokens_used: 20,
+  output_tokens_used: 10,
   owner_user_id: evidence.authorization_snapshot.actor_user_id,
+  plan: null,
   revision: 2,
+  state_schema_version: 1,
   status: "active",
+  step_count: 3,
+  stop_reason: null,
   updated_at: evidence.updated_at,
   workspace_id: evidence.workspace_id,
 };
@@ -91,10 +120,12 @@ const mocks = vi.hoisted(() => ({
   invalidateEvidence: vi.fn(),
   listEvidence: vi.fn(),
   listResearchClaims: vi.fn(),
-  listResearchRuns: vi.fn(),
 }));
 
+const researchMocks = vi.hoisted(() => ({ listResearchRuns: vi.fn() }));
+
 vi.mock("./evidence-api", () => mocks);
+vi.mock("../research/research-api", () => researchMocks);
 
 import { EvidenceWorkspace } from "./EvidenceWorkspace";
 
@@ -103,7 +134,7 @@ describe("EvidenceWorkspace", () => {
     const user = userEvent.setup();
     mocks.listEvidence.mockResolvedValue([evidence]);
     mocks.getEvidence.mockResolvedValue(evidence);
-    mocks.listResearchRuns.mockResolvedValue([researchRun]);
+    researchMocks.listResearchRuns.mockResolvedValue([researchRun]);
     mocks.listResearchClaims.mockResolvedValue([claim]);
     mocks.getClaimGraph.mockResolvedValue({
       edges: [
@@ -131,6 +162,7 @@ describe("EvidenceWorkspace", () => {
       <EvidenceWorkspace
         canManage
         focusedEvidenceId={evidenceId}
+        onOpenResearch={vi.fn()}
         refreshToken={0}
         workspaceId={evidence.workspace_id}
       />,

@@ -849,11 +849,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Research Runs */
-        get: operations["list_research_runs_api_v1_workspaces__workspace_id__research_runs_get"];
+        /** List Research */
+        get: operations["list_research_api_v1_workspaces__workspace_id__research_runs_get"];
         put?: never;
-        /** Create Research Run */
-        post: operations["create_research_run_api_v1_workspaces__workspace_id__research_runs_post"];
+        /** Start Research */
+        post: operations["start_research_api_v1_workspaces__workspace_id__research_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Research */
+        get: operations["get_research_api_v1_workspaces__workspace_id__research_runs__research_run_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -966,7 +983,7 @@ export interface components {
          * @description Versioned Event vocabulary shared by persistence, SSE, and Trace.
          * @enum {string}
          */
-        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.tool.requested" | "agent.tool.approval_required" | "agent.tool.denied" | "agent.tool.started" | "agent.tool.completed" | "agent.tool.failed" | "agent.tool.cancelled" | "agent.artifact.created" | "agent.checkpoint.saved";
+        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.tool.requested" | "agent.tool.approval_required" | "agent.tool.denied" | "agent.tool.started" | "agent.tool.completed" | "agent.tool.failed" | "agent.tool.cancelled" | "agent.artifact.created" | "agent.checkpoint.saved" | "agent.research.node_started" | "agent.research.node_completed" | "agent.research.node_failed";
         /**
          * AgentRunStatus
          * @description Persisted lifecycle of one logical Agent run.
@@ -1527,14 +1544,6 @@ export interface components {
             message_ids: string[];
             /** @default user */
             scope: components["schemas"]["MemoryScope"];
-        };
-        /** CreateResearchRunRequest */
-        CreateResearchRunRequest: {
-            /**
-             * Agent Run Id
-             * Format: uuid
-             */
-            agent_run_id: string;
         };
         /**
          * CurrentUserResponse
@@ -2486,6 +2495,49 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** ResearchBriefResponse */
+        ResearchBriefResponse: {
+            budget: components["schemas"]["ResearchBudgetResponse"];
+            /** Completion Criteria */
+            completion_criteria: string[];
+            /**
+             * Confirmed At
+             * Format: date-time
+             */
+            confirmed_at: string;
+            /**
+             * Confirmed By User Id
+             * Format: uuid
+             */
+            confirmed_by_user_id: string;
+            /** Confirmed Scope */
+            confirmed_scope: string[];
+            /** Exclusions */
+            exclusions: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Original Question */
+            original_question: string;
+            /** Revision */
+            revision: number;
+        };
+        /** ResearchBudgetResponse */
+        ResearchBudgetResponse: {
+            /**
+             * Deadline
+             * Format: date-time
+             */
+            deadline: string;
+            /** Max Cost Micro Usd */
+            max_cost_micro_usd: number;
+            /** Max Steps */
+            max_steps: number;
+            /** Max Total Tokens */
+            max_total_tokens: number;
+        };
         /** ResearchClaimCollectionResponse */
         ResearchClaimCollectionResponse: {
             /** Claims */
@@ -2532,18 +2584,60 @@ export interface components {
              */
             workspace_id: string;
         };
-        /** ResearchRunCollectionResponse */
-        ResearchRunCollectionResponse: {
-            /** Research Runs */
-            research_runs: components["schemas"]["ResearchRunResponse"][];
-        };
-        /** ResearchRunResponse */
-        ResearchRunResponse: {
+        /** ResearchDraftResponse */
+        ResearchDraftResponse: {
+            /** Claim Refs */
+            claim_refs: string[];
+            /** Content Markdown */
+            content_markdown: string;
             /**
-             * Agent Run Id
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /**
+             * Id
              * Format: uuid
              */
-            agent_run_id: string;
+            id: string;
+            /** Outline */
+            outline: string[];
+            status: components["schemas"]["ResearchDraftStatus"];
+            /** Uncertainty Summary */
+            uncertainty_summary: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ResearchDraftStatus
+         * @enum {string}
+         */
+        ResearchDraftStatus: "explainable_draft" | "uncertain_draft";
+        /**
+         * ResearchNode
+         * @enum {string}
+         */
+        ResearchNode: "clarify_scope" | "write_research_brief" | "plan" | "research_loop" | "normalize_evidence" | "synthesize_claims" | "outline" | "draft";
+        /** ResearchPlanActionResponse */
+        ResearchPlanActionResponse: {
+            /** Allowed Tool Names */
+            allowed_tool_names: string[];
+            /** Objective */
+            objective: string;
+            /** Ordinal */
+            ordinal: number;
+        };
+        /** ResearchPlanResponse */
+        ResearchPlanResponse: {
+            /** Actions */
+            actions: components["schemas"]["ResearchPlanActionResponse"][];
+            /** Brief Revision */
+            brief_revision: number;
             /**
              * Created At
              * Format: date-time
@@ -2554,14 +2648,61 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Planner Summary */
+            planner_summary: string;
+            /** Revision */
+            revision: number;
+        };
+        /** ResearchRunCollectionResponse */
+        ResearchRunCollectionResponse: {
+            /** Research Runs */
+            research_runs: components["schemas"]["ResearchRunDetailResponse"][];
+        };
+        /** ResearchRunDetailResponse */
+        ResearchRunDetailResponse: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+            agent_status: components["schemas"]["AgentRunStatus"];
+            brief: components["schemas"]["ResearchBriefResponse"];
+            /** Cost Micro Usd */
+            cost_micro_usd: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            current_node: components["schemas"]["ResearchNode"] | null;
+            draft: components["schemas"]["ResearchDraftResponse"] | null;
+            /** Event Count */
+            event_count: number;
+            /** Graph Version */
+            graph_version: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Input Tokens Used */
+            input_tokens_used: number;
+            /** Output Tokens Used */
+            output_tokens_used: number;
             /**
              * Owner User Id
              * Format: uuid
              */
             owner_user_id: string;
+            plan: components["schemas"]["ResearchPlanResponse"] | null;
             /** Revision */
             revision: number;
+            /** State Schema Version */
+            state_schema_version: number;
             status: components["schemas"]["ResearchRunStatus"];
+            /** Step Count */
+            step_count: number;
+            stop_reason: components["schemas"]["RunStopReason"] | null;
             /**
              * Updated At
              * Format: date-time
@@ -2751,6 +2892,68 @@ export interface components {
              * Format: uuid
              */
             user_message_id: string;
+        };
+        /** StartResearchRequest */
+        StartResearchRequest: {
+            /** Completion Criteria */
+            completion_criteria: string[];
+            /** Confirmed Scope */
+            confirmed_scope: string[];
+            /** Exclusions */
+            exclusions?: string[];
+            industry_id: components["schemas"]["NonNilUuid"];
+            /**
+             * Max Cost Micro Usd
+             * @default 500000
+             */
+            max_cost_micro_usd: number;
+            /**
+             * Max Steps
+             * @default 20
+             */
+            max_steps: number;
+            /**
+             * Max Total Tokens
+             * @default 16384
+             */
+            max_total_tokens: number;
+            /** Original Question */
+            original_question: string;
+            /**
+             * Timeout Seconds
+             * @default 600
+             */
+            timeout_seconds: number;
+        };
+        /** StartResearchResponse */
+        StartResearchResponse: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /** Created */
+            created: boolean;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /**
+             * Research Run Id
+             * Format: uuid
+             */
+            research_run_id: string;
+            /**
+             * Turn Id
+             * Format: uuid
+             */
+            turn_id: string;
         };
         /** TableArtifactResponse */
         TableArtifactResponse: {
@@ -12108,7 +12311,7 @@ export interface operations {
             };
         };
     };
-    list_research_runs_api_v1_workspaces__workspace_id__research_runs_get: {
+    list_research_api_v1_workspaces__workspace_id__research_runs_get: {
         parameters: {
             query?: {
                 limit?: number;
@@ -12174,7 +12377,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence resource not found */
+            /** @description Research Run not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12196,7 +12399,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence revision conflict */
+            /** @description Research request conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12218,7 +12421,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence request rejected */
+            /** @description Research request rejected */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -12262,7 +12465,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence service temporarily unavailable */
+            /** @description Research service temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -12286,10 +12489,12 @@ export interface operations {
             };
         };
     };
-    create_research_run_api_v1_workspaces__workspace_id__research_runs_post: {
+    start_research_api_v1_workspaces__workspace_id__research_runs_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "Idempotency-Key": components["schemas"]["IdempotencyKey"];
+            };
             path: {
                 workspace_id: string;
             };
@@ -12297,17 +12502,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateResearchRunRequest"];
+                "application/json": components["schemas"]["StartResearchRequest"];
             };
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResearchRunResponse"];
+                    "application/json": components["schemas"]["StartResearchResponse"];
                 };
             };
             /** @description Invalid authenticated session */
@@ -12354,7 +12559,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence resource not found */
+            /** @description Research Run not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12376,7 +12581,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence revision conflict */
+            /** @description Research request conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12398,7 +12603,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence request rejected */
+            /** @description Research request rejected */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -12442,7 +12647,184 @@ export interface operations {
                     };
                 };
             };
-            /** @description Evidence service temporarily unavailable */
+            /** @description Research service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_research_api_v1_workspaces__workspace_id__research_runs__research_run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunDetailResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research service temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

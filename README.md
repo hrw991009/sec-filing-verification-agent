@@ -2,7 +2,7 @@
 
 面向行业研究与企业知识工作的多模态行业智能工作台。
 
-当前状态：Day 1 的新仓工程执行门禁以及 Day 2/3 Agent 门禁已经通过，D1-01～D1-08、D1-10～D1-12、D2-01～D2-09 与 D3-01～D3-11 均为 `complete`；项目现进入 Day 4 的 Agent Memory、Evidence 与 Deep Research L3，D4-01～D4-07 仍为 `planned`，不得在实际验收前提前改为完成。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 4 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
+当前状态：Day 1 的新仓工程执行门禁以及 Day 2/3 Agent 门禁已经通过，D1-01～D1-08、D1-10～D1-12、D2-01～D2-09 与 D3-01～D3-11 均为 `complete`。Day 4 的五个步骤已完成仓库内实现和统一的本地验收，D4-01～D4-07 均为 `implemented_pending_verification`；本次没有 commit/push 或新的干净 GitHub CI，项目所有者最终复盘也尚未记录，因此不得提前标为 `complete` 或进入 Day 5。参考仓的 6 组凭据候选仍为 `open`，D1-09 保持 `thin_slice`；该外部治理尾项不阻断 Day 4 Agent 学习，但在 Provider 侧吊销/轮换并复扫前不得复制或启用相关配置，也不得打 Day 7 发布标签。
 
 ## 文档入口
 
@@ -22,6 +22,11 @@
 - [Day 3 前端、Tool Inspector 与 ECharts 安全复核](docs/security/day-3-ui-review.md)
 - [Day 3 Agent Tool 运行与回滚手册](docs/runbooks/day-3-agent-tools.md)
 - [Day 4 五步执行计划](docs/learning-log/day-4.md)
+- [Day 4 Memory 策略](docs/memory-policy.md)
+- [Day 4 Evidence/Claim 策略](docs/evidence-policy.md)
+- [Day 4 Research L3 状态机](docs/research-state-machine.md)
+- [Day 4 安全与隐私复核](docs/security/day-4-memory-research-review.md)
+- [Day 4 运行与回滚手册](docs/runbooks/day-4-memory-research.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围
@@ -37,6 +42,8 @@
 - Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
 
 Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 的五个切片已经完成仓库内实现与全量本地验收：同一 `UnifiedAgentRuntime` 执行 L0/L1/L2，生产 Conversation/Job 可物化行业限定的 Web L2 command；Tool Inspector、行业页、数据库浏览、安全 Text2SQL、受校验表格/图表、陈旧 QueryRun 对账、24 条累计 Scenario 和 trajectory report 均已落地。真实 PostgreSQL/Redis/MinIO、4 条浏览器旅程、依赖/许可证/来源/隐私与 Secret 门禁均通过；[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 全绿，D3-01～D3-11 已复核为 `complete`。Day 7 前仍须完成参考仓 D1-09 外部凭据处置，以及显式物理 Run purge 与隔离备份恢复演练。
+
+Day 4 本地实现已串起 Conversation/Memory/Context manifest、Observation→Evidence→Claim、显式 ResearchBrief、唯一 typed Research L3 graph 与正式 Workbench。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 与 Research 使用独立规则 Scorer，并提供同题 L0/L2/L3 的步骤、Token、费用、延迟和 Evidence/Claim/uncertain 对照。当前本地门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip；后端总体覆盖率 82.12%，前端关键状态分支 100%。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，具体原因、风险、CI 不退化缓解和复核人已记录在 Day 4 学习日志；它必须在 Day 7 总门禁前补齐，且当前仍需提交后的干净 CI 才能关闭 Day 4。
 
 ## 执行基线与安装
 
@@ -232,7 +239,7 @@ try {
     uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend
     uv run --locked --all-packages ruff check --config pyproject.toml apps/backend
     uv run --locked --all-packages mypy --config-file pyproject.toml --no-incremental
-    uv run --env-file '.env' --locked --all-packages pytest
+    uv run --env-file '.env' --locked --all-packages pytest --cov=industry_platform --cov-branch --cov-report=term --cov-fail-under=80
     uv build --package industry-platform-backend
     uv audit --locked
 
@@ -242,6 +249,7 @@ try {
     pnpm run lint
     pnpm run typecheck
     pnpm run test
+    pnpm run test:coverage:web
     pnpm run build
     pnpm audit --audit-level high
     pnpm run test:e2e

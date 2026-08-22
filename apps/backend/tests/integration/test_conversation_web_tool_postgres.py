@@ -29,6 +29,7 @@ from industry_platform.modules.agent_runtime.domain import (
     AgentStepKind,
     RunBudget,
 )
+from industry_platform.modules.agent_runtime.events import AgentEventType
 from industry_platform.modules.agent_runtime.execution import DirectAnswerRunExecutionService
 from industry_platform.modules.agent_runtime.model import (
     ModelFinishReason,
@@ -37,7 +38,11 @@ from industry_platform.modules.agent_runtime.model import (
     ModelStreamItem,
     ModelUsage,
 )
-from industry_platform.modules.agent_runtime.models import AgentStepRecord
+from industry_platform.modules.agent_runtime.models import (
+    AgentEventRecord,
+    AgentRunRecord,
+    AgentStepRecord,
+)
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.runtime_contracts import DirectAnswerRuntimePolicy
 from industry_platform.modules.agent_runtime.tool_runtime import ToolL2Runtime, UnifiedAgentRuntime
@@ -73,6 +78,7 @@ from industry_platform.modules.evidence.models import (
     EvidenceNormalizationDecisionRecord,
     EvidenceRecord,
     GraphEdgeRecord,
+    ResearchClaimRecord,
 )
 from industry_platform.modules.evidence.normalizer import parse_persisted_observation
 from industry_platform.modules.evidence.service import EvidenceApplicationService
@@ -98,12 +104,29 @@ from industry_platform.modules.industry.domain import (
 )
 from industry_platform.modules.industry.models import DataSourceRecord, SourceItemRecord
 from industry_platform.modules.industry.tool import IndustryWebSearchTool
-from industry_platform.modules.research.domain import ResearchRunStatus
-from industry_platform.modules.research.models import ResearchRunRecord
+from industry_platform.modules.research.adapters.sqlalchemy import (
+    SqlAlchemyResearchQueryRepository,
+)
+from industry_platform.modules.research.domain import (
+    RESEARCH_NODE_ORDER,
+    ResearchBriefInput,
+    ResearchDraftStatus,
+    ResearchRunStatus,
+)
+from industry_platform.modules.research.models import (
+    ResearchDraftRecord,
+    ResearchPlanRecord,
+    ResearchRunRecord,
+)
+from industry_platform.modules.research.service import (
+    ResearchSubmissionService,
+    StartResearch,
+)
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
+from industry_platform.workflows.research.runtime import ResearchL3Runtime
 
 from .postgres import PostgresProbe
 
@@ -544,6 +567,248 @@ def test_web_turn_executes_through_production_loader_unified_runtime_and_trace(
                     )
                     is not None
                 )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(exercise(), loop_factory=create_selector_event_loop)
+
+
+def test_research_l3_executes_one_postgres_run_into_an_uncertain_draft(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        now = datetime.now(UTC)
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        workspace_id = uuid4()
+        user_id = uuid4()
+        tool = IndustryWebSearchTool(FrozenProviderRegistry(FrozenNewsProvider(now)))
+        tool_policy = ToolL2RuntimePolicy(
+            schema_version=1,
+            profile_version="conversation-web-l2-v1",
+            prompt_version="conversation-web-l2-prompt-v1",
+            context_compiler_version="context-v1",
+            output_contract_version="final-markdown-v1",
+            toolset_version="conversation-web-toolset-v1",
+            model="openai-compatible/frozen-web-model",
+            max_input_tokens=4_096,
+            max_decision_output_tokens=768,
+            max_tool_calls=2,
+            system_instructions="Use only the exact public-source Tool catalog.",
+            available_tools=(tool.definition.reference,),
+        )
+        provider = ScriptedModelProvider(
+            [
+                model_response(
+                    '{"decision":{"schema_version":1,"kind":"tool_call",'
+                    '"name":"industry.web_search","version":"v1","arguments":{'
+                    '"industry_code":"smart_transport","source_kind":"news",'
+                    '"query":"transport policy","limit":2}}}',
+                    "production-research-action",
+                ),
+                model_response(
+                    '{"decision":{"schema_version":1,"kind":"final",'
+                    '"content_markdown":"## Finding\\n\\nPublic transition update [S1]."}}',
+                    "production-research-final",
+                ),
+            ]
+        )
+        clock = IncrementingClock(now + timedelta(seconds=1))
+        try:
+            async with session_factory.begin() as session:
+                session.add_all(
+                    (
+                        User(
+                            id=user_id,
+                            email=f"production-research-{user_id}@example.test",
+                            password_hash=str(user_id),
+                            status=UserStatus.ACTIVE,
+                            password_changed_at=now,
+                        ),
+                        Workspace(
+                            id=workspace_id,
+                            name="Production Research L3",
+                            created_by_user_id=user_id,
+                            status=WorkspaceStatus.ACTIVE,
+                        ),
+                        WorkspaceMembership(
+                            id=uuid4(),
+                            workspace_id=workspace_id,
+                            user_id=user_id,
+                            role=WorkspaceRole.OWNER,
+                        ),
+                    )
+                )
+            scope = WorkspaceScope(workspace_id, user_id, "owner")
+            receipt = await ResearchSubmissionService(
+                ConversationApplicationService(
+                    transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(
+                        session_factory
+                    ),
+                    clock=lambda: now,
+                ),
+                clock=lambda: now,
+            ).start(
+                scope,
+                StartResearch(
+                    trace_id=TraceId("production-research-l3-trace"),
+                    industry_id=SMART_TRANSPORT_INDUSTRY_ID,
+                    brief=ResearchBriefInput(
+                        original_question="Find a public transport policy update.",
+                        confirmed_scope=("Public smart transport news",),
+                        exclusions=("Investment advice",),
+                        completion_criteria=("Produce an attributable L3 draft",),
+                    ),
+                    idempotency_key=f"production-research-{user_id}",
+                    max_steps=20,
+                    max_total_tokens=12_000,
+                    max_cost_micro_usd=300_000,
+                    timeout_seconds=600,
+                ),
+            )
+            committer = SqlAlchemyAgentEventCommitter(session_factory)
+            control = SqlAlchemyAgentRunControl(session_factory)
+            manifests = SqlAlchemyContextManifestStore(session_factory)
+            registry = ToolRegistry((tool,))
+            compiler = ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter())
+            executor = RegistryToolExecutor(registry, clock=clock)
+            evidence_service = EvidenceApplicationService(
+                SqlAlchemyEvidenceRepository(session_factory),
+                clock=clock,
+            )
+            research_runtime = ResearchL3Runtime(
+                workflow_store=SqlAlchemyResearchQueryRepository(session_factory),
+                evidence_service=evidence_service,
+                context_compiler=compiler,
+                context_manifest_store=manifests,
+                model_provider=provider,
+                tool_registry=registry,
+                tool_executor=executor,
+                event_committer=committer,
+                cancellation_probe=control,
+                clock=clock,
+            )
+            runtime = UnifiedAgentRuntime(
+                direct_answer_runtime=DirectAnswerRuntime(
+                    context_compiler=ContextCompilerV0(token_counter=Utf8UpperBoundTokenCounter()),
+                    context_manifest_store=manifests,
+                    model_provider=provider,
+                    event_committer=committer,
+                    cancellation_probe=control,
+                    clock=clock,
+                ),
+                tool_l2_runtime=ToolL2Runtime(
+                    context_compiler=compiler,
+                    context_manifest_store=manifests,
+                    model_provider=provider,
+                    tool_registry=registry,
+                    tool_executor=executor,
+                    event_committer=committer,
+                    cancellation_probe=control,
+                    clock=clock,
+                ),
+                research_l3_runtime=research_runtime,
+            )
+            result = await DirectAnswerRunExecutionService(
+                loader=SqlAlchemyDirectAnswerRunLoader(
+                    session_factory,
+                    direct_policy(),
+                    tool_policy=tool_policy,
+                ),
+                runtime=runtime,
+                terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),
+            ).execute_run(receipt.agent_run_id)
+            trace = await SqlAlchemyAgentTraceQuery(session_factory).get(
+                scope=scope,
+                run_id=receipt.agent_run_id,
+            )
+
+            assert result.status is AgentRunStatus.COMPLETED
+            assert len(provider.requests) == 2
+            async with session_factory() as session:
+                research_run = await session.get(ResearchRunRecord, receipt.research_run_id)
+                plan = await session.scalar(
+                    select(ResearchPlanRecord).where(
+                        ResearchPlanRecord.research_run_id == receipt.research_run_id
+                    )
+                )
+                draft = await session.scalar(
+                    select(ResearchDraftRecord).where(
+                        ResearchDraftRecord.research_run_id == receipt.research_run_id
+                    )
+                )
+                claim = await session.scalar(
+                    select(ResearchClaimRecord).where(
+                        ResearchClaimRecord.research_run_id == receipt.research_run_id
+                    )
+                )
+                steps = tuple(
+                    await session.scalars(
+                        select(AgentStepRecord)
+                        .where(AgentStepRecord.run_id == receipt.agent_run_id)
+                        .order_by(AgentStepRecord.sequence)
+                    )
+                )
+                events = tuple(
+                    await session.scalars(
+                        select(AgentEventRecord)
+                        .where(AgentEventRecord.run_id == receipt.agent_run_id)
+                        .order_by(AgentEventRecord.sequence)
+                    )
+                )
+                assistant = await session.scalar(
+                    select(Message).where(
+                        Message.agent_run_id == receipt.agent_run_id,
+                        Message.role == MessageRole.ASSISTANT,
+                        Message.status == MessageStatus.FINAL,
+                    )
+                )
+                run_count = await session.scalar(
+                    select(func.count())
+                    .select_from(AgentRunRecord)
+                    .where(AgentRunRecord.workspace_id == workspace_id)
+                )
+
+            assert research_run is not None
+            assert plan is not None
+            assert draft is not None
+            assert claim is not None
+            assert assistant is not None
+            assert research_run.status is ResearchRunStatus.COMPLETED
+            assert research_run.current_node is not None
+            assert research_run.current_node.value == "draft"
+            assert research_run.state["status"] == "completed"
+            assert research_run.state["step_count"] == 4
+            assert research_run.state["input_tokens_used"] == 40
+            assert research_run.state["output_tokens_used"] == 20
+            assert research_run.state["cost_micro_usd"] == 80
+            assert research_run.state["approval_status"] == "not_required"
+            assert research_run.state["evidence_refs"] == []
+            assert research_run.state["claim_refs"] == [str(claim.id)]
+            assert plan.actions[0]["allowed_tool_names"] == ["industry.web_search"]
+            assert draft.status is ResearchDraftStatus.UNCERTAIN_DRAFT
+            assert draft.evidence_refs == []
+            assert draft.claim_refs == [str(claim.id)]
+            assert claim.verification_status is ClaimVerificationStatus.UNCERTAIN
+            assert assistant.content_markdown == draft.content_markdown
+            assert [step.kind for step in steps] == [
+                AgentStepKind.MODEL,
+                AgentStepKind.TOOL,
+                AgentStepKind.MODEL,
+                AgentStepKind.FINAL,
+            ]
+            assert tuple(
+                event.payload["node"]
+                for event in events
+                if event.event_type is AgentEventType.RESEARCH_NODE_COMPLETED
+            ) == tuple(node.value for node in RESEARCH_NODE_ORDER)
+            assert tuple(
+                event.details["node"]
+                for event in trace.events
+                if event.event_type is AgentEventType.RESEARCH_NODE_COMPLETED
+            ) == tuple(node.value for node in RESEARCH_NODE_ORDER)
+            assert all("error_summary" not in event.details for event in trace.events)
+            assert run_count == 1
         finally:
             await engine.dispose()
 

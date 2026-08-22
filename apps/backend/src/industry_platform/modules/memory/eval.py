@@ -8,6 +8,8 @@ from industry_platform.modules.agent_harness.scenarios import ScenarioDataset
 
 MEMORY_SCORER_VERSION: Final = "memory-scorer-v1"
 MEMORY_EVAL_FIELD: Final = "memory_eval"
+MEMORY_ABLATION_SCORER_VERSION: Final = "memory-ablation-scorer-v1"
+MEMORY_ABLATION_EVAL_FIELD: Final = "memory_ablation_eval"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +33,35 @@ class MemoryEvalReport:
 
 
 @dataclass(frozen=True, slots=True)
+class MemoryAblationMode:
+    case_count: int
+    task_quality: MemoryMetric
+    pollution: MemoryMetric
+    conflict_handling: MemoryMetric
+    input_tokens: int
+    latency_ms: int
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryAblationDelta:
+    task_quality: float
+    pollution: float
+    conflict_handling: float
+    input_tokens: int
+    latency_ms: int
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryAblationReport:
+    dataset_id: str
+    dataset_version: str
+    scorer_version: str
+    case_count: int
+    comparison: Mapping[str, MemoryAblationMode]
+    on_minus_off: MemoryAblationDelta
+
+
+@dataclass(frozen=True, slots=True)
 class _Observation:
     write_expected: int
     write_correct: int
@@ -45,6 +76,19 @@ class _Observation:
     edit_effective: int
     deletion_expected: int
     deletion_residual_refs: int
+    input_tokens: int
+    latency_ms: int
+
+
+@dataclass(frozen=True, slots=True)
+class _AblationObservation:
+    mode: str
+    task_quality_expected: int
+    task_quality_correct: int
+    pollution_opportunities: int
+    pollution_events: int
+    conflict_expected: int
+    conflict_handled: int
     input_tokens: int
     latency_ms: int
 
@@ -95,6 +139,39 @@ def score_memory_dataset(dataset: ScenarioDataset) -> MemoryEvalReport:
     )
 
 
+def score_memory_ablation_dataset(dataset: ScenarioDataset) -> MemoryAblationReport:
+    """Compare the same frozen input with Memory disabled and enabled."""
+
+    observations = tuple(_ablation_observation(case.expected_behavior) for case in dataset.cases)
+    by_mode: dict[str, _AblationObservation] = {}
+    for observation in observations:
+        if observation.mode in by_mode:
+            raise ValueError("Memory ablation requires one case per mode")
+        by_mode[observation.mode] = observation
+    if set(by_mode) != {"off", "on"}:
+        raise ValueError("Memory ablation requires off and on cases")
+    comparison = {mode: _ablation_mode(by_mode[mode]) for mode in ("off", "on")}
+    off = comparison["off"]
+    on = comparison["on"]
+    return MemoryAblationReport(
+        dataset_id=dataset.dataset_id,
+        dataset_version=dataset.dataset_version,
+        scorer_version=MEMORY_ABLATION_SCORER_VERSION,
+        case_count=len(observations),
+        comparison=comparison,
+        on_minus_off=MemoryAblationDelta(
+            task_quality=round(on.task_quality.value - off.task_quality.value, 6),
+            pollution=round(on.pollution.value - off.pollution.value, 6),
+            conflict_handling=round(
+                on.conflict_handling.value - off.conflict_handling.value,
+                6,
+            ),
+            input_tokens=on.input_tokens - off.input_tokens,
+            latency_ms=on.latency_ms - off.latency_ms,
+        ),
+    )
+
+
 def _observation(expected: Mapping[str, object]) -> _Observation:
     value = expected.get(MEMORY_EVAL_FIELD)
     if not isinstance(value, Mapping):
@@ -120,6 +197,65 @@ def _observation(expected: Mapping[str, object]) -> _Observation:
     ):
         raise ValueError("Memory observation numerator exceeds its denominator")
     return observation
+
+
+def _ablation_observation(expected: Mapping[str, object]) -> _AblationObservation:
+    value = expected.get(MEMORY_ABLATION_EVAL_FIELD)
+    if not isinstance(value, Mapping) or set(value) != set(
+        _AblationObservation.__dataclass_fields__
+    ):
+        raise ValueError("Memory ablation observation fields are invalid")
+    mode = value["mode"]
+    if not isinstance(mode, str) or mode not in {"off", "on"}:
+        raise ValueError("Memory ablation mode is invalid")
+    integers: dict[str, int] = {}
+    for field_name in _AblationObservation.__dataclass_fields__:
+        if field_name == "mode":
+            continue
+        item = value[field_name]
+        if isinstance(item, bool) or not isinstance(item, int) or item < 0:
+            raise ValueError("Memory ablation observation value is invalid")
+        integers[field_name] = item
+    observation = _AblationObservation(mode=mode, **integers)
+    if (
+        observation.task_quality_expected < 1
+        or observation.pollution_opportunities < 1
+        or observation.conflict_expected < 1
+        or observation.task_quality_correct > observation.task_quality_expected
+        or observation.pollution_events > observation.pollution_opportunities
+        or observation.conflict_handled > observation.conflict_expected
+    ):
+        raise ValueError("Memory ablation numerator exceeds its denominator")
+    return observation
+
+
+def _ablation_mode(observation: _AblationObservation) -> MemoryAblationMode:
+    return MemoryAblationMode(
+        case_count=1,
+        task_quality=MemoryMetric(
+            numerator=observation.task_quality_correct,
+            denominator=observation.task_quality_expected,
+            value=round(
+                observation.task_quality_correct / observation.task_quality_expected,
+                6,
+            ),
+        ),
+        pollution=MemoryMetric(
+            numerator=observation.pollution_events,
+            denominator=observation.pollution_opportunities,
+            value=round(
+                observation.pollution_events / observation.pollution_opportunities,
+                6,
+            ),
+        ),
+        conflict_handling=MemoryMetric(
+            numerator=observation.conflict_handled,
+            denominator=observation.conflict_expected,
+            value=round(observation.conflict_handled / observation.conflict_expected, 6),
+        ),
+        input_tokens=observation.input_tokens,
+        latency_ms=observation.latency_ms,
+    )
 
 
 def _ratio(
