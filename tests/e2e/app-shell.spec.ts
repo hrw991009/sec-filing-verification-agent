@@ -384,10 +384,11 @@ test.describe("browser identity lifecycle", () => {
     await page.getByRole("button", { name: "有帮助" }).click();
     expect((await feedbackResponse).status()).toBe(200);
 
-    await page.getByRole("button", { name: "停用" }).click();
-    await expect(page.getByRole("button", { name: "恢复启用" })).toBeVisible();
-    await page.getByRole("button", { name: "恢复启用" }).click();
-    await expect(page.getByRole("button", { name: "停用" })).toBeVisible();
+    await page.getByRole("button", { exact: true, name: "停用" }).click();
+    const enableButton = page.getByRole("button", { exact: true, name: "恢复启用" });
+    await expect(enableButton).toBeEnabled();
+    await enableButton.click();
+    await expect(page.getByRole("button", { exact: true, name: "停用" })).toBeEnabled();
 
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "删除" }).click();
