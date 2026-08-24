@@ -265,7 +265,8 @@ async def test_knowledge_handler_maps_parser_retryability_to_stable_job_errors(
     with pytest.raises(exception_type) as captured:
         await handler.execute(acquired_job())
 
-    assert captured.value.error_code is job_error
+    error = cast(RetryableJobHandlerError | PermanentJobHandlerError, captured.value)
+    assert error.error_code is job_error
 
 
 @pytest.mark.asyncio

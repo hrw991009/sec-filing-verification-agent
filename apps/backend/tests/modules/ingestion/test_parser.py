@@ -23,6 +23,7 @@ from industry_platform.modules.ingestion.chunker import BoundedPageChunker
 from industry_platform.modules.ingestion.domain import (
     DocumentParserError,
     ParsedAssetKind,
+    ParsedDocument,
     ParsedTextSource,
     ParserBudget,
     ParserErrorCode,
@@ -310,7 +311,7 @@ async def test_parser_timeout_has_a_retryable_stable_error(
     parser = PdfPlumberRapidOcrDocumentParser()
     original = parser._parse_sync
 
-    def slow_parse(request: ParserRequest):
+    def slow_parse(request: ParserRequest) -> ParsedDocument:
         time.sleep(1.1)
         return original(request)
 
