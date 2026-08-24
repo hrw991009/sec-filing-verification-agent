@@ -3,7 +3,7 @@
 import hashlib
 from collections.abc import Callable
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from uuid import UUID, uuid4
@@ -37,6 +37,7 @@ from industry_platform.modules.knowledge.domain import (
     KNOWLEDGE_INGESTION_TASK_NAME,
     KNOWLEDGE_SCHEMA_VERSION,
     CompleteKnowledgeUpload,
+    CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
     DeleteKnowledgeBase,
@@ -46,10 +47,12 @@ from industry_platform.modules.knowledge.domain import (
     KnowledgeBase,
     KnowledgeIngestionEvent,
     KnowledgeUploadTicket,
+    PreparedDocumentVersion,
     PreparedKnowledgeAcceptance,
     StagingKnowledgeUpload,
     UpdateKnowledgeBase,
     VerifiedKnowledgeUpload,
+    fingerprint_document_version_request,
     fingerprint_knowledge_request,
     hash_knowledge_idempotency_key,
 )
@@ -299,13 +302,110 @@ class KnowledgeApplicationService:
             scope, knowledge_base_id=knowledge_base_id, limit=limit
         )
 
+    async def create_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: CreateDocumentVersion,
+    ) -> KnowledgeAcceptanceReceipt:
+        self._require(scope, WorkspaceAction.CREATE_RESOURCE)
+        detail = await self.repository.get_document(
+            scope,
+            knowledge_base_id=command.knowledge_base_id,
+            document_id=command.document_id,
+        )
+        latest_version = detail.versions[0]
+        latest_source = detail.sources[0]
+        key_hash = hash_knowledge_idempotency_key(command.idempotency_key)
+        request_hash = fingerprint_document_version_request(
+            knowledge_base_id=command.knowledge_base_id,
+            document_id=command.document_id,
+            file_id=latest_source.file_id,
+        )
+        existing = await self.repository.existing_receipt(
+            workspace_id=scope.workspace_id,
+            knowledge_base_id=command.knowledge_base_id,
+            file_id=latest_source.file_id,
+            idempotency_key_hash=key_hash,
+            request_fingerprint=request_hash,
+            allow_file_reuse=True,
+        )
+        if existing is not None:
+            return existing
+
+        now = self.clock()
+        version_id = self.id_source()
+        definition = JobDefinition(
+            scope=ExecutionScope(workspace_id=scope.workspace_id),
+            task_name=KNOWLEDGE_INGESTION_TASK_NAME,
+            queue_name=KNOWLEDGE_INGESTION_QUEUE_NAME,
+            payload={
+                "document_version_id": str(version_id),
+                "file_id": str(latest_source.file_id),
+                "schema_version": KNOWLEDGE_SCHEMA_VERSION,
+            },
+            available_at=now,
+            max_attempts=5,
+            idempotency_key=command.idempotency_key,
+            soft_time_limit_seconds=1_500,
+            hard_time_limit_seconds=1_800,
+        )
+        prepared = PreparedDocumentVersion(
+            version_id=version_id,
+            document_id=command.document_id,
+            knowledge_base_id=command.knowledge_base_id,
+            workspace_id=scope.workspace_id,
+            created_by_user_id=scope.user_id,
+            file_id=latest_source.file_id,
+            expected_document_revision=command.expected_revision,
+            expected_latest_version_id=latest_version.id,
+            expected_latest_version_number=latest_version.version,
+            idempotency_key_hash=key_hash,
+            request_fingerprint=request_hash,
+            job=PreparedJobSubmission(
+                job_id=self.id_source(),
+                outbox_event_id=self.id_source(),
+                scope=definition.scope,
+                task_name=definition.task_name,
+                queue_name=definition.queue_name,
+                payload=definition.payload,
+                available_at=definition.available_at,
+                max_attempts=definition.max_attempts,
+                priority=definition.priority,
+                soft_time_limit_seconds=definition.soft_time_limit_seconds,
+                hard_time_limit_seconds=definition.hard_time_limit_seconds,
+                trace_id=command.trace_id,
+                idempotency_key_hash=hash_job_idempotency_key(command.idempotency_key),
+                request_fingerprint=fingerprint_job_request(definition),
+                submitted_at=now,
+            ),
+            created_at=now,
+        )
+        async with self.transaction_factory() as writer:
+            return await writer.submit_document_version(prepared)
+
     async def get_document(
         self, scope: WorkspaceScope, *, knowledge_base_id: UUID, document_id: UUID
     ) -> DocumentDetail:
         self._require(scope, WorkspaceAction.VIEW)
-        return await self.repository.get_document(
+        detail = await self.repository.get_document(
             scope, knowledge_base_id=knowledge_base_id, document_id=document_id
         )
+        if not detail.assets:
+            return detail
+        store, _bucket = self._store()
+        expires_at = self.clock() + timedelta(seconds=self.presign_expiry_seconds)
+        signed_assets = []
+        for asset in detail.assets:
+            try:
+                preview_url = await store.presign_get(
+                    bucket=asset.preview_bucket,
+                    object_key=asset.preview_object_key,
+                    expires_at=expires_at,
+                )
+            except FileObjectStoreError:
+                raise FileServiceUnavailableError from None
+            signed_assets.append(replace(asset, preview_url=preview_url))
+        return replace(detail, assets=tuple(signed_assets))
 
     async def list_ingestion_events(
         self,

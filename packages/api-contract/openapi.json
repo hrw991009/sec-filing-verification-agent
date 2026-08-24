@@ -1550,6 +1550,191 @@
         "title": "DependencyStatus",
         "type": "string"
       },
+      "DocumentAssetKind": {
+        "enum": ["image", "table"],
+        "title": "DocumentAssetKind",
+        "type": "string"
+      },
+      "DocumentAssetResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bbox",
+            "type": "array"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "document_version_id": {
+            "format": "uuid",
+            "title": "Document Version Id",
+            "type": "string"
+          },
+          "html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DocumentAssetKind"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "preview_mime_type": {
+            "title": "Preview Mime Type",
+            "type": "string"
+          },
+          "preview_sha256": {
+            "title": "Preview Sha256",
+            "type": "string"
+          },
+          "preview_url": {
+            "title": "Preview Url",
+            "type": "string"
+          },
+          "title_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Title Path",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "document_version_id",
+          "ordinal",
+          "page_number",
+          "kind",
+          "bbox",
+          "title_path",
+          "content_hash",
+          "preview_sha256",
+          "preview_mime_type",
+          "preview_url",
+          "html"
+        ],
+        "title": "DocumentAssetResponse",
+        "type": "object"
+      },
+      "DocumentChunkResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Asset Ids",
+            "type": "array"
+          },
+          "bbox": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bbox",
+            "type": "array"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "document_version_id": {
+            "format": "uuid",
+            "title": "Document Version Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Title Path",
+            "type": "array"
+          },
+          "token_count": {
+            "title": "Token Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "document_version_id",
+          "ordinal",
+          "page_number",
+          "text",
+          "token_count",
+          "bbox",
+          "title_path",
+          "content_hash",
+          "asset_ids"
+        ],
+        "title": "DocumentChunkResponse",
+        "type": "object"
+      },
       "DocumentCollectionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1568,8 +1753,36 @@
       "DocumentDetailResponse": {
         "additionalProperties": false,
         "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentAssetResponse"
+            },
+            "title": "Assets",
+            "type": "array"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentChunkResponse"
+            },
+            "title": "Chunks",
+            "type": "array"
+          },
           "document": {
             "$ref": "#/components/schemas/DocumentResponse"
+          },
+          "ingestion_checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/IngestionCheckpointResponse"
+            },
+            "title": "Ingestion Checkpoints",
+            "type": "array"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentPageResponse"
+            },
+            "title": "Pages",
+            "type": "array"
           },
           "versions": {
             "items": {
@@ -1579,9 +1792,93 @@
             "type": "array"
           }
         },
-        "required": ["document", "versions"],
+        "required": ["document", "versions", "pages", "chunks", "assets", "ingestion_checkpoints"],
         "title": "DocumentDetailResponse",
         "type": "object"
+      },
+      "DocumentPageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bbox",
+            "type": "array"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "document_version_id": {
+            "format": "uuid",
+            "title": "Document Version Id",
+            "type": "string"
+          },
+          "height_points": {
+            "title": "Height Points",
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "text_source": {
+            "$ref": "#/components/schemas/DocumentPageTextSource"
+          },
+          "title_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Title Path",
+            "type": "array"
+          },
+          "width_points": {
+            "title": "Width Points",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "document_version_id",
+          "page_number",
+          "width_points",
+          "height_points",
+          "text",
+          "text_source",
+          "bbox",
+          "title_path",
+          "content_hash"
+        ],
+        "title": "DocumentPageResponse",
+        "type": "object"
+      },
+      "DocumentPageTextSource": {
+        "enum": ["digital", "ocr", "plain_text", "markdown"],
+        "title": "DocumentPageTextSource",
+        "type": "string"
       },
       "DocumentResponse": {
         "additionalProperties": false,
@@ -1675,6 +1972,19 @@
       "DocumentVersionResponse": {
         "additionalProperties": false,
         "properties": {
+          "chunker_config": {
+            "additionalProperties": true,
+            "title": "Chunker Config",
+            "type": "object"
+          },
+          "chunker_name": {
+            "title": "Chunker Name",
+            "type": "string"
+          },
+          "chunker_version": {
+            "title": "Chunker Version",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1709,6 +2019,23 @@
           "ingestion_job_id": {
             "format": "uuid",
             "title": "Ingestion Job Id",
+            "type": "string"
+          },
+          "parser_config": {
+            "additionalProperties": true,
+            "title": "Parser Config",
+            "type": "object"
+          },
+          "parser_name": {
+            "title": "Parser Name",
+            "type": "string"
+          },
+          "parser_schema_version": {
+            "title": "Parser Schema Version",
+            "type": "integer"
+          },
+          "parser_version": {
+            "title": "Parser Version",
             "type": "string"
           },
           "processing_started_at": {
@@ -1776,7 +2103,14 @@
           "processing_started_at",
           "ready_at",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "parser_name",
+          "parser_version",
+          "parser_schema_version",
+          "parser_config",
+          "chunker_name",
+          "chunker_version",
+          "chunker_config"
         ],
         "title": "DocumentVersionResponse",
         "type": "object"
@@ -1788,6 +2122,7 @@
           "parsing",
           "extracting_assets",
           "chunking",
+          "parsed",
           "embedding",
           "vector_indexing",
           "lexical_indexing",
@@ -2510,6 +2845,79 @@
         ],
         "title": "IndustrySourceLocatorResponse",
         "type": "object"
+      },
+      "IngestionCheckpointResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "document_version_id": {
+            "format": "uuid",
+            "title": "Document Version Id",
+            "type": "string"
+          },
+          "fencing_token": {
+            "title": "Fencing Token",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingestion_job_id": {
+            "format": "uuid",
+            "title": "Ingestion Job Id",
+            "type": "string"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "output_hash": {
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/IngestionCheckpointStage"
+          },
+          "stage_sequence": {
+            "title": "Stage Sequence",
+            "type": "integer"
+          },
+          "stats": {
+            "additionalProperties": true,
+            "title": "Stats",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "document_version_id",
+          "ingestion_job_id",
+          "stage",
+          "stage_sequence",
+          "fencing_token",
+          "attempt_count",
+          "input_hash",
+          "output_hash",
+          "stats",
+          "completed_at"
+        ],
+        "title": "IngestionCheckpointResponse",
+        "type": "object"
+      },
+      "IngestionCheckpointStage": {
+        "enum": ["validating", "parsing", "extracting_assets", "chunking"],
+        "title": "IngestionCheckpointStage",
+        "type": "string"
       },
       "InvalidateEvidenceRequest": {
         "additionalProperties": false,
@@ -18384,6 +18792,321 @@
           }
         ],
         "summary": "Get Document",
+        "tags": ["knowledge"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions": {
+      "post": {
+        "operationId": "create_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "knowledge_base_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledge Base Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdempotencyKey"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeAcceptanceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Knowledge resource not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Knowledge state conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Knowledge upload rejected"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Knowledge service temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Create Document Version",
         "tags": ["knowledge"]
       }
     },

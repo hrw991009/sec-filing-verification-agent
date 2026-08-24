@@ -19,10 +19,14 @@ from industry_platform.modules.knowledge.domain import (
     MAX_KNOWLEDGE_BASE_DESCRIPTION_LENGTH,
     MAX_KNOWLEDGE_BASE_NAME_LENGTH,
     MAX_KNOWLEDGE_DOCUMENT_BYTES,
+    DocumentAsset,
+    DocumentAssetKind,
     DocumentDetail,
+    DocumentPageTextSource,
     DocumentVersion,
     DocumentVersionStatus,
     DocumentView,
+    IngestionCheckpointStage,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
     KnowledgeIngestionEvent,
@@ -145,6 +149,68 @@ class DocumentVersionResponse(StrictKnowledgeModel):
     ready_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    parser_name: str
+    parser_version: str
+    parser_schema_version: int
+    parser_config: dict[str, object]
+    chunker_name: str
+    chunker_version: str
+    chunker_config: dict[str, object]
+
+
+class DocumentPageResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    page_number: int
+    width_points: float
+    height_points: float
+    text: str
+    text_source: DocumentPageTextSource
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+
+
+class DocumentChunkResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    ordinal: int
+    page_number: int
+    text: str
+    token_count: int
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+    asset_ids: tuple[UUID, ...]
+
+
+class DocumentAssetResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    ordinal: int
+    page_number: int
+    kind: DocumentAssetKind
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+    preview_sha256: str
+    preview_mime_type: str
+    preview_url: str
+    html: str | None
+
+
+class IngestionCheckpointResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    ingestion_job_id: UUID
+    stage: IngestionCheckpointStage
+    stage_sequence: int
+    fencing_token: int
+    attempt_count: int
+    input_hash: str
+    output_hash: str
+    stats: dict[str, object]
+    completed_at: datetime
 
 
 class DocumentResponse(StrictKnowledgeModel):
@@ -173,6 +239,10 @@ class DocumentVersionDetailResponse(StrictKnowledgeModel):
 class DocumentDetailResponse(StrictKnowledgeModel):
     document: DocumentResponse
     versions: list[DocumentVersionDetailResponse]
+    pages: list[DocumentPageResponse]
+    chunks: list[DocumentChunkResponse]
+    assets: list[DocumentAssetResponse]
+    ingestion_checkpoints: list[IngestionCheckpointResponse]
 
 
 class KnowledgeUploadFileResponse(StrictKnowledgeModel):
@@ -256,6 +326,13 @@ def version_response(value: DocumentVersion) -> DocumentVersionResponse:
         ready_at=value.ready_at,
         created_at=value.created_at,
         updated_at=value.updated_at,
+        parser_name=value.parser_name,
+        parser_version=value.parser_version,
+        parser_schema_version=value.parser_schema_version,
+        parser_config=value.parser_config,
+        chunker_name=value.chunker_name,
+        chunker_version=value.chunker_version,
+        chunker_config=value.chunker_config,
     )
 
 
@@ -276,6 +353,25 @@ def document_response(value: DocumentView) -> DocumentResponse:
     )
 
 
+def _asset_response(asset: DocumentAsset) -> DocumentAssetResponse:
+    if asset.preview_url is None:
+        raise ValueError("Knowledge asset preview URL was not signed")
+    return DocumentAssetResponse(
+        id=asset.id,
+        document_version_id=asset.document_version_id,
+        ordinal=asset.ordinal,
+        page_number=asset.page_number,
+        kind=asset.kind,
+        bbox=asset.bbox,
+        title_path=asset.title_path,
+        content_hash=asset.content_hash,
+        preview_sha256=asset.preview_sha256,
+        preview_mime_type=asset.preview_mime_type,
+        preview_url=asset.preview_url,
+        html=asset.html,
+    )
+
+
 def document_detail_response(value: DocumentDetail) -> DocumentDetailResponse:
     latest_version = value.versions[0]
     latest_source = value.sources[0]
@@ -293,6 +389,53 @@ def document_detail_response(value: DocumentDetail) -> DocumentDetailResponse:
                 source=source_response(source),
             )
             for version, source in zip(value.versions, value.sources, strict=True)
+        ],
+        pages=[
+            DocumentPageResponse(
+                id=page.id,
+                document_version_id=page.document_version_id,
+                page_number=page.page_number,
+                width_points=page.width_points,
+                height_points=page.height_points,
+                text=page.text,
+                text_source=page.text_source,
+                bbox=page.bbox,
+                title_path=page.title_path,
+                content_hash=page.content_hash,
+            )
+            for page in value.pages
+        ],
+        chunks=[
+            DocumentChunkResponse(
+                id=chunk.id,
+                document_version_id=chunk.document_version_id,
+                ordinal=chunk.ordinal,
+                page_number=chunk.page_number,
+                text=chunk.text,
+                token_count=chunk.token_count,
+                bbox=chunk.bbox,
+                title_path=chunk.title_path,
+                content_hash=chunk.content_hash,
+                asset_ids=chunk.asset_ids,
+            )
+            for chunk in value.chunks
+        ],
+        assets=[_asset_response(asset) for asset in value.assets],
+        ingestion_checkpoints=[
+            IngestionCheckpointResponse(
+                id=checkpoint.id,
+                document_version_id=checkpoint.document_version_id,
+                ingestion_job_id=checkpoint.ingestion_job_id,
+                stage=checkpoint.stage,
+                stage_sequence=checkpoint.stage_sequence,
+                fencing_token=checkpoint.fencing_token,
+                attempt_count=checkpoint.attempt_count,
+                input_hash=checkpoint.input_hash,
+                output_hash=checkpoint.output_hash,
+                stats=checkpoint.stats,
+                completed_at=checkpoint.completed_at,
+            )
+            for checkpoint in value.ingestion_checkpoints
         ],
     )
 

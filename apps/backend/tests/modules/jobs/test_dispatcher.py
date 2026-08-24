@@ -280,6 +280,7 @@ def test_celery_app_is_json_only_late_ack_broker_only(
         assert set(app.amqp.queues) == {
             test_settings.job_default_queue,
             "agents",
+            "ingestion",
             "industry-collection",
         }
         assert app.conf.task_soft_time_limit is None
@@ -297,6 +298,6 @@ def test_celery_app_deduplicates_known_queues(test_settings: Settings) -> None:
     settings = test_settings.model_copy(update={"job_default_queue": "agents"})
     app = create_celery_app(settings)
     try:
-        assert set(app.amqp.queues) == {"agents", "industry-collection"}
+        assert set(app.amqp.queues) == {"agents", "industry-collection", "ingestion"}
     finally:
         app.close()

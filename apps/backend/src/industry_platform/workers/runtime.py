@@ -26,6 +26,7 @@ from industry_platform.modules.agent_runtime.resources import (
     create_direct_answer_runtime_resources,
 )
 from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
+from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
 )
@@ -44,6 +45,16 @@ from industry_platform.modules.industry.domain import (
 )
 from industry_platform.modules.industry.ports import IndustryCollectionUseCase
 from industry_platform.modules.industry.resources import create_industry_resources
+from industry_platform.modules.ingestion.domain import (
+    DocumentParserError,
+    IngestionCancelledError,
+    IngestionConflictError,
+    IngestionDependencyError,
+    IngestionNotFoundError,
+    IngestionPersistenceError,
+)
+from industry_platform.modules.ingestion.resources import create_ingestion_resources
+from industry_platform.modules.ingestion.service import KnowledgeIngestionService
 from industry_platform.modules.jobs.domain import (
     AcquiredJob,
     AcquireJobCommand,
@@ -61,6 +72,7 @@ from industry_platform.modules.jobs.domain import (
 )
 from industry_platform.modules.jobs.ports import JobApplicationUseCase
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.knowledge.domain import KNOWLEDGE_INGESTION_TASK_NAME
 from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
 
 IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER = "identity.refresh_recovery.cleanup.v1"
@@ -76,6 +88,7 @@ class JobExecutionDisposition(StrEnum):
     RETRY_SCHEDULED = "retry_scheduled"
     DEAD_LETTER = "dead_letter"
     LEASE_LOST = "lease_lost"
+    CANCELLED = "cancelled"
 
 
 class JobHandler(Protocol):
@@ -108,6 +121,14 @@ class PermanentJobHandlerError(RuntimeError):
 
     def __init__(self, error_code: JobExecutionErrorCode) -> None:
         super().__init__("Job handler request failed")
+        self.error_code = error_code
+
+
+class CancelledJobHandlerError(RuntimeError):
+    """Carry one cooperative cancellation to the Job terminal boundary."""
+
+    def __init__(self, error_code: JobExecutionErrorCode) -> None:
+        super().__init__("Job handler was cancelled")
         self.error_code = error_code
 
 
@@ -224,6 +245,49 @@ class IndustryCollectionJobHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class KnowledgeIngestionJobHandler:
+    ingestion: KnowledgeIngestionService = field(repr=False)
+
+    async def execute(self, job: AcquiredJob) -> Mapping[str, object]:
+        try:
+            result = await self.ingestion.execute(job)
+        except ValueError:
+            raise InvalidJobPayloadError from None
+        except IngestionCancelledError:
+            raise CancelledJobHandlerError(JobExecutionErrorCode.INGESTION_CANCELLED) from None
+        except DocumentParserError as error:
+            code = (
+                JobExecutionErrorCode.INGESTION_PARSER_RETRYABLE
+                if error.retryable
+                else JobExecutionErrorCode.INGESTION_PARSER_FAILED
+            )
+            if error.retryable:
+                raise RetryableJobHandlerError(code) from None
+            raise PermanentJobHandlerError(code) from None
+        except IngestionDependencyError:
+            raise RetryableJobHandlerError(
+                JobExecutionErrorCode.INGESTION_DEPENDENCY_RETRYABLE
+            ) from None
+        except IngestionPersistenceError as error:
+            logger.error(
+                "knowledge_ingestion_persistence_failed job_id=%s sqlstate=%s constraint=%s",
+                job.job_id,
+                error.sqlstate or "unknown",
+                error.constraint_name or "unknown",
+            )
+            raise RetryableJobHandlerError(JobExecutionErrorCode.INGESTION_UNAVAILABLE) from None
+        except (IngestionConflictError, IngestionNotFoundError):
+            raise PermanentJobHandlerError(JobExecutionErrorCode.INGESTION_STATE_INVALID) from None
+        return {
+            "asset_count": result.asset_count,
+            "chunk_count": result.chunk_count,
+            "document_version_id": str(result.document_version_id),
+            "page_count": result.page_count,
+            "status": result.status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FixedJobHandlerRegistry:
     """Immutable allowlist; persisted names never trigger dynamic imports."""
 
@@ -238,6 +302,7 @@ class FixedJobHandlerRegistry:
         cleanup_use_case: RefreshRecoveryCleanupUseCase,
         direct_answer_use_case: DirectAnswerRunExecutionUseCase | None = None,
         collection_use_case: IndustryCollectionUseCase | None = None,
+        ingestion_use_case: KnowledgeIngestionService | None = None,
     ) -> "FixedJobHandlerRegistry":
         handlers: dict[str, JobHandler] = {
             IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
@@ -250,6 +315,10 @@ class FixedJobHandlerRegistry:
         if collection_use_case is not None:
             handlers[INDUSTRY_COLLECTION_TASK_NAME] = IndustryCollectionJobHandler(
                 collection_use_case
+            )
+        if ingestion_use_case is not None:
+            handlers[KNOWLEDGE_INGESTION_TASK_NAME] = KnowledgeIngestionJobHandler(
+                ingestion_use_case
             )
         return cls(handlers)
 
@@ -328,6 +397,8 @@ class JobExecutionRuntime:
             return await self._retry(acquired, error.error_code)
         except PermanentJobHandlerError as error:
             return await self._fail(acquired, error.error_code)
+        except CancelledJobHandlerError as error:
+            return await self._cancel(acquired, error.error_code)
         except UnknownJobHandlerError:
             return await self._fail(
                 acquired,
@@ -447,6 +518,23 @@ class JobExecutionRuntime:
             return JobExecutionDisposition.RETRY_SCHEDULED
         return JobExecutionDisposition.DEAD_LETTER
 
+    async def _cancel(
+        self,
+        acquired: AcquiredJob,
+        error_code: JobExecutionErrorCode,
+    ) -> JobExecutionDisposition:
+        try:
+            await self.jobs.finish(
+                FinishJobCommand(
+                    proof=acquired.lease_proof,
+                    outcome=JobStatus.CANCELLED,
+                    error_code=error_code.value,
+                )
+            )
+        except LostJobLeaseError:
+            return JobExecutionDisposition.LEASE_LOST
+        return JobExecutionDisposition.CANCELLED
+
 
 async def run_job_delivery(
     delivery: JobDispatchMessage,
@@ -495,12 +583,18 @@ def create_job_delivery_runtime(
         provider_http_client,
         tool_adapters=(industry.web_search_tool,),
     )
+    ingestion = create_ingestion_resources(
+        session_factory,
+        job_resources.application_service,
+        create_private_file_object_store(settings),
+    )
     return JobExecutionRuntime(
         jobs=job_resources.application_service,
         handlers=FixedJobHandlerRegistry.production(
             cleanup_service,
             direct_answer.execution_service,
             industry.collection_service,
+            ingestion.service,
         ),
         worker_id=f"celery-{uuid4().hex}",
         heartbeat_seconds=settings.job_heartbeat_seconds,

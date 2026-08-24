@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -21,15 +21,23 @@ from industry_platform.modules.identity.http_auth import get_principal_resolver
 from industry_platform.modules.jobs.domain import JobStatus
 from industry_platform.modules.knowledge.domain import (
     CompleteKnowledgeUpload,
+    CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
     DeleteKnowledgeBase,
     Document,
+    DocumentAsset,
+    DocumentAssetKind,
+    DocumentChunk,
     DocumentDetail,
+    DocumentPage,
+    DocumentPageTextSource,
     DocumentStatus,
     DocumentVersion,
     DocumentVersionStatus,
     DocumentView,
+    IngestionCheckpoint,
+    IngestionCheckpointStage,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
     KnowledgeBaseStatus,
@@ -53,6 +61,13 @@ VERSION_ID = UUID("88888888-8888-4888-8888-888888888888")
 JOB_ID = UUID("99999999-9999-4999-8999-999999999999")
 OUTBOX_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 EVENT_ID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+PAGE_ID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+CHUNK_ID = UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+ASSET_ID = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
+CHECKPOINT_ID = UUID("ffffffff-ffff-4fff-8fff-ffffffffffff")
+VERSION_2_ID = UUID("12121212-1212-4212-8212-121212121212")
+JOB_2_ID = UUID("13131313-1313-4313-8313-131313131313")
+OUTBOX_2_ID = UUID("14141414-1414-4414-8414-141414141414")
 RAW_ACCESS_VALUE = "header.payload.signature"
 
 
@@ -118,6 +133,30 @@ class StubKnowledgeService:
         self.calls.append(("complete", scope, command))
         return receipt()
 
+    async def create_document_version(
+        self, scope: WorkspaceScope, command: CreateDocumentVersion
+    ) -> KnowledgeAcceptanceReceipt:
+        self.calls.append(("version", scope, command))
+        view = document_view(status=DocumentVersionStatus.PARSED)
+        version = replace(
+            view.latest_version,
+            id=VERSION_2_ID,
+            ingestion_job_id=JOB_2_ID,
+            version=2,
+            status=DocumentVersionStatus.QUEUED,
+            revision=1,
+            processing_started_at=None,
+        )
+        return KnowledgeAcceptanceReceipt(
+            document=replace(view.document, latest_version_number=2, revision=2),
+            version=version,
+            source=view.source,
+            job_id=JOB_2_ID,
+            job_status=JobStatus.PENDING,
+            outbox_event_id=OUTBOX_2_ID,
+            created=True,
+        )
+
     async def list_documents(
         self, scope: WorkspaceScope, *, knowledge_base_id: UUID, limit: int = 100
     ) -> tuple[DocumentView, ...]:
@@ -128,11 +167,72 @@ class StubKnowledgeService:
         self, scope: WorkspaceScope, *, knowledge_base_id: UUID, document_id: UUID
     ) -> DocumentDetail:
         self.calls.append(("document", scope, (knowledge_base_id, document_id)))
-        view = document_view()
+        view = document_view(status=DocumentVersionStatus.PARSED)
         return DocumentDetail(
             document=view.document,
             versions=(view.latest_version,),
             sources=(view.source,),
+            pages=(
+                DocumentPage(
+                    id=PAGE_ID,
+                    document_version_id=VERSION_ID,
+                    page_number=1,
+                    width_points=612.0,
+                    height_points=792.0,
+                    text="North capacity reached 18 units.",
+                    text_source=DocumentPageTextSource.DIGITAL,
+                    bbox=(0.0, 0.0, 612.0, 792.0),
+                    title_path=("Capacity",),
+                    content_hash="c" * 64,
+                ),
+            ),
+            chunks=(
+                DocumentChunk(
+                    id=CHUNK_ID,
+                    document_version_id=VERSION_ID,
+                    ordinal=1,
+                    page_number=1,
+                    text="North capacity reached 18 units.",
+                    token_count=6,
+                    bbox=(0.0, 0.0, 612.0, 792.0),
+                    title_path=("Capacity",),
+                    content_hash="d" * 64,
+                    asset_ids=(ASSET_ID,),
+                ),
+            ),
+            assets=(
+                DocumentAsset(
+                    id=ASSET_ID,
+                    document_version_id=VERSION_ID,
+                    ordinal=1,
+                    page_number=1,
+                    kind=DocumentAssetKind.TABLE,
+                    bbox=(60.0, 180.0, 540.0, 348.0),
+                    title_path=("Capacity",),
+                    content_hash="e" * 64,
+                    preview_sha256="f" * 64,
+                    preview_mime_type="image/png",
+                    html="<table><tbody><tr><td>North</td><td>18</td></tr></tbody></table>",
+                    preview_bucket="private",
+                    preview_object_key="derived/private/table.png",
+                    preview_url="http://127.0.0.1:19000/private-table?signature=test",
+                ),
+            ),
+            ingestion_checkpoints=(
+                IngestionCheckpoint(
+                    id=CHECKPOINT_ID,
+                    document_version_id=VERSION_ID,
+                    ingestion_job_id=JOB_ID,
+                    stage=IngestionCheckpointStage.CHUNKING,
+                    stage_sequence=4,
+                    fencing_token=1,
+                    attempt_count=1,
+                    input_hash="1" * 64,
+                    output_hash="2" * 64,
+                    stats={"chunk_count": 1},
+                    completed_at=NOW,
+                ),
+            ),
         )
 
     async def list_ingestion_events(
@@ -179,7 +279,7 @@ def knowledge_base(*, revision: int = 1) -> KnowledgeBase:
     )
 
 
-def document_view() -> DocumentView:
+def document_view(*, status: DocumentVersionStatus = DocumentVersionStatus.QUEUED) -> DocumentView:
     document = Document(
         id=DOCUMENT_ID,
         workspace_id=WORKSPACE_ID,
@@ -201,7 +301,7 @@ def document_view() -> DocumentView:
         file_id=FILE_ID,
         ingestion_job_id=JOB_ID,
         version=1,
-        status=DocumentVersionStatus.QUEUED,
+        status=status,
         revision=1,
         error_code=None,
         uploaded_at=NOW,
@@ -282,6 +382,15 @@ def test_crud_upload_and_refresh_contracts_use_trusted_workspace_scope(
             json={"title": "市场报告"},
         )
         documents = client.get(f"{root}/{KNOWLEDGE_BASE_ID}/documents", headers=auth())
+        detail = client.get(f"{root}/{KNOWLEDGE_BASE_ID}/documents/{DOCUMENT_ID}", headers=auth())
+        next_version = client.post(
+            f"{root}/{KNOWLEDGE_BASE_ID}/documents/{DOCUMENT_ID}/versions",
+            headers={
+                **auth(),
+                "Idempotency-Key": "parser-upgrade-1",
+                "If-Match": '"1"',
+            },
+        )
         events = client.get(accepted.json()["job"]["events_url"], headers=auth())
         deleted = client.delete(
             f"{root}/{KNOWLEDGE_BASE_ID}",
@@ -298,6 +407,15 @@ def test_crud_upload_and_refresh_contracts_use_trusted_workspace_scope(
     assert accepted.json()["version"]["status"] == "queued"
     assert accepted.json()["document"]["active_version_id"] is None
     assert documents.json()["documents"][0]["latest_version"]["status"] == "queued"
+    assert detail.status_code == 200
+    assert detail.json()["document"]["latest_version"]["status"] == "parsed"
+    assert detail.json()["pages"][0]["text_source"] == "digital"
+    assert detail.json()["chunks"][0]["asset_ids"] == [str(ASSET_ID)]
+    assert detail.json()["assets"][0]["preview_url"].endswith("signature=test")
+    assert detail.json()["ingestion_checkpoints"][0]["stage"] == "chunking"
+    assert next_version.status_code == 202
+    assert next_version.json()["version"]["id"] == str(VERSION_2_ID)
+    assert next_version.json()["version"]["version"] == 2
     assert events.json()["events"][0]["event_type"] == "created"
     assert deleted.status_code == 204
     expected_scope = WorkspaceScope(WORKSPACE_ID, USER_ID, "member")
@@ -305,6 +423,9 @@ def test_crud_upload_and_refresh_contracts_use_trusted_workspace_scope(
     complete_command = next(call[2] for call in service.calls if call[0] == "complete")
     assert isinstance(complete_command, CompleteKnowledgeUpload)
     assert "browser-upload-1" not in repr(complete_command)
+    version_command = next(call[2] for call in service.calls if call[0] == "version")
+    assert isinstance(version_command, CreateDocumentVersion)
+    assert "parser-upgrade-1" not in repr(version_command)
 
 
 def test_cross_workspace_and_invalid_media_fail_before_service(test_settings: Settings) -> None:

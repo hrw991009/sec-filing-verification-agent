@@ -63,8 +63,13 @@ from industry_platform.modules.jobs.models import (
     ScheduleOccurrence,
 )
 from industry_platform.modules.knowledge.models import (
+    ChunkAssetLinkRecord,
+    DocumentAssetRecord,
+    DocumentChunkRecord,
+    DocumentPageRecord,
     DocumentRecord,
     DocumentVersionRecord,
+    IngestionCheckpointRecord,
     KnowledgeBaseRecord,
 )
 from industry_platform.modules.memory.models import (
@@ -99,6 +104,11 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     KnowledgeBaseRecord,
     DocumentRecord,
     DocumentVersionRecord,
+    IngestionCheckpointRecord,
+    DocumentPageRecord,
+    DocumentChunkRecord,
+    DocumentAssetRecord,
+    ChunkAssetLinkRecord,
     Conversation,
     Turn,
     FileObject,

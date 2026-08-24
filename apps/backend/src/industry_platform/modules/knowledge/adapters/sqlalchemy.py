@@ -1,7 +1,7 @@
 """PostgreSQL persistence and atomic Knowledge acceptance."""
 
 import hmac
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -32,11 +32,17 @@ from industry_platform.modules.knowledge.domain import (
     CreateKnowledgeBase,
     DeleteKnowledgeBase,
     Document,
+    DocumentAsset,
+    DocumentAssetKind,
+    DocumentChunk,
     DocumentDetail,
+    DocumentPage,
+    DocumentPageTextSource,
     DocumentStatus,
     DocumentVersion,
     DocumentVersionStatus,
     DocumentView,
+    IngestionCheckpoint,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
     KnowledgeBaseStatus,
@@ -46,14 +52,29 @@ from industry_platform.modules.knowledge.domain import (
     KnowledgeNotFoundError,
     KnowledgePersistenceError,
     KnowledgeSource,
+    PreparedDocumentVersion,
     PreparedKnowledgeAcceptance,
     StagingKnowledgeUpload,
     UpdateKnowledgeBase,
 )
 from industry_platform.modules.knowledge.models import (
+    ChunkAssetLinkRecord,
+    DocumentAssetRecord,
+    DocumentChunkRecord,
+    DocumentPageRecord,
     DocumentRecord,
     DocumentVersionRecord,
+    IngestionCheckpointRecord,
     KnowledgeBaseRecord,
+)
+from industry_platform.modules.knowledge.parser_contract import (
+    CHUNKER_NAME,
+    CHUNKER_VERSION,
+    PARSER_NAME,
+    PARSER_SCHEMA_VERSION,
+    PARSER_VERSION,
+    chunker_config_snapshot,
+    parser_config_snapshot,
 )
 from industry_platform.modules.knowledge.ports import KnowledgeAcceptanceWriter
 from industry_platform.modules.workspaces.domain import WorkspaceScope
@@ -261,6 +282,7 @@ class SqlAlchemyKnowledgeRepository:
         file_id: UUID,
         idempotency_key_hash: bytes,
         request_fingerprint: bytes,
+        allow_file_reuse: bool = False,
     ) -> KnowledgeAcceptanceReceipt | None:
         try:
             async with self.session_factory() as session:
@@ -271,6 +293,7 @@ class SqlAlchemyKnowledgeRepository:
                     file_id=file_id,
                     idempotency_key_hash=idempotency_key_hash,
                     request_fingerprint=request_fingerprint,
+                    allow_file_reuse=allow_file_reuse,
                 )
         except (KnowledgeConflictError, KnowledgeNotFoundError):
             raise
@@ -429,10 +452,60 @@ class SqlAlchemyKnowledgeRepository:
                         .order_by(DocumentVersionRecord.version.desc())
                     )
                 ).all()
+                if not rows:
+                    raise KnowledgeNotFoundError
+                latest_version_id = rows[0][0].id
+                page_records = tuple(
+                    await session.scalars(
+                        select(DocumentPageRecord)
+                        .where(DocumentPageRecord.document_version_id == latest_version_id)
+                        .order_by(DocumentPageRecord.page_number)
+                    )
+                )
+                asset_records = tuple(
+                    await session.scalars(
+                        select(DocumentAssetRecord)
+                        .where(DocumentAssetRecord.document_version_id == latest_version_id)
+                        .order_by(DocumentAssetRecord.ordinal)
+                    )
+                )
+                chunk_records = tuple(
+                    await session.scalars(
+                        select(DocumentChunkRecord)
+                        .where(DocumentChunkRecord.document_version_id == latest_version_id)
+                        .order_by(DocumentChunkRecord.ordinal)
+                    )
+                )
+                link_records = tuple(
+                    await session.scalars(
+                        select(ChunkAssetLinkRecord).where(
+                            ChunkAssetLinkRecord.document_version_id == latest_version_id
+                        )
+                    )
+                )
+                checkpoint_records = tuple(
+                    await session.scalars(
+                        select(IngestionCheckpointRecord)
+                        .where(IngestionCheckpointRecord.document_version_id == latest_version_id)
+                        .order_by(IngestionCheckpointRecord.stage_sequence)
+                    )
+                )
+                asset_ids_by_chunk: dict[UUID, list[UUID]] = {}
+                for link in link_records:
+                    asset_ids_by_chunk.setdefault(link.chunk_id, []).append(link.asset_id)
                 return DocumentDetail(
                     document=_document(document),
                     versions=tuple(_version(version) for version, _source in rows),
                     sources=tuple(_source(source) for _version_record, source in rows),
+                    pages=tuple(_page(record) for record in page_records),
+                    chunks=tuple(
+                        _chunk(record, asset_ids=asset_ids_by_chunk.get(record.id, []))
+                        for record in chunk_records
+                    ),
+                    assets=tuple(_asset(record) for record in asset_records),
+                    ingestion_checkpoints=tuple(
+                        _ingestion_checkpoint(record) for record in checkpoint_records
+                    ),
                 )
         except KnowledgeNotFoundError:
             raise
@@ -578,6 +651,15 @@ class SqlAlchemyKnowledgeAcceptanceWriter:
             status=DocumentVersionStatus.QUEUED,
             ingestion_schema_version=KNOWLEDGE_SCHEMA_VERSION,
             revision=1,
+            parser_name=PARSER_NAME,
+            parser_version=PARSER_VERSION,
+            parser_schema_version=PARSER_SCHEMA_VERSION,
+            parser_config=parser_config_snapshot(
+                max_input_bytes=prepared.upload.claim.expected_size
+            ),
+            chunker_name=CHUNKER_NAME,
+            chunker_version=CHUNKER_VERSION,
+            chunker_config=chunker_config_snapshot(),
             idempotency_key_hash=prepared.idempotency_key_hash,
             request_fingerprint=prepared.request_fingerprint,
             uploaded_at=prepared.accepted_at,
@@ -591,6 +673,135 @@ class SqlAlchemyKnowledgeAcceptanceWriter:
         return KnowledgeAcceptanceReceipt(
             document=_document(document_record),
             version=_version(version_record),
+            source=_source(file),
+            job_id=job.job_id,
+            job_status=job.status,
+            outbox_event_id=job.outbox_event_id,
+            created=True,
+        )
+
+    async def submit_document_version(
+        self,
+        prepared: PreparedDocumentVersion,
+    ) -> KnowledgeAcceptanceReceipt:
+        existing = await _existing_receipt(
+            self.session,
+            workspace_id=prepared.workspace_id,
+            knowledge_base_id=prepared.knowledge_base_id,
+            file_id=prepared.file_id,
+            idempotency_key_hash=prepared.idempotency_key_hash,
+            request_fingerprint=prepared.request_fingerprint,
+            allow_file_reuse=True,
+        )
+        if existing is not None:
+            return existing
+
+        document = await self.session.scalar(
+            select(DocumentRecord)
+            .join(
+                KnowledgeBaseRecord,
+                (KnowledgeBaseRecord.id == DocumentRecord.knowledge_base_id)
+                & (KnowledgeBaseRecord.workspace_id == DocumentRecord.workspace_id),
+            )
+            .where(
+                DocumentRecord.id == prepared.document_id,
+                DocumentRecord.knowledge_base_id == prepared.knowledge_base_id,
+                DocumentRecord.workspace_id == prepared.workspace_id,
+                DocumentRecord.status == DocumentStatus.ACTIVE,
+                KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+            )
+            .with_for_update(of=DocumentRecord)
+        )
+        if document is None:
+            raise KnowledgeNotFoundError
+        latest = await self.session.scalar(
+            select(DocumentVersionRecord)
+            .where(
+                DocumentVersionRecord.id == prepared.expected_latest_version_id,
+                DocumentVersionRecord.document_id == document.id,
+                DocumentVersionRecord.workspace_id == prepared.workspace_id,
+                DocumentVersionRecord.version == document.latest_version_number,
+            )
+            .with_for_update()
+        )
+        file = await self.session.scalar(
+            select(FileObject)
+            .where(
+                FileObject.id == prepared.file_id,
+                FileObject.workspace_id == prepared.workspace_id,
+                FileObject.knowledge_base_id == prepared.knowledge_base_id,
+                FileObject.purpose == FileObjectPurpose.KNOWLEDGE_SOURCE,
+                FileObject.status == FileObjectStatus.READY,
+            )
+            .with_for_update()
+        )
+        if (
+            latest is None
+            or file is None
+            or file.actual_size is None
+            or file.actual_size < 1
+            or document.revision != prepared.expected_document_revision
+            or document.latest_version_number != prepared.expected_latest_version_number
+            or latest.file_object_id != prepared.file_id
+            or latest.status
+            not in {
+                DocumentVersionStatus.PARSED,
+                DocumentVersionStatus.READY,
+                DocumentVersionStatus.FAILED,
+                DocumentVersionStatus.CANCELLED,
+            }
+        ):
+            raise KnowledgeConflictError
+
+        job = await SqlAlchemyJobWriter(self.session).submit(prepared.job)
+        if not job.created:
+            existing = await _existing_receipt(
+                self.session,
+                workspace_id=prepared.workspace_id,
+                knowledge_base_id=prepared.knowledge_base_id,
+                file_id=prepared.file_id,
+                idempotency_key_hash=prepared.idempotency_key_hash,
+                request_fingerprint=prepared.request_fingerprint,
+                allow_file_reuse=True,
+            )
+            if existing is None:
+                raise KnowledgeConflictError
+            return existing
+
+        version = DocumentVersionRecord(
+            id=prepared.version_id,
+            workspace_id=prepared.workspace_id,
+            knowledge_base_id=prepared.knowledge_base_id,
+            document_id=prepared.document_id,
+            file_object_id=prepared.file_id,
+            ingestion_job_id=job.job_id,
+            created_by_user_id=prepared.created_by_user_id,
+            version=prepared.expected_latest_version_number + 1,
+            status=DocumentVersionStatus.QUEUED,
+            ingestion_schema_version=KNOWLEDGE_SCHEMA_VERSION,
+            revision=1,
+            parser_name=PARSER_NAME,
+            parser_version=PARSER_VERSION,
+            parser_schema_version=PARSER_SCHEMA_VERSION,
+            parser_config=parser_config_snapshot(max_input_bytes=file.actual_size),
+            chunker_name=CHUNKER_NAME,
+            chunker_version=CHUNKER_VERSION,
+            chunker_config=chunker_config_snapshot(),
+            idempotency_key_hash=prepared.idempotency_key_hash,
+            request_fingerprint=prepared.request_fingerprint,
+            uploaded_at=prepared.created_at,
+            queued_at=prepared.created_at,
+            created_at=prepared.created_at,
+            updated_at=prepared.created_at,
+        )
+        document.latest_version_number = version.version
+        document.revision += 1
+        document.updated_at = prepared.created_at
+        self.session.add(version)
+        await self.session.flush()
+        return KnowledgeAcceptanceReceipt(
+            document=_document(document),
+            version=_version(version),
             source=_source(file),
             job_id=job.job_id,
             job_status=job.status,
@@ -645,7 +856,14 @@ async def _existing_receipt(
     file_id: UUID,
     idempotency_key_hash: bytes,
     request_fingerprint: bytes,
+    allow_file_reuse: bool = False,
 ) -> KnowledgeAcceptanceReceipt | None:
+    identity_predicate = DocumentVersionRecord.idempotency_key_hash == idempotency_key_hash
+    if not allow_file_reuse:
+        identity_predicate = or_(
+            DocumentVersionRecord.file_object_id == file_id,
+            identity_predicate,
+        )
     rows = (
         await session.execute(
             select(DocumentVersionRecord, DocumentRecord, FileObject, Job, OutboxEvent)
@@ -658,17 +876,13 @@ async def _existing_receipt(
             )
             .where(
                 DocumentVersionRecord.workspace_id == workspace_id,
-                or_(
-                    DocumentVersionRecord.file_object_id == file_id,
-                    DocumentVersionRecord.idempotency_key_hash == idempotency_key_hash,
-                ),
+                identity_predicate,
             )
         )
     ).all()
     if not rows:
         return None
 
-    file_row = next((row for row in rows if row[0].file_object_id == file_id), None)
     key_row = next(
         (
             row
@@ -677,13 +891,13 @@ async def _existing_receipt(
         ),
         None,
     )
-    if file_row is None:
+    if key_row is None:
+        if allow_file_reuse:
+            return None
         raise KnowledgeConflictError
-    version, document, source, job, outbox = file_row
+    version, document, source, job, outbox = key_row
     if version.knowledge_base_id != knowledge_base_id:
         raise KnowledgeNotFoundError
-    if key_row is not None and key_row[0].id != version.id:
-        raise KnowledgeConflictError
     if version.file_object_id != file_id or not hmac.compare_digest(
         version.request_fingerprint, request_fingerprint
     ):
@@ -748,6 +962,13 @@ def _version(record: DocumentVersionRecord) -> DocumentVersion:
         ready_at=record.ready_at,
         created_at=record.created_at,
         updated_at=record.updated_at,
+        parser_name=record.parser_name,
+        parser_version=record.parser_version,
+        parser_schema_version=record.parser_schema_version,
+        parser_config=dict(record.parser_config),
+        chunker_name=record.chunker_name,
+        chunker_version=record.chunker_version,
+        chunker_config=dict(record.chunker_config),
     )
 
 
@@ -760,6 +981,87 @@ def _source(record: FileObject) -> KnowledgeSource:
         declared_media_type=AttachmentMediaType(record.declared_media_type),
         expected_size=record.expected_size,
         actual_size=record.actual_size,
+    )
+
+
+def _bbox(value: Sequence[object]) -> tuple[float, float, float, float]:
+    if len(value) != 4:
+        raise KnowledgePersistenceError
+    coordinates: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise KnowledgePersistenceError
+        coordinates.append(float(item))
+    return coordinates[0], coordinates[1], coordinates[2], coordinates[3]
+
+
+def _title_path(value: Sequence[object]) -> tuple[str, ...]:
+    if any(not isinstance(item, str) for item in value):
+        raise KnowledgePersistenceError
+    return tuple(str(item) for item in value)
+
+
+def _page(record: DocumentPageRecord) -> DocumentPage:
+    return DocumentPage(
+        id=record.id,
+        document_version_id=record.document_version_id,
+        page_number=record.page_number,
+        width_points=record.width_points,
+        height_points=record.height_points,
+        text=record.text_content,
+        text_source=DocumentPageTextSource(record.text_source.value),
+        bbox=_bbox(record.bbox),
+        title_path=_title_path(record.title_path),
+        content_hash=record.content_hash.hex(),
+    )
+
+
+def _chunk(record: DocumentChunkRecord, *, asset_ids: list[UUID]) -> DocumentChunk:
+    return DocumentChunk(
+        id=record.id,
+        document_version_id=record.document_version_id,
+        ordinal=record.ordinal,
+        page_number=record.page_number,
+        text=record.text_content,
+        token_count=record.token_count,
+        bbox=_bbox(record.bbox),
+        title_path=_title_path(record.title_path),
+        content_hash=record.content_hash.hex(),
+        asset_ids=tuple(sorted(asset_ids, key=str)),
+    )
+
+
+def _asset(record: DocumentAssetRecord) -> DocumentAsset:
+    return DocumentAsset(
+        id=record.id,
+        document_version_id=record.document_version_id,
+        ordinal=record.ordinal,
+        page_number=record.page_number,
+        kind=DocumentAssetKind(record.kind.value),
+        bbox=_bbox(record.bbox),
+        title_path=_title_path(record.title_path),
+        content_hash=record.content_hash.hex(),
+        preview_sha256=record.preview_sha256.hex(),
+        preview_mime_type=record.preview_mime_type,
+        html=record.html_content,
+        preview_bucket=record.preview_bucket,
+        preview_object_key=record.preview_object_key,
+    )
+
+
+def _ingestion_checkpoint(record: IngestionCheckpointRecord) -> IngestionCheckpoint:
+    return IngestionCheckpoint(
+        id=record.id,
+        document_version_id=record.document_version_id,
+        ingestion_job_id=record.ingestion_job_id,
+        stage=record.stage,
+        stage_sequence=record.stage_sequence,
+        fencing_token=record.fencing_token,
+        attempt_count=record.attempt_count,
+        input_hash=record.input_hash.hex(),
+        output_hash=record.output_hash.hex(),
+        stats=dict(record.stats),
+        completed_at=record.completed_at,
     )
 
 

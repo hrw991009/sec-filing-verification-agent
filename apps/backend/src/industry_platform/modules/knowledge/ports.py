@@ -8,6 +8,7 @@ from uuid import UUID
 from industry_platform.modules.knowledge.domain import (
     ClaimedKnowledgeUpload,
     CompleteKnowledgeUpload,
+    CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
     DeleteKnowledgeBase,
@@ -17,6 +18,7 @@ from industry_platform.modules.knowledge.domain import (
     KnowledgeBase,
     KnowledgeIngestionEvent,
     KnowledgeUploadTicket,
+    PreparedDocumentVersion,
     PreparedKnowledgeAcceptance,
     StagingKnowledgeUpload,
     UpdateKnowledgeBase,
@@ -55,6 +57,7 @@ class KnowledgeRepository(Protocol):
         file_id: UUID,
         idempotency_key_hash: bytes,
         request_fingerprint: bytes,
+        allow_file_reuse: bool = False,
     ) -> KnowledgeAcceptanceReceipt | None: ...
 
     async def claim_upload(
@@ -90,6 +93,10 @@ class KnowledgeRepository(Protocol):
 class KnowledgeAcceptanceWriter(Protocol):
     async def submit(self, prepared: PreparedKnowledgeAcceptance) -> KnowledgeAcceptanceReceipt: ...
 
+    async def submit_document_version(
+        self, prepared: PreparedDocumentVersion
+    ) -> KnowledgeAcceptanceReceipt: ...
+
 
 class KnowledgeAcceptanceTransactionFactory(Protocol):
     def __call__(self) -> AbstractAsyncContextManager[KnowledgeAcceptanceWriter]: ...
@@ -122,6 +129,10 @@ class KnowledgeUseCase(Protocol):
 
     async def complete_upload(
         self, scope: WorkspaceScope, command: CompleteKnowledgeUpload
+    ) -> KnowledgeAcceptanceReceipt: ...
+
+    async def create_document_version(
+        self, scope: WorkspaceScope, command: CreateDocumentVersion
     ) -> KnowledgeAcceptanceReceipt: ...
 
     async def list_documents(

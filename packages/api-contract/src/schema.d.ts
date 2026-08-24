@@ -686,6 +686,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Document Version */
+        post: operations["create_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/events": {
         parameters: {
             query?: never;
@@ -1770,6 +1787,82 @@ export interface components {
          * @enum {string}
          */
         DependencyStatus: "ok" | "failed";
+        /**
+         * DocumentAssetKind
+         * @enum {string}
+         */
+        DocumentAssetKind: "image" | "table";
+        /** DocumentAssetResponse */
+        DocumentAssetResponse: {
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Html */
+            html: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["DocumentAssetKind"];
+            /** Ordinal */
+            ordinal: number;
+            /** Page Number */
+            page_number: number;
+            /** Preview Mime Type */
+            preview_mime_type: string;
+            /** Preview Sha256 */
+            preview_sha256: string;
+            /** Preview Url */
+            preview_url: string;
+            /** Title Path */
+            title_path: string[];
+        };
+        /** DocumentChunkResponse */
+        DocumentChunkResponse: {
+            /** Asset Ids */
+            asset_ids: string[];
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Page Number */
+            page_number: number;
+            /** Text */
+            text: string;
+            /** Title Path */
+            title_path: string[];
+            /** Token Count */
+            token_count: number;
+        };
         /** DocumentCollectionResponse */
         DocumentCollectionResponse: {
             /** Documents */
@@ -1777,10 +1870,56 @@ export interface components {
         };
         /** DocumentDetailResponse */
         DocumentDetailResponse: {
+            /** Assets */
+            assets: components["schemas"]["DocumentAssetResponse"][];
+            /** Chunks */
+            chunks: components["schemas"]["DocumentChunkResponse"][];
             document: components["schemas"]["DocumentResponse"];
+            /** Ingestion Checkpoints */
+            ingestion_checkpoints: components["schemas"]["IngestionCheckpointResponse"][];
+            /** Pages */
+            pages: components["schemas"]["DocumentPageResponse"][];
             /** Versions */
             versions: components["schemas"]["DocumentVersionDetailResponse"][];
         };
+        /** DocumentPageResponse */
+        DocumentPageResponse: {
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Height Points */
+            height_points: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Page Number */
+            page_number: number;
+            /** Text */
+            text: string;
+            text_source: components["schemas"]["DocumentPageTextSource"];
+            /** Title Path */
+            title_path: string[];
+            /** Width Points */
+            width_points: number;
+        };
+        /**
+         * DocumentPageTextSource
+         * @enum {string}
+         */
+        DocumentPageTextSource: "digital" | "ocr" | "plain_text" | "markdown";
         /** DocumentResponse */
         DocumentResponse: {
             /** Active Version Id */
@@ -1826,6 +1965,14 @@ export interface components {
         };
         /** DocumentVersionResponse */
         DocumentVersionResponse: {
+            /** Chunker Config */
+            chunker_config: {
+                [key: string]: unknown;
+            };
+            /** Chunker Name */
+            chunker_name: string;
+            /** Chunker Version */
+            chunker_version: string;
             /**
              * Created At
              * Format: date-time
@@ -1853,6 +2000,16 @@ export interface components {
              * Format: uuid
              */
             ingestion_job_id: string;
+            /** Parser Config */
+            parser_config: {
+                [key: string]: unknown;
+            };
+            /** Parser Name */
+            parser_name: string;
+            /** Parser Schema Version */
+            parser_schema_version: number;
+            /** Parser Version */
+            parser_version: string;
             /** Processing Started At */
             processing_started_at: string | null;
             /**
@@ -1882,7 +2039,7 @@ export interface components {
          * DocumentVersionStatus
          * @enum {string}
          */
-        DocumentVersionStatus: "queued" | "validating" | "parsing" | "extracting_assets" | "chunking" | "embedding" | "vector_indexing" | "lexical_indexing" | "retrying" | "ready" | "failed" | "cancelled" | "deleting" | "deleted";
+        DocumentVersionStatus: "queued" | "validating" | "parsing" | "extracting_assets" | "chunking" | "parsed" | "embedding" | "vector_indexing" | "lexical_indexing" | "retrying" | "ready" | "failed" | "cancelled" | "deleting" | "deleted";
         /** EvidenceCollectionResponse */
         EvidenceCollectionResponse: {
             /** Evidence */
@@ -2210,6 +2367,49 @@ export interface components {
             /** Source Version */
             source_version: string;
         };
+        /** IngestionCheckpointResponse */
+        IngestionCheckpointResponse: {
+            /** Attempt Count */
+            attempt_count: number;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Fencing Token */
+            fencing_token: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Ingestion Job Id
+             * Format: uuid
+             */
+            ingestion_job_id: string;
+            /** Input Hash */
+            input_hash: string;
+            /** Output Hash */
+            output_hash: string;
+            stage: components["schemas"]["IngestionCheckpointStage"];
+            /** Stage Sequence */
+            stage_sequence: number;
+            /** Stats */
+            stats: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * IngestionCheckpointStage
+         * @enum {string}
+         */
+        IngestionCheckpointStage: "validating" | "parsing" | "extracting_assets" | "chunking";
         /** InvalidateEvidenceRequest */
         InvalidateEvidenceRequest: {
             /** Reason */
@@ -10450,6 +10650,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetailResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge state conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge upload rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    create_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+                "Idempotency-Key": components["schemas"]["IdempotencyKey"];
+            };
+            path: {
+                workspace_id: string;
+                knowledge_base_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeAcceptanceResponse"];
                 };
             };
             /** @description Invalid authenticated session */

@@ -13,6 +13,7 @@ import { formatBytes, publicError, relativeTime } from "../chat/chat-workbench-m
 import {
   createKnowledgeBase,
   deleteKnowledgeBase,
+  getKnowledgeDocument,
   listKnowledgeBases,
   listKnowledgeDocuments,
   listKnowledgeIngestionEvents,
@@ -20,6 +21,7 @@ import {
   uploadKnowledgeDocument,
   type KnowledgeBase,
   type KnowledgeDocument,
+  type KnowledgeDocumentDetail,
   type KnowledgeIngestionEvent,
 } from "./knowledge-api";
 import "./knowledge.css";
@@ -39,6 +41,7 @@ const statusNames: Readonly<Record<string, string>> = {
   failed: "失败",
   lexical_indexing: "正在建立关键词索引",
   parsing: "正在解析",
+  parsed: "解析完成",
   queued: "排队中",
   ready: "可用",
   retrying: "等待重试",
@@ -49,6 +52,50 @@ const statusNames: Readonly<Record<string, string>> = {
 const eventNames: Readonly<Record<string, string>> = {
   created: "任务已受理",
 };
+
+const stageNames: Readonly<Record<string, string>> = {
+  chunking: "文本切分",
+  extracting_assets: "资源提取",
+  parsing: "内容解析",
+  validating: "源文件校验",
+};
+
+const textSourceNames: Readonly<Record<string, string>> = {
+  digital: "数字文本",
+  markdown: "Markdown",
+  ocr: "OCR",
+  plain_text: "纯文本",
+};
+
+type DetailTab = "stages" | "pages" | "chunks" | "assets";
+
+function tableRows(html: string): string[][] {
+  if (typeof DOMParser === "undefined") return [];
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  return [...parsed.querySelectorAll("tr")].map((row) =>
+    [...row.querySelectorAll("th,td")].map((cell) => cell.textContent.trim()),
+  );
+}
+
+function AssetTable({ html }: { readonly html: string }) {
+  const rows = tableRows(html);
+  if (rows.length === 0) return <pre className="knowledge-asset-html">{html}</pre>;
+  return (
+    <div className="knowledge-asset-table-wrap">
+      <table className="knowledge-asset-table">
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={`row-${String(rowIndex)}`}>
+              {row.map((cell, cellIndex) => (
+                <td key={`cell-${String(rowIndex)}-${String(cellIndex)}`}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function titleFromFile(file: File): string {
   const dot = file.name.lastIndexOf(".");
@@ -76,7 +123,13 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
   const [events, setEvents] = useState<KnowledgeIngestionEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
+  const [detailFor, setDetailFor] = useState<KnowledgeDocument | null>(null);
+  const [detail, setDetail] = useState<KnowledgeDocumentDetail | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>("stages");
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const documentRequestRef = useRef(0);
+  const detailRequestRef = useRef(0);
 
   const selectedKnowledgeBase = useMemo(
     () => knowledgeBases.find((item) => item.id === selectedId) ?? null,
@@ -270,6 +323,34 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
     }
   }
 
+  async function openDetail(document: KnowledgeDocument): Promise<void> {
+    const requestNumber = detailRequestRef.current + 1;
+    detailRequestRef.current = requestNumber;
+    setDetailFor(document);
+    setDetail(null);
+    setDetailTab("stages");
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const loaded = await getKnowledgeDocument(
+        workspaceId,
+        document.knowledge_base_id,
+        document.id,
+      );
+      if (detailRequestRef.current === requestNumber) setDetail(loaded);
+    } catch (caught: unknown) {
+      if (detailRequestRef.current === requestNumber) setDetailError(publicError(caught));
+    } finally {
+      if (detailRequestRef.current === requestNumber) setDetailLoading(false);
+    }
+  }
+
+  function closeDetail(): void {
+    detailRequestRef.current += 1;
+    setDetailFor(null);
+    setDetail(null);
+  }
+
   return (
     <section className="knowledge-workspace" aria-labelledby="knowledge-title">
       <aside className="knowledge-sidebar">
@@ -314,6 +395,7 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
                 setDocuments([]);
                 setDocumentsError(null);
                 setLoadingDocuments(true);
+                closeDetail();
                 setSelectedId(item.id);
               }}
               type="button"
@@ -433,15 +515,26 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
                         </td>
                         <td data-label="提交">{relativeTime(document.latest_version.queued_at)}</td>
                         <td>
-                          <button
-                            aria-label={`查看 ${document.title} 的受理事件`}
-                            className="icon-button icon-button--small"
-                            onClick={() => void openEvents(document)}
-                            title="查看受理事件"
-                            type="button"
-                          >
-                            <Icon name="bolt" />
-                          </button>
+                          <div className="knowledge-row-actions">
+                            <button
+                              aria-label={`查看 ${document.title} 的解析详情`}
+                              className="icon-button icon-button--small"
+                              onClick={() => void openDetail(document)}
+                              title="查看解析详情"
+                              type="button"
+                            >
+                              <Icon name="document" />
+                            </button>
+                            <button
+                              aria-label={`查看 ${document.title} 的受理事件`}
+                              className="icon-button icon-button--small"
+                              onClick={() => void openEvents(document)}
+                              title="查看受理事件"
+                              type="button"
+                            >
+                              <Icon name="bolt" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -612,6 +705,177 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
               </button>
             </footer>
           </form>
+        </div>
+      )}
+
+      {detailFor === null ? null : (
+        <div className="knowledge-dialog-backdrop" role="presentation">
+          <section
+            aria-modal="true"
+            className="knowledge-dialog knowledge-dialog--detail"
+            role="dialog"
+          >
+            <header>
+              <div>
+                <h2>解析详情</h2>
+                <small>{detailFor.title}</small>
+              </div>
+              <button aria-label="关闭" className="icon-button" onClick={closeDetail} type="button">
+                <Icon name="close" />
+              </button>
+            </header>
+            {detailLoading ? <p className="knowledge-state">正在加载解析结果...</p> : null}
+            {detailError === null ? null : <p className="knowledge-error">{detailError}</p>}
+            {detail === null ? null : (
+              <>
+                <div className="knowledge-detail-summary" aria-label="解析结果统计">
+                  <span>
+                    <strong>{detail.ingestion_checkpoints.length}</strong> 阶段
+                  </span>
+                  <span>
+                    <strong>{detail.pages.length}</strong> 页
+                  </span>
+                  <span>
+                    <strong>{detail.chunks.length}</strong> 块
+                  </span>
+                  <span>
+                    <strong>{detail.assets.length}</strong> 个资产
+                  </span>
+                  <span
+                    className={`knowledge-status knowledge-status--${detail.document.latest_version.status}`}
+                  >
+                    {statusNames[detail.document.latest_version.status] ??
+                      detail.document.latest_version.status}
+                  </span>
+                </div>
+                <div className="knowledge-detail-runtime">
+                  <span>
+                    {detail.document.latest_version.parser_name} / v
+                    {detail.document.latest_version.parser_version}
+                  </span>
+                  <span>
+                    {detail.document.latest_version.chunker_name} / v
+                    {detail.document.latest_version.chunker_version}
+                  </span>
+                </div>
+                <div aria-label="解析详情视图" className="knowledge-detail-tabs" role="tablist">
+                  {(
+                    [
+                      ["stages", "阶段"],
+                      ["pages", "页面"],
+                      ["chunks", "分块"],
+                      ["assets", "资产"],
+                    ] as const
+                  ).map(([tab, label]) => (
+                    <button
+                      aria-selected={detailTab === tab}
+                      key={tab}
+                      onClick={() => {
+                        setDetailTab(tab);
+                      }}
+                      role="tab"
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="knowledge-detail-panel" role="tabpanel">
+                  {detailTab === "stages" ? (
+                    detail.ingestion_checkpoints.length === 0 ? (
+                      <p className="knowledge-detail-empty">尚未完成解析阶段</p>
+                    ) : (
+                      <ol className="knowledge-stage-list">
+                        {detail.ingestion_checkpoints.map((checkpoint) => (
+                          <li key={checkpoint.id}>
+                            <span className="knowledge-stage-index">
+                              {checkpoint.stage_sequence}
+                            </span>
+                            <div>
+                              <strong>{stageNames[checkpoint.stage] ?? checkpoint.stage}</strong>
+                              <small>
+                                第 {checkpoint.attempt_count} 次尝试 · fencing{" "}
+                                {checkpoint.fencing_token}
+                              </small>
+                            </div>
+                            <time dateTime={checkpoint.completed_at}>
+                              {new Date(checkpoint.completed_at).toLocaleString("zh-CN")}
+                            </time>
+                          </li>
+                        ))}
+                      </ol>
+                    )
+                  ) : null}
+                  {detailTab === "pages" ? (
+                    detail.pages.length === 0 ? (
+                      <p className="knowledge-detail-empty">尚未生成页面记录</p>
+                    ) : (
+                      <div className="knowledge-page-list">
+                        {detail.pages.map((page) => (
+                          <article key={page.id}>
+                            <header>
+                              <strong>第 {page.page_number} 页</strong>
+                              <span>{textSourceNames[page.text_source] ?? page.text_source}</span>
+                            </header>
+                            {page.title_path.length === 0 ? null : (
+                              <small>{page.title_path.join(" / ")}</small>
+                            )}
+                            <p>{page.text}</p>
+                          </article>
+                        ))}
+                      </div>
+                    )
+                  ) : null}
+                  {detailTab === "chunks" ? (
+                    detail.chunks.length === 0 ? (
+                      <p className="knowledge-detail-empty">尚未生成文本分块</p>
+                    ) : (
+                      <div className="knowledge-chunk-list">
+                        {detail.chunks.map((chunk) => (
+                          <article key={chunk.id}>
+                            <header>
+                              <strong>分块 {chunk.ordinal}</strong>
+                              <span>
+                                第 {chunk.page_number} 页 · {chunk.token_count} tokens
+                              </span>
+                            </header>
+                            {chunk.title_path.length === 0 ? null : (
+                              <small>{chunk.title_path.join(" / ")}</small>
+                            )}
+                            <p>{chunk.text}</p>
+                          </article>
+                        ))}
+                      </div>
+                    )
+                  ) : null}
+                  {detailTab === "assets" ? (
+                    detail.assets.length === 0 ? (
+                      <p className="knowledge-detail-empty">暂无图像或表格资产</p>
+                    ) : (
+                      <div className="knowledge-asset-list">
+                        {detail.assets.map((asset) => (
+                          <article key={asset.id}>
+                            <header>
+                              <strong>{asset.kind === "table" ? "表格" : "图像"}</strong>
+                              <span>
+                                第 {asset.page_number} 页 · 资产 {asset.ordinal}
+                              </span>
+                            </header>
+                            <img
+                              alt={`第 ${String(asset.page_number)} 页${asset.kind === "table" ? "表格" : "图像"}预览`}
+                              loading="lazy"
+                              src={asset.preview_url}
+                            />
+                            {asset.html === null ? null : <AssetTable html={asset.html} />}
+                          </article>
+                        ))}
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              </>
+            )}
+          </section>
         </div>
       )}
 

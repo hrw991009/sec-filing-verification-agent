@@ -10,6 +10,7 @@ from industry_platform.modules.identity.domain import AuthenticatedPrincipal, Tr
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.knowledge.domain import (
     CompleteKnowledgeUpload,
+    CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
     DeleteKnowledgeBase,
@@ -272,6 +273,41 @@ async def get_document(
     )
     set_no_store_headers(response)
     return document_detail_response(value)
+
+
+@router.post(
+    "/{knowledge_base_id}/documents/{document_id}/versions",
+    response_model=KnowledgeAcceptanceResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=_RESPONSES,
+)
+async def create_document_version(
+    workspace_id: UUID,
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[KnowledgeApplicationService, Depends(get_knowledge_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+    idempotency_key: Annotated[IdempotencyKey, Header(alias="Idempotency-Key")],
+) -> KnowledgeAcceptanceResponse:
+    receipt = await service.create_document_version(
+        _scope(principal, workspace_id),
+        CreateDocumentVersion(
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            expected_revision=_parse_revision(if_match),
+            idempotency_key=idempotency_key,
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    events_url = (
+        f"/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/"
+        f"{document_id}/versions/{receipt.version.id}/events"
+    )
+    return acceptance_response(receipt, events_url=events_url)
 
 
 @router.get(

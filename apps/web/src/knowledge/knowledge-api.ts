@@ -28,6 +28,24 @@ function revisionHeader(revision: number) {
   return { "If-Match": `"${String(revision)}"` };
 }
 
+function boundingBox(value: readonly number[]): [number, number, number, number] {
+  const [x0, top, x1, bottom] = value;
+  if (
+    value.length !== 4 ||
+    x0 === undefined ||
+    top === undefined ||
+    x1 === undefined ||
+    bottom === undefined ||
+    ![x0, top, x1, bottom].every(Number.isFinite)
+  ) {
+    throw new ApiProblem(502, {
+      code: "INVALID_KNOWLEDGE_RESPONSE",
+      detail: "解析结果中的定位信息无效。",
+    });
+  }
+  return [x0, top, x1, bottom];
+}
+
 function documentMediaType(file: File): KnowledgeMediaType | null {
   const dot = file.name.lastIndexOf(".");
   return dot < 0 ? null : (mediaTypeByExtension[file.name.slice(dot).toLowerCase()] ?? null);
@@ -144,8 +162,8 @@ export function getKnowledgeDocument(
   knowledgeBaseId: string,
   documentId: string,
 ): Promise<KnowledgeDocumentDetail> {
-  return withAccessToken(async (accessToken) =>
-    unwrapData<KnowledgeDocumentDetail>(
+  return withAccessToken(async (accessToken) => {
+    const detail = unwrapData(
       await apiClient.GET(
         "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}",
         {
@@ -159,8 +177,14 @@ export function getKnowledgeDocument(
           },
         },
       ),
-    ),
-  );
+    );
+    return {
+      ...detail,
+      assets: detail.assets.map((asset) => ({ ...asset, bbox: boundingBox(asset.bbox) })),
+      chunks: detail.chunks.map((chunk) => ({ ...chunk, bbox: boundingBox(chunk.bbox) })),
+      pages: detail.pages.map((page) => ({ ...page, bbox: boundingBox(page.bbox) })),
+    };
+  });
 }
 
 export function listKnowledgeIngestionEvents(

@@ -56,6 +56,7 @@ class DocumentVersionStatus(StrEnum):
     PARSING = "parsing"
     EXTRACTING_ASSETS = "extracting_assets"
     CHUNKING = "chunking"
+    PARSED = "parsed"
     EMBEDDING = "embedding"
     VECTOR_INDEXING = "vector_indexing"
     LEXICAL_INDEXING = "lexical_indexing"
@@ -65,6 +66,25 @@ class DocumentVersionStatus(StrEnum):
     CANCELLED = "cancelled"
     DELETING = "deleting"
     DELETED = "deleted"
+
+
+class DocumentPageTextSource(StrEnum):
+    DIGITAL = "digital"
+    OCR = "ocr"
+    PLAIN_TEXT = "plain_text"
+    MARKDOWN = "markdown"
+
+
+class DocumentAssetKind(StrEnum):
+    IMAGE = "image"
+    TABLE = "table"
+
+
+class IngestionCheckpointStage(StrEnum):
+    VALIDATING = "validating"
+    PARSING = "parsing"
+    EXTRACTING_ASSETS = "extracting_assets"
+    CHUNKING = "chunking"
 
 
 class KnowledgeError(RuntimeError):
@@ -146,6 +166,25 @@ def fingerprint_knowledge_request(*, knowledge_base_id: UUID, file_id: UUID, tit
             "knowledge_base_id": str(knowledge_base_id),
             "schema_version": KNOWLEDGE_SCHEMA_VERSION,
             "title": normalized_title,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(_REQUEST_HASH_DOMAIN + encoded).digest()
+
+
+def fingerprint_document_version_request(
+    *,
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    file_id: UUID,
+) -> bytes:
+    encoded = json.dumps(
+        {
+            "document_id": str(document_id),
+            "file_id": str(file_id),
+            "knowledge_base_id": str(knowledge_base_id),
+            "schema_version": KNOWLEDGE_SCHEMA_VERSION,
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -255,6 +294,21 @@ class CompleteKnowledgeUpload:
 
 
 @dataclass(frozen=True, slots=True)
+class CreateDocumentVersion:
+    knowledge_base_id: UUID
+    document_id: UUID
+    expected_revision: int
+    idempotency_key: str = field(repr=False)
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        _uuid(self.knowledge_base_id, field_name="Knowledge-base ID")
+        _uuid(self.document_id, field_name="Document ID")
+        _revision(self.expected_revision)
+        validate_idempotency_key(self.idempotency_key)
+
+
+@dataclass(frozen=True, slots=True)
 class KnowledgeBase:
     id: UUID
     workspace_id: UUID
@@ -310,6 +364,74 @@ class DocumentVersion:
     ready_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    parser_name: str = "pdfplumber-rapidocr"
+    parser_version: str = "1.0.0"
+    parser_schema_version: int = 1
+    parser_config: dict[str, object] = field(default_factory=dict)
+    chunker_name: str = "bounded-page-chunker"
+    chunker_version: str = "1.0.0"
+    chunker_config: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentPage:
+    id: UUID
+    document_version_id: UUID
+    page_number: int
+    width_points: float
+    height_points: float
+    text: str
+    text_source: DocumentPageTextSource
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentChunk:
+    id: UUID
+    document_version_id: UUID
+    ordinal: int
+    page_number: int
+    text: str
+    token_count: int
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+    asset_ids: tuple[UUID, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentAsset:
+    id: UUID
+    document_version_id: UUID
+    ordinal: int
+    page_number: int
+    kind: DocumentAssetKind
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+    preview_sha256: str
+    preview_mime_type: str
+    html: str | None
+    preview_bucket: str = field(repr=False)
+    preview_object_key: str = field(repr=False)
+    preview_url: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class IngestionCheckpoint:
+    id: UUID
+    document_version_id: UUID
+    ingestion_job_id: UUID
+    stage: IngestionCheckpointStage
+    stage_sequence: int
+    fencing_token: int
+    attempt_count: int
+    input_hash: str
+    output_hash: str
+    stats: dict[str, object]
+    completed_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,6 +446,10 @@ class DocumentDetail:
     document: Document
     versions: tuple[DocumentVersion, ...]
     sources: tuple[KnowledgeSource, ...]
+    pages: tuple[DocumentPage, ...] = ()
+    chunks: tuple[DocumentChunk, ...] = ()
+    assets: tuple[DocumentAsset, ...] = ()
+    ingestion_checkpoints: tuple[IngestionCheckpoint, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -413,6 +539,53 @@ class PreparedKnowledgeAcceptance:
             "schema_version": KNOWLEDGE_SCHEMA_VERSION,
         }:
             raise ValueError("Knowledge Job payload does not match its upload")
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedDocumentVersion:
+    version_id: UUID
+    document_id: UUID
+    knowledge_base_id: UUID
+    workspace_id: UUID
+    created_by_user_id: UUID
+    file_id: UUID
+    expected_document_revision: int
+    expected_latest_version_id: UUID
+    expected_latest_version_number: int
+    idempotency_key_hash: bytes = field(repr=False)
+    request_fingerprint: bytes = field(repr=False)
+    job: PreparedJobSubmission = field(repr=False)
+    created_at: datetime
+
+    def __post_init__(self) -> None:
+        require_utc(self.created_at, field_name="created_at")
+        for identifier in (
+            self.version_id,
+            self.document_id,
+            self.knowledge_base_id,
+            self.workspace_id,
+            self.created_by_user_id,
+            self.file_id,
+            self.expected_latest_version_id,
+        ):
+            if identifier.int == 0:
+                raise ValueError("Knowledge version identifier must not be nil")
+        _revision(self.expected_document_revision)
+        if self.expected_latest_version_number < 1:
+            raise ValueError("Latest Knowledge version number is invalid")
+        if self.job.scope.workspace_id != self.workspace_id or self.job.scope.system_scope_key:
+            raise ValueError("Knowledge Job crosses execution scopes")
+        if (
+            self.job.task_name != KNOWLEDGE_INGESTION_TASK_NAME
+            or self.job.queue_name != KNOWLEDGE_INGESTION_QUEUE_NAME
+        ):
+            raise ValueError("Knowledge Job routing is invalid")
+        if dict(self.job.payload) != {
+            "document_version_id": str(self.version_id),
+            "file_id": str(self.file_id),
+            "schema_version": KNOWLEDGE_SCHEMA_VERSION,
+        }:
+            raise ValueError("Knowledge Job payload does not match its source version")
 
 
 @dataclass(frozen=True, slots=True)

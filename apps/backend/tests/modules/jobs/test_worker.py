@@ -27,6 +27,8 @@ from industry_platform.modules.identity.domain import (
 )
 from industry_platform.modules.identity.ports import RefreshRecoveryCleanupUseCase
 from industry_platform.modules.industry.domain import INDUSTRY_COLLECTION_TASK_NAME
+from industry_platform.modules.ingestion.domain import DocumentParserError, ParserErrorCode
+from industry_platform.modules.ingestion.service import KnowledgeIngestionService
 from industry_platform.modules.jobs.domain import (
     CELERY_JOB_DISPATCH_TASK_NAME,
     AcquiredJob,
@@ -54,6 +56,9 @@ from industry_platform.workers.runtime import (
     IndustryCollectionJobHandler,
     JobExecutionDisposition,
     JobExecutionRuntime,
+    KnowledgeIngestionJobHandler,
+    PermanentJobHandlerError,
+    RetryableJobHandlerError,
     create_job_delivery_runtime,
 )
 from industry_platform.workers.tasks import register_job_execution_task
@@ -108,6 +113,15 @@ class RecordingDirectAnswerUseCase:
             stop_reason=RunStopReason.FINAL,
             terminal_event_sequence=11,
         )
+
+
+class FailingIngestionUseCase:
+    def __init__(self, code: ParserErrorCode) -> None:
+        self.code = code
+
+    async def execute(self, job: AcquiredJob) -> object:
+        del job
+        raise DocumentParserError(self.code)
 
 
 class RecordingJobUseCase:
@@ -221,6 +235,37 @@ def runtime(
         worker_id="worker-unit-1",
         heartbeat_seconds=heartbeat_seconds,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("code", "exception_type", "job_error"),
+    [
+        (
+            ParserErrorCode.TIMEOUT,
+            RetryableJobHandlerError,
+            JobExecutionErrorCode.INGESTION_PARSER_RETRYABLE,
+        ),
+        (
+            ParserErrorCode.CORRUPT_DOCUMENT,
+            PermanentJobHandlerError,
+            JobExecutionErrorCode.INGESTION_PARSER_FAILED,
+        ),
+    ],
+)
+async def test_knowledge_handler_maps_parser_retryability_to_stable_job_errors(
+    code: ParserErrorCode,
+    exception_type: type[RetryableJobHandlerError | PermanentJobHandlerError],
+    job_error: JobExecutionErrorCode,
+) -> None:
+    handler = KnowledgeIngestionJobHandler(
+        cast(KnowledgeIngestionService, FailingIngestionUseCase(code))
+    )
+
+    with pytest.raises(exception_type) as captured:
+        await handler.execute(acquired_job())
+
+    assert captured.value.error_code is job_error
 
 
 @pytest.mark.asyncio
