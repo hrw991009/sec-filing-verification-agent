@@ -153,6 +153,14 @@ from industry_platform.modules.jobs.domain import (
     ScheduleTriggerConflictError,
 )
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.knowledge.domain import (
+    KnowledgeConflictError,
+    KnowledgeNotEmptyError,
+    KnowledgeNotFoundError,
+    KnowledgePersistenceError,
+)
+from industry_platform.modules.knowledge.resources import create_knowledge_resources
+from industry_platform.modules.knowledge.router import router as knowledge_router
 from industry_platform.modules.memory.domain import (
     MemoryCandidateEditRequiredError,
     MemoryCandidateNotFoundError,
@@ -242,6 +250,11 @@ def create_app(
                 active_settings,
                 database_session_factory,
             )
+            knowledge_resources = create_knowledge_resources(
+                active_settings,
+                database_session_factory,
+                file_resources.object_store,
+            )
             agent_run_delivery_resources = create_agent_run_delivery_resources(
                 database_session_factory
             )
@@ -274,6 +287,7 @@ def create_app(
             application.state.evidence_resources = evidence_resources
             application.state.research_resources = research_resources
             application.state.file_resources = file_resources
+            application.state.knowledge_resources = knowledge_resources
             application.state.agent_run_delivery_resources = agent_run_delivery_resources
             application.state.agent_trace_resources = agent_trace_resources
             application.state.job_resources = job_resources
@@ -324,10 +338,72 @@ def create_app(
     application.include_router(memory_router, prefix="/api/v1")
     application.include_router(agent_run_router, prefix="/api/v1")
     application.include_router(file_router, prefix="/api/v1")
+    application.include_router(knowledge_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
     application.include_router(data_explorer_router, prefix="/api/v1")
     application.include_router(evidence_router, prefix="/api/v1")
     application.include_router(research_router, prefix="/api/v1")
+
+    @application.exception_handler(KnowledgeNotFoundError)
+    async def handle_knowledge_not_found(
+        request: Request,
+        _error: KnowledgeNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Knowledge resource not found",
+            code="KNOWLEDGE_NOT_FOUND",
+            detail="The requested Knowledge resource does not exist in this workspace.",
+            problem_type="urn:iip:problem:knowledge-not-found",
+        )
+
+    @application.exception_handler(KnowledgeNotEmptyError)
+    async def handle_knowledge_not_empty(
+        request: Request,
+        _error: KnowledgeNotEmptyError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Knowledge Base is not empty",
+            code="KNOWLEDGE_BASE_NOT_EMPTY",
+            detail="Delete its documents before deleting this Knowledge Base.",
+            problem_type="urn:iip:problem:knowledge-base-not-empty",
+        )
+
+    @application.exception_handler(KnowledgeConflictError)
+    async def handle_knowledge_conflict(
+        request: Request,
+        _error: KnowledgeConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Knowledge state conflict",
+            code="KNOWLEDGE_CONFLICT",
+            detail="Reload the Knowledge resource before retrying this operation.",
+            problem_type="urn:iip:problem:knowledge-conflict",
+        )
+
+    @application.exception_handler(KnowledgePersistenceError)
+    async def handle_knowledge_unavailable(
+        request: Request,
+        error: KnowledgePersistenceError,
+    ) -> JSONResponse:
+        logger.error(
+            "Knowledge persistence unavailable trace_id=%s sqlstate=%s",
+            get_trace_id(request),
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="Knowledge service unavailable",
+            code="KNOWLEDGE_UNAVAILABLE",
+            detail="Knowledge is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:knowledge-unavailable",
+        )
 
     @application.exception_handler(ResearchNotFoundError)
     async def handle_research_not_found(

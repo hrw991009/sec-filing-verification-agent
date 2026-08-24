@@ -53,6 +53,7 @@ class Job(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "jobs"
     __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
         CheckConstraint(_SCOPE_CHECK, name="execution_scope"),
         CheckConstraint(
             "status IN ('pending', 'dispatched', 'running', 'retry_wait', "

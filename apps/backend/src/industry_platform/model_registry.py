@@ -62,6 +62,11 @@ from industry_platform.modules.jobs.models import (
     Schedule,
     ScheduleOccurrence,
 )
+from industry_platform.modules.knowledge.models import (
+    DocumentRecord,
+    DocumentVersionRecord,
+    KnowledgeBaseRecord,
+)
 from industry_platform.modules.memory.models import (
     MemoryCandidateRecord,
     MemoryCandidateSourceRecord,
@@ -91,6 +96,9 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     OutboxEvent,
     Schedule,
     ScheduleOccurrence,
+    KnowledgeBaseRecord,
+    DocumentRecord,
+    DocumentVersionRecord,
     Conversation,
     Turn,
     FileObject,

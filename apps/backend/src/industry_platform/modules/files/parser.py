@@ -98,6 +98,8 @@ class BoundedAttachmentParser:
             expected_size_bytes=request.expected_size_bytes,
         )
 
+        if media_type.kind is AttachmentKind.DOCUMENT:
+            raise AttachmentValidationError(AttachmentValidationCode.UNSUPPORTED_MEDIA_TYPE)
         if media_type.kind is AttachmentKind.TEXT:
             return self._parse_text(
                 content,

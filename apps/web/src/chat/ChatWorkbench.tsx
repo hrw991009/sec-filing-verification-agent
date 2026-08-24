@@ -14,6 +14,7 @@ import { EvidenceWorkspace } from "../evidence/EvidenceWorkspace";
 import { normalizeObservation } from "../evidence/evidence-api";
 import { IndustryWorkspace } from "../industry/IndustryWorkspace";
 import { getIndustryPreference, listIndustries, type Industry } from "../industry/industry-api";
+import { KnowledgeWorkspace } from "../knowledge/KnowledgeWorkspace";
 import { ResearchWorkspace } from "../research/ResearchWorkspace";
 
 import {
@@ -1438,6 +1439,8 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
           userId={currentUser.user.id}
           workspaceId={workspaceId}
         />
+      ) : view === "knowledge" ? (
+        <KnowledgeWorkspace canManage={canCompose} key={workspaceId} workspaceId={workspaceId} />
       ) : view === "evidence" ? (
         <EvidenceWorkspace
           canManage={canCompose}

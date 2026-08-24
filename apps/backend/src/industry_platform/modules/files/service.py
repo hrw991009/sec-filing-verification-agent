@@ -17,6 +17,7 @@ from industry_platform.modules.files.domain import (
     AttachmentParserPort,
     AttachmentValidationCode,
     AttachmentValidationError,
+    FileObjectPurpose,
     FileObjectStatus,
     ParseAttachmentRequest,
     ParsedAttachment,
@@ -38,6 +39,15 @@ from industry_platform.modules.workspaces.policy import scope_allows
 
 _SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _PROCESSING_LEASE = timedelta(minutes=5)
+_CHAT_ATTACHMENT_MEDIA_TYPES = frozenset(
+    {
+        AttachmentMediaType.TEXT_PLAIN,
+        AttachmentMediaType.TEXT_MARKDOWN,
+        AttachmentMediaType.IMAGE_PNG,
+        AttachmentMediaType.IMAGE_JPEG,
+        AttachmentMediaType.IMAGE_WEBP,
+    }
+)
 
 
 class FileNotFoundError(LookupError):
@@ -88,6 +98,7 @@ class FileSnapshot:
     status: FileObjectStatus
     expected_size: int
     upload_expires_at: datetime
+    purpose: FileObjectPurpose = FileObjectPurpose.CHAT_ATTACHMENT
     detected_media_type: AttachmentMediaType | None = None
     kind: AttachmentKind | None = None
     actual_size: int | None = None
@@ -113,6 +124,7 @@ class StagingFile:
     expected_sha256: str
     upload_expires_at: datetime
     created_at: datetime
+    purpose: FileObjectPurpose = FileObjectPurpose.CHAT_ATTACHMENT
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,6 +258,8 @@ class FileApplicationService:
         try:
             display_name = sanitize_display_filename(command.original_name)
             media_type = normalize_media_type(command.declared_media_type)
+            if media_type not in _CHAT_ATTACHMENT_MEDIA_TYPES:
+                raise AttachmentValidationError(AttachmentValidationCode.UNSUPPORTED_MEDIA_TYPE)
             require_matching_extension(display_name, media_type)
         except AttachmentValidationError as error:
             raise FileValidationRejectedError(error.code) from None

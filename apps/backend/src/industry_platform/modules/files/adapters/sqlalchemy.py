@@ -8,7 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
-from industry_platform.modules.files.domain import FileObjectStatus, ParsedAttachment
+from industry_platform.modules.files.domain import (
+    FileObjectPurpose,
+    FileObjectStatus,
+    ParsedAttachment,
+)
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.files.service import (
     DeletingFile,
@@ -40,6 +44,7 @@ class SqlAlchemyFileRepository:
                     staging_object_key=file.staging_object_key,
                     expected_size=file.expected_size,
                     expected_sha256=file.expected_sha256,
+                    purpose=file.purpose,
                     status=FileObjectStatus.STAGING,
                     revision=0,
                     upload_expires_at=file.upload_expires_at,
@@ -59,6 +64,7 @@ class SqlAlchemyFileRepository:
                     select(FileObject).where(
                         FileObject.id == file_id,
                         FileObject.workspace_id == workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                 )
                 if record is None:
@@ -78,6 +84,7 @@ class SqlAlchemyFileRepository:
                     select(FileObject).where(
                         FileObject.id == file_id,
                         FileObject.workspace_id == workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                 )
                 if record is None:
@@ -110,6 +117,7 @@ class SqlAlchemyFileRepository:
                     .where(
                         FileObject.id == file_id,
                         FileObject.workspace_id == workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .with_for_update()
                 )
@@ -176,6 +184,7 @@ class SqlAlchemyFileRepository:
                     .where(
                         FileObject.id == file.snapshot.file_id,
                         FileObject.workspace_id == file.snapshot.workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .with_for_update()
                 )
@@ -225,6 +234,7 @@ class SqlAlchemyFileRepository:
                     .where(
                         FileObject.id == file.snapshot.file_id,
                         FileObject.workspace_id == file.snapshot.workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .with_for_update()
                 )
@@ -258,6 +268,7 @@ class SqlAlchemyFileRepository:
                     .where(
                         FileObject.id == file_id,
                         FileObject.workspace_id == workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .with_for_update()
                 )
@@ -302,6 +313,7 @@ class SqlAlchemyFileRepository:
                     .where(
                         FileObject.id == file.snapshot.file_id,
                         FileObject.workspace_id == file.snapshot.workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .with_for_update()
                 )
@@ -333,6 +345,7 @@ def _snapshot(record: FileObject) -> FileSnapshot:
         kind=record.kind,
         status=record.status,
         expected_size=record.expected_size,
+        purpose=record.purpose,
         actual_size=record.actual_size,
         safe_sha256=record.safe_sha256,
         parser_version=record.parser_version,

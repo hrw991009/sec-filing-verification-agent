@@ -34,7 +34,11 @@ from industry_platform.modules.conversations.service import (
     ConversationPersistenceError,
     DirectAnswerTurnWriter,
 )
-from industry_platform.modules.files.domain import AttachmentKind, FileObjectStatus
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    FileObjectPurpose,
+    FileObjectStatus,
+)
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyJobWriter
 from industry_platform.modules.jobs.models import OutboxEvent
@@ -68,6 +72,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                     .where(
                         FileObject.id.in_(prepared.attachment_ids),
                         FileObject.workspace_id == prepared.run.workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .order_by(FileObject.id)
                     .with_for_update()
