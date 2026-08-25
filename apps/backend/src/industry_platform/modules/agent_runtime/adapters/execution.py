@@ -1,7 +1,7 @@
 """SQLAlchemy adapter that loads one fresh Direct Answer Runtime execution."""
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, cast
 from uuid import UUID, uuid5
@@ -56,6 +56,7 @@ from industry_platform.modules.files.domain import (
     FileObjectStatus,
 )
 from industry_platform.modules.files.models import FileObject
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import (
     AuthenticatedWorkspace,
     TraceId,
@@ -142,6 +143,7 @@ class SqlAlchemyDirectAnswerRunLoader:
     session_factory: AsyncSessionFactory
     policy: DirectAnswerRuntimePolicy
     tool_policy: ToolL2RuntimePolicy | None = None
+    tool_policies: Mapping[TurnSearchMode, ToolL2RuntimePolicy] | None = None
     attachment_object_reader: AttachmentObjectReader | None = None
     memory_context_loader: MemoryContextLoader | None = None
 
@@ -160,6 +162,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                             WorkspaceMembership.role,
                             Turn.search_mode,
                             Turn.industry_id,
+                            Turn.knowledge_base_ids,
                             IndustryRecord.code,
                         )
                         .join(
@@ -206,6 +209,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                     stored_role,
                     search_mode,
                     industry_id,
+                    stored_knowledge_base_ids,
                     industry_code,
                 ) = row
                 attachment_rows = cast(
@@ -327,11 +331,35 @@ class SqlAlchemyDirectAnswerRunLoader:
         )
         research_enabled = record.run_type is AgentRunType.RESEARCH
         tool_enabled = record.run_type is AgentRunType.TOOL_LOOP or research_enabled
+        policies = dict(self.tool_policies or {})
+        if self.tool_policy is not None:
+            policies.setdefault(TurnSearchMode.WEB, self.tool_policy)
+        selected_tool_policy = policies.get(search_mode)
+        knowledge_base_ids = tuple(stored_knowledge_base_ids)
+        financial_scope = None
+        if research_row is not None:
+            _research_record, stored_brief = research_row
+            if stored_brief.financial_scope is not None:
+                try:
+                    financial_scope = FinancialScope.from_mapping(stored_brief.financial_scope)
+                except ValueError:
+                    raise DirectAnswerRunNotExecutableError from None
         if tool_enabled and (
-            self.tool_policy is None
-            or search_mode is not TurnSearchMode.WEB
-            or industry_id is None
-            or not isinstance(industry_code, str)
+            selected_tool_policy is None
+            or (
+                search_mode is TurnSearchMode.WEB
+                and (industry_id is None or not isinstance(industry_code, str))
+            )
+            or (
+                search_mode is TurnSearchMode.LOCAL
+                and (
+                    not research_enabled
+                    or industry_id is not None
+                    or not knowledge_base_ids
+                    or financial_scope is None
+                )
+            )
+            or search_mode not in {TurnSearchMode.WEB, TurnSearchMode.LOCAL}
         ):
             raise DirectAnswerRunNotExecutableError
         if not tool_enabled and search_mode is not TurnSearchMode.NONE:
@@ -354,6 +382,8 @@ class SqlAlchemyDirectAnswerRunLoader:
                 else {WorkspaceAction.VIEW}
             ),
             budget=budget,
+            knowledge_base_ids=knowledge_base_ids,
+            financial_scope=financial_scope,
         )
         attachments = await self._load_attachments(
             workspace_id=record.workspace_id,
@@ -367,47 +397,64 @@ class SqlAlchemyDirectAnswerRunLoader:
                 conversation_id=record.conversation_id,
                 current_goal=question,
                 max_input_tokens=(
-                    self.tool_policy.max_input_tokens
-                    if tool_enabled and self.tool_policy is not None
+                    selected_tool_policy.max_input_tokens
+                    if tool_enabled and selected_tool_policy is not None
                     else self.policy.max_input_tokens
                 ),
             )
         )
         command: ProductionAgentRunCommand
         if tool_enabled:
-            if self.tool_policy is None or not isinstance(industry_code, str):
+            if selected_tool_policy is None:
                 raise DirectAnswerRunNotExecutableError
+            if search_mode is TurnSearchMode.WEB:
+                if not isinstance(industry_code, str):
+                    raise DirectAnswerRunNotExecutableError
+                conversation_summary = "Current industry snapshot for this Turn: " + industry_code
+                summary_version = "turn-industry-snapshot-v1"
+            else:
+                if financial_scope is None:
+                    raise DirectAnswerRunNotExecutableError
+                conversation_summary = (
+                    "Pinned SEC filing scope: "
+                    f"CIK {financial_scope.cik}; accession {financial_scope.accession}; "
+                    f"form {financial_scope.form.value}; report period "
+                    f"{financial_scope.report_period.isoformat()}; as_of "
+                    f"{financial_scope.as_of.isoformat()}; unit {financial_scope.unit}; "
+                    f"scale {financial_scope.scale}."
+                )
+                summary_version = "turn-financial-scope-v1"
             loop_command = ToolL2RunCommand(
                 run=run,
                 state=state,
-                policy=self.tool_policy,
+                policy=selected_tool_policy,
                 decision_model_step_ids=tuple(
                     uuid5(run_id, f"tool-l2-decision-step-{index}-v1")
-                    for index in range(self.tool_policy.model_call_limit)
+                    for index in range(selected_tool_policy.model_call_limit)
                 ),
                 tool_step_ids=tuple(
                     uuid5(run_id, f"tool-l2-tool-step-{index}-v1")
-                    for index in range(self.tool_policy.tool_call_limit)
+                    for index in range(selected_tool_policy.tool_call_limit)
                 ),
                 decision_manifest_ids=tuple(
                     uuid5(run_id, f"tool-l2-context-manifest-{index}-v1")
-                    for index in range(self.tool_policy.model_call_limit)
+                    for index in range(selected_tool_policy.model_call_limit)
                 ),
                 tool_call_ids=tuple(
                     uuid5(run_id, f"tool-l2-call-{index}-v1")
-                    for index in range(self.tool_policy.tool_call_limit)
+                    for index in range(selected_tool_policy.tool_call_limit)
                 ),
                 approval_request_ids=tuple(
                     uuid5(run_id, f"tool-l2-approval-{index}-v1")
-                    for index in range(self.tool_policy.tool_call_limit)
+                    for index in range(selected_tool_policy.tool_call_limit)
                 ),
                 final_step_id=uuid5(run_id, "tool-l2-final-step-v1"),
                 user_question=question,
-                conversation_summary=("Current industry snapshot for this Turn: " + industry_code),
-                conversation_summary_version="turn-industry-snapshot-v1",
+                conversation_summary=conversation_summary,
+                conversation_summary_version=summary_version,
                 attachments=attachments,
                 memory_context=memory_context,
-                side_effect_idempotency_keys=(None,) * self.tool_policy.tool_call_limit,
+                side_effect_idempotency_keys=(None,) * selected_tool_policy.tool_call_limit,
                 embedded_in_research=research_enabled,
             )
             if research_enabled:
@@ -424,6 +471,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                         confirmed_scope=tuple(brief_record.confirmed_scope),
                         exclusions=tuple(brief_record.exclusions),
                         completion_criteria=tuple(brief_record.completion_criteria),
+                        financial_scope=financial_scope,
                     ),
                     budget=budget,
                     confirmed_by_user_id=brief_record.confirmed_by_user_id,

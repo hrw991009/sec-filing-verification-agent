@@ -131,6 +131,10 @@ class ResearchBriefRecord(UUIDPrimaryKeyMixin, Base):
         CheckConstraint("length(btrim(original_question)) > 0", name="question_not_blank"),
         CheckConstraint("jsonb_array_length(confirmed_scope) > 0", name="scope_not_empty"),
         CheckConstraint("jsonb_array_length(completion_criteria) > 0", name="criteria_not_empty"),
+        CheckConstraint(
+            "financial_scope IS NULL OR jsonb_typeof(financial_scope) = 'object'",
+            name="financial_scope_object",
+        ),
         Index(None, "workspace_id", "research_run_id", "revision"),
     )
 
@@ -141,6 +145,10 @@ class ResearchBriefRecord(UUIDPrimaryKeyMixin, Base):
     confirmed_scope: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     exclusions: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     completion_criteria: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    financial_scope: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
+    )
     budget: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     confirmed_by_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

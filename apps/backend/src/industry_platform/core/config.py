@@ -7,6 +7,7 @@ from base64 import b64decode, urlsafe_b64encode
 from binascii import Error as Base64DecodeError
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Self
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -370,6 +371,7 @@ class Settings(BaseSettings):
     elasticsearch_endpoint: str | None = None
     elasticsearch_api_key: SecretStr | None = None
     knowledge_index_timeout_seconds: Annotated[float, Field(gt=0, le=120)] = 10.0
+    sec_fixture_manifest_path: Path = Path("evals/fixtures/sec/sec-fixture-v1/manifest.json")
 
     @field_validator(
         "refresh_token_hmac_key",

@@ -30,6 +30,7 @@ from industry_platform.modules.agent_runtime.model import (
     ModelRole,
 )
 from industry_platform.modules.agent_runtime.state import RunState, validate_run_state
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import AuthenticatedWorkspace
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
 from industry_platform.modules.workspaces.policy import WORKSPACE_ROLE_ACTIONS
@@ -182,6 +183,8 @@ class TrustedRuntimeContext:
     capabilities: frozenset[WorkspaceAction] = field(repr=False)
     budget: RunBudget = field(repr=False)
     secret_references: tuple[str, ...] = field(default=(), repr=False)
+    knowledge_base_ids: tuple[UUID, ...] = field(default=(), repr=False)
+    financial_scope: FinancialScope | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.principal.user_id != self.workspace_scope.user_id:
@@ -208,6 +211,17 @@ class TrustedRuntimeContext:
         ):
             raise ValueError("Runtime Context Secret references are invalid")
         object.__setattr__(self, "secret_references", secret_references)
+
+        knowledge_base_ids = tuple(self.knowledge_base_ids)
+        if (
+            len(knowledge_base_ids) > 100
+            or len(knowledge_base_ids) != len(set(knowledge_base_ids))
+            or any(identifier.int == 0 for identifier in knowledge_base_ids)
+        ):
+            raise ValueError("Runtime Context Knowledge Base allowlist is invalid")
+        if self.financial_scope is not None and not knowledge_base_ids:
+            raise ValueError("Financial Runtime Context requires a Knowledge Base allowlist")
+        object.__setattr__(self, "knowledge_base_ids", knowledge_base_ids)
 
         RuntimeContextProjectionV0(selected_workspace.name)
 

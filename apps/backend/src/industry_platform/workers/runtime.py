@@ -25,7 +25,10 @@ from industry_platform.modules.agent_runtime.execution import (
 from industry_platform.modules.agent_runtime.resources import (
     create_direct_answer_runtime_resources,
 )
-from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
+from industry_platform.modules.conversations.domain import (
+    DIRECT_ANSWER_TASK_NAME,
+    TurnSearchMode,
+)
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
@@ -78,6 +81,7 @@ from industry_platform.modules.knowledge.domain import (
     KNOWLEDGE_INGESTION_TASK_NAME,
 )
 from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
+from industry_platform.modules.retrieval.resources import create_retrieval_resources
 
 IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER = "identity.refresh_recovery.cleanup.v1"
 logger = logging.getLogger(__name__)
@@ -615,18 +619,36 @@ def create_job_delivery_runtime(
         provider_http_client,
         job_resources.schedule_service,
     )
+    tool_http_client = internal_http_client or provider_http_client
+    retrieval = create_retrieval_resources(
+        settings,
+        session_factory,
+        tool_http_client,
+    )
     direct_answer = create_direct_answer_runtime_resources(
         settings,
         session_factory,
         provider_http_client,
-        tool_adapters=(industry.web_search_tool,),
+        tool_adapters=(
+            industry.web_search_tool,
+            retrieval.knowledge_search_tool,
+            retrieval.finance_calculate_tool,
+        ),
+        tool_surfaces={
+            TurnSearchMode.WEB: (industry.web_search_tool.definition.reference,),
+            TurnSearchMode.LOCAL: (
+                retrieval.knowledge_search_tool.definition.reference,
+                retrieval.finance_calculate_tool.definition.reference,
+            ),
+        },
+        fixture_catalog=retrieval.catalog,
     )
     ingestion = create_ingestion_resources(
         settings,
         session_factory,
         job_resources.application_service,
         create_private_file_object_store(settings),
-        internal_http_client or provider_http_client,
+        tool_http_client,
     )
     return JobExecutionRuntime(
         jobs=job_resources.application_service,

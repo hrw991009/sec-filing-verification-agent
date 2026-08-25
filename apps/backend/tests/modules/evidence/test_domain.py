@@ -15,7 +15,9 @@ from industry_platform.modules.evidence.domain import (
     EvidenceKind,
     EvidenceLocatorType,
     EvidenceStatus,
+    FinancialCalculationLocatorV1,
     IndustrySourceLocatorV1,
+    SecFilingChunkLocatorV1,
     SqlResultLocatorV1,
     claim_coverage,
     claim_verification_status,
@@ -31,6 +33,9 @@ STEP_ID = UUID("55555555-5555-4555-8555-555555555555")
 CALL_ID = UUID("66666666-6666-4666-8666-666666666666")
 OBSERVATION_ID = UUID("77777777-7777-4777-8777-777777777777")
 SOURCE_ITEM_ID = UUID("88888888-8888-4888-8888-888888888888")
+DOCUMENT_ID = UUID("99999999-9999-4999-8999-999999999998")
+VERSION_ID = UUID("99999999-9999-4999-8999-999999999997")
+CHUNK_ID = UUID("99999999-9999-4999-8999-999999999996")
 
 
 def industry_locator() -> IndustrySourceLocatorV1:
@@ -98,6 +103,59 @@ def test_locators_round_trip_without_implicit_coercion() -> None:
     assert industry.locator_type is EvidenceLocatorType.INDUSTRY_SOURCE_V1
     with pytest.raises(ValueError, match="locator"):
         parse_evidence_locator({**sql.to_mapping(), "row_start": "0"})
+
+
+def test_filing_and_calculation_locators_preserve_full_lineage() -> None:
+    filing = SecFilingChunkLocatorV1(
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form="10-K",
+        report_period="2023-09-30",
+        filed_at="2023-11-03T00:00:00+00:00",
+        accepted_at="2023-11-02T18:08:27+00:00",
+        primary_document="aapl-20230930.htm",
+        canonical_url=(
+            "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm"
+        ),
+        dataset_version="sec-fixture-v1",
+        fixture_sha256="b" * 64,
+        knowledge_base_id=SOURCE_ITEM_ID,
+        document_id=DOCUMENT_ID,
+        document_version_id=VERSION_ID,
+        chunk_id=CHUNK_ID,
+        section="Item 8. Consolidated Statements of Operations",
+        page_number=29,
+        content_sha256="c" * 64,
+        parser_version="1.0.0",
+        chunker_version="1.0.0",
+        index_version="knowledge-index-v1",
+    )
+    calculation = FinancialCalculationLocatorV1(
+        financial_scope={
+            "schema_version": 1,
+            "cik": "0000320193",
+            "accession": "0000320193-23-000106",
+            "form": "10-K",
+            "report_period": "2023-09-30",
+            "as_of": "2023-11-03T12:00:00+00:00",
+            "unit": "USD",
+            "scale": 6,
+        },
+        operator="percent_change",
+        operand_values=("383285", "394328"),
+        input_evidence_refs=(EVIDENCE_ID, EVIDENCE_ID),
+        decimal_places=2,
+        rounding_mode="half_even",
+        formula="((383285 - 394328) / 394328) * 100",
+        result="-2.80",
+        unit="PERCENT",
+        scale=0,
+        observation_sha256="d" * 64,
+    )
+
+    assert parse_evidence_locator(filing.to_mapping()) == filing
+    assert parse_evidence_locator(calculation.to_mapping()) == calculation
+    assert calculation.input_evidence_refs == (EVIDENCE_ID, EVIDENCE_ID)
 
 
 def test_evidence_lifecycle_requires_excerpt_or_explicit_invalidation() -> None:

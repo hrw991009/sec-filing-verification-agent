@@ -71,13 +71,31 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="fk_evidence_query_run_workspace",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["document_version_id", "workspace_id"],
+            ["document_versions.id", "document_versions.workspace_id"],
+            name="fk_evidence_document_version_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["chunk_id", "document_version_id", "workspace_id"],
+            [
+                "document_chunks.id",
+                "document_chunks.document_version_id",
+                "document_chunks.workspace_id",
+            ],
+            name="fk_evidence_chunk_version_workspace",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("schema_version = 1", name="schema_version_supported"),
         CheckConstraint(
-            "kind IN ('web_snapshot', 'sql_result', 'news', 'policy', 'bidding', 'stock')",
+            "kind IN ('web_snapshot', 'sql_result', 'news', 'policy', 'bidding', 'stock', "
+            "'filing', 'calculation')",
             name="kind_supported",
         ),
         CheckConstraint(
-            "locator_type IN ('industry_source_v1', 'sql_result_v1')",
+            "locator_type IN ('industry_source_v1', 'sql_result_v1', "
+            "'sec_filing_chunk_v1', 'financial_calculation_v1')",
             name="locator_type_supported",
         ),
         CheckConstraint(
@@ -95,8 +113,14 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint(
             "(locator_type = 'industry_source_v1' AND source_item_id IS NOT NULL "
-            "AND query_run_id IS NULL) OR (locator_type = 'sql_result_v1' "
-            "AND query_run_id IS NOT NULL AND source_item_id IS NULL)",
+            "AND query_run_id IS NULL AND document_version_id IS NULL AND chunk_id IS NULL) OR "
+            "(locator_type = 'sql_result_v1' AND query_run_id IS NOT NULL "
+            "AND source_item_id IS NULL AND document_version_id IS NULL AND chunk_id IS NULL) OR "
+            "(locator_type = 'sec_filing_chunk_v1' AND source_item_id IS NULL "
+            "AND query_run_id IS NULL AND document_version_id IS NOT NULL "
+            "AND chunk_id IS NOT NULL) OR "
+            "(locator_type = 'financial_calculation_v1' AND source_item_id IS NULL "
+            "AND query_run_id IS NULL AND document_version_id IS NULL AND chunk_id IS NULL)",
             name="source_reference_matches_locator",
         ),
         CheckConstraint(
@@ -176,6 +200,8 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     source_resource_version: Mapped[str] = mapped_column(String(128), nullable=False)
     source_item_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     query_run_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    document_version_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    chunk_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     deduplication_key: Mapped[str] = mapped_column(String(64), nullable=False)
 
 

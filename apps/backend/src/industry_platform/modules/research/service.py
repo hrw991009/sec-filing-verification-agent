@@ -43,17 +43,37 @@ class ResearchNotFoundError(LookupError):
 @dataclass(frozen=True, slots=True)
 class StartResearch:
     trace_id: TraceId
-    industry_id: UUID
+    industry_id: UUID | None
     brief: ResearchBriefInput
     idempotency_key: str = field(repr=False)
+    search_mode: TurnSearchMode = TurnSearchMode.WEB
+    knowledge_base_ids: tuple[UUID, ...] = ()
     max_steps: int = 20
     max_total_tokens: int = 16_384
     max_cost_micro_usd: int = 500_000
     timeout_seconds: int = 600
 
     def __post_init__(self) -> None:
-        if self.industry_id.int == 0:
+        if self.industry_id is not None and self.industry_id.int == 0:
             raise ValueError("Research industry ID is invalid")
+        knowledge_base_ids = tuple(self.knowledge_base_ids)
+        if (
+            len(knowledge_base_ids) > 100
+            or len(set(knowledge_base_ids)) != len(knowledge_base_ids)
+            or any(identifier.int == 0 for identifier in knowledge_base_ids)
+        ):
+            raise ValueError("Research Knowledge Base allowlist is invalid")
+        if self.search_mode is TurnSearchMode.WEB:
+            if self.industry_id is None or knowledge_base_ids or self.brief.financial_scope:
+                raise ValueError("Web Research scope is invalid")
+        elif self.search_mode is TurnSearchMode.LOCAL:
+            if self.industry_id is not None or not knowledge_base_ids:
+                raise ValueError("Local Research source selection is invalid")
+            if self.brief.financial_scope is None:
+                raise ValueError("Local Research Financial Scope is required")
+        else:
+            raise ValueError("Research search mode is not ready")
+        object.__setattr__(self, "knowledge_base_ids", knowledge_base_ids)
         if not self.idempotency_key.strip() or len(self.idempotency_key) > 200:
             raise ValueError("Research idempotency key is invalid")
         for value, lower, upper, name in (
@@ -101,8 +121,9 @@ class ResearchSubmissionService:
                 idempotency_key=request.idempotency_key,
                 question=request.brief.original_question,
                 new_conversation_title=None,
-                search_mode=TurnSearchMode.WEB,
+                search_mode=request.search_mode,
                 industry_id=request.industry_id,
+                knowledge_base_ids=request.knowledge_base_ids,
                 research_brief=request.brief,
             )
         )

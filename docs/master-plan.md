@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.0.0`
+> 版本：`2.0.1`
 >
 > 制定日期：`2026-07-23`
 >
@@ -52,7 +52,8 @@
 |---|---|---|
 | Day 1～Day 4 | D1、D2、D3、D4 已按各自记录完成；D1-09 外部凭据处置和 Day 4 核心覆盖率债务仍保留 | 历史任务、提交、CI、DoD 和限制原文保留，不因业务转向重算 |
 | Day 5 Step 1～3 | 当前分支 `feat/day5-knowledge-ingestion-step1` 已实现知识受理、版本化解析资产、双索引写入/删除对账/Workbench；提交 `4daa028` 的分支 CI `32796096690` 已通过 | 记录为 `implemented_pending_verification`；在合入 `main`、合并提交 CI、DoD 与所有者复核前不得写成 `complete` |
-| Day 5 Step 4～Day 10 | 尚未完成 | 按 SEC 披露与财务事实核验路线重新冻结任务、测试和门禁 |
+| Day 5 Step 4 | 当前工作树已实现固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 本地合同对照；尚未提交或取得远端 CI | 记录为 `implemented_pending_verification`；F2/no-result 已走同一 Runtime/Harness，F0/F1 仍是冻结合同对照，不表述为 live/model 质量 |
+| Day 5 Step 5～Day 10 | 尚未完成 | 按 SEC 披露与财务事实核验路线继续执行；不得因 Step 4 本地通过而提前进入 Day 6 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -858,7 +859,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 12. Day 5：Agent Knowledge 与 Durable Research L4
 
-> 执行状态（2026-08-25）：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，最新提交 `4daa028` 的分支 CI `32796096690` 已通过；因尚未合入 `main`、没有合并提交 CI、Day 5 DoD 与所有者收口，相关能力统一保持 `implemented_pending_verification` 或 `thin_slice`，不得写成 `complete`。Step 4～5 按本版 SEC 路线重新冻结，仍为 `planned`。详细逐步事实见 [Day 5 学习日志](learning-log/day-5.md)。
+> 执行状态（2026-08-25）：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，最新已提交基线 `4daa028` 的分支 CI `32796096690` 已通过。Step 4 当前工作树已实现固定 SEC fixture、Dense Knowledge Tool、typed calculator、FinancialScope、filing/calculation Evidence、Workbench 请求合同与 F0～F2 本地对照，并通过锁定环境下的本地全量门禁，状态为 `implemented_pending_verification`；它尚未提交、没有 Step 4 分支 CI，也没有 `main` 合并 CI、Day 5 DoD 或所有者收口。Step 5 仍为 `planned`，不得写成 Day 5 `complete`。详细逐步事实见 [Day 5 学习日志](learning-log/day-5.md)。
 
 ### 学习主题
 
@@ -1320,3 +1321,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 1.7.1 | 2026-08-22 | 同步 Day 4 五步提交、分支 CI、覆盖率例外和 `main` 尚未合并的实际状态；不改变冻结范围、架构或门禁 | 用户授权的文档收口 |
 | 1.7.2 | 2026-08-22 | 同步 PR #7 合并、`main` 合并提交 CI、Trace/Eval/DoD 复核与项目所有者授权收口；D4-01～D4-07 关闭并允许进入 Day 5，保留 Day 7 前 90% 核心覆盖率债务 | 用户授权的 Day 4 收口 |
 | 2.0.0 | 2026-08-25 | 冻结 Day 1～4 与 Day 5 Step 1～3 历史事实；从 Day 5 Step 4 起将后续路线收敛为 SEC 披露与财务事实核验 Agent，并扩展至 Day 10，新增官方数据/XBRL、typed calculator、point-in-time、Verifier/Monitor、公开 benchmark + SEC temporal + 中英配对评测和发布门禁 | 用户 |
+| 2.0.1 | 2026-08-25 | 同步 Day 5 Step 4 工作树实现与本地门禁：固定 SEC fixture、Dense `knowledge_search`、typed calculator、Evidence lineage、F0～F2 合同对照和 Workbench；明确尚无提交/远端 CI，F0/F1 不是 live/model 质量，Step 5 仍为 planned | 用户授权的步骤实施记录 |

@@ -21,13 +21,17 @@ class DeterministicHashEmbeddingProvider:
             ChunkEmbedding(
                 chunk_id=item.chunk_id,
                 content_hash=item.content_hash,
-                vector=_embed_text(item.text),
+                vector=embed_query_text(item.text),
             )
             for item in inputs
         )
 
 
-def _embed_text(text: str) -> tuple[float, ...]:
+def embed_query_text(text: str) -> tuple[float, ...]:
+    """Use the exact indexed feature-hash contract for Dense query vectors."""
+
+    if not text.strip() or len(text) > 20_000 or "\x00" in text:
+        raise ValueError("Embedding query text is invalid")
     vector = [0.0] * EMBEDDING_DIMENSION
     tokens = _TOKEN_PATTERN.findall(text.casefold())
     if not tokens:

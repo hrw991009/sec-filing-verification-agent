@@ -272,6 +272,11 @@ class SqlAlchemyDirectAnswerTurnWriter:
                     confirmed_scope=list(prepared.research_brief.confirmed_scope),
                     exclusions=list(prepared.research_brief.exclusions),
                     completion_criteria=list(prepared.research_brief.completion_criteria),
+                    financial_scope=(
+                        None
+                        if prepared.research_brief.financial_scope is None
+                        else dict(prepared.research_brief.financial_scope.to_mapping())
+                    ),
                     budget={
                         "schema_version": run.budget.schema_version,
                         "max_steps": run.budget.max_steps,

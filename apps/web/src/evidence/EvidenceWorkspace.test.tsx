@@ -65,6 +65,7 @@ const researchRun: ResearchRun = {
     confirmed_by_user_id: evidence.authorization_snapshot.actor_user_id,
     confirmed_scope: ["Public smart transport news"],
     exclusions: ["Investment advice"],
+    financial_scope: null,
     id: "12121212-1212-4121-8121-121212121212",
     original_question: "Find a public transport policy update.",
     revision: 1,

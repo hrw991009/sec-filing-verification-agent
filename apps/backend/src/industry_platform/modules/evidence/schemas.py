@@ -16,6 +16,7 @@ from industry_platform.modules.evidence.domain import (
     GraphNodeType,
     RelationStatus,
 )
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.research.domain import ResearchRunStatus
 
 
@@ -69,8 +70,52 @@ class SqlResultLocatorResponse(StrictLedgerModel):
     row_end: int
 
 
+class SecFilingChunkLocatorResponse(StrictLedgerModel):
+    schema_version: Literal[1]
+    locator_type: Literal["sec_filing_chunk_v1"]
+    cik: str
+    accession: str
+    form: str
+    report_period: str
+    filed_at: str
+    accepted_at: str
+    primary_document: str
+    canonical_url: str
+    dataset_version: str
+    fixture_sha256: str
+    knowledge_base_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    section: str
+    page_number: int
+    content_sha256: str
+    parser_version: str
+    chunker_version: str
+    index_version: str
+
+
+class FinancialCalculationLocatorResponse(StrictLedgerModel):
+    schema_version: Literal[1]
+    locator_type: Literal["financial_calculation_v1"]
+    financial_scope: FinancialScopePayload
+    operator: str
+    operand_values: list[str]
+    input_evidence_refs: list[UUID]
+    decimal_places: int
+    rounding_mode: str
+    formula: str
+    result: str
+    unit: str
+    scale: int
+    observation_sha256: str
+
+
 EvidenceLocatorResponse = Annotated[
-    IndustrySourceLocatorResponse | SqlResultLocatorResponse,
+    IndustrySourceLocatorResponse
+    | SqlResultLocatorResponse
+    | SecFilingChunkLocatorResponse
+    | FinancialCalculationLocatorResponse,
     Field(discriminator="locator_type"),
 ]
 

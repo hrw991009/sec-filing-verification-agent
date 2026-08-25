@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Mapping
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass, field, replace
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
 
+from industry_platform.modules.agent_harness.runner import (
+    HarnessRunner,
+    MaterializedScenario,
+)
+from industry_platform.modules.agent_harness.scenarios import (
+    Scenario,
+    load_scenario_dataset,
+)
 from industry_platform.modules.agent_harness.tool_fakes import (
     FAKE_LOOKUP_TOOL_NAME,
     FAKE_LOOKUP_TOOL_VERSION,
@@ -56,11 +65,18 @@ from industry_platform.modules.evidence.domain import (
     EvidenceNormalizationItem,
     EvidenceNormalizationResult,
     EvidenceStatus,
+    FinancialCalculationLocatorV1,
     IndustrySourceLocatorV1,
     NormalizeObservation,
     ResearchClaim,
+    SecFilingChunkLocatorV1,
 )
 from industry_platform.modules.evidence.ports import EvidenceUseCase
+from industry_platform.modules.financial_verification.domain import (
+    FinancialForm,
+    FinancialScope,
+)
+from industry_platform.modules.financial_verification.tool import FinanceCalculateTool
 from industry_platform.modules.identity.domain import (
     AuthenticatedPrincipal,
     AuthenticatedWorkspace,
@@ -80,6 +96,14 @@ from industry_platform.modules.research.domain import (
     ResearchPlan,
 )
 from industry_platform.modules.research.ports import ResearchWorkflowStore
+from industry_platform.modules.retrieval.domain import (
+    KnowledgeSearchHit,
+    KnowledgeSearchResult,
+    KnowledgeSearchStatus,
+    knowledge_evidence_ref,
+)
+from industry_platform.modules.retrieval.fixtures import load_sec_fixture_catalog
+from industry_platform.modules.retrieval.tool import KnowledgeSearchTool
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
@@ -99,6 +123,16 @@ DRAFT_ID = UUID("10000000-0000-4000-8000-000000000009")
 EVIDENCE_ID = UUID("10000000-0000-4000-8000-000000000010")
 CLAIM_ID = UUID("10000000-0000-4000-8000-000000000011")
 QUESTION = "Compare steel and copper market changes."
+REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
+SEC_MANIFEST = REPOSITORY_ROOT / "evals" / "fixtures" / "sec" / "sec-fixture-v1" / "manifest.json"
+SEC_SCENARIOS = REPOSITORY_ROOT / "evals" / "scenarios" / "sec-fixture-v1.json"
+SEC_QUESTION = "Apple 2023 net sales compared with 2022 changed by what percentage?"
+SEC_KNOWLEDGE_BASE_ID = UUID("10000000-0000-4000-8000-000000000012")
+SEC_DOCUMENT_ID = UUID("10000000-0000-4000-8000-000000000013")
+SEC_VERSION_ID = UUID("10000000-0000-4000-8000-000000000014")
+SEC_CHUNK_ID = UUID("10000000-0000-4000-8000-000000000015")
+SEC_CALCULATION_EVIDENCE_ID = UUID("10000000-0000-4000-8000-000000000016")
+SEC_CHUNK_HASH = "b" * 64
 
 
 def stable_id(name: str) -> UUID:
@@ -290,6 +324,260 @@ class RecordingEvidenceService:
         )
 
 
+def sec_financial_scope() -> FinancialScope:
+    return FinancialScope(
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form=FinancialForm.TEN_K,
+        report_period=date(2023, 9, 30),
+        as_of=datetime(2023, 11, 3, 12, tzinfo=UTC),
+        unit="USD",
+        scale=6,
+    )
+
+
+@dataclass(slots=True)
+class SecKnowledgeService:
+    status: KnowledgeSearchStatus = KnowledgeSearchStatus.OK
+    queries: list[str] = field(default_factory=list)
+
+    async def search(
+        self,
+        scope: WorkspaceScope,
+        **kwargs: object,
+    ) -> KnowledgeSearchResult:
+        assert scope.workspace_id == WORKSPACE_ID
+        assert kwargs["knowledge_base_ids"] == (SEC_KNOWLEDGE_BASE_ID,)
+        assert kwargs["financial_scope"] == sec_financial_scope()
+        self.queries.append(str(kwargs["query"]))
+        if self.status is not KnowledgeSearchStatus.OK:
+            return KnowledgeSearchResult(status=self.status)
+        fixture = load_sec_fixture_catalog(
+            SEC_MANIFEST,
+            repository_root=REPOSITORY_ROOT,
+        ).filings[0]
+        return KnowledgeSearchResult(
+            status=KnowledgeSearchStatus.OK,
+            hits=(
+                KnowledgeSearchHit(
+                    evidence_ref=knowledge_evidence_ref(
+                        workspace_id=WORKSPACE_ID,
+                        accession=fixture.accession,
+                        document_version_id=SEC_VERSION_ID,
+                        chunk_id=SEC_CHUNK_ID,
+                        content_sha256=SEC_CHUNK_HASH,
+                    ),
+                    knowledge_base_id=SEC_KNOWLEDGE_BASE_ID,
+                    document_id=SEC_DOCUMENT_ID,
+                    document_version_id=SEC_VERSION_ID,
+                    chunk_id=SEC_CHUNK_ID,
+                    title="Apple 2023 Form 10-K",
+                    excerpt="Total net sales 2023 383285; 2022 394328 (USD millions).",
+                    score=0.95,
+                    page_number=29,
+                    section="Item 8. Consolidated Statements of Operations",
+                    content_sha256=SEC_CHUNK_HASH,
+                    parser_version="1.0.0",
+                    chunker_version="1.0.0",
+                    index_version="knowledge-index-v1",
+                    fixture=fixture,
+                ),
+            ),
+        )
+
+
+@dataclass(slots=True)
+class SecOperandRepository:
+    values: list[tuple[tuple[UUID, str], ...]] = field(default_factory=list)
+
+    async def validate_operands(
+        self,
+        scope: WorkspaceScope,
+        **kwargs: object,
+    ) -> KnowledgeSearchStatus:
+        assert scope.workspace_id == WORKSPACE_ID
+        evidence_values = cast(tuple[tuple[UUID, str], ...], kwargs["evidence_values"])
+        self.values.append(evidence_values)
+        return KnowledgeSearchStatus.OK
+
+
+@dataclass(slots=True)
+class SecEvidenceService:
+    accept_sources: bool = True
+    normalizations: list[NormalizeObservation] = field(default_factory=list)
+    claims: list[CreateClaim] = field(default_factory=list)
+
+    async def normalize_observation(
+        self,
+        scope: WorkspaceScope,
+        command: NormalizeObservation,
+    ) -> EvidenceNormalizationResult:
+        assert scope.workspace_id == WORKSPACE_ID
+        self.normalizations.append(command)
+        if not self.accept_sources:
+            return EvidenceNormalizationResult(
+                observation_id=command.observation_id,
+                tool_call_id=command.tool_call_id,
+                normalizer_version="evidence-normalizer-v1",
+                items=(),
+            )
+        fixture = load_sec_fixture_catalog(
+            SEC_MANIFEST,
+            repository_root=REPOSITORY_ROOT,
+        ).filings[0]
+        filing_evidence_id = knowledge_evidence_ref(
+            workspace_id=WORKSPACE_ID,
+            accession=fixture.accession,
+            document_version_id=SEC_VERSION_ID,
+            chunk_id=SEC_CHUNK_ID,
+            content_sha256=SEC_CHUNK_HASH,
+        )
+        if len(self.normalizations) == 1:
+            evidence = Evidence(
+                evidence_id=filing_evidence_id,
+                workspace_id=WORKSPACE_ID,
+                kind=EvidenceKind.FILING,
+                title="Apple 2023 Form 10-K: Net sales",
+                canonical_url=fixture.canonical_url,
+                locator=SecFilingChunkLocatorV1(
+                    cik=fixture.cik,
+                    accession=fixture.accession,
+                    form=fixture.form,
+                    report_period=fixture.report_period.isoformat(),
+                    filed_at=fixture.filed_at.isoformat(),
+                    accepted_at=fixture.accepted_at.isoformat(),
+                    primary_document=fixture.primary_document,
+                    canonical_url=fixture.canonical_url,
+                    dataset_version=fixture.dataset_version,
+                    fixture_sha256=fixture.content_sha256,
+                    knowledge_base_id=SEC_KNOWLEDGE_BASE_ID,
+                    document_id=SEC_DOCUMENT_ID,
+                    document_version_id=SEC_VERSION_ID,
+                    chunk_id=SEC_CHUNK_ID,
+                    section="Item 8. Consolidated Statements of Operations",
+                    page_number=29,
+                    content_sha256=SEC_CHUNK_HASH,
+                    parser_version="1.0.0",
+                    chunker_version="1.0.0",
+                    index_version="knowledge-index-v1",
+                ),
+                excerpt="Total net sales 2023 383285; 2022 394328 (USD millions).",
+                content_sha256=SEC_CHUNK_HASH,
+                source_published_at=fixture.filed_at,
+                retrieved_at=NOW,
+                license_or_terms=fixture.license_or_terms,
+                status=EvidenceStatus.ACTIVE,
+                revision=1,
+                invalidated_at=None,
+                invalidation_reason=None,
+                origin_run_id=RUN_ID,
+                origin_step_id=stable_id("sec-tool-step"),
+                origin_tool_call_id=command.tool_call_id,
+                origin_observation_id=command.observation_id,
+                origin_source_ordinal=1,
+                normalizer_version="evidence-normalizer-v1",
+                authorization_snapshot=AuthorizationSnapshot(
+                    workspace_id=WORKSPACE_ID,
+                    actor_user_id=USER_ID,
+                    role="member",
+                    action="evidence.normalize",
+                    captured_at=NOW,
+                ),
+                source_resource_version="sec-fixture-v1:knowledge-index-v1",
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        else:
+            evidence = Evidence(
+                evidence_id=SEC_CALCULATION_EVIDENCE_ID,
+                workspace_id=WORKSPACE_ID,
+                kind=EvidenceKind.CALCULATION,
+                title="Financial calculation: percent_change",
+                canonical_url=None,
+                locator=FinancialCalculationLocatorV1(
+                    financial_scope=dict(sec_financial_scope().to_mapping()),
+                    operator="percent_change",
+                    operand_values=("383285", "394328"),
+                    input_evidence_refs=(filing_evidence_id, filing_evidence_id),
+                    decimal_places=2,
+                    rounding_mode="half_even",
+                    formula="((383285 - 394328) / 394328) * 100",
+                    result="-2.80",
+                    unit="PERCENT",
+                    scale=0,
+                    observation_sha256="c" * 64,
+                ),
+                excerpt="-2.80 percent",
+                content_sha256="c" * 64,
+                source_published_at=None,
+                retrieved_at=NOW,
+                license_or_terms="Deterministic fixture calculation.",
+                status=EvidenceStatus.ACTIVE,
+                revision=1,
+                invalidated_at=None,
+                invalidation_reason=None,
+                origin_run_id=RUN_ID,
+                origin_step_id=stable_id("sec-calculation-step"),
+                origin_tool_call_id=command.tool_call_id,
+                origin_observation_id=command.observation_id,
+                origin_source_ordinal=1,
+                normalizer_version="evidence-normalizer-v1",
+                authorization_snapshot=AuthorizationSnapshot(
+                    workspace_id=WORKSPACE_ID,
+                    actor_user_id=USER_ID,
+                    role="member",
+                    action="evidence.normalize",
+                    captured_at=NOW,
+                ),
+                source_resource_version="financial-calculation-v1",
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        return EvidenceNormalizationResult(
+            observation_id=command.observation_id,
+            tool_call_id=command.tool_call_id,
+            normalizer_version="evidence-normalizer-v1",
+            items=(
+                EvidenceNormalizationItem(
+                    source_ordinal=1,
+                    decision=EvidenceDecision.ACCEPTED,
+                    reason=EvidenceDecisionReason.ACCEPTED,
+                    evidence=evidence,
+                ),
+            ),
+        )
+
+    async def create_claim(
+        self,
+        scope: WorkspaceScope,
+        command: CreateClaim,
+        *,
+        created_at: datetime | None = None,
+    ) -> ResearchClaim:
+        del created_at
+        assert scope.workspace_id == WORKSPACE_ID
+        self.claims.append(command)
+        supported = bool(command.relations)
+        return ResearchClaim(
+            claim_id=CLAIM_ID,
+            workspace_id=WORKSPACE_ID,
+            research_run_id=command.research_run_id,
+            statement=command.statement,
+            confidence=command.confidence,
+            verification_status=(
+                ClaimVerificationStatus.SUPPORTED
+                if supported
+                else ClaimVerificationStatus.UNCERTAIN
+            ),
+            coverage=1 if supported else 0,
+            conflict=False,
+            revision=1,
+            relations=(),
+            created_at=NOW,
+            updated_at=NOW,
+        )
+
+
 def model_response(output_text: str, request_id: str) -> ModelResponse:
     return ModelResponse(
         schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
@@ -461,6 +749,260 @@ def build_runtime(
         tool,
         committer,
     )
+
+
+def sec_research_command(
+    selected_budget: RunBudget,
+    *,
+    question: str = SEC_QUESTION,
+) -> ResearchL3RunCommand:
+    base = research_command(selected_budget)
+    policy = ToolL2RuntimePolicy(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        profile_version="sec-fixture-dense-calculator-v1",
+        prompt_version="conversation-local-l2-prompt-v1",
+        context_compiler_version="context-v1",
+        output_contract_version="final-markdown-v1",
+        toolset_version="conversation-local-toolset-v1",
+        model="openai-compatible/fake-model",
+        max_input_tokens=4_096,
+        max_decision_output_tokens=512,
+        max_tool_calls=2,
+        system_instructions="Use the pinned filing scope and exact local Tool surface.",
+        available_tools=(
+            ToolReference("knowledge_search", "v1"),
+            ToolReference("finance.calculate", "v1"),
+        ),
+    )
+    brief = replace(
+        base.brief,
+        input=ResearchBriefInput(
+            original_question=question,
+            confirmed_scope=("Apple 2023 Form 10-K net sales",),
+            exclusions=("Live SEC data", "Investment advice"),
+            completion_criteria=("Persist filing and calculation Evidence",),
+            financial_scope=sec_financial_scope(),
+        ),
+    )
+    loop = replace(
+        base.loop_command,
+        policy=policy,
+        user_question=question,
+    )
+    return replace(base, brief=brief, loop_command=loop)
+
+
+def sec_runtime_context(selected_budget: RunBudget) -> TrustedRuntimeContext:
+    return replace(
+        runtime_context(selected_budget),
+        knowledge_base_ids=(SEC_KNOWLEDGE_BASE_ID,),
+        financial_scope=sec_financial_scope(),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class SecScenarioMaterializer:
+    command: ResearchL3RunCommand
+    context: TrustedRuntimeContext
+    scenario_id: str = "sec-net-sales-change-f2"
+    question: str = SEC_QUESTION
+
+    def materialize(
+        self,
+        scenario: Scenario,
+    ) -> MaterializedScenario[ResearchL3RunCommand, TrustedRuntimeContext]:
+        assert scenario.scenario_id == self.scenario_id
+        assert scenario.profile.name == "sec-fixture-dense-calculator"
+        assert scenario.input["question"] == self.question
+        assert tuple((item.name, item.version) for item in scenario.available_tools) == (
+            ("knowledge_search", "v1"),
+            ("finance.calculate", "v1"),
+        )
+        return MaterializedScenario(command=self.command, runtime_context=self.context)
+
+
+def build_sec_runtime(
+    provider: ModelProvider,
+    workflow_store: RecordingWorkflowStore,
+    evidence_service: SecEvidenceService,
+    *,
+    knowledge_status: KnowledgeSearchStatus = KnowledgeSearchStatus.OK,
+) -> tuple[UnifiedAgentRuntime, SecKnowledgeService, SecOperandRepository]:
+    clock: Callable[[], datetime] = IncrementingClock()
+    manifests = RecordingManifestStore()
+    committer = RecordingCommitter()
+    compiler = ContextCompilerV1(token_counter=FixedTokenCounter())
+    knowledge_service = SecKnowledgeService(status=knowledge_status)
+    operand_repository = SecOperandRepository()
+    catalog = load_sec_fixture_catalog(SEC_MANIFEST, repository_root=REPOSITORY_ROOT)
+    tools = (
+        KnowledgeSearchTool(knowledge_service),  # type: ignore[arg-type]
+        FinanceCalculateTool(operand_repository, catalog),  # type: ignore[arg-type]
+    )
+    registry = ToolRegistry(tools)
+    executor = RegistryToolExecutor(registry, clock=clock)
+    cancellation = NeverCancelled()
+    research_runtime = ResearchL3Runtime(
+        workflow_store=cast(ResearchWorkflowStore, workflow_store),
+        evidence_service=cast(EvidenceUseCase, evidence_service),
+        context_compiler=compiler,
+        context_manifest_store=manifests,
+        model_provider=provider,
+        tool_registry=registry,
+        tool_executor=executor,
+        event_committer=committer,
+        cancellation_probe=cancellation,
+        clock=clock,
+    )
+    direct_runtime = DirectAnswerRuntime(
+        context_compiler=compiler,
+        context_manifest_store=manifests,
+        model_provider=provider,
+        event_committer=committer,
+        cancellation_probe=cancellation,
+        clock=clock,
+    )
+    return (
+        UnifiedAgentRuntime(
+            direct_answer_runtime=direct_runtime,
+            research_l3_runtime=research_runtime,
+        ),
+        knowledge_service,
+        operand_repository,
+    )
+
+
+@pytest.mark.asyncio
+async def test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime() -> None:
+    fixture = load_sec_fixture_catalog(SEC_MANIFEST, repository_root=REPOSITORY_ROOT).filings[0]
+    filing_evidence_id = knowledge_evidence_ref(
+        workspace_id=WORKSPACE_ID,
+        accession=fixture.accession,
+        document_version_id=SEC_VERSION_ID,
+        chunk_id=SEC_CHUNK_ID,
+        content_sha256=SEC_CHUNK_HASH,
+    )
+    provider = QueueModelProvider(
+        (
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"tool_call",'
+                '"name":"knowledge_search","version":"v1",'
+                '"arguments":{"query":"Apple 2023 and 2022 net sales"}}}',
+                "sec-knowledge-decision",
+            ),
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"tool_call",'
+                '"name":"finance.calculate","version":"v1","arguments":{'
+                '"operator":"percent_change","operands":['
+                f'{{"value":"383285","evidence_ref":"{filing_evidence_id}"}},'
+                f'{{"value":"394328","evidence_ref":"{filing_evidence_id}"}}],'
+                '"decimal_places":2,"rounding_mode":"half_even"}}}',
+                "sec-calculation-decision",
+            ),
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"final",'
+                '"content_markdown":"## Finding\\n\\nNet sales decreased by 2.80% [S1]."}}',
+                "sec-final-decision",
+            ),
+        )
+    )
+    selected_budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    store = RecordingWorkflowStore()
+    evidence = SecEvidenceService()
+    runtime, knowledge, calculator = build_sec_runtime(provider, store, evidence)
+    case = next(
+        item
+        for item in load_scenario_dataset(SEC_SCENARIOS).cases
+        if item.case_id == "sec-net-sales-change-f2"
+    )
+
+    result = await HarnessRunner(
+        runtime=runtime,
+        materializer=SecScenarioMaterializer(
+            command=sec_research_command(selected_budget),
+            context=sec_runtime_context(selected_budget),
+        ),
+    ).run_case(case)
+
+    assert result.events[-1].event_type is AgentEventType.RUN_COMPLETED
+    assert [event.event_type for event in result.events].count(AgentEventType.TOOL_COMPLETED) == 2
+    assert knowledge.queries == ["Apple 2023 and 2022 net sales"]
+    assert calculator.values == [((filing_evidence_id, "383285"), (filing_evidence_id, "394328"))]
+    assert len(evidence.normalizations) == 2
+    assert {relation.evidence_id for relation in evidence.claims[0].relations} == {
+        filing_evidence_id,
+        SEC_CALCULATION_EVIDENCE_ID,
+    }
+    assert store.drafts[0].status is ResearchDraftStatus.EXPLAINABLE_DRAFT
+    assert store.drafts[0].evidence_refs == (
+        filing_evidence_id,
+        SEC_CALCULATION_EVIDENCE_ID,
+    )
+
+
+@pytest.mark.asyncio
+async def test_no_result_trace_finishes_uncertain_without_calculator_or_evidence() -> None:
+    question = "What was Apple's fiscal 2023 pharmaceutical revenue?"
+    provider = QueueModelProvider(
+        (
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"tool_call",'
+                '"name":"knowledge_search","version":"v1",'
+                '"arguments":{"query":"Apple 2023 pharmaceutical revenue"}}}',
+                "sec-no-result-decision",
+            ),
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"final",'
+                '"content_markdown":"The bounded filing fixture has no supporting fact."}}',
+                "sec-no-result-final",
+            ),
+        )
+    )
+    selected_budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    store = RecordingWorkflowStore()
+    evidence = SecEvidenceService(accept_sources=False)
+    runtime, knowledge, calculator = build_sec_runtime(
+        provider,
+        store,
+        evidence,
+        knowledge_status=KnowledgeSearchStatus.NO_RESULT,
+    )
+    case = next(
+        item
+        for item in load_scenario_dataset(SEC_SCENARIOS).cases
+        if item.case_id == "sec-pharma-revenue-insufficient-f2"
+    )
+
+    result = await HarnessRunner(
+        runtime=runtime,
+        materializer=SecScenarioMaterializer(
+            command=sec_research_command(selected_budget, question=question),
+            context=sec_runtime_context(selected_budget),
+            scenario_id=case.case_id,
+            question=question,
+        ),
+    ).run_case(case)
+
+    assert result.events[-1].event_type is AgentEventType.RUN_COMPLETED
+    assert [event.event_type for event in result.events].count(AgentEventType.TOOL_COMPLETED) == 1
+    assert knowledge.queries == ["Apple 2023 pharmaceutical revenue"]
+    assert calculator.values == []
+    assert len(evidence.normalizations) == 1
+    assert evidence.claims[0].relations == ()
+    assert store.drafts[0].status is ResearchDraftStatus.UNCERTAIN_DRAFT
+    assert store.drafts[0].evidence_refs == ()
 
 
 @pytest.mark.asyncio

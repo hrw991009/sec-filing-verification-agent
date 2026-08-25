@@ -43,6 +43,38 @@
   gap: 0.65rem;
 }
 
+.research-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0.2rem;
+  border: 1px solid #d6ddd8;
+  border-radius: 0.5rem;
+  background: #f5f7f5;
+}
+
+.research-mode button {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #5e6c64;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.research-mode button[aria-pressed="true"] {
+  background: #fff;
+  color: #245c4d;
+  box-shadow: 0 1px 3px rgb(29 56 46 / 12%);
+}
+
+.research-mode button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .research-form h2,
 .research-run-list h2,
 .research-detail h2,

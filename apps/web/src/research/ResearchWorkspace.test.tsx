@@ -10,6 +10,7 @@ const workspaceId = "11111111-1111-4111-8111-111111111111";
 const researchRunId = "22222222-2222-4222-8222-222222222222";
 const agentRunId = "33333333-3333-4333-8333-333333333333";
 const industryId = "5ae94c40-4441-5e6f-b4cb-0679e8a92f9e";
+const knowledgeBaseId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 const industry: Industry = {
   code: "smart_transport",
@@ -34,6 +35,7 @@ const researchRun: ResearchRun = {
     confirmed_by_user_id: "44444444-4444-4444-8444-444444444444",
     confirmed_scope: ["Public smart transport news"],
     exclusions: ["Investment advice"],
+    financial_scope: null,
     id: "55555555-5555-4555-8555-555555555555",
     original_question: "Find a public transport policy update.",
     revision: 1,
@@ -157,10 +159,12 @@ const researchMocks = vi.hoisted(() => ({
 }));
 const chatMocks = vi.hoisted(() => ({ cancelRun: vi.fn(), getAgentTrace: vi.fn() }));
 const evidenceMocks = vi.hoisted(() => ({ listResearchClaims: vi.fn() }));
+const knowledgeMocks = vi.hoisted(() => ({ listKnowledgeBases: vi.fn() }));
 
 vi.mock("./research-api", () => researchMocks);
 vi.mock("../chat/chat-api", () => chatMocks);
 vi.mock("../evidence/evidence-api", () => evidenceMocks);
+vi.mock("../knowledge/knowledge-api", () => knowledgeMocks);
 
 import { ResearchWorkspace } from "./ResearchWorkspace";
 
@@ -169,6 +173,18 @@ describe("ResearchWorkspace", () => {
     vi.clearAllMocks();
     researchMocks.listResearchRuns.mockResolvedValue([researchRun]);
     researchMocks.getResearchRun.mockResolvedValue(researchRun);
+    knowledgeMocks.listKnowledgeBases.mockResolvedValue([
+      {
+        created_at: "2026-08-25T08:00:00Z",
+        description: "SEC fixture filings",
+        document_count: 1,
+        id: knowledgeBaseId,
+        name: "SEC Filings",
+        revision: 1,
+        updated_at: "2026-08-25T08:00:00Z",
+        workspace_id: workspaceId,
+      },
+    ]);
     chatMocks.getAgentTrace.mockResolvedValue(trace);
     evidenceMocks.listResearchClaims.mockResolvedValue([
       {
@@ -267,8 +283,63 @@ describe("ResearchWorkspace", () => {
       exclusions: ["Investment advice"],
       industry_id: industryId,
       max_steps: 20,
+      mode: "web",
       original_question: "Find a transport update.",
     });
     expect(researchMocks.startResearch.mock.calls[0]?.[2]).toEqual(expect.any(String));
+  });
+
+  it("submits a pinned SEC fixture scope and Knowledge Base", async () => {
+    const user = userEvent.setup();
+    researchMocks.listResearchRuns.mockResolvedValueOnce([]).mockResolvedValueOnce([researchRun]);
+    researchMocks.startResearch.mockResolvedValue({
+      agent_run_id: agentRunId,
+      conversation_id: "99999999-9999-4999-8999-999999999999",
+      created: true,
+      job_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      research_run_id: researchRunId,
+      turn_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    });
+
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={null}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    await screen.findByText("尚无 Research Run。");
+    await user.click(screen.getByRole("button", { name: "SEC Fixture" }));
+    expect(await screen.findByLabelText("Research Knowledge Base")).toHaveValue(knowledgeBaseId);
+    await user.type(
+      screen.getByLabelText("Research 原始问题"),
+      "Calculate Apple net sales change.",
+    );
+    await user.type(screen.getByLabelText("Research 已确认范围"), "Apple 2023 Form 10-K");
+    await user.click(screen.getByRole("button", { name: "确认 Brief 并开始" }));
+
+    await waitFor(() => {
+      expect(researchMocks.startResearch).toHaveBeenCalledTimes(1);
+    });
+    expect(researchMocks.startResearch.mock.calls[0]?.[1]).toMatchObject({
+      financial_scope: {
+        accession: "0000320193-23-000106",
+        cik: "0000320193",
+        form: "10-K",
+        report_period: "2023-09-30",
+        scale: 6,
+        schema_version: 1,
+        unit: "USD",
+      },
+      knowledge_base_ids: [knowledgeBaseId],
+      mode: "local",
+    });
+    expect(researchMocks.startResearch.mock.calls[0]?.[1]).not.toHaveProperty("industry_id");
   });
 });

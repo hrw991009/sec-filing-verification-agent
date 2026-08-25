@@ -2196,7 +2196,7 @@ export interface components {
          * EvidenceKind
          * @enum {string}
          */
-        EvidenceKind: "web_snapshot" | "sql_result" | "news" | "policy" | "bidding" | "stock";
+        EvidenceKind: "web_snapshot" | "sql_result" | "news" | "policy" | "bidding" | "stock" | "filing" | "calculation";
         /** EvidenceNormalizationItemResponse */
         EvidenceNormalizationItemResponse: {
             decision: components["schemas"]["EvidenceDecision"];
@@ -2249,7 +2249,7 @@ export interface components {
             /** License Or Terms */
             license_or_terms: string;
             /** Locator */
-            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"];
+            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"] | components["schemas"]["SecFilingChunkLocatorResponse"] | components["schemas"]["FinancialCalculationLocatorResponse"];
             /** Normalizer Version */
             normalizer_version: string;
             /**
@@ -2383,6 +2383,69 @@ export interface components {
             method: "POST";
             /** Url */
             url: string;
+        };
+        /** FinancialCalculationLocatorResponse */
+        FinancialCalculationLocatorResponse: {
+            /** Decimal Places */
+            decimal_places: number;
+            financial_scope: components["schemas"]["FinancialScopePayload"];
+            /** Formula */
+            formula: string;
+            /** Input Evidence Refs */
+            input_evidence_refs: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "financial_calculation_v1";
+            /** Observation Sha256 */
+            observation_sha256: string;
+            /** Operand Values */
+            operand_values: string[];
+            /** Operator */
+            operator: string;
+            /** Result */
+            result: string;
+            /** Rounding Mode */
+            rounding_mode: string;
+            /** Scale */
+            scale: number;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Unit */
+            unit: string;
+        };
+        /**
+         * FinancialForm
+         * @enum {string}
+         */
+        FinancialForm: "10-K" | "10-Q";
+        /** FinancialScopePayload */
+        FinancialScopePayload: {
+            /** Accession */
+            accession: string;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Cik */
+            cik: string;
+            form: components["schemas"]["FinancialForm"];
+            /**
+             * Report Period
+             * Format: date
+             */
+            report_period: string;
+            /** Scale */
+            scale: number;
+            /** Schema Version */
+            schema_version: number;
+            /** Unit */
+            unit: string;
         };
         /** GraphEdgeResponse */
         GraphEdgeResponse: {
@@ -3264,6 +3327,7 @@ export interface components {
             confirmed_scope: string[];
             /** Exclusions */
             exclusions: string[];
+            financial_scope: components["schemas"]["FinancialScopePayload"] | null;
             /**
              * Id
              * Format: uuid
@@ -3498,6 +3562,71 @@ export interface components {
          * @enum {string}
          */
         ScheduleMisfirePolicy: "catch_up_each" | "coalesce_latest" | "manual";
+        /** SecFilingChunkLocatorResponse */
+        SecFilingChunkLocatorResponse: {
+            /** Accepted At */
+            accepted_at: string;
+            /** Accession */
+            accession: string;
+            /** Canonical Url */
+            canonical_url: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /** Chunker Version */
+            chunker_version: string;
+            /** Cik */
+            cik: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /** Dataset Version */
+            dataset_version: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Filed At */
+            filed_at: string;
+            /** Fixture Sha256 */
+            fixture_sha256: string;
+            /** Form */
+            form: string;
+            /** Index Version */
+            index_version: string;
+            /**
+             * Knowledge Base Id
+             * Format: uuid
+             */
+            knowledge_base_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "sec_filing_chunk_v1";
+            /** Page Number */
+            page_number: number;
+            /** Parser Version */
+            parser_version: string;
+            /** Primary Document */
+            primary_document: string;
+            /** Report Period */
+            report_period: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Section */
+            section: string;
+        };
         /** SetIndustryPreferenceRequest */
         SetIndustryPreferenceRequest: {
             /**
@@ -3651,7 +3780,10 @@ export interface components {
             confirmed_scope: string[];
             /** Exclusions */
             exclusions?: string[];
-            industry_id: components["schemas"]["NonNilUuid"];
+            financial_scope?: components["schemas"]["FinancialScopePayload"] | null;
+            industry_id?: components["schemas"]["NonNilUuid"] | null;
+            /** Knowledge Base Ids */
+            knowledge_base_ids?: components["schemas"]["NonNilUuid"][];
             /**
              * Max Cost Micro Usd
              * @default 500000
@@ -3667,6 +3799,12 @@ export interface components {
              * @default 16384
              */
             max_total_tokens: number;
+            /**
+             * Mode
+             * @default web
+             * @enum {string}
+             */
+            mode: "web" | "local";
             /** Original Question */
             original_question: string;
             /**

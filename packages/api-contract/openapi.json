@@ -2359,7 +2359,16 @@
         "type": "string"
       },
       "EvidenceKind": {
-        "enum": ["web_snapshot", "sql_result", "news", "policy", "bidding", "stock"],
+        "enum": [
+          "web_snapshot",
+          "sql_result",
+          "news",
+          "policy",
+          "bidding",
+          "stock",
+          "filing",
+          "calculation"
+        ],
         "title": "EvidenceKind",
         "type": "string"
       },
@@ -2495,7 +2504,9 @@
           "locator": {
             "discriminator": {
               "mapping": {
+                "financial_calculation_v1": "#/components/schemas/FinancialCalculationLocatorResponse",
                 "industry_source_v1": "#/components/schemas/IndustrySourceLocatorResponse",
+                "sec_filing_chunk_v1": "#/components/schemas/SecFilingChunkLocatorResponse",
                 "sql_result_v1": "#/components/schemas/SqlResultLocatorResponse"
               },
               "propertyName": "locator_type"
@@ -2506,6 +2517,12 @@
               },
               {
                 "$ref": "#/components/schemas/SqlResultLocatorResponse"
+              },
+              {
+                "$ref": "#/components/schemas/SecFilingChunkLocatorResponse"
+              },
+              {
+                "$ref": "#/components/schemas/FinancialCalculationLocatorResponse"
               }
             ],
             "title": "Locator"
@@ -2819,6 +2836,150 @@
         },
         "required": ["file", "method", "url", "fields", "expires_at"],
         "title": "FileUploadResponse",
+        "type": "object"
+      },
+      "FinancialCalculationLocatorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "decimal_places": {
+            "title": "Decimal Places",
+            "type": "integer"
+          },
+          "financial_scope": {
+            "$ref": "#/components/schemas/FinancialScopePayload"
+          },
+          "formula": {
+            "title": "Formula",
+            "type": "string"
+          },
+          "input_evidence_refs": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Input Evidence Refs",
+            "type": "array"
+          },
+          "locator_type": {
+            "const": "financial_calculation_v1",
+            "title": "Locator Type",
+            "type": "string"
+          },
+          "observation_sha256": {
+            "title": "Observation Sha256",
+            "type": "string"
+          },
+          "operand_values": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operand Values",
+            "type": "array"
+          },
+          "operator": {
+            "title": "Operator",
+            "type": "string"
+          },
+          "result": {
+            "title": "Result",
+            "type": "string"
+          },
+          "rounding_mode": {
+            "title": "Rounding Mode",
+            "type": "string"
+          },
+          "scale": {
+            "title": "Scale",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "locator_type",
+          "financial_scope",
+          "operator",
+          "operand_values",
+          "input_evidence_refs",
+          "decimal_places",
+          "rounding_mode",
+          "formula",
+          "result",
+          "unit",
+          "scale",
+          "observation_sha256"
+        ],
+        "title": "FinancialCalculationLocatorResponse",
+        "type": "object"
+      },
+      "FinancialForm": {
+        "enum": ["10-K", "10-Q"],
+        "title": "FinancialForm",
+        "type": "string"
+      },
+      "FinancialScopePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "accession": {
+            "pattern": "^[0-9]{10}-[0-9]{2}-[0-9]{6}$",
+            "title": "Accession",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "cik": {
+            "pattern": "^[0-9]{10}$",
+            "title": "Cik",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/FinancialForm"
+          },
+          "report_period": {
+            "format": "date",
+            "title": "Report Period",
+            "type": "string"
+          },
+          "scale": {
+            "maximum": 12.0,
+            "minimum": -12.0,
+            "title": "Scale",
+            "type": "integer"
+          },
+          "schema_version": {
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unit": {
+            "pattern": "^[A-Z][A-Z0-9_/-]{0,15}$",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "cik",
+          "accession",
+          "form",
+          "report_period",
+          "as_of",
+          "unit",
+          "scale"
+        ],
+        "title": "FinancialScopePayload",
         "type": "object"
       },
       "GraphEdgeResponse": {
@@ -4593,6 +4754,16 @@
             "title": "Exclusions",
             "type": "array"
           },
+          "financial_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinancialScopePayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -4614,6 +4785,7 @@
           "confirmed_scope",
           "exclusions",
           "completion_criteria",
+          "financial_scope",
           "budget",
           "confirmed_by_user_id",
           "confirmed_at"
@@ -5149,6 +5321,131 @@
         "title": "ScheduleMisfirePolicy",
         "type": "string"
       },
+      "SecFilingChunkLocatorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_at": {
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "chunker_version": {
+            "title": "Chunker Version",
+            "type": "string"
+          },
+          "cik": {
+            "title": "Cik",
+            "type": "string"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "dataset_version": {
+            "title": "Dataset Version",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_version_id": {
+            "format": "uuid",
+            "title": "Document Version Id",
+            "type": "string"
+          },
+          "filed_at": {
+            "title": "Filed At",
+            "type": "string"
+          },
+          "fixture_sha256": {
+            "title": "Fixture Sha256",
+            "type": "string"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "index_version": {
+            "title": "Index Version",
+            "type": "string"
+          },
+          "knowledge_base_id": {
+            "format": "uuid",
+            "title": "Knowledge Base Id",
+            "type": "string"
+          },
+          "locator_type": {
+            "const": "sec_filing_chunk_v1",
+            "title": "Locator Type",
+            "type": "string"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "parser_version": {
+            "title": "Parser Version",
+            "type": "string"
+          },
+          "primary_document": {
+            "title": "Primary Document",
+            "type": "string"
+          },
+          "report_period": {
+            "title": "Report Period",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "locator_type",
+          "cik",
+          "accession",
+          "form",
+          "report_period",
+          "filed_at",
+          "accepted_at",
+          "primary_document",
+          "canonical_url",
+          "dataset_version",
+          "fixture_sha256",
+          "knowledge_base_id",
+          "document_id",
+          "document_version_id",
+          "chunk_id",
+          "section",
+          "page_number",
+          "content_sha256",
+          "parser_version",
+          "chunker_version",
+          "index_version"
+        ],
+        "title": "SecFilingChunkLocatorResponse",
+        "type": "object"
+      },
       "SetIndustryPreferenceRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5469,8 +5766,33 @@
             "title": "Exclusions",
             "type": "array"
           },
+          "financial_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinancialScopePayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "industry_id": {
-            "$ref": "#/components/schemas/NonNilUuid"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NonNilUuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "knowledge_base_ids": {
+            "items": {
+              "$ref": "#/components/schemas/NonNilUuid"
+            },
+            "maxItems": 100,
+            "title": "Knowledge Base Ids",
+            "type": "array"
           },
           "max_cost_micro_usd": {
             "default": 500000,
@@ -5493,6 +5815,12 @@
             "title": "Max Total Tokens",
             "type": "integer"
           },
+          "mode": {
+            "default": "web",
+            "enum": ["web", "local"],
+            "title": "Mode",
+            "type": "string"
+          },
           "original_question": {
             "maxLength": 4000,
             "minLength": 1,
@@ -5507,7 +5835,7 @@
             "type": "integer"
           }
         },
-        "required": ["original_question", "confirmed_scope", "completion_criteria", "industry_id"],
+        "required": ["original_question", "confirmed_scope", "completion_criteria"],
         "title": "StartResearchRequest",
         "type": "object"
       },

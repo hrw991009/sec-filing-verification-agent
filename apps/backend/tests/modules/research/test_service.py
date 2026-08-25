@@ -1,7 +1,7 @@
 """Authorization and trusted-command tests for Research L3 submission."""
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 import pytest
@@ -10,6 +10,10 @@ from industry_platform.modules.conversations.domain import (
     DirectAnswerTurnReceipt,
     StartDirectAnswerTurn,
     TurnSearchMode,
+)
+from industry_platform.modules.financial_verification.domain import (
+    FinancialForm,
+    FinancialScope,
 )
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.research.domain import (
@@ -35,6 +39,7 @@ TURN_ID = UUID("20000000-0000-4000-8000-000000000006")
 MESSAGE_ID = UUID("20000000-0000-4000-8000-000000000007")
 JOB_ID = UUID("20000000-0000-4000-8000-000000000008")
 OUTBOX_ID = UUID("20000000-0000-4000-8000-000000000009")
+KNOWLEDGE_BASE_ID = UUID("20000000-0000-4000-8000-000000000010")
 
 
 @dataclass
@@ -72,6 +77,31 @@ def request() -> StartResearch:
     )
 
 
+def local_request() -> StartResearch:
+    return StartResearch(
+        trace_id=TraceId("local-research-http-trace"),
+        industry_id=None,
+        search_mode=TurnSearchMode.LOCAL,
+        knowledge_base_ids=(KNOWLEDGE_BASE_ID,),
+        brief=ResearchBriefInput(
+            original_question="Calculate Apple's fiscal 2023 net sales change.",
+            confirmed_scope=("Apple 2023 Form 10-K",),
+            exclusions=("Live SEC data",),
+            completion_criteria=("Produce filing and calculation Evidence",),
+            financial_scope=FinancialScope(
+                cik="0000320193",
+                accession="0000320193-23-000106",
+                form=FinancialForm.TEN_K,
+                report_period=date(2023, 9, 30),
+                as_of=datetime(2023, 11, 3, 12, tzinfo=UTC),
+                unit="USD",
+                scale=6,
+            ),
+        ),
+        idempotency_key="local-research-request-1",
+    )
+
+
 @pytest.mark.asyncio
 async def test_member_submission_builds_the_trusted_research_command() -> None:
     starter = RecordingStarter()
@@ -98,6 +128,24 @@ async def test_member_submission_builds_the_trusted_research_command() -> None:
     assert command.budget.max_total_tokens == 12_000
     assert command.budget.max_cost_micro_usd == 300_000
     assert command.budget.deadline.timestamp() - NOW.timestamp() == 600
+
+
+@pytest.mark.asyncio
+async def test_local_submission_pins_the_kb_and_financial_scope() -> None:
+    starter = RecordingStarter()
+    service = ResearchSubmissionService(starter, clock=lambda: NOW)
+
+    await service.start(
+        WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+        local_request(),
+    )
+
+    command = starter.commands[0]
+    assert command.search_mode is TurnSearchMode.LOCAL
+    assert command.knowledge_base_ids == (KNOWLEDGE_BASE_ID,)
+    assert command.industry_id is None
+    assert command.research_brief is not None
+    assert command.research_brief.financial_scope == local_request().brief.financial_scope
 
 
 @pytest.mark.asyncio

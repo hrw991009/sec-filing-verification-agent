@@ -13,6 +13,7 @@ from industry_platform.modules.agent_runtime.domain import (
     require_non_nil_uuid,
     require_utc,
 )
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import TraceId
 
 RESEARCH_GRAPH_VERSION: Final = "research-l3-graph-v1"
@@ -115,6 +116,7 @@ class ResearchBriefInput:
     confirmed_scope: tuple[str, ...]
     exclusions: tuple[str, ...]
     completion_criteria: tuple[str, ...]
+    financial_scope: FinancialScope | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(

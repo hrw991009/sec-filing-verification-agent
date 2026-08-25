@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SubmitEvent } from "react";
 
 import type { Industry } from "../industry/industry-api";
+import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-api";
 import { cancelRun, getAgentTrace, type AgentTrace } from "../chat/chat-api";
 import {
   formatCost,
@@ -90,6 +91,16 @@ export function ResearchWorkspace({
     readonly message: string;
   } | null>(null);
   const [originalQuestion, setOriginalQuestion] = useState("");
+  const [mode, setMode] = useState<"web" | "local">("web");
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<string | null>(null);
+  const [cik, setCik] = useState("0000320193");
+  const [accession, setAccession] = useState("0000320193-23-000106");
+  const [form, setForm] = useState<"10-K" | "10-Q">("10-K");
+  const [reportPeriod, setReportPeriod] = useState("2023-09-30");
+  const [asOf, setAsOf] = useState("2023-11-03T12:00");
+  const [unit, setUnit] = useState("USD");
+  const [scale, setScale] = useState(6);
   const [confirmedScope, setConfirmedScope] = useState("");
   const [exclusions, setExclusions] = useState("");
   const [completionCriteria, setCompletionCriteria] = useState(
@@ -158,6 +169,26 @@ export function ResearchWorkspace({
   }, [chooseLoadedRun, workspaceId]);
 
   useEffect(() => {
+    let active = true;
+    void listKnowledgeBases(workspaceId)
+      .then((loaded) => {
+        if (!active) return;
+        setKnowledgeBases(loaded);
+        setSelectedKnowledgeBaseId((current) =>
+          current !== null && loaded.some((item) => item.id === current)
+            ? current
+            : (loaded[0]?.id ?? null),
+        );
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(publicError(caught));
+      });
+    return () => {
+      active = false;
+    };
+  }, [workspaceId]);
+
+  useEffect(() => {
     if (selectedId === null) return;
     const requestNumber = detailRequestRef.current + 1;
     detailRequestRef.current = requestNumber;
@@ -192,9 +223,18 @@ export function ResearchWorkspace({
 
   const scopeItems = useMemo(() => lines(confirmedScope), [confirmedScope]);
   const criteriaItems = useMemo(() => lines(completionCriteria), [completionCriteria]);
+  const sourceReady =
+    mode === "web"
+      ? selectedIndustryId !== null
+      : selectedKnowledgeBaseId !== null &&
+        cik.trim() !== "" &&
+        accession.trim() !== "" &&
+        reportPeriod !== "" &&
+        asOf !== "" &&
+        unit.trim() !== "";
   const canSubmit =
     canManage &&
-    selectedIndustryId !== null &&
+    sourceReady &&
     originalQuestion.trim() !== "" &&
     scopeItems.length > 0 &&
     criteriaItems.length > 0 &&
@@ -203,17 +243,39 @@ export function ResearchWorkspace({
   async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!canSubmit) return;
-    const request: StartResearchRequest = {
+    if (mode === "local" && selectedKnowledgeBaseId === null) return;
+    const commonRequest = {
       completion_criteria: criteriaItems,
       confirmed_scope: scopeItems,
       exclusions: lines(exclusions),
-      industry_id: selectedIndustryId,
       max_cost_micro_usd: maxCostMicroUsd,
       max_steps: maxSteps,
       max_total_tokens: maxTotalTokens,
+      mode,
       original_question: originalQuestion.trim(),
       timeout_seconds: timeoutSeconds,
     };
+    let request: StartResearchRequest;
+    if (mode === "web") {
+      request = { ...commonRequest, industry_id: selectedIndustryId, mode };
+    } else {
+      if (selectedKnowledgeBaseId === null) return;
+      request = {
+        ...commonRequest,
+        financial_scope: {
+          accession: accession.trim(),
+          as_of: new Date(asOf).toISOString(),
+          cik: cik.trim(),
+          form,
+          report_period: reportPeriod,
+          scale,
+          schema_version: 1,
+          unit: unit.trim().toUpperCase(),
+        },
+        knowledge_base_ids: [selectedKnowledgeBaseId],
+        mode,
+      };
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -252,7 +314,7 @@ export function ResearchWorkspace({
     <section className="research-workspace" aria-label="Research L3 工作台">
       <header className="workspace-page-header">
         <div>
-          <span className="eyebrow">Day 4 · Evidence Research L3</span>
+          <span className="eyebrow">Day 5 · SEC Fixture Research L3</span>
           <h1>Research Workbench</h1>
           <p>
             显式确认 Brief，经唯一 Runtime/Tool loop 生成可解释草稿；当前不含 durable resume 或
@@ -278,24 +340,166 @@ export function ResearchWorkspace({
         <aside className="research-sidebar">
           <form className="research-form" onSubmit={(event) => void submit(event)}>
             <h2>新建 L3 Research</h2>
-            <label>
-              行业范围
-              <select
-                aria-label="Research 行业"
+            <div className="research-mode" role="group" aria-label="Research 数据源">
+              <button
+                aria-pressed={mode === "web"}
                 disabled={!canManage || submitting}
-                onChange={(event) => {
-                  onSelectIndustry(event.currentTarget.value);
+                onClick={() => {
+                  setMode("web");
                 }}
-                value={selectedIndustryId ?? ""}
+                type="button"
               >
-                <option value="">选择行业</option>
-                {industries.map((industry) => (
-                  <option key={industry.id} value={industry.id}>
-                    {industry.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                公开网页
+              </button>
+              <button
+                aria-pressed={mode === "local"}
+                disabled={!canManage || submitting}
+                onClick={() => {
+                  setMode("local");
+                }}
+                type="button"
+              >
+                SEC Fixture
+              </button>
+            </div>
+            {mode === "web" ? (
+              <label>
+                行业范围
+                <select
+                  aria-label="Research 行业"
+                  disabled={!canManage || submitting}
+                  onChange={(event) => {
+                    onSelectIndustry(event.currentTarget.value);
+                  }}
+                  value={selectedIndustryId ?? ""}
+                >
+                  <option value="">选择行业</option>
+                  {industries.map((industry) => (
+                    <option key={industry.id} value={industry.id}>
+                      {industry.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <fieldset className="research-financial-scope">
+                <legend>SEC filing 范围</legend>
+                <label>
+                  Knowledge Base
+                  <select
+                    aria-label="Research Knowledge Base"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setSelectedKnowledgeBaseId(event.currentTarget.value || null);
+                    }}
+                    value={selectedKnowledgeBaseId ?? ""}
+                  >
+                    <option value="">选择知识库</option>
+                    {knowledgeBases.map((knowledgeBase) => (
+                      <option key={knowledgeBase.id} value={knowledgeBase.id}>
+                        {knowledgeBase.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  CIK
+                  <input
+                    aria-label="Research CIK"
+                    disabled={!canManage || submitting}
+                    inputMode="numeric"
+                    maxLength={10}
+                    onChange={(event) => {
+                      setCik(event.currentTarget.value);
+                    }}
+                    pattern="[0-9]{10}"
+                    required
+                    value={cik}
+                  />
+                </label>
+                <label>
+                  Accession
+                  <input
+                    aria-label="Research accession"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setAccession(event.currentTarget.value);
+                    }}
+                    pattern="[0-9]{10}-[0-9]{2}-[0-9]{6}"
+                    required
+                    value={accession}
+                  />
+                </label>
+                <label>
+                  Form
+                  <select
+                    aria-label="Research form"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setForm(event.currentTarget.value as "10-K" | "10-Q");
+                    }}
+                    value={form}
+                  >
+                    <option value="10-K">10-K</option>
+                    <option value="10-Q">10-Q</option>
+                  </select>
+                </label>
+                <label>
+                  Report period
+                  <input
+                    aria-label="Research report period"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setReportPeriod(event.currentTarget.value);
+                    }}
+                    required
+                    type="date"
+                    value={reportPeriod}
+                  />
+                </label>
+                <label>
+                  As of
+                  <input
+                    aria-label="Research as of"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setAsOf(event.currentTarget.value);
+                    }}
+                    required
+                    type="datetime-local"
+                    value={asOf}
+                  />
+                </label>
+                <label>
+                  Unit
+                  <input
+                    aria-label="Research unit"
+                    disabled={!canManage || submitting}
+                    maxLength={16}
+                    onChange={(event) => {
+                      setUnit(event.currentTarget.value);
+                    }}
+                    required
+                    value={unit}
+                  />
+                </label>
+                <label>
+                  Scale
+                  <input
+                    aria-label="Research scale"
+                    disabled={!canManage || submitting}
+                    max={12}
+                    min={-12}
+                    onChange={(event) => {
+                      setScale(event.currentTarget.valueAsNumber);
+                    }}
+                    required
+                    type="number"
+                    value={scale}
+                  />
+                </label>
+              </fieldset>
+            )}
             <label>
               原始问题
               <textarea
@@ -561,6 +765,19 @@ export function ResearchWorkspace({
                       {formatCost(visibleDetail.brief.budget.max_cost_micro_usd)}
                     </dd>
                   </div>
+                  {visibleDetail.brief.financial_scope === null ? null : (
+                    <div>
+                      <dt>FinancialScope</dt>
+                      <dd>
+                        {visibleDetail.brief.financial_scope.cik} ·{" "}
+                        {visibleDetail.brief.financial_scope.accession} ·{" "}
+                        {visibleDetail.brief.financial_scope.form} ·{" "}
+                        {visibleDetail.brief.financial_scope.report_period} ·{" "}
+                        {visibleDetail.brief.financial_scope.unit} ×10^
+                        {visibleDetail.brief.financial_scope.scale}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </section>
 

@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import cast
 from uuid import UUID
 
@@ -15,6 +15,10 @@ from industry_platform.modules.agent_runtime.domain import (
     AgentRunStatus,
     RunBudget,
     RunStopReason,
+)
+from industry_platform.modules.financial_verification.domain import (
+    FinancialForm,
+    FinancialScope,
 )
 from industry_platform.modules.identity.domain import (
     AccessToken,
@@ -65,6 +69,7 @@ PLAN_ID = UUID("30000000-0000-4000-8000-000000000012")
 DRAFT_ID = UUID("30000000-0000-4000-8000-000000000013")
 EVIDENCE_ID = UUID("30000000-0000-4000-8000-000000000014")
 CLAIM_ID = UUID("30000000-0000-4000-8000-000000000015")
+KNOWLEDGE_BASE_ID = UUID("30000000-0000-4000-8000-000000000016")
 RAW_ACCESS_VALUE = ".".join(("header", "payload", "signature"))
 
 
@@ -232,6 +237,31 @@ def start_payload() -> dict[str, object]:
     }
 
 
+def financial_scope() -> FinancialScope:
+    return FinancialScope(
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form=FinancialForm.TEN_K,
+        report_period=date(2023, 9, 30),
+        as_of=datetime(2023, 11, 3, 12, tzinfo=UTC),
+        unit="USD",
+        scale=6,
+    )
+
+
+def local_start_payload() -> dict[str, object]:
+    payload = start_payload()
+    payload.pop("industry_id")
+    payload.update(
+        {
+            "mode": "local",
+            "knowledge_base_ids": [str(KNOWLEDGE_BASE_ID)],
+            "financial_scope": dict(financial_scope().to_mapping()),
+        }
+    )
+    return payload
+
+
 def test_post_accepts_an_explicit_brief_and_idempotency_key(
     test_settings: Settings,
 ) -> None:
@@ -259,6 +289,24 @@ def test_post_accepts_an_explicit_brief_and_idempotency_key(
     assert scope == WorkspaceScope(WORKSPACE_ID, USER_ID, "member")
     assert request.idempotency_key == "research-request-1"
     assert request.brief.original_question == start_payload()["original_question"]
+
+
+def test_post_pins_local_knowledge_and_financial_scope(test_settings: Settings) -> None:
+    submission = StubSubmissionService()
+    query = StubQueryService()
+    with research_client(test_settings, submission, query) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "local-research-request-1"}),
+            json=local_start_payload(),
+        )
+
+    assert response.status_code == 202
+    request = submission.calls[0][1]
+    assert request.search_mode.value == "local"
+    assert request.industry_id is None
+    assert request.knowledge_base_ids == (KNOWLEDGE_BASE_ID,)
+    assert request.brief.financial_scope == financial_scope()
 
 
 def test_get_exposes_brief_plan_draft_and_runtime_budget(test_settings: Settings) -> None:

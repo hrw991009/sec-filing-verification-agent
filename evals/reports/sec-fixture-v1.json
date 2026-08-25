@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "sec-fixture-financial-research",
+  "dataset_version": "sec-fixture-v1",
+  "scorer_version": "sec-financial-v1",
+  "case_count": 5,
+  "metrics": {
+    "source_accuracy": { "numerator": 5, "denominator": 5, "value": 1.0 },
+    "numeric_accuracy": { "numerator": 4, "denominator": 4, "value": 1.0 },
+    "formula_accuracy": { "numerator": 3, "denominator": 3, "value": 1.0 },
+    "evidence_support_accuracy": { "numerator": 3, "denominator": 3, "value": 1.0 },
+    "typed_calculation_accuracy": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "uncertainty_accuracy": { "numerator": 1, "denominator": 1, "value": 1.0 },
+    "average_steps": { "numerator": 15, "denominator": 5, "value": 3.0 },
+    "average_total_tokens": { "numerator": 1910, "denominator": 5, "value": 382.0 },
+    "average_cost_micro_usd": { "numerator": 425, "denominator": 5, "value": 85.0 },
+    "average_latency_ms": { "numerator": 325, "denominator": 5, "value": 65.0 }
+  },
+  "same_question_comparison": {
+    "f0": {
+      "steps": 1,
+      "total_tokens": 160,
+      "cost_micro_usd": 30,
+      "latency_ms": 20,
+      "source_count": 1,
+      "evidence_count": 0,
+      "typed_calculation_count": 0
+    },
+    "f1": {
+      "steps": 3,
+      "total_tokens": 400,
+      "cost_micro_usd": 90,
+      "latency_ms": 70,
+      "source_count": 1,
+      "evidence_count": 1,
+      "typed_calculation_count": 0
+    },
+    "f2": {
+      "steps": 5,
+      "total_tokens": 640,
+      "cost_micro_usd": 150,
+      "latency_ms": 110,
+      "source_count": 1,
+      "evidence_count": 2,
+      "typed_calculation_count": 1
+    }
+  },
+  "execution_boundary": {
+    "fixture_only": true,
+    "live_sec": false,
+    "xbrl": false,
+    "bm25_rrf_rerank": false,
+    "verifier_monitor": false,
+    "executable_f2_test": "apps/backend/tests/workflows/research/test_runtime.py::test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime"
+  }
+}

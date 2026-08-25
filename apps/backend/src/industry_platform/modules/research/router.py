@@ -6,7 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 
 from industry_platform.core.http import get_trace_id, problem_openapi_response, set_no_store_headers
+from industry_platform.modules.conversations.domain import TurnSearchMode
 from industry_platform.modules.conversations.schemas import IdempotencyKey
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.research.domain import ResearchBriefInput, ResearchRunView
@@ -77,11 +79,16 @@ async def start_research(
         StartResearch(
             trace_id=TraceId(get_trace_id(request)),
             industry_id=payload.industry_id,
+            search_mode=TurnSearchMode(payload.mode),
+            knowledge_base_ids=tuple(payload.knowledge_base_ids),
             brief=ResearchBriefInput(
                 original_question=payload.original_question,
                 confirmed_scope=tuple(payload.confirmed_scope),
                 exclusions=tuple(payload.exclusions),
                 completion_criteria=tuple(payload.completion_criteria),
+                financial_scope=(
+                    None if payload.financial_scope is None else payload.financial_scope.to_domain()
+                ),
             ),
             idempotency_key=idempotency_key,
             max_steps=payload.max_steps,
@@ -155,6 +162,11 @@ def _view_response(view: ResearchRunView) -> ResearchRunDetailResponse:
             confirmed_scope=list(brief.input.confirmed_scope),
             exclusions=list(brief.input.exclusions),
             completion_criteria=list(brief.input.completion_criteria),
+            financial_scope=(
+                None
+                if brief.input.financial_scope is None
+                else FinancialScopePayload.from_domain(brief.input.financial_scope)
+            ),
             budget=ResearchBudgetResponse(
                 max_steps=brief.budget.max_steps,
                 max_total_tokens=brief.budget.max_total_tokens,

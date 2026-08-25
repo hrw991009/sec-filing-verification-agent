@@ -196,10 +196,10 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D5-05 | 可观察异步入库 | R1 + R2 + NEW | 阶段、失败、重试、取消；vector/lexical 两类索引写入后才 ready | 阶段故障、Worker 重启、重复投递、超时、取消及双索引 readiness | `implemented_pending_verification` | `complete` |
 | D5-06 | 跨存储删除与对账 | R1 + NEW | deleting → PG/Milvus/ES/MinIO 清理 → deleted；孤儿检测和重放 | 外部删除点故障、对账和零活跃残留 | `implemented_pending_verification` | `complete` |
 | D5-07 | 文档/Chunk/资产详情 | R1 + R2 | 文档、状态、错误、版本、Chunk、页面、图片、表格、删除与刷新恢复 | 组件、权限、OpenAPI 和浏览器测试 | `implemented_pending_verification` | `complete` |
-| D5-08 | Embedding/index-write、SEC Fixture Dense Tool 与 Calculator | NEW + SEC | 已实现 Embedding/double-index write；后续复用同一链路完成固定 SEC accession fixture、`knowledge_search`、KnowledgeContextSource、`finance.calculate@v1` 和 Evidence lineage | Embedding/index 合同；同一 Runtime 接入 filing fixture；公式/单位/期间/错误语义和 off/on 对照 | `thin_slice` | `complete` |
+| D5-08 | Embedding/index-write、SEC Fixture Dense Tool 与 Calculator | NEW + SEC | 复用同一入库/Runtime 链完成固定 SEC accession fixture、Dense `knowledge_search`、KnowledgeContextSource、`finance.calculate@v1` 和 filing/calculation Evidence lineage | Embedding/index 合同；同一 Runtime 接入 filing fixture；公式/单位/期间/错误语义和 F0～F2 对照 | `implemented_pending_verification` | `complete` |
 | D5-09 | SEC Fixture Durable Research L4、Checkpoint 与 HITL | R2 + NEW + SEC | 将带 FinancialScope 的 LangGraph state 映射统一 Run/Event/Checkpoint；interrupt/resume、持久审批、取消、幂等计算/Artifact | hard stop、重复 resume/decision、allow/deny/timeout、零重复副作用与 SEC fixture L3/L4 对照 | `planned` | `complete` |
 
-2026-08-25 当前分支事实：Step 1 提交 `bba63e6`，Step 2 提交 `ad57073` 并由 `adec643` 修复 CI，Step 3 提交 `4daa028`；最新分支 CI `32796096690` 全绿。该分支尚未合入 `main`，没有合并提交 CI、Day 5 DoD/Trace/Eval 与项目所有者收口，因此 D5-01～D5-07 只能是 `implemented_pending_verification`，D5-08 只有 Embedding/index-write 部分而为 `thin_slice`，D5-09 仍为 `planned`。
+2026-08-25 当前分支事实：Step 1 提交 `bba63e6`，Step 2 提交 `ad57073` 并由 `adec643` 修复 CI，Step 3 提交 `4daa028`；该已提交基线的分支 CI `32796096690` 全绿。Step 4 当前工作树已实现固定 SEC fixture、Dense Tool、typed calculator、Evidence lineage、F2/no-result 同 Runtime/Harness 测试和 F0～F2 合同报告，并通过锁定环境的本地全量门禁，故 D5-08 推进为 `implemented_pending_verification`。但 Step 4 尚未提交或取得远端 CI，F0/F1 不是独立真实模型执行，SEC 浏览器全链也未完成；分支尚未合入 `main`，没有合并提交 CI、完整 Day 5 DoD/Trace/Eval 与项目所有者收口，因此 D5-01～D5-08 均不得写成 `complete`，D5-09 仍为 `planned`。
 
 ## 8. Day 6：SEC 官方披露数据与 Point-in-Time
 

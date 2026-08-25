@@ -574,7 +574,7 @@ class ToolObservation:
         require_utc(self.observed_at, field_name="Tool Observation time")
         sources = tuple(self.sources)
         if (
-            not 1 <= len(sources) <= MAX_TOOL_SOURCES
+            len(sources) > MAX_TOOL_SOURCES
             or len({(item.source_type, item.locator, item.content_sha256) for item in sources})
             != len(sources)
             or any(item.observed_at > self.observed_at for item in sources)

@@ -35,6 +35,8 @@ class EvidenceKind(StrEnum):
     POLICY = "policy"
     BIDDING = "bidding"
     STOCK = "stock"
+    FILING = "filing"
+    CALCULATION = "calculation"
 
 
 class EvidenceStatus(StrEnum):
@@ -47,6 +49,8 @@ class EvidenceStatus(StrEnum):
 class EvidenceLocatorType(StrEnum):
     INDUSTRY_SOURCE_V1 = "industry_source_v1"
     SQL_RESULT_V1 = "sql_result_v1"
+    SEC_FILING_CHUNK_V1 = "sec_filing_chunk_v1"
+    FINANCIAL_CALCULATION_V1 = "financial_calculation_v1"
 
 
 class EvidenceDecision(StrEnum):
@@ -248,7 +252,170 @@ class SqlResultLocatorV1:
         )
 
 
-type EvidenceLocator = IndustrySourceLocatorV1 | SqlResultLocatorV1
+@dataclass(frozen=True, slots=True)
+class SecFilingChunkLocatorV1:
+    cik: str
+    accession: str
+    form: str
+    report_period: str
+    filed_at: str
+    accepted_at: str
+    primary_document: str
+    canonical_url: str
+    dataset_version: str
+    fixture_sha256: str
+    knowledge_base_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    section: str
+    page_number: int
+    content_sha256: str
+    parser_version: str
+    chunker_version: str
+    index_version: str
+    locator_type: EvidenceLocatorType = EvidenceLocatorType.SEC_FILING_CHUNK_V1
+    schema_version: int = EVIDENCE_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for identifier, field_name in (
+            (self.knowledge_base_id, "Filing locator Knowledge Base ID"),
+            (self.document_id, "Filing locator Document ID"),
+            (self.document_version_id, "Filing locator Document Version ID"),
+            (self.chunk_id, "Filing locator Chunk ID"),
+        ):
+            require_non_nil_uuid(identifier, field_name=field_name)
+        if not re.fullmatch(r"[0-9]{10}", self.cik) or not re.fullmatch(
+            r"[0-9]{10}-[0-9]{2}-[0-9]{6}", self.accession
+        ):
+            raise ValueError("Filing locator identity is invalid")
+        if self.form not in {"10-K", "10-Q"}:
+            raise ValueError("Filing locator form is invalid")
+        for value, field_name in (
+            (self.report_period, "Filing locator report period"),
+            (self.filed_at, "Filing locator filed time"),
+            (self.accepted_at, "Filing locator accepted time"),
+            (self.primary_document, "Filing locator primary document"),
+            (self.dataset_version, "Filing locator dataset version"),
+            (self.parser_version, "Filing locator parser version"),
+            (self.chunker_version, "Filing locator chunker version"),
+            (self.index_version, "Filing locator index version"),
+        ):
+            if not _REFERENCE_PATTERN.fullmatch(value):
+                raise ValueError(f"{field_name} is invalid")
+        parsed_url = urlsplit(self.canonical_url)
+        if parsed_url.scheme != "https" or parsed_url.hostname != "www.sec.gov":
+            raise ValueError("Filing locator canonical URL is invalid")
+        _bounded_text(self.section, field_name="Filing locator section", maximum=1_000)
+        if isinstance(self.page_number, bool) or self.page_number < 1:
+            raise ValueError("Filing locator page is invalid")
+        _sha256(self.fixture_sha256, field_name="Filing locator fixture hash")
+        _sha256(self.content_sha256, field_name="Filing locator content hash")
+        if self.schema_version != EVIDENCE_SCHEMA_VERSION:
+            raise ValueError("Filing locator schema version is unsupported")
+
+    def to_mapping(self) -> Mapping[str, object]:
+        return MappingProxyType(
+            {
+                "schema_version": self.schema_version,
+                "locator_type": self.locator_type.value,
+                "cik": self.cik,
+                "accession": self.accession,
+                "form": self.form,
+                "report_period": self.report_period,
+                "filed_at": self.filed_at,
+                "accepted_at": self.accepted_at,
+                "primary_document": self.primary_document,
+                "canonical_url": self.canonical_url,
+                "dataset_version": self.dataset_version,
+                "fixture_sha256": self.fixture_sha256,
+                "knowledge_base_id": str(self.knowledge_base_id),
+                "document_id": str(self.document_id),
+                "document_version_id": str(self.document_version_id),
+                "chunk_id": str(self.chunk_id),
+                "section": self.section,
+                "page_number": self.page_number,
+                "content_sha256": self.content_sha256,
+                "parser_version": self.parser_version,
+                "chunker_version": self.chunker_version,
+                "index_version": self.index_version,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialCalculationLocatorV1:
+    financial_scope: Mapping[str, object]
+    operator: str
+    operand_values: tuple[str, ...]
+    input_evidence_refs: tuple[UUID, ...]
+    decimal_places: int
+    rounding_mode: str
+    formula: str
+    result: str
+    unit: str
+    scale: int
+    observation_sha256: str
+    locator_type: EvidenceLocatorType = EvidenceLocatorType.FINANCIAL_CALCULATION_V1
+    schema_version: int = EVIDENCE_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        from industry_platform.modules.financial_verification.domain import FinancialScope
+
+        scope = dict(self.financial_scope)
+        FinancialScope.from_mapping(scope)
+        values = tuple(self.operand_values)
+        references = tuple(self.input_evidence_refs)
+        if not 2 <= len(values) <= 8 or len(values) != len(references):
+            raise ValueError("Calculation locator inputs are invalid")
+        for reference in references:
+            require_non_nil_uuid(reference, field_name="Calculation input Evidence ref")
+        for value, field_name in (
+            (self.operator, "Calculation operator"),
+            (self.rounding_mode, "Calculation rounding mode"),
+            (self.unit, "Calculation unit"),
+        ):
+            if not _REFERENCE_PATTERN.fullmatch(value):
+                raise ValueError(f"{field_name} is invalid")
+        _bounded_text(self.formula, field_name="Calculation formula", maximum=4_000)
+        _bounded_text(self.result, field_name="Calculation result", maximum=200)
+        if isinstance(self.decimal_places, bool) or not 0 <= self.decimal_places <= 12:
+            raise ValueError("Calculation decimal places are invalid")
+        if isinstance(self.scale, bool) or not -12 <= self.scale <= 12:
+            raise ValueError("Calculation scale is invalid")
+        _sha256(self.observation_sha256, field_name="Calculation observation hash")
+        if self.schema_version != EVIDENCE_SCHEMA_VERSION:
+            raise ValueError("Calculation locator schema version is unsupported")
+        object.__setattr__(self, "financial_scope", MappingProxyType(scope))
+        object.__setattr__(self, "operand_values", values)
+        object.__setattr__(self, "input_evidence_refs", references)
+
+    def to_mapping(self) -> Mapping[str, object]:
+        return MappingProxyType(
+            {
+                "schema_version": self.schema_version,
+                "locator_type": self.locator_type.value,
+                "financial_scope": dict(self.financial_scope),
+                "operator": self.operator,
+                "operand_values": list(self.operand_values),
+                "input_evidence_refs": [str(item) for item in self.input_evidence_refs],
+                "decimal_places": self.decimal_places,
+                "rounding_mode": self.rounding_mode,
+                "formula": self.formula,
+                "result": self.result,
+                "unit": self.unit,
+                "scale": self.scale,
+                "observation_sha256": self.observation_sha256,
+            }
+        )
+
+
+type EvidenceLocator = (
+    IndustrySourceLocatorV1
+    | SqlResultLocatorV1
+    | SecFilingChunkLocatorV1
+    | FinancialCalculationLocatorV1
+)
 
 
 def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
@@ -279,41 +446,141 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
                 source_version=str(document["source_version"]),
                 content_sha256=str(document["content_sha256"]),
             )
-        if set(document) != {
+        if locator_type is EvidenceLocatorType.SQL_RESULT_V1:
+            if set(document) != {
+                "schema_version",
+                "locator_type",
+                "query_run_id",
+                "connection_id",
+                "schema_snapshot_id",
+                "schema_snapshot_sha256",
+                "tables",
+                "columns",
+                "row_start",
+                "row_end",
+            }:
+                raise ValueError
+            tables = document["tables"]
+            columns = document["columns"]
+            row_start = document["row_start"]
+            row_end = document["row_end"]
+            if (
+                not isinstance(tables, list)
+                or not isinstance(columns, list)
+                or isinstance(row_start, bool)
+                or not isinstance(row_start, int)
+                or isinstance(row_end, bool)
+                or not isinstance(row_end, int)
+            ):
+                raise ValueError
+            return SqlResultLocatorV1(
+                query_run_id=UUID(str(document["query_run_id"])),
+                connection_id=UUID(str(document["connection_id"])),
+                schema_snapshot_id=UUID(str(document["schema_snapshot_id"])),
+                schema_snapshot_sha256=str(document["schema_snapshot_sha256"]),
+                tables=tuple(str(item) for item in tables),
+                columns=tuple(str(item) for item in columns),
+                row_start=row_start,
+                row_end=row_end,
+            )
+        if locator_type is EvidenceLocatorType.SEC_FILING_CHUNK_V1:
+            expected = {
+                "schema_version",
+                "locator_type",
+                "cik",
+                "accession",
+                "form",
+                "report_period",
+                "filed_at",
+                "accepted_at",
+                "primary_document",
+                "canonical_url",
+                "dataset_version",
+                "fixture_sha256",
+                "knowledge_base_id",
+                "document_id",
+                "document_version_id",
+                "chunk_id",
+                "section",
+                "page_number",
+                "content_sha256",
+                "parser_version",
+                "chunker_version",
+                "index_version",
+            }
+            page_number = document["page_number"]
+            if (
+                set(document) != expected
+                or isinstance(page_number, bool)
+                or not isinstance(page_number, int)
+            ):
+                raise ValueError
+            return SecFilingChunkLocatorV1(
+                cik=str(document["cik"]),
+                accession=str(document["accession"]),
+                form=str(document["form"]),
+                report_period=str(document["report_period"]),
+                filed_at=str(document["filed_at"]),
+                accepted_at=str(document["accepted_at"]),
+                primary_document=str(document["primary_document"]),
+                canonical_url=str(document["canonical_url"]),
+                dataset_version=str(document["dataset_version"]),
+                fixture_sha256=str(document["fixture_sha256"]),
+                knowledge_base_id=UUID(str(document["knowledge_base_id"])),
+                document_id=UUID(str(document["document_id"])),
+                document_version_id=UUID(str(document["document_version_id"])),
+                chunk_id=UUID(str(document["chunk_id"])),
+                section=str(document["section"]),
+                page_number=page_number,
+                content_sha256=str(document["content_sha256"]),
+                parser_version=str(document["parser_version"]),
+                chunker_version=str(document["chunker_version"]),
+                index_version=str(document["index_version"]),
+            )
+        expected = {
             "schema_version",
             "locator_type",
-            "query_run_id",
-            "connection_id",
-            "schema_snapshot_id",
-            "schema_snapshot_sha256",
-            "tables",
-            "columns",
-            "row_start",
-            "row_end",
-        }:
+            "financial_scope",
+            "operator",
+            "operand_values",
+            "input_evidence_refs",
+            "decimal_places",
+            "rounding_mode",
+            "formula",
+            "result",
+            "unit",
+            "scale",
+            "observation_sha256",
+        }
+        if set(document) != expected:
             raise ValueError
-        tables = document["tables"]
-        columns = document["columns"]
-        row_start = document["row_start"]
-        row_end = document["row_end"]
+        scope = document["financial_scope"]
+        values = document["operand_values"]
+        references = document["input_evidence_refs"]
+        decimal_places = document["decimal_places"]
+        scale = document["scale"]
         if (
-            not isinstance(tables, list)
-            or not isinstance(columns, list)
-            or isinstance(row_start, bool)
-            or not isinstance(row_start, int)
-            or isinstance(row_end, bool)
-            or not isinstance(row_end, int)
+            not isinstance(scope, dict)
+            or not isinstance(values, list)
+            or not isinstance(references, list)
+            or isinstance(decimal_places, bool)
+            or not isinstance(decimal_places, int)
+            or isinstance(scale, bool)
+            or not isinstance(scale, int)
         ):
             raise ValueError
-        return SqlResultLocatorV1(
-            query_run_id=UUID(str(document["query_run_id"])),
-            connection_id=UUID(str(document["connection_id"])),
-            schema_snapshot_id=UUID(str(document["schema_snapshot_id"])),
-            schema_snapshot_sha256=str(document["schema_snapshot_sha256"]),
-            tables=tuple(str(item) for item in tables),
-            columns=tuple(str(item) for item in columns),
-            row_start=row_start,
-            row_end=row_end,
+        return FinancialCalculationLocatorV1(
+            financial_scope=scope,
+            operator=str(document["operator"]),
+            operand_values=tuple(str(item) for item in values),
+            input_evidence_refs=tuple(UUID(str(item)) for item in references),
+            decimal_places=decimal_places,
+            rounding_mode=str(document["rounding_mode"]),
+            formula=str(document["formula"]),
+            result=str(document["result"]),
+            unit=str(document["unit"]),
+            scale=scale,
+            observation_sha256=str(document["observation_sha256"]),
         )
     except (KeyError, TypeError, ValueError):
         raise ValueError("Evidence locator is invalid") from None
@@ -490,9 +757,7 @@ class EvidenceNormalizationResult:
         if self.normalizer_version != EVIDENCE_NORMALIZER_VERSION:
             raise ValueError("Evidence normalizer version is unsupported")
         items = tuple(self.items)
-        if not items or tuple(item.source_ordinal for item in items) != tuple(
-            range(1, len(items) + 1)
-        ):
+        if tuple(item.source_ordinal for item in items) != tuple(range(1, len(items) + 1)):
             raise ValueError("Evidence normalization items are invalid")
         object.__setattr__(self, "items", items)
 

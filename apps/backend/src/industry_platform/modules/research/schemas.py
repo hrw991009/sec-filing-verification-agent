@@ -1,12 +1,20 @@
 """Strict HTTP contracts for Research L3 creation and inspection."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunStopReason
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.research.domain import (
     ResearchDraftStatus,
     ResearchNode,
@@ -32,7 +40,10 @@ class StartResearchRequest(StrictResearchModel):
     confirmed_scope: list[str] = Field(min_length=1, max_length=16)
     exclusions: list[str] = Field(default_factory=list, max_length=16)
     completion_criteria: list[str] = Field(min_length=1, max_length=16)
-    industry_id: NonNilUuid
+    mode: Literal["web", "local"] = "web"
+    industry_id: NonNilUuid | None = None
+    knowledge_base_ids: list[NonNilUuid] = Field(default_factory=list, max_length=100)
+    financial_scope: FinancialScopePayload | None = None
     max_steps: int = Field(default=20, ge=12, le=64)
     max_total_tokens: int = Field(default=16_384, ge=1_024, le=100_000)
     max_cost_micro_usd: int = Field(default=500_000, ge=0, le=10_000_000)
@@ -52,6 +63,19 @@ class StartResearchRequest(StrictResearchModel):
         if not isinstance(value, str) and len(set(value)) != len(value):
             raise ValueError("Research list items must be unique")
         return value
+
+    @model_validator(mode="after")
+    def validate_source_scope(self) -> Self:
+        if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
+            raise ValueError("Knowledge Base IDs must be unique")
+        if self.mode == "web":
+            if self.industry_id is None or self.knowledge_base_ids or self.financial_scope:
+                raise ValueError("Web Research source scope is invalid")
+        elif self.industry_id is not None or not self.knowledge_base_ids:
+            raise ValueError("Local Research source scope is invalid")
+        elif self.financial_scope is None:
+            raise ValueError("Local Research Financial Scope is required")
+        return self
 
 
 class StartResearchResponse(StrictResearchModel):
@@ -77,6 +101,7 @@ class ResearchBriefResponse(StrictResearchModel):
     confirmed_scope: list[str]
     exclusions: list[str]
     completion_criteria: list[str]
+    financial_scope: FinancialScopePayload | None
     budget: ResearchBudgetResponse
     confirmed_by_user_id: UUID
     confirmed_at: datetime

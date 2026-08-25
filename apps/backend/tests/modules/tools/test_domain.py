@@ -232,6 +232,20 @@ def test_observation_envelope_digest_binds_content_and_full_provenance() -> None
     }
 
 
+def test_no_result_observation_is_valid_without_fabricated_sources() -> None:
+    no_result_text = "knowledge_search status=no_result"
+    no_result = replace(
+        observation(),
+        model_text=no_result_text,
+        sources=(),
+        content_sha256=hashlib.sha256(no_result_text.encode()).hexdigest(),
+    )
+
+    assert no_result.sources == ()
+    assert no_result.sanitized_output_summary["source_count"] == 0
+    assert no_result.to_model_visible_envelope()["locator"] == {"sources": []}
+
+
 def test_approval_decision_cannot_remain_in_the_request_only_state() -> None:
     with pytest.raises(ValueError, match="allow or deny"):
         ApprovalDecision(
