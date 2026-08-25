@@ -11,11 +11,19 @@ import pytest
 from industry_platform.modules.files.domain import AttachmentMediaType
 from industry_platform.modules.files.ports import PrivateFileObjectStore
 from industry_platform.modules.identity.domain import TraceId
+from industry_platform.modules.ingestion.adapters.embedding import (
+    DeterministicHashEmbeddingProvider,
+)
 from industry_platform.modules.ingestion.chunker import BoundedPageChunker
 from industry_platform.modules.ingestion.domain import (
+    INGESTION_STAGE_SEQUENCE,
     BoundingBox,
+    ChunkEmbedding,
     CompleteIngestionStage,
     DocumentParserError,
+    EmbeddingInput,
+    IndexableChunk,
+    IngestionDependencyError,
     IngestionStage,
     IngestionWorkItem,
     ParsedDocument,
@@ -25,6 +33,11 @@ from industry_platform.modules.ingestion.domain import (
     ParserRequest,
     StoredStageCheckpoint,
     sha256_text,
+)
+from industry_platform.modules.ingestion.index_contract import (
+    INDEX_VERSION,
+    embedding_config_snapshot,
+    index_config_snapshot,
 )
 from industry_platform.modules.ingestion.ports import DocumentParser, IngestionRepository
 from industry_platform.modules.ingestion.service import KnowledgeIngestionService
@@ -50,11 +63,13 @@ from industry_platform.modules.knowledge.parser_contract import (
 NOW = datetime(2026, 8, 24, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = uuid4()
 DOCUMENT_ID = uuid4()
+KNOWLEDGE_BASE_ID = uuid4()
 VERSION_ID = uuid4()
 FILE_ID = uuid4()
 JOB_ID = uuid4()
 SOURCE = b"Durable ingestion source text for recovery."
 SOURCE_HASH = hashlib.sha256(SOURCE).hexdigest()
+CHUNK_ID = uuid4()
 
 
 def _work() -> IngestionWorkItem:
@@ -77,6 +92,8 @@ def _work() -> IngestionWorkItem:
         chunker_name=CHUNKER_NAME,
         chunker_version=CHUNKER_VERSION,
         chunker_config=chunker_config_snapshot(),
+        embedding_config=embedding_config_snapshot(),
+        index_config=index_config_snapshot(),
         checkpoints=(),
     )
 
@@ -117,6 +134,8 @@ class RecordingRepository:
         self.hard_stop_before: IngestionStage | None = None
         self.retry_errors: list[str] = []
         self.terminal_errors: list[tuple[str, bool]] = []
+        self.embedding_inputs: tuple[EmbeddingInput, ...] = ()
+        self.embeddings: tuple[ChunkEmbedding, ...] = ()
 
     async def load_work_item(
         self,
@@ -146,14 +165,20 @@ class RecordingRepository:
 
     async def complete_stage(self, command: CompleteIngestionStage) -> bool:
         self.completions.append(command)
+        if command.stage is IngestionStage.CHUNKING:
+            self.embedding_inputs = tuple(
+                EmbeddingInput(
+                    chunk_id=CHUNK_ID,
+                    text=chunk.text,
+                    content_hash=chunk.content_hash,
+                )
+                for chunk in command.chunks
+            )
+        elif command.stage is IngestionStage.EMBEDDING:
+            self.embeddings = command.embeddings
         checkpoint = StoredStageCheckpoint(
             stage=command.stage,
-            stage_sequence={
-                IngestionStage.VALIDATING: 1,
-                IngestionStage.PARSING: 2,
-                IngestionStage.EXTRACTING_ASSETS: 3,
-                IngestionStage.CHUNKING: 4,
-            }[command.stage],
+            stage_sequence=INGESTION_STAGE_SEQUENCE[command.stage],
             input_hash=command.input_hash,
             output_hash=command.output_hash,
             output_bucket=command.output_bucket,
@@ -164,6 +189,41 @@ class RecordingRepository:
             checkpoints=(*self.work.checkpoints, checkpoint),
         )
         return True
+
+    async def load_embedding_inputs(
+        self,
+        proof: object,
+        *,
+        document_version_id: UUID,
+    ) -> tuple[EmbeddingInput, ...]:
+        del proof
+        assert document_version_id == VERSION_ID
+        return self.embedding_inputs
+
+    async def load_indexable_chunks(
+        self,
+        proof: object,
+        *,
+        document_version_id: UUID,
+    ) -> tuple[IndexableChunk, ...]:
+        del proof
+        assert document_version_id == VERSION_ID
+        return tuple(
+            IndexableChunk(
+                workspace_id=WORKSPACE_ID,
+                knowledge_base_id=KNOWLEDGE_BASE_ID,
+                document_id=DOCUMENT_ID,
+                document_version_id=VERSION_ID,
+                chunk_id=embedding.chunk_id,
+                ordinal=index,
+                page_number=1,
+                text=self.embedding_inputs[index - 1].text,
+                content_hash=embedding.content_hash,
+                vector=embedding.vector,
+                external_id=f"{embedding.chunk_id}:{INDEX_VERSION}",
+            )
+            for index, embedding in enumerate(self.embeddings, start=1)
+        )
 
     async def mark_retrying(
         self,
@@ -255,23 +315,44 @@ class FailingParser:
         raise DocumentParserError(self.code)
 
 
+class RecordingIndex:
+    def __init__(self, *, error_code: str | None = None) -> None:
+        self.error_code = error_code
+        self.upserts: list[tuple[IndexableChunk, ...]] = []
+
+    async def upsert(self, chunks: tuple[IndexableChunk, ...]) -> tuple[str, ...]:
+        self.upserts.append(chunks)
+        if self.error_code is not None:
+            raise IngestionDependencyError(self.error_code)
+        return tuple(chunk.external_id for chunk in chunks)
+
+    async def delete(self, external_ids: tuple[str, ...]) -> None:
+        del external_ids
+
+
 def _service(
     repository: RecordingRepository,
     jobs: RecordingJobs,
     store: MemoryObjectStore,
     parser: DocumentParser,
+    *,
+    vector_index: RecordingIndex | None = None,
+    lexical_index: RecordingIndex | None = None,
 ) -> KnowledgeIngestionService:
     return KnowledgeIngestionService(
         repository=cast(IngestionRepository, repository),
         jobs=cast(JobApplicationUseCase, jobs),
         parser=parser,
         chunker=BoundedPageChunker(),
+        embedding_provider=DeterministicHashEmbeddingProvider(),
+        vector_index=vector_index or RecordingIndex(),
+        lexical_index=lexical_index or RecordingIndex(),
         object_store=cast(PrivateFileObjectStore, store),
     )
 
 
 @pytest.mark.asyncio
-async def test_ingestion_completes_four_versioned_stages_without_ready_status() -> None:
+async def test_ingestion_completes_seven_versioned_stages_and_becomes_ready() -> None:
     repository = RecordingRepository()
     jobs = RecordingJobs()
     store = MemoryObjectStore()
@@ -281,7 +362,7 @@ async def test_ingestion_completes_four_versioned_stages_without_ready_status() 
         _job(fencing_token=7, attempt_count=1)
     )
 
-    assert result.status == "parsed"
+    assert result.status == "ready"
     assert [item.stage for item in repository.completions] == list(IngestionStage)
     assert [item.stage_name for item in jobs.checkpoints] == [
         stage.value for stage in IngestionStage
@@ -307,10 +388,34 @@ async def test_hard_stop_after_parsing_resumes_from_snapshot_without_source_or_r
 
     result = await service.execute(_job(fencing_token=8, attempt_count=2))
 
-    assert result.status == "parsed"
+    assert result.status == "ready"
     assert parser.calls == 1
-    assert len(repository.work.checkpoints) == 4
-    assert len({checkpoint.stage for checkpoint in repository.work.checkpoints}) == 4
+    assert len(repository.work.checkpoints) == 7
+    assert len({checkpoint.stage for checkpoint in repository.work.checkpoints}) == 7
+
+
+@pytest.mark.asyncio
+async def test_vector_dependency_failure_is_stable_and_does_not_run_lexical_index() -> None:
+    repository = RecordingRepository()
+    vector = RecordingIndex(error_code="vector_index_unavailable")
+    lexical = RecordingIndex()
+    service = _service(
+        repository,
+        RecordingJobs(),
+        MemoryObjectStore(),
+        RecordingParser(),
+        vector_index=vector,
+        lexical_index=lexical,
+    )
+
+    with pytest.raises(IngestionDependencyError) as captured:
+        await service.execute(_job(fencing_token=7, attempt_count=1))
+
+    assert captured.value.code == "vector_index_unavailable"
+    assert repository.retry_errors == ["vector_index_unavailable"]
+    assert lexical.upserts == []
+    assert repository.work.checkpoint(IngestionStage.EMBEDDING) is not None
+    assert repository.work.checkpoint(IngestionStage.VECTOR_INDEXING) is None
 
 
 @pytest.mark.asyncio

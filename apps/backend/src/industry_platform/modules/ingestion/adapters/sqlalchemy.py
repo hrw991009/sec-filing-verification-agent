@@ -19,6 +19,8 @@ from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.ingestion.domain import (
     INGESTION_STAGE_SEQUENCE,
     CompleteIngestionStage,
+    EmbeddingInput,
+    IndexableChunk,
     IngestionCancelledError,
     IngestionConflictError,
     IngestionNotFoundError,
@@ -27,19 +29,33 @@ from industry_platform.modules.ingestion.domain import (
     IngestionWorkItem,
     StoredStageCheckpoint,
 )
+from industry_platform.modules.ingestion.index_contract import (
+    EMBEDDING_DIMENSION,
+    EMBEDDING_MODEL,
+    EMBEDDING_PROVIDER_NAME,
+    EMBEDDING_VERSION,
+    INDEX_VERSION,
+    embedding_config_snapshot,
+    index_config_snapshot,
+)
 from industry_platform.modules.jobs.domain import JobLeaseProof, JobStatus, LostJobLeaseError
 from industry_platform.modules.jobs.models import Job
 from industry_platform.modules.knowledge.domain import (
     DocumentAssetKind,
+    DocumentIndexKind,
+    DocumentIndexStatus,
     DocumentPageTextSource,
     DocumentVersionStatus,
     IngestionCheckpointStage,
 )
 from industry_platform.modules.knowledge.models import (
     ChunkAssetLinkRecord,
+    ChunkEmbeddingRecord,
     DocumentAssetRecord,
     DocumentChunkRecord,
+    DocumentIndexRecord,
     DocumentPageRecord,
+    DocumentRecord,
     DocumentVersionRecord,
     IngestionCheckpointRecord,
 )
@@ -107,6 +123,9 @@ _NEXT_STATUS = {
     IngestionStage.PARSING: DocumentVersionStatus.EXTRACTING_ASSETS,
     IngestionStage.EXTRACTING_ASSETS: DocumentVersionStatus.CHUNKING,
     IngestionStage.CHUNKING: DocumentVersionStatus.PARSED,
+    IngestionStage.EMBEDDING: DocumentVersionStatus.VECTOR_INDEXING,
+    IngestionStage.VECTOR_INDEXING: DocumentVersionStatus.LEXICAL_INDEXING,
+    IngestionStage.LEXICAL_INDEXING: DocumentVersionStatus.READY,
 }
 
 
@@ -187,6 +206,8 @@ class SqlAlchemyIngestionRepository:
                     chunker_name=version.chunker_name,
                     chunker_version=version.chunker_version,
                     chunker_config=version.chunker_config,
+                    embedding_config=version.embedding_config,
+                    index_config=version.index_config,
                     checkpoints=checkpoints,
                 )
         except (
@@ -307,6 +328,13 @@ class SqlAlchemyIngestionRepository:
                     await self._persist_assets(session, command)
                 elif command.stage is IngestionStage.CHUNKING:
                     await self._persist_chunks(session, command)
+                elif command.stage is IngestionStage.EMBEDDING:
+                    await self._persist_embeddings(session, command)
+                elif command.stage in {
+                    IngestionStage.VECTOR_INDEXING,
+                    IngestionStage.LEXICAL_INDEXING,
+                }:
+                    await self._persist_index_results(session, command)
 
                 completed_at = await _database_now(session)
                 session.add(
@@ -332,6 +360,8 @@ class SqlAlchemyIngestionRepository:
                 version.status = _NEXT_STATUS[command.stage]
                 version.error_code = None
                 version.revision += 1
+                if command.stage is IngestionStage.LEXICAL_INDEXING:
+                    await self._mark_ready(session, version, completed_at=completed_at)
                 return True
         except (
             IngestionCancelledError,
@@ -448,6 +478,276 @@ class SqlAlchemyIngestionRepository:
                     )
                 )
 
+    async def load_embedding_inputs(
+        self,
+        proof: JobLeaseProof,
+        *,
+        document_version_id: UUID,
+    ) -> tuple[EmbeddingInput, ...]:
+        try:
+            async with self.session_factory() as session, session.begin():
+                job = await session.scalar(_live_job(proof))
+                if job is None:
+                    raise LostJobLeaseError
+                if job.cancel_requested_at is not None:
+                    raise IngestionCancelledError
+                rows = (
+                    await session.scalars(
+                        select(DocumentChunkRecord)
+                        .join(
+                            DocumentVersionRecord,
+                            DocumentVersionRecord.id == DocumentChunkRecord.document_version_id,
+                        )
+                        .where(
+                            DocumentChunkRecord.document_version_id == document_version_id,
+                            DocumentChunkRecord.workspace_id == job.workspace_id,
+                            DocumentVersionRecord.ingestion_job_id == proof.job_id,
+                        )
+                        .order_by(DocumentChunkRecord.ordinal)
+                    )
+                ).all()
+                if not rows:
+                    raise IngestionConflictError
+                return tuple(
+                    EmbeddingInput(
+                        chunk_id=row.id,
+                        text=row.text_content,
+                        content_hash=row.content_hash.hex(),
+                    )
+                    for row in rows
+                )
+        except (
+            IngestionCancelledError,
+            IngestionConflictError,
+            LostJobLeaseError,
+        ):
+            raise
+        except SQLAlchemyError as error:
+            raise _persistence_error(error) from None
+
+    async def load_indexable_chunks(
+        self,
+        proof: JobLeaseProof,
+        *,
+        document_version_id: UUID,
+    ) -> tuple[IndexableChunk, ...]:
+        try:
+            async with self.session_factory() as session, session.begin():
+                job = await session.scalar(_live_job(proof))
+                if job is None:
+                    raise LostJobLeaseError
+                if job.cancel_requested_at is not None:
+                    raise IngestionCancelledError
+                version = await session.scalar(
+                    select(DocumentVersionRecord).where(
+                        DocumentVersionRecord.id == document_version_id,
+                        DocumentVersionRecord.workspace_id == job.workspace_id,
+                        DocumentVersionRecord.ingestion_job_id == proof.job_id,
+                    )
+                )
+                if version is None:
+                    raise IngestionConflictError
+                rows = (
+                    await session.execute(
+                        select(DocumentChunkRecord, ChunkEmbeddingRecord)
+                        .join(
+                            ChunkEmbeddingRecord,
+                            ChunkEmbeddingRecord.chunk_id == DocumentChunkRecord.id,
+                        )
+                        .join(
+                            DocumentVersionRecord,
+                            DocumentVersionRecord.id == DocumentChunkRecord.document_version_id,
+                        )
+                        .where(
+                            DocumentChunkRecord.document_version_id == document_version_id,
+                            DocumentChunkRecord.workspace_id == job.workspace_id,
+                            DocumentVersionRecord.ingestion_job_id == proof.job_id,
+                        )
+                        .order_by(DocumentChunkRecord.ordinal)
+                    )
+                ).all()
+                if not rows:
+                    raise IngestionConflictError
+                chunk_count = await session.scalar(
+                    select(func.count(DocumentChunkRecord.id)).where(
+                        DocumentChunkRecord.document_version_id == document_version_id
+                    )
+                )
+                if chunk_count != len(rows):
+                    raise IngestionConflictError
+                return tuple(
+                    IndexableChunk(
+                        workspace_id=chunk.workspace_id,
+                        knowledge_base_id=version.knowledge_base_id,
+                        document_id=chunk.document_id,
+                        document_version_id=chunk.document_version_id,
+                        chunk_id=chunk.id,
+                        ordinal=chunk.ordinal,
+                        page_number=chunk.page_number,
+                        text=chunk.text_content,
+                        content_hash=chunk.content_hash.hex(),
+                        vector=tuple(float(value) for value in embedding.vector),
+                        external_id=f"{chunk.id}:{INDEX_VERSION}",
+                    )
+                    for chunk, embedding in rows
+                )
+        except (
+            IngestionCancelledError,
+            IngestionConflictError,
+            LostJobLeaseError,
+        ):
+            raise
+        except SQLAlchemyError as error:
+            raise _persistence_error(error) from None
+
+    async def _persist_embeddings(
+        self,
+        session: AsyncSession,
+        command: CompleteIngestionStage,
+    ) -> None:
+        chunks = {
+            row.id: row
+            for row in (
+                await session.scalars(
+                    select(DocumentChunkRecord).where(
+                        DocumentChunkRecord.document_version_id
+                        == command.work_item.document_version_id
+                    )
+                )
+            ).all()
+        }
+        if set(chunks) != {embedding.chunk_id for embedding in command.embeddings}:
+            raise IngestionConflictError
+        for embedding in command.embeddings:
+            chunk = chunks[embedding.chunk_id]
+            if (
+                embedding.content_hash != chunk.content_hash.hex()
+                or len(embedding.vector) != EMBEDDING_DIMENSION
+            ):
+                raise IngestionConflictError
+            session.add(
+                ChunkEmbeddingRecord(
+                    id=_deterministic_id(
+                        command.work_item.document_version_id,
+                        "embedding",
+                        chunk.ordinal,
+                    ),
+                    workspace_id=chunk.workspace_id,
+                    document_id=chunk.document_id,
+                    document_version_id=chunk.document_version_id,
+                    chunk_id=chunk.id,
+                    provider=EMBEDDING_PROVIDER_NAME,
+                    model=EMBEDDING_MODEL,
+                    embedding_version=EMBEDDING_VERSION,
+                    dimension=EMBEDDING_DIMENSION,
+                    normalized=True,
+                    content_hash=chunk.content_hash,
+                    vector=list(embedding.vector),
+                )
+            )
+
+    async def _persist_index_results(
+        self,
+        session: AsyncSession,
+        command: CompleteIngestionStage,
+    ) -> None:
+        chunks = (
+            await session.scalars(
+                select(DocumentChunkRecord)
+                .where(
+                    DocumentChunkRecord.document_version_id == command.work_item.document_version_id
+                )
+                .order_by(DocumentChunkRecord.ordinal)
+            )
+        ).all()
+        expected_ids = tuple(f"{chunk.id}:{INDEX_VERSION}" for chunk in chunks)
+        if command.external_ids != expected_ids:
+            raise IngestionConflictError
+        kind = (
+            DocumentIndexKind.VECTOR
+            if command.stage is IngestionStage.VECTOR_INDEXING
+            else DocumentIndexKind.LEXICAL
+        )
+        indexed_at = await _database_now(session)
+        for chunk, external_id in zip(chunks, expected_ids, strict=True):
+            existing = await session.scalar(
+                select(DocumentIndexRecord)
+                .where(
+                    DocumentIndexRecord.document_version_id == chunk.document_version_id,
+                    DocumentIndexRecord.chunk_id == chunk.id,
+                    DocumentIndexRecord.kind == kind,
+                    DocumentIndexRecord.index_version == INDEX_VERSION,
+                )
+                .with_for_update()
+            )
+            if existing is None:
+                session.add(
+                    DocumentIndexRecord(
+                        id=_deterministic_id(
+                            command.work_item.document_version_id,
+                            f"{kind.value}-index",
+                            chunk.ordinal,
+                        ),
+                        workspace_id=chunk.workspace_id,
+                        document_id=chunk.document_id,
+                        document_version_id=chunk.document_version_id,
+                        chunk_id=chunk.id,
+                        kind=kind,
+                        status=DocumentIndexStatus.SUCCEEDED,
+                        index_version=INDEX_VERSION,
+                        external_id=external_id,
+                        attempt_count=command.attempt_count,
+                        error_code=None,
+                        indexed_at=indexed_at,
+                    )
+                )
+            else:
+                existing.status = DocumentIndexStatus.SUCCEEDED
+                existing.attempt_count = command.attempt_count
+                existing.error_code = None
+                existing.indexed_at = indexed_at
+        await session.flush()
+
+    async def _mark_ready(
+        self,
+        session: AsyncSession,
+        version: DocumentVersionRecord,
+        *,
+        completed_at: datetime,
+    ) -> None:
+        chunk_count = await session.scalar(
+            select(func.count(DocumentChunkRecord.id)).where(
+                DocumentChunkRecord.document_version_id == version.id
+            )
+        )
+        counts = {
+            kind: await session.scalar(
+                select(func.count(DocumentIndexRecord.id)).where(
+                    DocumentIndexRecord.document_version_id == version.id,
+                    DocumentIndexRecord.kind == kind,
+                    DocumentIndexRecord.status == DocumentIndexStatus.SUCCEEDED,
+                    DocumentIndexRecord.index_version == INDEX_VERSION,
+                )
+            )
+            for kind in (DocumentIndexKind.VECTOR, DocumentIndexKind.LEXICAL)
+        }
+        if not chunk_count or any(count != chunk_count for count in counts.values()):
+            raise IngestionConflictError
+        document = await session.scalar(
+            select(DocumentRecord)
+            .where(
+                DocumentRecord.id == version.document_id,
+                DocumentRecord.workspace_id == version.workspace_id,
+            )
+            .with_for_update()
+        )
+        if document is None:
+            raise IngestionNotFoundError
+        version.ready_at = completed_at
+        if version.version == document.latest_version_number:
+            document.active_version_id = version.id
+            document.revision += 1
+
     async def mark_retrying(
         self,
         proof: JobLeaseProof,
@@ -501,6 +801,22 @@ class SqlAlchemyIngestionRepository:
                 )
                 if version is None:
                     raise IngestionNotFoundError
+                failed_stage = version.status
+                if failed_stage in {
+                    DocumentVersionStatus.VECTOR_INDEXING,
+                    DocumentVersionStatus.LEXICAL_INDEXING,
+                }:
+                    await self._record_index_failures(
+                        session,
+                        version,
+                        kind=(
+                            DocumentIndexKind.VECTOR
+                            if failed_stage is DocumentVersionStatus.VECTOR_INDEXING
+                            else DocumentIndexKind.LEXICAL
+                        ),
+                        attempt_count=job.attempt_count,
+                        error_code=error_code,
+                    )
                 version.status = status
                 version.error_code = error_code
                 version.revision += 1
@@ -508,6 +824,60 @@ class SqlAlchemyIngestionRepository:
             raise
         except SQLAlchemyError as error:
             raise _persistence_error(error) from None
+
+    async def _record_index_failures(
+        self,
+        session: AsyncSession,
+        version: DocumentVersionRecord,
+        *,
+        kind: DocumentIndexKind,
+        attempt_count: int,
+        error_code: str,
+    ) -> None:
+        chunks = (
+            await session.scalars(
+                select(DocumentChunkRecord)
+                .where(DocumentChunkRecord.document_version_id == version.id)
+                .order_by(DocumentChunkRecord.ordinal)
+            )
+        ).all()
+        for chunk in chunks:
+            existing = await session.scalar(
+                select(DocumentIndexRecord)
+                .where(
+                    DocumentIndexRecord.document_version_id == version.id,
+                    DocumentIndexRecord.chunk_id == chunk.id,
+                    DocumentIndexRecord.kind == kind,
+                    DocumentIndexRecord.index_version == INDEX_VERSION,
+                )
+                .with_for_update()
+            )
+            if existing is None:
+                session.add(
+                    DocumentIndexRecord(
+                        id=_deterministic_id(
+                            version.id,
+                            f"{kind.value}-index",
+                            chunk.ordinal,
+                        ),
+                        workspace_id=version.workspace_id,
+                        document_id=version.document_id,
+                        document_version_id=version.id,
+                        chunk_id=chunk.id,
+                        kind=kind,
+                        status=DocumentIndexStatus.FAILED,
+                        index_version=INDEX_VERSION,
+                        external_id=f"{chunk.id}:{INDEX_VERSION}",
+                        attempt_count=max(1, attempt_count),
+                        error_code=error_code,
+                        indexed_at=None,
+                    )
+                )
+            else:
+                existing.status = DocumentIndexStatus.FAILED
+                existing.attempt_count = max(1, attempt_count)
+                existing.error_code = error_code
+                existing.indexed_at = None
 
 
 async def _database_now(session: AsyncSession) -> datetime:
@@ -535,5 +905,7 @@ def validate_work_item_contract(work: IngestionWorkItem) -> None:
         or work.parser_schema_version != PARSER_SCHEMA_VERSION
         or work.chunker_name != CHUNKER_NAME
         or work.chunker_version != CHUNKER_VERSION
+        or dict(work.embedding_config) != embedding_config_snapshot()
+        or dict(work.index_config) != index_config_snapshot()
     ):
         raise IngestionConflictError

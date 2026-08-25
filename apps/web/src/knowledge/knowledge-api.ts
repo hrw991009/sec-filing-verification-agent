@@ -7,6 +7,9 @@ export type KnowledgeDocument = components["schemas"]["DocumentResponse"];
 export type KnowledgeDocumentDetail = components["schemas"]["DocumentDetailResponse"];
 export type KnowledgeAcceptance = components["schemas"]["KnowledgeAcceptanceResponse"];
 export type KnowledgeIngestionEvent = components["schemas"]["KnowledgeIngestionEventResponse"];
+export type KnowledgeDeletion = components["schemas"]["KnowledgeDeletionResponse"];
+export type DocumentActivation = components["schemas"]["DocumentActivationResponse"];
+export type DocumentCancellation = components["schemas"]["DocumentCancellationResponse"];
 export type KnowledgeMediaType = "application/pdf" | "text/markdown" | "text/plain";
 
 const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
@@ -185,6 +188,108 @@ export function getKnowledgeDocument(
       pages: detail.pages.map((page) => ({ ...page, bbox: boundingBox(page.bbox) })),
     };
   });
+}
+
+export function createKnowledgeDocumentVersion(
+  workspaceId: string,
+  document: KnowledgeDocument,
+): Promise<KnowledgeAcceptance> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<KnowledgeAcceptance>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions",
+        {
+          headers: authorization(accessToken),
+          params: {
+            header: {
+              ...revisionHeader(document.revision),
+              "Idempotency-Key": `knowledge-reindex:${crypto.randomUUID()}`,
+            },
+            path: {
+              document_id: document.id,
+              knowledge_base_id: document.knowledge_base_id,
+              workspace_id: workspaceId,
+            },
+          },
+        },
+      ),
+    ),
+  );
+}
+
+export function activateKnowledgeDocumentVersion(
+  workspaceId: string,
+  document: KnowledgeDocument,
+  versionId: string,
+): Promise<DocumentActivation> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<DocumentActivation>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/activate",
+        {
+          headers: authorization(accessToken),
+          params: {
+            header: revisionHeader(document.revision),
+            path: {
+              document_id: document.id,
+              knowledge_base_id: document.knowledge_base_id,
+              version_id: versionId,
+              workspace_id: workspaceId,
+            },
+          },
+        },
+      ),
+    ),
+  );
+}
+
+export function deleteKnowledgeDocument(
+  workspaceId: string,
+  document: KnowledgeDocument,
+): Promise<KnowledgeDeletion> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<KnowledgeDeletion>(
+      await apiClient.DELETE(
+        "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}",
+        {
+          headers: authorization(accessToken),
+          params: {
+            header: revisionHeader(document.revision),
+            path: {
+              document_id: document.id,
+              knowledge_base_id: document.knowledge_base_id,
+              workspace_id: workspaceId,
+            },
+          },
+        },
+      ),
+    ),
+  );
+}
+
+export function cancelKnowledgeDocumentVersion(
+  workspaceId: string,
+  document: KnowledgeDocument,
+): Promise<DocumentCancellation> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<DocumentCancellation>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/cancel",
+        {
+          headers: authorization(accessToken),
+          params: {
+            header: revisionHeader(document.latest_version.revision),
+            path: {
+              document_id: document.id,
+              knowledge_base_id: document.knowledge_base_id,
+              version_id: document.latest_version.id,
+              workspace_id: workspaceId,
+            },
+          },
+        },
+      ),
+    ),
+  );
 }
 
 export function listKnowledgeIngestionEvents(

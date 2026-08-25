@@ -20,10 +20,13 @@ from industry_platform.modules.identity.domain import (
 from industry_platform.modules.identity.http_auth import get_principal_resolver
 from industry_platform.modules.jobs.domain import JobStatus
 from industry_platform.modules.knowledge.domain import (
+    ActivateDocumentVersion,
+    CancelDocumentVersion,
     CompleteKnowledgeUpload,
     CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
+    DeleteDocument,
     DeleteKnowledgeBase,
     Document,
     DocumentAsset,
@@ -41,6 +44,7 @@ from industry_platform.modules.knowledge.domain import (
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
     KnowledgeBaseStatus,
+    KnowledgeDeletionReceipt,
     KnowledgeIngestionEvent,
     KnowledgeSource,
     KnowledgeUploadTicket,
@@ -254,6 +258,60 @@ class StubKnowledgeService:
             ),
         )
 
+    async def activate_document_version(
+        self, scope: WorkspaceScope, command: ActivateDocumentVersion
+    ) -> Document:
+        self.calls.append(("activate", scope, command))
+        return replace(
+            document_view(status=DocumentVersionStatus.READY).document,
+            active_version_id=command.version_id,
+            revision=2,
+        )
+
+    async def cancel_document_version(
+        self, scope: WorkspaceScope, command: CancelDocumentVersion
+    ) -> DocumentVersion:
+        self.calls.append(("cancel", scope, command))
+        return replace(
+            document_view().latest_version,
+            status=DocumentVersionStatus.CANCELLED,
+            revision=2,
+        )
+
+    async def delete_document(
+        self, scope: WorkspaceScope, command: DeleteDocument
+    ) -> KnowledgeDeletionReceipt:
+        self.calls.append(("delete-document", scope, command))
+        return KnowledgeDeletionReceipt(
+            document=replace(
+                document_view().document,
+                status=DocumentStatus.DELETING,
+                revision=2,
+                deletion_job_id=JOB_2_ID,
+            ),
+            job_id=JOB_2_ID,
+            job_status=JobStatus.PENDING,
+            outbox_event_id=OUTBOX_2_ID,
+        )
+
+    async def list_deletion_events(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_id: UUID,
+        document_id: UUID,
+    ) -> tuple[KnowledgeIngestionEvent, ...]:
+        self.calls.append(("deletion-events", scope, (knowledge_base_id, document_id)))
+        return (
+            KnowledgeIngestionEvent(
+                id=EVENT_ID,
+                event_type="created",
+                generation=0,
+                event_sequence=0,
+                occurred_at=NOW,
+            ),
+        )
+
 
 def principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
@@ -449,6 +507,56 @@ def test_cross_workspace_and_invalid_media_fail_before_service(test_settings: Se
     assert outside.json()["code"] == "WORKSPACE_ACCESS_DENIED"
     assert invalid.status_code == 422
     assert service.calls == []
+
+
+def test_document_lifecycle_routes_preserve_revision_and_job_contracts(
+    test_settings: Settings,
+) -> None:
+    service = StubKnowledgeService()
+    document_root = (
+        f"/api/v1/workspaces/{WORKSPACE_ID}/knowledge-bases/{KNOWLEDGE_BASE_ID}"
+        f"/documents/{DOCUMENT_ID}"
+    )
+    with knowledge_client(test_settings, service) as client:
+        activated = client.post(
+            f"{document_root}/versions/{VERSION_ID}/activate",
+            headers={**auth(), "If-Match": '"1"'},
+        )
+        cancelled = client.post(
+            f"{document_root}/versions/{VERSION_ID}/cancel",
+            headers={**auth(), "If-Match": '"1"'},
+        )
+        deleted = client.delete(document_root, headers={**auth(), "If-Match": '"1"'})
+        events = client.get(deleted.json()["job"]["events_url"], headers=auth())
+
+    assert activated.status_code == 200
+    assert activated.headers["etag"] == '"2"'
+    assert activated.json() == {
+        "document_id": str(DOCUMENT_ID),
+        "active_version_id": str(VERSION_ID),
+        "revision": 2,
+    }
+    assert cancelled.status_code == 200
+    assert cancelled.json() == {
+        "version_id": str(VERSION_ID),
+        "status": "cancelled",
+        "revision": 2,
+    }
+    assert deleted.status_code == 202
+    assert deleted.json()["status"] == "deleting"
+    assert deleted.json()["job"]["id"] == str(JOB_2_ID)
+    assert deleted.json()["job"]["events_url"] == f"{document_root}/deletion/events"
+    assert events.json()["events"][0]["event_type"] == "created"
+
+    expected_scope = WorkspaceScope(WORKSPACE_ID, USER_ID, "member")
+    assert all(call[1] == expected_scope for call in service.calls)
+    commands = {call[0]: call[2] for call in service.calls}
+    assert isinstance(commands["activate"], ActivateDocumentVersion)
+    assert commands["activate"].expected_revision == 1
+    assert isinstance(commands["cancel"], CancelDocumentVersion)
+    assert commands["cancel"].expected_revision == 1
+    assert isinstance(commands["delete-document"], DeleteDocument)
+    assert commands["delete-document"].expected_revision == 1
 
 
 def test_invalid_text_fields_fail_as_request_validation(test_settings: Settings) -> None:

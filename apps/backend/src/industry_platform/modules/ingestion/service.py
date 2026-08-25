@@ -1,4 +1,4 @@
-"""Resumable four-stage Knowledge ingestion orchestration."""
+"""Resumable seven-stage Knowledge ingestion orchestration."""
 
 import hashlib
 import json
@@ -12,6 +12,7 @@ from industry_platform.modules.files.ports import (
 from industry_platform.modules.ingestion.adapters.sqlalchemy import validate_work_item_contract
 from industry_platform.modules.ingestion.domain import (
     INGESTION_STAGE_SEQUENCE,
+    ChunkEmbedding,
     CompleteIngestionStage,
     DocumentParserError,
     IngestionCancelledError,
@@ -31,7 +32,10 @@ from industry_platform.modules.ingestion.domain import (
 from industry_platform.modules.ingestion.ports import (
     DocumentChunker,
     DocumentParser,
+    EmbeddingProvider,
     IngestionRepository,
+    LexicalIndexWriter,
+    VectorIndexWriter,
 )
 from industry_platform.modules.jobs.domain import (
     AcquiredJob,
@@ -51,6 +55,9 @@ class KnowledgeIngestionService:
     jobs: JobApplicationUseCase
     parser: DocumentParser
     chunker: DocumentChunker
+    embedding_provider: EmbeddingProvider
+    vector_index: VectorIndexWriter
+    lexical_index: LexicalIndexWriter
     object_store: PrivateFileObjectStore | None = field(repr=False)
 
     async def execute(self, job: AcquiredJob) -> IngestionResult:
@@ -82,11 +89,11 @@ class KnowledgeIngestionService:
                     cancelled=False,
                 )
             raise
-        except IngestionDependencyError:
+        except IngestionDependencyError as error:
             await self.repository.mark_retrying(
                 job.lease_proof,
                 document_version_id=document_version_id,
-                error_code=ParserErrorCode.DEPENDENCY_FAILED.value,
+                error_code=error.code,
             )
             raise
 
@@ -194,7 +201,8 @@ class KnowledgeIngestionService:
             assets_hash = assets_checkpoint.output_hash
 
         chunks = self.chunker.chunk(parsed)
-        if work.checkpoint(IngestionStage.CHUNKING) is None:
+        chunking_checkpoint = work.checkpoint(IngestionStage.CHUNKING)
+        if chunking_checkpoint is None:
             await self._begin(job, work, IngestionStage.CHUNKING)
             chunk_hash = _chunk_output_hash(chunks)
             await self.repository.complete_stage(
@@ -209,13 +217,86 @@ class KnowledgeIngestionService:
                     chunks=chunks,
                 )
             )
+            chunk_hash = _chunk_output_hash(chunks)
+        else:
+            chunk_hash = chunking_checkpoint.output_hash
+
+        embedding_checkpoint = work.checkpoint(IngestionStage.EMBEDDING)
+        if embedding_checkpoint is None:
+            await self._begin(job, work, IngestionStage.EMBEDDING)
+            inputs = await self.repository.load_embedding_inputs(
+                job.lease_proof,
+                document_version_id=work.document_version_id,
+            )
+            embeddings = await self.embedding_provider.embed(inputs)
+            if len(embeddings) != len(inputs):
+                raise IngestionDependencyError("embedding_output_invalid")
+            embedding_hash = _embedding_output_hash(embeddings)
+            await self.repository.complete_stage(
+                CompleteIngestionStage(
+                    proof=job.lease_proof,
+                    work_item=work,
+                    stage=IngestionStage.EMBEDDING,
+                    attempt_count=job.attempt_count,
+                    input_hash=chunk_hash,
+                    output_hash=embedding_hash,
+                    stats={
+                        "chunk_count": len(embeddings),
+                        "dimension": len(embeddings[0].vector),
+                    },
+                    embeddings=embeddings,
+                )
+            )
+        else:
+            embedding_hash = embedding_checkpoint.output_hash
+
+        indexable = await self.repository.load_indexable_chunks(
+            job.lease_proof,
+            document_version_id=work.document_version_id,
+        )
+        vector_checkpoint = work.checkpoint(IngestionStage.VECTOR_INDEXING)
+        if vector_checkpoint is None:
+            await self._begin(job, work, IngestionStage.VECTOR_INDEXING)
+            vector_ids = await self.vector_index.upsert(indexable)
+            vector_hash = _index_output_hash(vector_ids)
+            await self.repository.complete_stage(
+                CompleteIngestionStage(
+                    proof=job.lease_proof,
+                    work_item=work,
+                    stage=IngestionStage.VECTOR_INDEXING,
+                    attempt_count=job.attempt_count,
+                    input_hash=embedding_hash,
+                    output_hash=vector_hash,
+                    stats={"index_count": len(vector_ids)},
+                    external_ids=vector_ids,
+                )
+            )
+        else:
+            vector_hash = vector_checkpoint.output_hash
+
+        if work.checkpoint(IngestionStage.LEXICAL_INDEXING) is None:
+            await self._begin(job, work, IngestionStage.LEXICAL_INDEXING)
+            lexical_ids = await self.lexical_index.upsert(indexable)
+            lexical_hash = _index_output_hash(lexical_ids)
+            await self.repository.complete_stage(
+                CompleteIngestionStage(
+                    proof=job.lease_proof,
+                    work_item=work,
+                    stage=IngestionStage.LEXICAL_INDEXING,
+                    attempt_count=job.attempt_count,
+                    input_hash=vector_hash,
+                    output_hash=lexical_hash,
+                    stats={"index_count": len(lexical_ids)},
+                    external_ids=lexical_ids,
+                )
+            )
 
         return IngestionResult(
             document_version_id=work.document_version_id,
             page_count=len(parsed.pages),
             chunk_count=len(chunks),
             asset_count=len(parsed.assets),
-            status="parsed",
+            status="ready",
         )
 
     async def _begin(
@@ -398,4 +479,29 @@ def _chunk_output_hash(chunks: tuple[ParsedChunk, ...]) -> str:
             [chunk.content_hash for chunk in chunks],
             separators=(",", ":"),
         ).encode("utf-8")
+    ).hexdigest()
+
+
+def _embedding_output_hash(embeddings: tuple[ChunkEmbedding, ...]) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            [
+                {
+                    "chunk_id": str(value.chunk_id),
+                    "content_hash": value.content_hash,
+                    "vector": list(value.vector),
+                }
+                for value in embeddings
+            ],
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _index_output_hash(external_ids: tuple[str, ...]) -> str:
+    if not external_ids:
+        raise ValueError("Index output is empty")
+    return hashlib.sha256(
+        json.dumps(list(external_ids), separators=(",", ":")).encode("utf-8")
     ).hexdigest()

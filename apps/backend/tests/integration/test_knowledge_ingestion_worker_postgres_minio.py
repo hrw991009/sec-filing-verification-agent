@@ -18,18 +18,23 @@ from reportlab.pdfgen import canvas
 from sqlalchemy import func, select
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
-from industry_platform.modules.files.domain import AttachmentMediaType
+from industry_platform.modules.files.domain import AttachmentMediaType, FileObjectStatus
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.files.ports import FileObjectStoreError
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.identity.models import (
+    AuditLog,
     User,
     UserStatus,
     Workspace,
     WorkspaceMembership,
     WorkspaceRole,
     WorkspaceStatus,
+)
+from industry_platform.modules.ingestion.index_contract import (
+    ELASTICSEARCH_INDEX,
+    MILVUS_COLLECTION,
 )
 from industry_platform.modules.ingestion.resources import create_ingestion_resources
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
@@ -43,17 +48,27 @@ from industry_platform.modules.knowledge.adapters.sqlalchemy import (
     SqlAlchemyKnowledgeRepository,
 )
 from industry_platform.modules.knowledge.domain import (
+    KNOWLEDGE_DELETION_TASK_NAME,
     KNOWLEDGE_INGESTION_TASK_NAME,
+    ActivateDocumentVersion,
+    CancelDocumentVersion,
     CompleteKnowledgeUpload,
     CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
+    DeleteDocument,
+    DocumentDeletionTargetKind,
+    DocumentDeletionTargetStatus,
+    DocumentStatus,
     DocumentVersionStatus,
 )
 from industry_platform.modules.knowledge.models import (
     ChunkAssetLinkRecord,
+    ChunkEmbeddingRecord,
     DocumentAssetRecord,
     DocumentChunkRecord,
+    DocumentDeletionTargetRecord,
+    DocumentIndexRecord,
     DocumentPageRecord,
     DocumentRecord,
     DocumentVersionRecord,
@@ -66,12 +81,16 @@ from industry_platform.workers.runtime import (
     FixedJobHandlerRegistry,
     JobExecutionDisposition,
     JobExecutionRuntime,
+    JobHandler,
+    KnowledgeDeletionJobHandler,
     KnowledgeIngestionJobHandler,
 )
 
 from .postgres import PostgresProbe
 
 MINIO_TESTS_REQUIRED = "MINIO_TESTS_REQUIRED"
+VECTOR_TESTS_REQUIRED = "VECTOR_TESTS_REQUIRED"
+ELASTICSEARCH_TESTS_REQUIRED = "ELASTICSEARCH_TESTS_REQUIRED"
 USER_ID = UUID("61111111-1111-4111-8111-111111111111")
 WORKSPACE_ID = UUID("62222222-2222-4222-8222-222222222222")
 
@@ -120,11 +139,12 @@ def _source_pdf() -> bytes:
 @pytest.mark.filterwarnings(
     r"ignore:datetime\.datetime\.utcnow\(\) is deprecated.*:DeprecationWarning:minio\.datatypes"
 )
-def test_worker_persists_four_stages_and_deduplicates_delivery(
+def test_worker_persists_dual_indexes_and_deduplicates_delivery(
     migrated_postgres_probe: PostgresProbe,
 ) -> None:
-    if os.getenv(MINIO_TESTS_REQUIRED) != "1":
-        pytest.skip(f"Set {MINIO_TESTS_REQUIRED}=1 to run MinIO integration tests")
+    required = (MINIO_TESTS_REQUIRED, VECTOR_TESTS_REQUIRED, ELASTICSEARCH_TESTS_REQUIRED)
+    if any(os.getenv(name) != "1" for name in required):
+        pytest.skip(f"Set {', '.join(required)}=1 to run Knowledge index integration tests")
 
     async def exercise() -> None:
         settings = migrated_postgres_probe.settings
@@ -232,38 +252,64 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                 owned_keys.add(source_file.object_key)
 
             jobs = create_job_resources(settings, session_factory).application_service
-            ingestion = create_ingestion_resources(session_factory, jobs, store).service
             outbox = SqlAlchemyOutboxTransactionFactory(session_factory)
-            async with outbox() as writer:
-                claimed = await writer.claim_job_dispatches(
-                    ClaimOutboxCommand(
-                        dispatcher_id="knowledge-worker-integration",
-                        batch_size=1,
-                        claim_seconds=60,
-                    )
-                )
-            assert len(claimed) == 1
-            assert claimed[0].message.job_id == accepted.version.ingestion_job_id
-            async with outbox() as writer:
-                assert await writer.mark_published(claimed[0].proof) is True
 
-            runtime = JobExecutionRuntime(
-                jobs=jobs,
-                handlers=FixedJobHandlerRegistry(
-                    {KNOWLEDGE_INGESTION_TASK_NAME: KnowledgeIngestionJobHandler(ingestion)}
-                ),
-                worker_id="knowledge-worker-integration",
-                heartbeat_seconds=0.25,
-            )
-            disposition = await runtime.execute(claimed[0].message)
-            if disposition is not JobExecutionDisposition.SUCCEEDED:
-                async with session_factory() as session:
-                    failed_job = await session.get(Job, accepted.version.ingestion_job_id)
-                raise AssertionError(
-                    f"Knowledge worker returned {disposition}; "
-                    f"error={failed_job.last_error_code if failed_job is not None else 'missing'}"
-                )
-            assert await runtime.execute(claimed[0].message) is JobExecutionDisposition.NO_OP
+            async def execute_next(
+                expected_job_id: UUID,
+                expected_disposition: JobExecutionDisposition = (JobExecutionDisposition.SUCCEEDED),
+            ) -> None:
+                async with outbox() as writer:
+                    claimed = await writer.claim_job_dispatches(
+                        ClaimOutboxCommand(
+                            dispatcher_id="knowledge-worker-integration",
+                            batch_size=1,
+                            claim_seconds=60,
+                        )
+                    )
+                assert len(claimed) == 1
+                assert claimed[0].message.job_id == expected_job_id
+                async with outbox() as writer:
+                    assert await writer.mark_published(claimed[0].proof) is True
+
+                async with httpx2.AsyncClient(trust_env=False) as internal_client:
+                    resources = create_ingestion_resources(
+                        settings,
+                        session_factory,
+                        jobs,
+                        store,
+                        internal_client,
+                    )
+                    handlers: dict[str, JobHandler] = {
+                        KNOWLEDGE_INGESTION_TASK_NAME: KnowledgeIngestionJobHandler(
+                            resources.service
+                        ),
+                        KNOWLEDGE_DELETION_TASK_NAME: KnowledgeDeletionJobHandler(
+                            resources.deletion_service
+                        ),
+                    }
+                    runtime = JobExecutionRuntime(
+                        jobs=jobs,
+                        handlers=FixedJobHandlerRegistry(handlers),
+                        worker_id="knowledge-worker-integration",
+                        heartbeat_seconds=0.25,
+                    )
+                    disposition = await runtime.execute(claimed[0].message)
+                    if disposition is not expected_disposition:
+                        async with session_factory() as session:
+                            failed_job = await session.get(Job, expected_job_id)
+                        failure_code = (
+                            failed_job.last_error_code if failed_job is not None else "missing"
+                        )
+                        raise AssertionError(
+                            f"Knowledge worker returned {disposition}; error={failure_code}"
+                        )
+                    if expected_disposition is JobExecutionDisposition.SUCCEEDED:
+                        assert (
+                            await runtime.execute(claimed[0].message)
+                            is JobExecutionDisposition.NO_OP
+                        )
+
+            await execute_next(accepted.version.ingestion_job_id)
 
             async with session_factory() as session:
                 document = await session.get(DocumentRecord, accepted.document.id)
@@ -289,6 +335,8 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                         DocumentChunkRecord,
                         DocumentAssetRecord,
                         ChunkAssetLinkRecord,
+                        ChunkEmbeddingRecord,
+                        DocumentIndexRecord,
                     )
                 }
                 assets = tuple(
@@ -302,10 +350,10 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                 )
 
             assert document is not None
-            assert document.active_version_id is None
+            assert document.active_version_id == accepted.version.id
             assert version is not None
-            assert version.status is DocumentVersionStatus.PARSED
-            assert version.ready_at is None
+            assert version.status is DocumentVersionStatus.READY
+            assert version.ready_at is not None
             assert job is not None
             assert job.status is JobStatus.SUCCEEDED
             assert job.result == {
@@ -313,9 +361,9 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                 "chunk_count": 1,
                 "document_version_id": str(accepted.version.id),
                 "page_count": 1,
-                "status": "parsed",
+                "status": "ready",
             }
-            assert [checkpoint.stage_sequence for checkpoint in checkpoints] == [1, 2, 3, 4]
+            assert [checkpoint.stage_sequence for checkpoint in checkpoints] == list(range(1, 8))
             assert all(checkpoint.fencing_token == 1 for checkpoint in checkpoints)
             assert all(checkpoint.attempt_count == 1 for checkpoint in checkpoints)
             assert counts == {
@@ -323,6 +371,8 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                 "document_chunks": 1,
                 "document_assets": 2,
                 "chunk_asset_links": 2,
+                "chunk_embeddings": 1,
+                "document_index_records": 2,
             }
 
             detail = await knowledge.get_document(
@@ -331,6 +381,7 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                 document_id=accepted.document.id,
             )
             assert len(detail.assets) == 2
+            assert len(detail.indexes) == 2
             assert all(
                 asset.preview_url is not None and "X-Amz-Signature=" in asset.preview_url
                 for asset in detail.assets
@@ -350,7 +401,7 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
             assert repeated_version.version.id == next_version.version.id
             assert next_version.version.version == 2
             assert next_version.version.file_id == accepted.version.file_id
-            assert next_version.document.active_version_id is None
+            assert next_version.document.active_version_id == accepted.version.id
 
             async with session_factory() as session:
                 stored_document = await session.get(DocumentRecord, accepted.document.id)
@@ -380,10 +431,253 @@ def test_worker_persists_four_stages_and_deduplicates_delivery(
                 )
             assert stored_document is not None
             assert stored_document.latest_version_number == 2
-            assert stored_document.active_version_id is None
+            assert stored_document.active_version_id == accepted.version.id
             assert version_count == 2
             assert retained_page_count == 1
             assert retained_asset_count == 2
+
+            await execute_next(next_version.version.ingestion_job_id)
+            ready_detail = await knowledge.get_document(
+                scope,
+                knowledge_base_id=knowledge_base.id,
+                document_id=accepted.document.id,
+            )
+            assert ready_detail.document.active_version_id == next_version.version.id
+            assert ready_detail.versions[-1].status is DocumentVersionStatus.READY
+
+            rolled_back = await knowledge.activate_document_version(
+                scope,
+                ActivateDocumentVersion(
+                    knowledge_base_id=knowledge_base.id,
+                    document_id=accepted.document.id,
+                    version_id=accepted.version.id,
+                    expected_revision=ready_detail.document.revision,
+                    trace_id=TraceId("knowledge-worker-integration"),
+                ),
+            )
+            assert rolled_back.active_version_id == accepted.version.id
+            restored = await knowledge.activate_document_version(
+                scope,
+                ActivateDocumentVersion(
+                    knowledge_base_id=knowledge_base.id,
+                    document_id=accepted.document.id,
+                    version_id=next_version.version.id,
+                    expected_revision=rolled_back.revision,
+                    trace_id=TraceId("knowledge-worker-integration"),
+                ),
+            )
+            assert restored.active_version_id == next_version.version.id
+            async with session_factory() as session:
+                activation_audits = tuple(
+                    (
+                        await session.scalars(
+                            select(AuditLog)
+                            .where(
+                                AuditLog.action == "knowledge.document.activate_version",
+                                AuditLog.resource_id == accepted.document.id,
+                            )
+                            .order_by(AuditLog.created_at, AuditLog.id)
+                        )
+                    ).all()
+                )
+            assert len(activation_audits) == 2
+            assert activation_audits[-1].sanitized_metadata == {
+                "from_version_id": str(accepted.version.id),
+                "to_version_id": str(next_version.version.id),
+            }
+
+            third_version = await knowledge.create_document_version(
+                scope,
+                CreateDocumentVersion(
+                    knowledge_base_id=knowledge_base.id,
+                    document_id=accepted.document.id,
+                    expected_revision=restored.revision,
+                    idempotency_key="cancelled-version",
+                    trace_id=TraceId("knowledge-worker-integration"),
+                ),
+            )
+            cancelled_version = await knowledge.cancel_document_version(
+                scope,
+                CancelDocumentVersion(
+                    knowledge_base_id=knowledge_base.id,
+                    document_id=accepted.document.id,
+                    version_id=third_version.version.id,
+                    expected_revision=third_version.version.revision,
+                    trace_id=TraceId("knowledge-worker-integration"),
+                ),
+            )
+            assert cancelled_version.status is DocumentVersionStatus.CANCELLED
+            async with session_factory() as session:
+                cancelled_job = await session.get(Job, third_version.version.ingestion_job_id)
+            assert cancelled_job is not None
+            assert cancelled_job.status is JobStatus.CANCELLED
+            await execute_next(
+                third_version.version.ingestion_job_id,
+                JobExecutionDisposition.NO_OP,
+            )
+
+            ready_detail = await knowledge.get_document(
+                scope,
+                knowledge_base_id=knowledge_base.id,
+                document_id=accepted.document.id,
+            )
+            assert ready_detail.document.active_version_id == next_version.version.id
+            assert ready_detail.document.latest_version_number == 3
+            assert (
+                next(
+                    version
+                    for version in ready_detail.versions
+                    if version.id == third_version.version.id
+                ).status
+                is DocumentVersionStatus.CANCELLED
+            )
+
+            delete_cancelled_version = await knowledge.create_document_version(
+                scope,
+                CreateDocumentVersion(
+                    knowledge_base_id=knowledge_base.id,
+                    document_id=accepted.document.id,
+                    expected_revision=ready_detail.document.revision,
+                    idempotency_key="delete-cancelled-version",
+                    trace_id=TraceId("knowledge-worker-integration"),
+                ),
+            )
+            orphan_key = (
+                f"derived/{WORKSPACE_ID}/knowledge/{delete_cancelled_version.version.id}/"
+                "uncommitted-preview.bin"
+            )
+            await store.put_private(
+                bucket=bucket,
+                object_key=orphan_key,
+                content_type="application/octet-stream",
+                content=b"cancelled-stage-output",
+            )
+            owned_keys.add(orphan_key)
+
+            deletion = await knowledge.delete_document(
+                scope,
+                DeleteDocument(
+                    knowledge_base_id=knowledge_base.id,
+                    document_id=accepted.document.id,
+                    expected_revision=delete_cancelled_version.document.revision,
+                    trace_id=TraceId("knowledge-worker-integration"),
+                ),
+            )
+            assert deletion.document.status is DocumentStatus.DELETING
+            async with session_factory() as session:
+                deletion_cancelled_job = await session.get(
+                    Job,
+                    delete_cancelled_version.version.ingestion_job_id,
+                )
+                pending_targets = tuple(
+                    (
+                        await session.scalars(
+                            select(DocumentDeletionTargetRecord)
+                            .where(DocumentDeletionTargetRecord.document_id == accepted.document.id)
+                            .order_by(
+                                DocumentDeletionTargetRecord.kind,
+                                DocumentDeletionTargetRecord.target_key,
+                            )
+                        )
+                    ).all()
+                )
+            assert deletion_cancelled_job is not None
+            assert deletion_cancelled_job.status is JobStatus.CANCELLED
+            assert pending_targets
+            assert all(
+                target.status is DocumentDeletionTargetStatus.PENDING for target in pending_targets
+            )
+            vector_ids = tuple(
+                target.target_key
+                for target in pending_targets
+                if target.kind is DocumentDeletionTargetKind.VECTOR
+            )
+            lexical_ids = tuple(
+                target.target_key
+                for target in pending_targets
+                if target.kind is DocumentDeletionTargetKind.LEXICAL
+            )
+            object_targets = tuple(
+                target
+                for target in pending_targets
+                if target.kind is DocumentDeletionTargetKind.OBJECT
+            )
+            prefix_targets = tuple(
+                target
+                for target in pending_targets
+                if target.kind is DocumentDeletionTargetKind.OBJECT_PREFIX
+            )
+            assert len(vector_ids) == 2
+            assert len(lexical_ids) == 2
+            assert object_targets
+            assert len(prefix_targets) == 4
+
+            await execute_next(
+                delete_cancelled_version.version.ingestion_job_id,
+                JobExecutionDisposition.NO_OP,
+            )
+            await execute_next(deletion.job_id)
+
+            async with session_factory() as session:
+                deleted_document = await session.get(DocumentRecord, accepted.document.id)
+                deleted_versions = tuple(
+                    (
+                        await session.scalars(
+                            select(DocumentVersionRecord).where(
+                                DocumentVersionRecord.document_id == accepted.document.id
+                            )
+                        )
+                    ).all()
+                )
+                deleted_source = await session.get(FileObject, upload.file_id)
+                deletion_job = await session.get(Job, deletion.job_id)
+                deleted_targets = tuple(
+                    (
+                        await session.scalars(
+                            select(DocumentDeletionTargetRecord).where(
+                                DocumentDeletionTargetRecord.document_id == accepted.document.id
+                            )
+                        )
+                    ).all()
+                )
+            assert deleted_document is not None
+            assert deleted_document.status is DocumentStatus.DELETED
+            assert deleted_document.active_version_id is None
+            assert all(
+                version.status is DocumentVersionStatus.DELETED for version in deleted_versions
+            )
+            assert len(deleted_versions) == 4
+            assert deleted_source is not None
+            assert deleted_source.status is FileObjectStatus.DELETED
+            assert deletion_job is not None
+            assert deletion_job.status is JobStatus.SUCCEEDED
+            assert all(
+                target.status is DocumentDeletionTargetStatus.DELETED for target in deleted_targets
+            )
+
+            for target in object_targets:
+                with pytest.raises(FileObjectStoreError):
+                    await store.stat(bucket=target.bucket or "", object_key=target.target_key)
+            with pytest.raises(FileObjectStoreError):
+                await store.stat(bucket=bucket, object_key=orphan_key)
+
+            async with httpx2.AsyncClient(trust_env=False, timeout=10.0) as client:
+                for external_id in vector_ids:
+                    response = await client.post(
+                        f"{settings.milvus_endpoint}/v2/vectordb/entities/get",
+                        json={
+                            "collectionName": MILVUS_COLLECTION,
+                            "id": external_id,
+                            "outputFields": ["id"],
+                        },
+                    )
+                    assert response.status_code == 200
+                    assert response.json()["data"] == []
+                for external_id in lexical_ids:
+                    response = await client.get(
+                        f"{settings.elasticsearch_endpoint}/{ELASTICSEARCH_INDEX}/_doc/{external_id}"
+                    )
+                    assert response.status_code == 404
 
             for checkpoint in checkpoints:
                 if checkpoint.output_object_key is not None:

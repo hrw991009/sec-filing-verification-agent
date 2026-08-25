@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -23,11 +23,19 @@ from industry_platform.modules.files.service import (
     FileStateConflictError,
     FileUploadExpiredError,
 )
+from industry_platform.modules.identity.models import AuditLog, AuditOutcome
+from industry_platform.modules.ingestion.index_contract import INDEX_VERSION
 from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyJobWriter
-from industry_platform.modules.jobs.domain import JobIdempotencyConflictError
+from industry_platform.modules.jobs.domain import (
+    JobEventType,
+    JobIdempotencyConflictError,
+    JobStatus,
+)
 from industry_platform.modules.jobs.models import Job, JobEvent, OutboxEvent
 from industry_platform.modules.knowledge.domain import (
     KNOWLEDGE_SCHEMA_VERSION,
+    ActivateDocumentVersion,
+    CancelDocumentVersion,
     ClaimedKnowledgeUpload,
     CreateKnowledgeBase,
     DeleteKnowledgeBase,
@@ -35,7 +43,10 @@ from industry_platform.modules.knowledge.domain import (
     DocumentAsset,
     DocumentAssetKind,
     DocumentChunk,
+    DocumentDeletionTargetKind,
+    DocumentDeletionTargetStatus,
     DocumentDetail,
+    DocumentIndex,
     DocumentPage,
     DocumentPageTextSource,
     DocumentStatus,
@@ -47,11 +58,13 @@ from industry_platform.modules.knowledge.domain import (
     KnowledgeBase,
     KnowledgeBaseStatus,
     KnowledgeConflictError,
+    KnowledgeDeletionReceipt,
     KnowledgeIngestionEvent,
     KnowledgeNotEmptyError,
     KnowledgeNotFoundError,
     KnowledgePersistenceError,
     KnowledgeSource,
+    PreparedDocumentDeletion,
     PreparedDocumentVersion,
     PreparedKnowledgeAcceptance,
     StagingKnowledgeUpload,
@@ -61,6 +74,8 @@ from industry_platform.modules.knowledge.models import (
     ChunkAssetLinkRecord,
     DocumentAssetRecord,
     DocumentChunkRecord,
+    DocumentDeletionTargetRecord,
+    DocumentIndexRecord,
     DocumentPageRecord,
     DocumentRecord,
     DocumentVersionRecord,
@@ -412,7 +427,7 @@ class SqlAlchemyKnowledgeRepository:
                         .where(
                             DocumentRecord.workspace_id == scope.workspace_id,
                             DocumentRecord.knowledge_base_id == knowledge_base_id,
-                            DocumentRecord.status == DocumentStatus.ACTIVE,
+                            DocumentRecord.status != DocumentStatus.DELETED,
                         )
                         .order_by(DocumentRecord.updated_at.desc(), DocumentRecord.id)
                         .limit(limit)
@@ -436,7 +451,7 @@ class SqlAlchemyKnowledgeRepository:
                         DocumentRecord.id == document_id,
                         DocumentRecord.workspace_id == scope.workspace_id,
                         DocumentRecord.knowledge_base_id == knowledge_base_id,
-                        DocumentRecord.status == DocumentStatus.ACTIVE,
+                        DocumentRecord.status != DocumentStatus.DELETED,
                     )
                 )
                 if document is None:
@@ -490,6 +505,16 @@ class SqlAlchemyKnowledgeRepository:
                         .order_by(IngestionCheckpointRecord.stage_sequence)
                     )
                 )
+                index_records = tuple(
+                    await session.scalars(
+                        select(DocumentIndexRecord)
+                        .where(DocumentIndexRecord.document_version_id == latest_version_id)
+                        .order_by(
+                            DocumentIndexRecord.kind,
+                            DocumentIndexRecord.external_id,
+                        )
+                    )
+                )
                 asset_ids_by_chunk: dict[UUID, list[UUID]] = {}
                 for link in link_records:
                     asset_ids_by_chunk.setdefault(link.chunk_id, []).append(link.asset_id)
@@ -506,6 +531,7 @@ class SqlAlchemyKnowledgeRepository:
                     ingestion_checkpoints=tuple(
                         _ingestion_checkpoint(record) for record in checkpoint_records
                     ),
+                    indexes=tuple(_document_index(record) for record in index_records),
                 )
         except KnowledgeNotFoundError:
             raise
@@ -553,6 +579,408 @@ class SqlAlchemyKnowledgeRepository:
             raise
         except SQLAlchemyError as error:
             raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
+
+    async def request_document_deletion(
+        self,
+        scope: WorkspaceScope,
+        prepared: PreparedDocumentDeletion,
+    ) -> KnowledgeDeletionReceipt:
+        try:
+            async with self.session_factory.begin() as session:
+                document = await session.scalar(
+                    select(DocumentRecord)
+                    .where(
+                        DocumentRecord.id == prepared.document_id,
+                        DocumentRecord.knowledge_base_id == prepared.knowledge_base_id,
+                        DocumentRecord.workspace_id == scope.workspace_id,
+                        DocumentRecord.status == DocumentStatus.ACTIVE,
+                    )
+                    .with_for_update()
+                )
+                if document is None:
+                    raise KnowledgeNotFoundError
+                if document.revision != prepared.expected_document_revision:
+                    raise KnowledgeConflictError
+                job = await SqlAlchemyJobWriter(session).submit(prepared.job)
+                if not job.created:
+                    raise KnowledgeConflictError
+
+                versions = tuple(
+                    await session.scalars(
+                        select(DocumentVersionRecord)
+                        .where(DocumentVersionRecord.document_id == document.id)
+                        .with_for_update()
+                    )
+                )
+                version_ids = tuple(version.id for version in versions)
+                ingestion_jobs = tuple(
+                    await session.scalars(
+                        select(Job)
+                        .where(Job.id.in_({version.ingestion_job_id for version in versions}))
+                        .with_for_update()
+                    )
+                )
+                for ingestion_job in ingestion_jobs:
+                    _request_job_cancellation(
+                        session,
+                        ingestion_job,
+                        requested_at=prepared.requested_at,
+                        source="knowledge_document_delete",
+                    )
+                targets = await _deletion_targets(
+                    session,
+                    workspace_id=scope.workspace_id,
+                    version_ids=version_ids,
+                )
+                for kind, bucket, target_key in targets:
+                    session.add(
+                        DocumentDeletionTargetRecord(
+                            id=uuid5(
+                                NAMESPACE_URL,
+                                "industry-platform:knowledge-deletion:"
+                                f"{document.id}:{kind.value}:{bucket or ''}:{target_key}",
+                            ),
+                            workspace_id=scope.workspace_id,
+                            document_id=document.id,
+                            kind=kind,
+                            status=DocumentDeletionTargetStatus.PENDING,
+                            bucket=bucket,
+                            target_key=target_key,
+                            attempt_count=0,
+                            error_code=None,
+                            deleted_at=None,
+                        )
+                    )
+                document.status = DocumentStatus.DELETING
+                document.active_version_id = None
+                document.deletion_job_id = job.job_id
+                document.deletion_error_code = None
+                document.revision += 1
+                document.updated_at = prepared.requested_at
+                for version in versions:
+                    version.status = DocumentVersionStatus.DELETING
+                    version.error_code = None
+                    version.revision += 1
+                file_objects = tuple(
+                    await session.scalars(
+                        select(FileObject)
+                        .where(FileObject.id.in_({version.file_object_id for version in versions}))
+                        .with_for_update()
+                    )
+                )
+                for file_object in file_objects:
+                    file_object.status = FileObjectStatus.DELETING
+                    file_object.delete_requested_at = prepared.requested_at
+                    file_object.error_code = None
+                    file_object.revision += 1
+                await session.flush()
+                return KnowledgeDeletionReceipt(
+                    document=_document(document),
+                    job_id=job.job_id,
+                    job_status=job.status,
+                    outbox_event_id=job.outbox_event_id,
+                )
+        except (KnowledgeConflictError, KnowledgeNotFoundError):
+            raise
+        except JobIdempotencyConflictError:
+            raise KnowledgeConflictError from None
+        except SQLAlchemyError as error:
+            raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
+
+    async def activate_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: ActivateDocumentVersion,
+    ) -> Document:
+        try:
+            async with self.session_factory.begin() as session:
+                document = await session.scalar(
+                    select(DocumentRecord)
+                    .where(
+                        DocumentRecord.id == command.document_id,
+                        DocumentRecord.knowledge_base_id == command.knowledge_base_id,
+                        DocumentRecord.workspace_id == scope.workspace_id,
+                        DocumentRecord.status == DocumentStatus.ACTIVE,
+                    )
+                    .with_for_update()
+                )
+                if document is None:
+                    raise KnowledgeNotFoundError
+                if document.revision != command.expected_revision:
+                    raise KnowledgeConflictError
+                version = await session.scalar(
+                    select(DocumentVersionRecord).where(
+                        DocumentVersionRecord.id == command.version_id,
+                        DocumentVersionRecord.document_id == document.id,
+                        DocumentVersionRecord.workspace_id == scope.workspace_id,
+                        DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                    )
+                )
+                if version is None:
+                    raise KnowledgeConflictError
+                previous_version_id = document.active_version_id
+                if previous_version_id == version.id:
+                    return _document(document)
+                now = datetime.now(UTC)
+                document.active_version_id = version.id
+                document.revision += 1
+                document.updated_at = now
+                session.add(
+                    AuditLog(
+                        id=uuid4(),
+                        workspace_id=scope.workspace_id,
+                        actor_user_id=scope.user_id,
+                        action="knowledge.document.activate_version",
+                        resource_type="knowledge_document",
+                        resource_id=document.id,
+                        outcome=AuditOutcome.SUCCEEDED,
+                        trace_id=str(command.trace_id),
+                        sanitized_metadata={
+                            "from_version_id": (
+                                str(previous_version_id)
+                                if previous_version_id is not None
+                                else None
+                            ),
+                            "to_version_id": str(version.id),
+                        },
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+                await session.flush()
+                return _document(document)
+        except (KnowledgeConflictError, KnowledgeNotFoundError):
+            raise
+        except SQLAlchemyError as error:
+            raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
+
+    async def cancel_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: CancelDocumentVersion,
+    ) -> DocumentVersion:
+        cancellable = {
+            DocumentVersionStatus.QUEUED,
+            DocumentVersionStatus.VALIDATING,
+            DocumentVersionStatus.PARSING,
+            DocumentVersionStatus.EXTRACTING_ASSETS,
+            DocumentVersionStatus.CHUNKING,
+            DocumentVersionStatus.PARSED,
+            DocumentVersionStatus.EMBEDDING,
+            DocumentVersionStatus.VECTOR_INDEXING,
+            DocumentVersionStatus.LEXICAL_INDEXING,
+            DocumentVersionStatus.RETRYING,
+        }
+        try:
+            async with self.session_factory.begin() as session:
+                version = await session.scalar(
+                    select(DocumentVersionRecord)
+                    .where(
+                        DocumentVersionRecord.id == command.version_id,
+                        DocumentVersionRecord.document_id == command.document_id,
+                        DocumentVersionRecord.knowledge_base_id == command.knowledge_base_id,
+                        DocumentVersionRecord.workspace_id == scope.workspace_id,
+                    )
+                    .with_for_update()
+                )
+                if version is None:
+                    raise KnowledgeNotFoundError
+                if version.revision != command.expected_revision:
+                    raise KnowledgeConflictError
+                if version.status is DocumentVersionStatus.CANCELLED:
+                    return _version(version)
+                if version.status not in cancellable:
+                    raise KnowledgeConflictError
+                job = await session.scalar(
+                    select(Job).where(Job.id == version.ingestion_job_id).with_for_update()
+                )
+                if job is None or job.workspace_id != scope.workspace_id:
+                    raise KnowledgeConflictError
+                if job.status in {
+                    JobStatus.SUCCEEDED,
+                    JobStatus.FAILED,
+                    JobStatus.DEAD_LETTER,
+                }:
+                    raise KnowledgeConflictError
+                now = datetime.now(UTC)
+                _request_job_cancellation(
+                    session,
+                    job,
+                    requested_at=now,
+                    source="knowledge_ingestion_cancel",
+                )
+                version.status = DocumentVersionStatus.CANCELLED
+                version.error_code = "ingestion_cancelled"
+                version.revision += 1
+                version.updated_at = now
+                await session.flush()
+                return _version(version)
+        except (KnowledgeConflictError, KnowledgeNotFoundError):
+            raise
+        except SQLAlchemyError as error:
+            raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
+
+    async def list_deletion_events(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_id: UUID,
+        document_id: UUID,
+    ) -> tuple[KnowledgeIngestionEvent, ...]:
+        try:
+            async with self.session_factory() as session:
+                job_id = await session.scalar(
+                    select(DocumentRecord.deletion_job_id).where(
+                        DocumentRecord.id == document_id,
+                        DocumentRecord.knowledge_base_id == knowledge_base_id,
+                        DocumentRecord.workspace_id == scope.workspace_id,
+                    )
+                )
+                if job_id is None:
+                    raise KnowledgeNotFoundError
+                records = tuple(
+                    await session.scalars(
+                        select(JobEvent)
+                        .where(JobEvent.job_id == job_id)
+                        .order_by(JobEvent.occurred_at, JobEvent.id)
+                    )
+                )
+                return tuple(
+                    KnowledgeIngestionEvent(
+                        id=record.id,
+                        event_type=record.event_type.value,
+                        generation=record.generation,
+                        event_sequence=record.event_sequence,
+                        occurred_at=record.occurred_at,
+                    )
+                    for record in records
+                )
+        except KnowledgeNotFoundError:
+            raise
+        except SQLAlchemyError as error:
+            raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
+
+
+async def _deletion_targets(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    version_ids: tuple[UUID, ...],
+) -> tuple[tuple[DocumentDeletionTargetKind, str | None, str], ...]:
+    targets: set[tuple[DocumentDeletionTargetKind, str | None, str]] = set()
+    chunks = tuple(
+        await session.scalars(
+            select(DocumentChunkRecord).where(
+                DocumentChunkRecord.document_version_id.in_(version_ids),
+                DocumentChunkRecord.workspace_id == workspace_id,
+            )
+        )
+    )
+    for chunk in chunks:
+        external_id = f"{chunk.id}:{INDEX_VERSION}"
+        targets.add((DocumentDeletionTargetKind.VECTOR, None, external_id))
+        targets.add((DocumentDeletionTargetKind.LEXICAL, None, external_id))
+
+    files = tuple(
+        await session.scalars(
+            select(FileObject)
+            .join(
+                DocumentVersionRecord,
+                DocumentVersionRecord.file_object_id == FileObject.id,
+            )
+            .where(
+                DocumentVersionRecord.id.in_(version_ids),
+                FileObject.workspace_id == workspace_id,
+            )
+        )
+    )
+    for file in files:
+        if file.object_key is not None:
+            targets.add((DocumentDeletionTargetKind.OBJECT, file.bucket, file.object_key))
+    for bucket in {file.bucket for file in files}:
+        for version_id in version_ids:
+            targets.add(
+                (
+                    DocumentDeletionTargetKind.OBJECT_PREFIX,
+                    bucket,
+                    f"derived/{workspace_id}/knowledge/{version_id}/",
+                )
+            )
+
+    assets = tuple(
+        await session.scalars(
+            select(DocumentAssetRecord).where(
+                DocumentAssetRecord.document_version_id.in_(version_ids),
+                DocumentAssetRecord.workspace_id == workspace_id,
+            )
+        )
+    )
+    targets.update(
+        (
+            DocumentDeletionTargetKind.OBJECT,
+            asset.preview_bucket,
+            asset.preview_object_key,
+        )
+        for asset in assets
+    )
+    checkpoints = tuple(
+        await session.scalars(
+            select(IngestionCheckpointRecord).where(
+                IngestionCheckpointRecord.document_version_id.in_(version_ids),
+                IngestionCheckpointRecord.workspace_id == workspace_id,
+                IngestionCheckpointRecord.output_bucket.is_not(None),
+                IngestionCheckpointRecord.output_object_key.is_not(None),
+            )
+        )
+    )
+    targets.update(
+        (
+            DocumentDeletionTargetKind.OBJECT,
+            checkpoint.output_bucket,
+            checkpoint.output_object_key,
+        )
+        for checkpoint in checkpoints
+        if checkpoint.output_bucket is not None and checkpoint.output_object_key is not None
+    )
+    return tuple(sorted(targets, key=lambda item: (item[0].value, item[1] or "", item[2])))
+
+
+def _request_job_cancellation(
+    session: AsyncSession,
+    job: Job,
+    *,
+    requested_at: datetime,
+    source: str,
+) -> None:
+    if job.status in {
+        JobStatus.SUCCEEDED,
+        JobStatus.FAILED,
+        JobStatus.CANCELLED,
+        JobStatus.DEAD_LETTER,
+    }:
+        return
+    job.cancel_requested_at = job.cancel_requested_at or requested_at
+    if job.status is JobStatus.RUNNING:
+        return
+    job.status = JobStatus.CANCELLED
+    job.terminal_at = requested_at
+    job.stage_name = JobStatus.CANCELLED.value
+    job.stage_sequence += 1
+    job.last_error_code = None
+    job.updated_at = requested_at
+    session.add(
+        JobEvent(
+            id=uuid4(),
+            job_id=job.id,
+            event_type=JobEventType.CANCELLED,
+            generation=job.generation,
+            dispatch_generation=job.dispatch_generation,
+            fencing_token=job.fencing_token,
+            event_sequence=job.stage_sequence,
+            occurred_at=requested_at,
+            details={"source": source},
+        )
+    )
 
 
 @dataclass(slots=True)
@@ -941,6 +1369,8 @@ def _document(record: DocumentRecord) -> Document:
         revision=record.revision,
         created_at=record.created_at,
         updated_at=record.updated_at,
+        deletion_job_id=record.deletion_job_id,
+        deletion_error_code=record.deletion_error_code,
     )
 
 
@@ -969,6 +1399,8 @@ def _version(record: DocumentVersionRecord) -> DocumentVersion:
         chunker_name=record.chunker_name,
         chunker_version=record.chunker_version,
         chunker_config=dict(record.chunker_config),
+        embedding_config=dict(record.embedding_config),
+        index_config=dict(record.index_config),
     )
 
 
@@ -1062,6 +1494,21 @@ def _ingestion_checkpoint(record: IngestionCheckpointRecord) -> IngestionCheckpo
         output_hash=record.output_hash.hex(),
         stats=dict(record.stats),
         completed_at=record.completed_at,
+    )
+
+
+def _document_index(record: DocumentIndexRecord) -> DocumentIndex:
+    return DocumentIndex(
+        id=record.id,
+        document_version_id=record.document_version_id,
+        chunk_id=record.chunk_id,
+        kind=record.kind,
+        status=record.status,
+        index_version=record.index_version,
+        external_id=record.external_id,
+        attempt_count=record.attempt_count,
+        error_code=record.error_code,
+        indexed_at=record.indexed_at,
     )
 
 

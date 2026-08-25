@@ -9,10 +9,13 @@ from industry_platform.core.http import get_trace_id, problem_openapi_response, 
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.knowledge.domain import (
+    ActivateDocumentVersion,
+    CancelDocumentVersion,
     CompleteKnowledgeUpload,
     CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
+    DeleteDocument,
     DeleteKnowledgeBase,
     KnowledgeConflictError,
     UpdateKnowledgeBase,
@@ -25,16 +28,22 @@ from industry_platform.modules.knowledge.schemas import (
     CompleteKnowledgeUploadRequest,
     CreateKnowledgeBaseRequest,
     CreateKnowledgeUploadRequest,
+    DocumentActivationResponse,
+    DocumentCancellationResponse,
     DocumentCollectionResponse,
     DocumentDetailResponse,
     IdempotencyKey,
     KnowledgeAcceptanceResponse,
     KnowledgeBaseCollectionResponse,
     KnowledgeBaseResponse,
+    KnowledgeDeletionResponse,
     KnowledgeIngestionEventCollectionResponse,
     KnowledgeUploadResponse,
     UpdateKnowledgeBaseRequest,
     acceptance_response,
+    activation_response,
+    cancellation_response,
+    deletion_response,
     document_detail_response,
     document_response,
     ingestion_event_response,
@@ -308,6 +317,124 @@ async def create_document_version(
         f"{document_id}/versions/{receipt.version.id}/events"
     )
     return acceptance_response(receipt, events_url=events_url)
+
+
+@router.post(
+    "/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/activate",
+    response_model=DocumentActivationResponse,
+    responses=_RESPONSES,
+)
+async def activate_document_version(
+    workspace_id: UUID,
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    version_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[KnowledgeApplicationService, Depends(get_knowledge_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> DocumentActivationResponse:
+    document = await service.activate_document_version(
+        _scope(principal, workspace_id),
+        ActivateDocumentVersion(
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            version_id=version_id,
+            expected_revision=_parse_revision(if_match),
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    _etag(response, document.revision)
+    return activation_response(document)
+
+
+@router.post(
+    "/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/cancel",
+    response_model=DocumentCancellationResponse,
+    responses=_RESPONSES,
+)
+async def cancel_document_version(
+    workspace_id: UUID,
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    version_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[KnowledgeApplicationService, Depends(get_knowledge_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> DocumentCancellationResponse:
+    version = await service.cancel_document_version(
+        _scope(principal, workspace_id),
+        CancelDocumentVersion(
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            version_id=version_id,
+            expected_revision=_parse_revision(if_match),
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    return cancellation_response(version)
+
+
+@router.delete(
+    "/{knowledge_base_id}/documents/{document_id}",
+    response_model=KnowledgeDeletionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=_RESPONSES,
+)
+async def delete_document(
+    workspace_id: UUID,
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[KnowledgeApplicationService, Depends(get_knowledge_service)],
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1, max_length=32)],
+) -> KnowledgeDeletionResponse:
+    receipt = await service.delete_document(
+        _scope(principal, workspace_id),
+        DeleteDocument(
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            expected_revision=_parse_revision(if_match),
+            trace_id=TraceId(get_trace_id(request)),
+        ),
+    )
+    set_no_store_headers(response)
+    events_url = (
+        f"/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/"
+        f"{document_id}/deletion/events"
+    )
+    return deletion_response(receipt, events_url=events_url)
+
+
+@router.get(
+    "/{knowledge_base_id}/documents/{document_id}/deletion/events",
+    response_model=KnowledgeIngestionEventCollectionResponse,
+    responses=_RESPONSES,
+)
+async def list_deletion_events(
+    workspace_id: UUID,
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[KnowledgeApplicationService, Depends(get_knowledge_service)],
+) -> KnowledgeIngestionEventCollectionResponse:
+    values = await service.list_deletion_events(
+        _scope(principal, workspace_id),
+        knowledge_base_id=knowledge_base_id,
+        document_id=document_id,
+    )
+    set_no_store_headers(response)
+    return KnowledgeIngestionEventCollectionResponse(
+        events=[ingestion_event_response(value) for value in values]
+    )
 
 
 @router.get(

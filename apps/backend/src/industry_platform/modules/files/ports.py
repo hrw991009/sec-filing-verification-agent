@@ -81,6 +81,8 @@ class PrivateFileObjectStore(Protocol):
 
     async def remove(self, *, bucket: str, object_key: str) -> None: ...
 
+    async def remove_prefix(self, *, bucket: str, object_prefix: str) -> None: ...
+
     async def presign_get(
         self,
         *,

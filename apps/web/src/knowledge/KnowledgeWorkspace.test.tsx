@@ -27,6 +27,8 @@ const knowledgeBase: KnowledgeBase = {
 const document: KnowledgeDocument = {
   active_version_id: null,
   created_at: "2026-08-23T08:01:00Z",
+  deletion_error_code: null,
+  deletion_job_id: null,
   id: "33333333-3333-4333-8333-333333333333",
   knowledge_base_id: knowledgeBaseId,
   latest_version: {
@@ -39,6 +41,20 @@ const document: KnowledgeDocument = {
     file_id: "44444444-4444-4444-8444-444444444444",
     id: "55555555-5555-4555-8555-555555555555",
     ingestion_job_id: "66666666-6666-4666-8666-666666666666",
+    embedding_config: {
+      batch_size: 32,
+      dimension: 64,
+      model: "feature-hash-64",
+      normalization: "l2",
+      provider: "deterministic-hash",
+      timeout_seconds: 30,
+      version: "1.0.0",
+    },
+    index_config: {
+      elasticsearch_index: "knowledge_chunks_v1",
+      index_version: "knowledge-index-v1",
+      milvus_collection: "knowledge_chunks_v1",
+    },
     parser_config: { budget: { max_pages: 250 } },
     parser_name: "pdfplumber-rapidocr",
     parser_schema_version: 1,
@@ -124,6 +140,32 @@ const detail: KnowledgeDocumentDetail = {
       stats: {},
     }),
   ),
+  indexes: [
+    {
+      attempt_count: 1,
+      chunk_id: "99999999-9999-4999-8999-999999999999",
+      document_version_id: document.latest_version.id,
+      error_code: null,
+      external_id: "99999999-9999-4999-8999-999999999999:knowledge-index-v1",
+      id: "cccccccc-cccc-4ccc-8ccc-ccccccccccc1",
+      index_version: "knowledge-index-v1",
+      indexed_at: "2026-08-23T08:03:00Z",
+      kind: "vector",
+      status: "succeeded",
+    },
+    {
+      attempt_count: 1,
+      chunk_id: "99999999-9999-4999-8999-999999999999",
+      document_version_id: document.latest_version.id,
+      error_code: null,
+      external_id: "99999999-9999-4999-8999-999999999999:knowledge-index-v1",
+      id: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
+      index_version: "knowledge-index-v1",
+      indexed_at: "2026-08-23T08:03:01Z",
+      kind: "lexical",
+      status: "succeeded",
+    },
+  ],
   pages: [
     {
       bbox: [0, 0, 612, 792],
@@ -154,8 +196,11 @@ const acceptance: KnowledgeAcceptance = {
 };
 
 const mocks = vi.hoisted(() => ({
+  activateKnowledgeDocumentVersion: vi.fn(),
+  createKnowledgeDocumentVersion: vi.fn(),
   createKnowledgeBase: vi.fn(),
   deleteKnowledgeBase: vi.fn(),
+  deleteKnowledgeDocument: vi.fn(),
   getKnowledgeDocument: vi.fn(),
   listKnowledgeBases: vi.fn(),
   listKnowledgeDocuments: vi.fn(),
@@ -178,6 +223,17 @@ describe("KnowledgeWorkspace", () => {
     mocks.listKnowledgeIngestionEvents.mockResolvedValue([]);
     mocks.getKnowledgeDocument.mockResolvedValue(detail);
     mocks.uploadKnowledgeDocument.mockResolvedValue(acceptance);
+    mocks.createKnowledgeDocumentVersion.mockResolvedValue({
+      ...acceptance,
+      document: parsedDocument,
+      version: parsedDocument.latest_version,
+    });
+    mocks.deleteKnowledgeDocument.mockResolvedValue({
+      document_id: document.id,
+      job: acceptance.job,
+      revision: 2,
+      status: "deleting",
+    });
   });
 
   it("uploads a supported source and renders the queued acceptance immediately", async () => {
@@ -231,6 +287,11 @@ describe("KnowledgeWorkspace", () => {
     expect(screen.getByText("源文件校验")).toBeVisible();
     expect(screen.getByText("文本切分")).toBeVisible();
 
+    await user.click(screen.getByRole("tab", { name: "索引" }));
+    expect(screen.getByText("向量")).toBeVisible();
+    expect(screen.getByText("关键词")).toBeVisible();
+    expect(screen.getAllByText("成功")).toHaveLength(2);
+
     await user.click(screen.getByRole("tab", { name: "页面" }));
     expect(screen.getByText("数字文本")).toBeVisible();
     expect(screen.getByText("Utilization reached 82 percent.")).toBeVisible();
@@ -241,5 +302,20 @@ describe("KnowledgeWorkspace", () => {
       detail.assets[0]?.preview_url,
     );
     expect(screen.getByRole("cell", { name: "North" })).toBeVisible();
+  });
+
+  it("submits reindex and cross-store deletion from document actions", async () => {
+    const user = userEvent.setup();
+    mocks.listKnowledgeDocuments.mockResolvedValue([parsedDocument]);
+    render(<KnowledgeWorkspace canManage workspaceId={workspaceId} />);
+
+    await user.click(await screen.findByRole("button", { name: "重新索引 Source title" }));
+    expect(mocks.createKnowledgeDocumentVersion).toHaveBeenCalledWith(workspaceId, parsedDocument);
+
+    mocks.listKnowledgeDocuments.mockResolvedValue([parsedDocument]);
+    await user.click(screen.getByRole("button", { name: "删除 Source title" }));
+    expect(screen.getByRole("heading", { name: "删除文档" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    expect(mocks.deleteKnowledgeDocument).toHaveBeenCalledWith(workspaceId, parsedDocument);
   });
 });

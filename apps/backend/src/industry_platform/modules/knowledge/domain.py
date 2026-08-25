@@ -21,6 +21,7 @@ from industry_platform.modules.jobs.domain import JobStatus, PreparedJobSubmissi
 KNOWLEDGE_SCHEMA_VERSION: Final = 1
 KNOWLEDGE_INGESTION_TASK_NAME: Final = "knowledge.ingestion.v1"
 KNOWLEDGE_INGESTION_QUEUE_NAME: Final = "ingestion"
+KNOWLEDGE_DELETION_TASK_NAME: Final = "knowledge.deletion.v1"
 MAX_KNOWLEDGE_DOCUMENT_BYTES: Final = 25 * 1_024 * 1_024
 MAX_KNOWLEDGE_BASE_NAME_LENGTH: Final = 160
 MAX_KNOWLEDGE_BASE_DESCRIPTION_LENGTH: Final = 2_000
@@ -47,6 +48,7 @@ class KnowledgeBaseStatus(StrEnum):
 
 class DocumentStatus(StrEnum):
     ACTIVE = "active"
+    DELETING = "deleting"
     DELETED = "deleted"
 
 
@@ -85,6 +87,33 @@ class IngestionCheckpointStage(StrEnum):
     PARSING = "parsing"
     EXTRACTING_ASSETS = "extracting_assets"
     CHUNKING = "chunking"
+    EMBEDDING = "embedding"
+    VECTOR_INDEXING = "vector_indexing"
+    LEXICAL_INDEXING = "lexical_indexing"
+
+
+class DocumentIndexKind(StrEnum):
+    VECTOR = "vector"
+    LEXICAL = "lexical"
+
+
+class DocumentIndexStatus(StrEnum):
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class DocumentDeletionTargetKind(StrEnum):
+    VECTOR = "vector"
+    LEXICAL = "lexical"
+    OBJECT = "object"
+    OBJECT_PREFIX = "object_prefix"
+    CACHE = "cache"
+
+
+class DocumentDeletionTargetStatus(StrEnum):
+    PENDING = "pending"
+    DELETED = "deleted"
+    FAILED = "failed"
 
 
 class KnowledgeError(RuntimeError):
@@ -246,6 +275,49 @@ class DeleteKnowledgeBase:
 
 
 @dataclass(frozen=True, slots=True)
+class DeleteDocument:
+    knowledge_base_id: UUID
+    document_id: UUID
+    expected_revision: int
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        _uuid(self.knowledge_base_id, field_name="Knowledge-base ID")
+        _uuid(self.document_id, field_name="Document ID")
+        _revision(self.expected_revision)
+
+
+@dataclass(frozen=True, slots=True)
+class ActivateDocumentVersion:
+    knowledge_base_id: UUID
+    document_id: UUID
+    version_id: UUID
+    expected_revision: int
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        _uuid(self.knowledge_base_id, field_name="Knowledge-base ID")
+        _uuid(self.document_id, field_name="Document ID")
+        _uuid(self.version_id, field_name="Document version ID")
+        _revision(self.expected_revision)
+
+
+@dataclass(frozen=True, slots=True)
+class CancelDocumentVersion:
+    knowledge_base_id: UUID
+    document_id: UUID
+    version_id: UUID
+    expected_revision: int
+    trace_id: TraceId
+
+    def __post_init__(self) -> None:
+        _uuid(self.knowledge_base_id, field_name="Knowledge-base ID")
+        _uuid(self.document_id, field_name="Document ID")
+        _uuid(self.version_id, field_name="Document version ID")
+        _revision(self.expected_revision)
+
+
+@dataclass(frozen=True, slots=True)
 class CreateKnowledgeUpload:
     knowledge_base_id: UUID
     original_name: str
@@ -344,6 +416,8 @@ class Document:
     revision: int
     created_at: datetime
     updated_at: datetime
+    deletion_job_id: UUID | None = None
+    deletion_error_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,6 +445,8 @@ class DocumentVersion:
     chunker_name: str = "bounded-page-chunker"
     chunker_version: str = "1.0.0"
     chunker_config: dict[str, object] = field(default_factory=dict)
+    embedding_config: dict[str, object] = field(default_factory=dict)
+    index_config: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -435,6 +511,20 @@ class IngestionCheckpoint:
 
 
 @dataclass(frozen=True, slots=True)
+class DocumentIndex:
+    id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    kind: DocumentIndexKind
+    status: DocumentIndexStatus
+    index_version: str
+    external_id: str
+    attempt_count: int
+    error_code: str | None
+    indexed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
 class DocumentView:
     document: Document
     latest_version: DocumentVersion
@@ -450,6 +540,7 @@ class DocumentDetail:
     chunks: tuple[DocumentChunk, ...] = ()
     assets: tuple[DocumentAsset, ...] = ()
     ingestion_checkpoints: tuple[IngestionCheckpoint, ...] = ()
+    indexes: tuple[DocumentIndex, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -589,6 +680,39 @@ class PreparedDocumentVersion:
 
 
 @dataclass(frozen=True, slots=True)
+class PreparedDocumentDeletion:
+    document_id: UUID
+    knowledge_base_id: UUID
+    workspace_id: UUID
+    expected_document_revision: int
+    job: PreparedJobSubmission = field(repr=False)
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        require_utc(self.requested_at, field_name="requested_at")
+        for identifier in (
+            self.document_id,
+            self.knowledge_base_id,
+            self.workspace_id,
+        ):
+            if identifier.int == 0:
+                raise ValueError("Knowledge deletion identifier must not be nil")
+        _revision(self.expected_document_revision)
+        if self.job.scope.workspace_id != self.workspace_id or self.job.scope.system_scope_key:
+            raise ValueError("Knowledge deletion Job crosses execution scopes")
+        if (
+            self.job.task_name != KNOWLEDGE_DELETION_TASK_NAME
+            or self.job.queue_name != KNOWLEDGE_INGESTION_QUEUE_NAME
+        ):
+            raise ValueError("Knowledge deletion Job routing is invalid")
+        if dict(self.job.payload) != {
+            "document_id": str(self.document_id),
+            "schema_version": KNOWLEDGE_SCHEMA_VERSION,
+        }:
+            raise ValueError("Knowledge deletion Job payload is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class KnowledgeAcceptanceReceipt:
     document: Document
     version: DocumentVersion
@@ -597,6 +721,14 @@ class KnowledgeAcceptanceReceipt:
     job_status: JobStatus
     outbox_event_id: UUID
     created: bool
+
+
+@dataclass(frozen=True, slots=True)
+class KnowledgeDeletionReceipt:
+    document: Document
+    job_id: UUID
+    job_status: JobStatus
+    outbox_event_id: UUID
 
 
 @dataclass(frozen=True, slots=True)

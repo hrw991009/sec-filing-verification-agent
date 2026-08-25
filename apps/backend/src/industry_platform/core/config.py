@@ -365,6 +365,12 @@ class Settings(BaseSettings):
     minio_secure: bool = False
     minio_presign_expiry_seconds: Annotated[int, Field(ge=300, le=900)] = 600
 
+    milvus_endpoint: str | None = None
+    milvus_token: SecretStr | None = None
+    elasticsearch_endpoint: str | None = None
+    elasticsearch_api_key: SecretStr | None = None
+    knowledge_index_timeout_seconds: Annotated[float, Field(gt=0, le=120)] = 10.0
+
     @field_validator(
         "refresh_token_hmac_key",
         "csrf_token_hmac_key",
@@ -470,6 +476,24 @@ class Settings(BaseSettings):
                 raise ValueError("MinIO bucket name is invalid")
         return self
 
+    @model_validator(mode="after")
+    def validate_knowledge_index_configuration(self) -> Self:
+        """Accept absent indexes or exact HTTP(S) origins without paths or query data."""
+
+        for name, value in (
+            ("Milvus", self.milvus_endpoint),
+            ("Elasticsearch", self.elasticsearch_endpoint),
+        ):
+            if value is None:
+                continue
+            if not re.fullmatch(r"https?://[A-Za-z0-9.:[\]-]+", value):
+                raise ValueError(f"{name} endpoint must be an HTTP(S) origin")
+        if self.milvus_token is not None and self.milvus_endpoint is None:
+            raise ValueError("Milvus token requires an endpoint")
+        if self.elasticsearch_api_key is not None and self.elasticsearch_endpoint is None:
+            raise ValueError("Elasticsearch API key requires an endpoint")
+        return self
+
     @property
     def agent_model_provider_configured(self) -> bool:
         return self.agent_model_route is not None
@@ -477,6 +501,10 @@ class Settings(BaseSettings):
     @property
     def minio_configured(self) -> bool:
         return self.minio_bucket is not None
+
+    @property
+    def knowledge_indexes_configured(self) -> bool:
+        return self.milvus_endpoint is not None and self.elasticsearch_endpoint is not None
 
     @model_validator(mode="after")
     def validate_reliable_job_timing(self) -> Self:

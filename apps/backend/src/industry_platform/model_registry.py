@@ -64,8 +64,11 @@ from industry_platform.modules.jobs.models import (
 )
 from industry_platform.modules.knowledge.models import (
     ChunkAssetLinkRecord,
+    ChunkEmbeddingRecord,
     DocumentAssetRecord,
     DocumentChunkRecord,
+    DocumentDeletionTargetRecord,
+    DocumentIndexRecord,
     DocumentPageRecord,
     DocumentRecord,
     DocumentVersionRecord,
@@ -107,6 +110,9 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     IngestionCheckpointRecord,
     DocumentPageRecord,
     DocumentChunkRecord,
+    DocumentDeletionTargetRecord,
+    ChunkEmbeddingRecord,
+    DocumentIndexRecord,
     DocumentAssetRecord,
     ChunkAssetLinkRecord,
     Conversation,

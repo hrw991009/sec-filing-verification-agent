@@ -33,6 +33,9 @@ class IngestionStage(StrEnum):
     PARSING = "parsing"
     EXTRACTING_ASSETS = "extracting_assets"
     CHUNKING = "chunking"
+    EMBEDDING = "embedding"
+    VECTOR_INDEXING = "vector_indexing"
+    LEXICAL_INDEXING = "lexical_indexing"
 
 
 INGESTION_STAGE_SEQUENCE: Final[Mapping[IngestionStage, int]] = MappingProxyType(
@@ -41,6 +44,9 @@ INGESTION_STAGE_SEQUENCE: Final[Mapping[IngestionStage, int]] = MappingProxyType
         IngestionStage.PARSING: 2,
         IngestionStage.EXTRACTING_ASSETS: 3,
         IngestionStage.CHUNKING: 4,
+        IngestionStage.EMBEDDING: 5,
+        IngestionStage.VECTOR_INDEXING: 6,
+        IngestionStage.LEXICAL_INDEXING: 7,
     }
 )
 
@@ -115,7 +121,9 @@ class IngestionPersistenceError(RuntimeError):
 
 
 class IngestionDependencyError(RuntimeError):
-    pass
+    def __init__(self, code: str = "ingestion_dependency_failed") -> None:
+        super().__init__("Knowledge ingestion dependency failed")
+        self.code = code
 
 
 class IngestionCancelledError(RuntimeError):
@@ -459,6 +467,66 @@ class ParsedChunk:
 
 
 @dataclass(frozen=True, slots=True)
+class EmbeddingInput:
+    chunk_id: UUID
+    text: str
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        if self.chunk_id.int == 0 or not self.text.strip():
+            raise ValueError("Embedding input is invalid")
+        _content_hash(self.content_hash)
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkEmbedding:
+    chunk_id: UUID
+    content_hash: str
+    vector: tuple[float, ...]
+
+    def __post_init__(self) -> None:
+        if self.chunk_id.int == 0:
+            raise ValueError("Embedding chunk ID is invalid")
+        _content_hash(self.content_hash)
+        if not self.vector or not all(math.isfinite(value) for value in self.vector):
+            raise ValueError("Embedding vector is invalid")
+        norm = math.sqrt(sum(value * value for value in self.vector))
+        if not math.isclose(norm, 1.0, rel_tol=1e-5, abs_tol=1e-5):
+            raise ValueError("Embedding vector is not normalized")
+
+
+@dataclass(frozen=True, slots=True)
+class IndexableChunk:
+    workspace_id: UUID
+    knowledge_base_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    ordinal: int
+    page_number: int
+    text: str
+    content_hash: str
+    vector: tuple[float, ...]
+    external_id: str
+
+    def __post_init__(self) -> None:
+        identifiers = (
+            self.workspace_id,
+            self.knowledge_base_id,
+            self.document_id,
+            self.document_version_id,
+            self.chunk_id,
+        )
+        if any(value.int == 0 for value in identifiers):
+            raise ValueError("Indexable chunk contains a nil identifier")
+        if self.ordinal < 1 or self.page_number < 1 or not self.text.strip():
+            raise ValueError("Indexable chunk locator is invalid")
+        _content_hash(self.content_hash)
+        if not self.vector or not self.external_id:
+            raise ValueError("Indexable chunk payload is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class StoredStageCheckpoint:
     stage: IngestionStage
     stage_sequence: int
@@ -496,6 +564,8 @@ class IngestionWorkItem:
     chunker_name: str
     chunker_version: str
     chunker_config: Mapping[str, object]
+    embedding_config: Mapping[str, object]
+    index_config: Mapping[str, object]
     checkpoints: tuple[StoredStageCheckpoint, ...]
 
     def __post_init__(self) -> None:
@@ -515,6 +585,8 @@ class IngestionWorkItem:
         _content_hash(self.source_sha256)
         object.__setattr__(self, "parser_config", MappingProxyType(dict(self.parser_config)))
         object.__setattr__(self, "chunker_config", MappingProxyType(dict(self.chunker_config)))
+        object.__setattr__(self, "embedding_config", MappingProxyType(dict(self.embedding_config)))
+        object.__setattr__(self, "index_config", MappingProxyType(dict(self.index_config)))
 
     def checkpoint(self, stage: IngestionStage) -> StoredStageCheckpoint | None:
         return next((item for item in self.checkpoints if item.stage is stage), None)
@@ -545,6 +617,8 @@ class CompleteIngestionStage:
     parsed_document: ParsedDocument | None = field(default=None, repr=False)
     asset_previews: tuple[StoredAssetPreview, ...] = field(default=(), repr=False)
     chunks: tuple[ParsedChunk, ...] = field(default=(), repr=False)
+    embeddings: tuple[ChunkEmbedding, ...] = field(default=(), repr=False)
+    external_ids: tuple[str, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         if self.proof.job_id != self.work_item.ingestion_job_id:
@@ -567,6 +641,16 @@ class CompleteIngestionStage:
                 raise ValueError("Chunking stage requires chunks")
         elif self.chunks:
             raise ValueError("Only chunking may persist chunks")
+        if self.stage is IngestionStage.EMBEDDING:
+            if not self.embeddings:
+                raise ValueError("Embedding stage requires vectors")
+        elif self.embeddings:
+            raise ValueError("Only embedding may persist vectors")
+        if self.stage in {IngestionStage.VECTOR_INDEXING, IngestionStage.LEXICAL_INDEXING}:
+            if not self.external_ids or len(set(self.external_ids)) != len(self.external_ids):
+                raise ValueError("Index stage requires unique external IDs")
+        elif self.external_ids:
+            raise ValueError("Only index stages may persist external IDs")
         object.__setattr__(self, "stats", MappingProxyType(dict(self.stats)))
 
 

@@ -45,6 +45,7 @@ from industry_platform.modules.industry.domain import (
 )
 from industry_platform.modules.industry.ports import IndustryCollectionUseCase
 from industry_platform.modules.industry.resources import create_industry_resources
+from industry_platform.modules.ingestion.deletion import KnowledgeDeletionService
 from industry_platform.modules.ingestion.domain import (
     DocumentParserError,
     IngestionCancelledError,
@@ -72,7 +73,10 @@ from industry_platform.modules.jobs.domain import (
 )
 from industry_platform.modules.jobs.ports import JobApplicationUseCase
 from industry_platform.modules.jobs.resources import create_job_resources
-from industry_platform.modules.knowledge.domain import KNOWLEDGE_INGESTION_TASK_NAME
+from industry_platform.modules.knowledge.domain import (
+    KNOWLEDGE_DELETION_TASK_NAME,
+    KNOWLEDGE_INGESTION_TASK_NAME,
+)
 from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
 
 IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER = "identity.refresh_recovery.cleanup.v1"
@@ -288,6 +292,32 @@ class KnowledgeIngestionJobHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class KnowledgeDeletionJobHandler:
+    deletion: KnowledgeDeletionService = field(repr=False)
+
+    async def execute(self, job: AcquiredJob) -> Mapping[str, object]:
+        try:
+            document_id = await self.deletion.execute(job)
+        except ValueError:
+            raise InvalidJobPayloadError from None
+        except IngestionDependencyError:
+            raise RetryableJobHandlerError(
+                JobExecutionErrorCode.INGESTION_DEPENDENCY_RETRYABLE
+            ) from None
+        except IngestionPersistenceError as error:
+            logger.error(
+                "knowledge_deletion_persistence_failed job_id=%s sqlstate=%s constraint=%s",
+                job.job_id,
+                error.sqlstate or "unknown",
+                error.constraint_name or "unknown",
+            )
+            raise RetryableJobHandlerError(JobExecutionErrorCode.INGESTION_UNAVAILABLE) from None
+        except (IngestionConflictError, IngestionNotFoundError):
+            raise PermanentJobHandlerError(JobExecutionErrorCode.INGESTION_STATE_INVALID) from None
+        return {"document_id": str(document_id), "status": "deleted"}
+
+
+@dataclass(frozen=True, slots=True)
 class FixedJobHandlerRegistry:
     """Immutable allowlist; persisted names never trigger dynamic imports."""
 
@@ -303,6 +333,7 @@ class FixedJobHandlerRegistry:
         direct_answer_use_case: DirectAnswerRunExecutionUseCase | None = None,
         collection_use_case: IndustryCollectionUseCase | None = None,
         ingestion_use_case: KnowledgeIngestionService | None = None,
+        deletion_use_case: KnowledgeDeletionService | None = None,
     ) -> "FixedJobHandlerRegistry":
         handlers: dict[str, JobHandler] = {
             IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
@@ -320,6 +351,8 @@ class FixedJobHandlerRegistry:
             handlers[KNOWLEDGE_INGESTION_TASK_NAME] = KnowledgeIngestionJobHandler(
                 ingestion_use_case
             )
+        if deletion_use_case is not None:
+            handlers[KNOWLEDGE_DELETION_TASK_NAME] = KnowledgeDeletionJobHandler(deletion_use_case)
         return cls(handlers)
 
     def resolve(self, task_name: str) -> JobHandler:
@@ -549,11 +582,15 @@ async def run_job_delivery(
     engine = create_database_engine(settings)
     try:
         session_factory = create_database_session_factory(engine)
-        async with provider_http_client_factory() as provider_http_client:
+        async with (
+            provider_http_client_factory() as provider_http_client,
+            httpx2.AsyncClient(trust_env=False) as internal_http_client,
+        ):
             runtime = create_job_delivery_runtime(
                 settings,
                 session_factory,
                 provider_http_client,
+                internal_http_client,
             )
             return await runtime.execute(delivery)
     finally:
@@ -564,6 +601,7 @@ def create_job_delivery_runtime(
     settings: Settings,
     session_factory: AsyncSessionFactory,
     provider_http_client: httpx2.AsyncClient,
+    internal_http_client: httpx2.AsyncClient | None = None,
 ) -> JobExecutionRuntime:
     """Compose every fixed production handler, including the unified Agent Runtime."""
 
@@ -584,9 +622,11 @@ def create_job_delivery_runtime(
         tool_adapters=(industry.web_search_tool,),
     )
     ingestion = create_ingestion_resources(
+        settings,
         session_factory,
         job_resources.application_service,
         create_private_file_object_store(settings),
+        internal_http_client or provider_http_client,
     )
     return JobExecutionRuntime(
         jobs=job_resources.application_service,
@@ -595,6 +635,7 @@ def create_job_delivery_runtime(
             direct_answer.execution_service,
             industry.collection_service,
             ingestion.service,
+            ingestion.deletion_service,
         ),
         worker_id=f"celery-{uuid4().hex}",
         heartbeat_seconds=settings.job_heartbeat_seconds,

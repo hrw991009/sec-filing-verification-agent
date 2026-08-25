@@ -19,16 +19,22 @@ from industry_platform.modules.knowledge.domain import (
     MAX_KNOWLEDGE_BASE_DESCRIPTION_LENGTH,
     MAX_KNOWLEDGE_BASE_NAME_LENGTH,
     MAX_KNOWLEDGE_DOCUMENT_BYTES,
+    Document,
     DocumentAsset,
     DocumentAssetKind,
     DocumentDetail,
+    DocumentIndex,
+    DocumentIndexKind,
+    DocumentIndexStatus,
     DocumentPageTextSource,
+    DocumentStatus,
     DocumentVersion,
     DocumentVersionStatus,
     DocumentView,
     IngestionCheckpointStage,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
+    KnowledgeDeletionReceipt,
     KnowledgeIngestionEvent,
     KnowledgeSource,
     KnowledgeUploadTicket,
@@ -156,6 +162,8 @@ class DocumentVersionResponse(StrictKnowledgeModel):
     chunker_name: str
     chunker_version: str
     chunker_config: dict[str, object]
+    embedding_config: dict[str, object]
+    index_config: dict[str, object]
 
 
 class DocumentPageResponse(StrictKnowledgeModel):
@@ -213,6 +221,19 @@ class IngestionCheckpointResponse(StrictKnowledgeModel):
     completed_at: datetime
 
 
+class DocumentIndexResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    kind: DocumentIndexKind
+    status: DocumentIndexStatus
+    index_version: str
+    external_id: str
+    attempt_count: int
+    error_code: str | None
+    indexed_at: datetime | None
+
+
 class DocumentResponse(StrictKnowledgeModel):
     id: UUID
     workspace_id: UUID
@@ -223,6 +244,8 @@ class DocumentResponse(StrictKnowledgeModel):
     revision: int
     created_at: datetime
     updated_at: datetime
+    deletion_job_id: UUID | None
+    deletion_error_code: str | None
     latest_version: DocumentVersionResponse
     source: KnowledgeSourceResponse
 
@@ -243,6 +266,7 @@ class DocumentDetailResponse(StrictKnowledgeModel):
     chunks: list[DocumentChunkResponse]
     assets: list[DocumentAssetResponse]
     ingestion_checkpoints: list[IngestionCheckpointResponse]
+    indexes: list[DocumentIndexResponse]
 
 
 class KnowledgeUploadFileResponse(StrictKnowledgeModel):
@@ -273,6 +297,25 @@ class KnowledgeAcceptanceResponse(StrictKnowledgeModel):
     version: DocumentVersionResponse
     job: KnowledgeJobResponse
     created: bool
+
+
+class KnowledgeDeletionResponse(StrictKnowledgeModel):
+    document_id: UUID
+    status: DocumentStatus
+    revision: int
+    job: KnowledgeJobResponse
+
+
+class DocumentActivationResponse(StrictKnowledgeModel):
+    document_id: UUID
+    active_version_id: UUID
+    revision: int
+
+
+class DocumentCancellationResponse(StrictKnowledgeModel):
+    version_id: UUID
+    status: DocumentVersionStatus
+    revision: int
 
 
 class KnowledgeIngestionEventResponse(StrictKnowledgeModel):
@@ -333,6 +376,8 @@ def version_response(value: DocumentVersion) -> DocumentVersionResponse:
         chunker_name=value.chunker_name,
         chunker_version=value.chunker_version,
         chunker_config=value.chunker_config,
+        embedding_config=value.embedding_config,
+        index_config=value.index_config,
     )
 
 
@@ -348,6 +393,8 @@ def document_response(value: DocumentView) -> DocumentResponse:
         revision=document.revision,
         created_at=document.created_at,
         updated_at=document.updated_at,
+        deletion_job_id=document.deletion_job_id,
+        deletion_error_code=document.deletion_error_code,
         latest_version=version_response(value.latest_version),
         source=source_response(value.source),
     )
@@ -437,6 +484,22 @@ def document_detail_response(value: DocumentDetail) -> DocumentDetailResponse:
             )
             for checkpoint in value.ingestion_checkpoints
         ],
+        indexes=[_document_index_response(index) for index in value.indexes],
+    )
+
+
+def _document_index_response(index: DocumentIndex) -> DocumentIndexResponse:
+    return DocumentIndexResponse(
+        id=index.id,
+        document_version_id=index.document_version_id,
+        chunk_id=index.chunk_id,
+        kind=index.kind,
+        status=index.status,
+        index_version=index.index_version,
+        external_id=index.external_id,
+        attempt_count=index.attempt_count,
+        error_code=index.error_code,
+        indexed_at=index.indexed_at,
     )
 
 
@@ -475,6 +538,43 @@ def acceptance_response(
             events_url=events_url,
         ),
         created=value.created,
+    )
+
+
+def deletion_response(
+    value: KnowledgeDeletionReceipt,
+    *,
+    events_url: str,
+) -> KnowledgeDeletionResponse:
+    document = value.document
+    return KnowledgeDeletionResponse(
+        document_id=document.id,
+        status=document.status,
+        revision=document.revision,
+        job=KnowledgeJobResponse(
+            id=value.job_id,
+            status=value.job_status,
+            outbox_event_id=value.outbox_event_id,
+            events_url=events_url,
+        ),
+    )
+
+
+def activation_response(value: Document) -> DocumentActivationResponse:
+    if value.active_version_id is None:
+        raise ValueError("Activated Knowledge document has no active version")
+    return DocumentActivationResponse(
+        document_id=value.id,
+        active_version_id=value.active_version_id,
+        revision=value.revision,
+    )
+
+
+def cancellation_response(value: DocumentVersion) -> DocumentCancellationResponse:
+    return DocumentCancellationResponse(
+        version_id=value.id,
+        status=value.status,
+        revision=value.revision,
     )
 
 

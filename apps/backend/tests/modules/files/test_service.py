@@ -97,6 +97,13 @@ class RecordingStore:
         self.removed.append(object_key)
         self.final_objects.pop(object_key, None)
 
+    async def remove_prefix(self, *, bucket: str, object_prefix: str) -> None:
+        del bucket
+        for object_key in tuple(self.final_objects):
+            if object_key.startswith(object_prefix):
+                self.removed.append(object_key)
+                self.final_objects.pop(object_key)
+
     async def presign_get(
         self,
         *,

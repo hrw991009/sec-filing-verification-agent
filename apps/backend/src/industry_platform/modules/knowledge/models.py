@@ -29,6 +29,10 @@ from industry_platform.modules.identity.models import enum_values
 from industry_platform.modules.knowledge.domain import (
     KNOWLEDGE_SCHEMA_VERSION,
     DocumentAssetKind,
+    DocumentDeletionTargetKind,
+    DocumentDeletionTargetStatus,
+    DocumentIndexKind,
+    DocumentIndexStatus,
     DocumentPageTextSource,
     DocumentStatus,
     DocumentVersionStatus,
@@ -94,6 +98,12 @@ class DocumentRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
+            ["deletion_job_id", "workspace_id"],
+            ["jobs.id", "jobs.workspace_id"],
+            name="fk_documents_deletion_job_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["workspace_id", "created_by_user_id"],
             ["workspace_members.workspace_id", "workspace_members.user_id"],
             name="fk_documents_workspace_creator",
@@ -111,12 +121,13 @@ class DocumentRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             use_alter=True,
         ),
         CheckConstraint("length(btrim(title)) > 0", name="title_not_blank"),
-        CheckConstraint("status IN ('active', 'deleted')", name="status_supported"),
+        CheckConstraint("status IN ('active', 'deleting', 'deleted')", name="status_supported"),
         CheckConstraint("latest_version_number >= 1", name="latest_version_positive"),
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint(
-            "(status = 'deleted' AND deleted_at IS NOT NULL) OR "
-            "(status <> 'deleted' AND deleted_at IS NULL)",
+            "(status = 'active' AND deleted_at IS NULL AND deletion_job_id IS NULL) OR "
+            "(status = 'deleting' AND deleted_at IS NULL AND deletion_job_id IS NOT NULL) OR "
+            "(status = 'deleted' AND deleted_at IS NOT NULL)",
             name="deletion_state_consistent",
         ),
         Index(None, "workspace_id", "knowledge_base_id", "status", "updated_at", "id"),
@@ -141,6 +152,8 @@ class DocumentRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default=DocumentStatus.ACTIVE.value,
     )
     active_version_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    deletion_job_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    deletion_error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     latest_version_number: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default=text("1")
     )
@@ -196,6 +209,10 @@ class DocumentVersionRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "length(btrim(chunker_name)) > 0 AND length(btrim(chunker_version)) > 0 "
             "AND jsonb_typeof(chunker_config) = 'object'",
             name="chunker_contract",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(embedding_config) = 'object' AND jsonb_typeof(index_config) = 'object'",
+            name="embedding_index_contract",
         ),
         CheckConstraint(
             "status IN ('queued', 'validating', 'parsing', 'extracting_assets', 'chunking', "
@@ -286,6 +303,24 @@ class DocumentVersionRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "jsonb_build_object('max_characters', 1200, 'overlap_characters', 120)"
         ),
     )
+    embedding_config: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text(
+            "jsonb_build_object('provider', 'deterministic-hash', "
+            "'model', 'feature-hash-64', 'dimension', 64, 'normalization', 'l2', "
+            "'batch_size', 32, 'timeout_seconds', 30, 'version', '1.0.0')"
+        ),
+    )
+    index_config: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text(
+            "jsonb_build_object('index_version', 'knowledge-index-v1', "
+            "'milvus_collection', 'knowledge_chunks_v1', "
+            "'elasticsearch_index', 'knowledge_chunks_v1')"
+        ),
+    )
     idempotency_key_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     request_fingerprint: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -321,12 +356,15 @@ class IngestionCheckpointRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="fk_ingestion_checkpoints_job_workspace",
             ondelete="RESTRICT",
         ),
-        CheckConstraint("stage_sequence BETWEEN 1 AND 4", name="stage_sequence_supported"),
+        CheckConstraint("stage_sequence BETWEEN 1 AND 7", name="stage_sequence_supported"),
         CheckConstraint(
             "(stage = 'validating' AND stage_sequence = 1) OR "
             "(stage = 'parsing' AND stage_sequence = 2) OR "
             "(stage = 'extracting_assets' AND stage_sequence = 3) OR "
-            "(stage = 'chunking' AND stage_sequence = 4)",
+            "(stage = 'chunking' AND stage_sequence = 4) OR "
+            "(stage = 'embedding' AND stage_sequence = 5) OR "
+            "(stage = 'vector_indexing' AND stage_sequence = 6) OR "
+            "(stage = 'lexical_indexing' AND stage_sequence = 7)",
             name="stage_sequence_consistent",
         ),
         CheckConstraint("fencing_token >= 1", name="fencing_token_positive"),
@@ -538,6 +576,177 @@ class DocumentAssetRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     preview_object_key: Mapped[str] = mapped_column(String(1_024), nullable=False)
     html_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     parser_version: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
+class ChunkEmbeddingRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "chunk_embeddings"
+    __table_args__ = (
+        UniqueConstraint("chunk_id", "document_version_id"),
+        ForeignKeyConstraint(
+            ["chunk_id", "document_version_id", "workspace_id"],
+            [
+                "document_chunks.id",
+                "document_chunks.document_version_id",
+                "document_chunks.workspace_id",
+            ],
+            name="fk_chunk_embeddings_chunk_workspace",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("dimension >= 1", name="dimension_positive"),
+        CheckConstraint(
+            "jsonb_typeof(vector) = 'array' AND jsonb_array_length(vector) = dimension",
+            name="vector_dimension_consistent",
+        ),
+        CheckConstraint("length(btrim(provider)) > 0", name="provider_not_blank"),
+        CheckConstraint("length(btrim(model)) > 0", name="model_not_blank"),
+        CheckConstraint("length(btrim(embedding_version)) > 0", name="version_not_blank"),
+        Index(None, "workspace_id", "document_version_id", "chunk_id"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    document_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    document_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    chunk_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    embedding_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    dimension: Mapped[int] = mapped_column(Integer, nullable=False)
+    normalized: Mapped[bool] = mapped_column(
+        nullable=False, default=True, server_default=text("true")
+    )
+    content_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    vector: Mapped[list[float]] = mapped_column(JSONB, nullable=False)
+
+
+class DocumentIndexRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "document_index_records"
+    __table_args__ = (
+        UniqueConstraint("document_version_id", "chunk_id", "kind", "index_version"),
+        UniqueConstraint("kind", "external_id"),
+        ForeignKeyConstraint(
+            ["chunk_id", "document_version_id", "workspace_id"],
+            [
+                "document_chunks.id",
+                "document_chunks.document_version_id",
+                "document_chunks.workspace_id",
+            ],
+            name="fk_document_index_records_chunk_workspace",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("attempt_count >= 1", name="attempt_count_positive"),
+        CheckConstraint("kind IN ('vector', 'lexical')", name="kind_supported"),
+        CheckConstraint("status IN ('succeeded', 'failed')", name="status_supported"),
+        CheckConstraint("length(btrim(index_version)) > 0", name="index_version_not_blank"),
+        CheckConstraint("length(btrim(external_id)) > 0", name="external_id_not_blank"),
+        CheckConstraint(
+            "(status = 'succeeded' AND indexed_at IS NOT NULL AND error_code IS NULL) OR "
+            "(status = 'failed' AND indexed_at IS NULL AND error_code IS NOT NULL)",
+            name="status_payload_consistent",
+        ),
+        Index(None, "workspace_id", "document_version_id", "kind", "status"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    document_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    document_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    chunk_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    kind: Mapped[DocumentIndexKind] = mapped_column(
+        SqlEnum(
+            DocumentIndexKind,
+            name="document_index_kind",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    status: Mapped[DocumentIndexStatus] = mapped_column(
+        SqlEnum(
+            DocumentIndexStatus,
+            name="document_index_status",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    index_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    attempt_count: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DocumentDeletionTargetRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "document_deletion_targets"
+    __table_args__ = (
+        UniqueConstraint("document_id", "kind", "target_key"),
+        ForeignKeyConstraint(
+            ["document_id", "workspace_id"],
+            ["documents.id", "documents.workspace_id"],
+            name="fk_document_deletion_targets_document_workspace",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "kind IN ('vector', 'lexical', 'object', 'object_prefix', 'cache')",
+            name="kind_supported",
+        ),
+        CheckConstraint("status IN ('pending', 'deleted', 'failed')", name="status_supported"),
+        CheckConstraint("attempt_count >= 0", name="attempt_count_nonnegative"),
+        CheckConstraint("length(btrim(target_key)) > 0", name="target_key_not_blank"),
+        CheckConstraint(
+            "(kind IN ('object', 'object_prefix') AND bucket IS NOT NULL) OR "
+            "(kind NOT IN ('object', 'object_prefix') AND bucket IS NULL)",
+            name="bucket_kind_consistent",
+        ),
+        CheckConstraint(
+            "(status = 'pending' AND deleted_at IS NULL AND error_code IS NULL) OR "
+            "(status = 'failed' AND deleted_at IS NULL AND error_code IS NOT NULL) OR "
+            "(status = 'deleted' AND deleted_at IS NOT NULL AND error_code IS NULL)",
+            name="status_payload_consistent",
+        ),
+        Index(None, "workspace_id", "document_id", "status", "kind"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    document_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    kind: Mapped[DocumentDeletionTargetKind] = mapped_column(
+        SqlEnum(
+            DocumentDeletionTargetKind,
+            name="document_deletion_target_kind",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    status: Mapped[DocumentDeletionTargetStatus] = mapped_column(
+        SqlEnum(
+            DocumentDeletionTargetStatus,
+            name="document_deletion_target_status",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+        default=DocumentDeletionTargetStatus.PENDING,
+        server_default=DocumentDeletionTargetStatus.PENDING.value,
+    )
+    bucket: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    target_key: Mapped[str] = mapped_column(String(1_024), nullable=False)
+    attempt_count: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default=text("0")
+    )
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ChunkAssetLinkRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):

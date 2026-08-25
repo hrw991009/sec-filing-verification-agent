@@ -33,20 +33,28 @@ from industry_platform.modules.jobs.domain import (
     hash_job_idempotency_key,
 )
 from industry_platform.modules.knowledge.domain import (
+    KNOWLEDGE_DELETION_TASK_NAME,
     KNOWLEDGE_INGESTION_QUEUE_NAME,
     KNOWLEDGE_INGESTION_TASK_NAME,
     KNOWLEDGE_SCHEMA_VERSION,
+    ActivateDocumentVersion,
+    CancelDocumentVersion,
     CompleteKnowledgeUpload,
     CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
+    DeleteDocument,
     DeleteKnowledgeBase,
+    Document,
     DocumentDetail,
+    DocumentVersion,
     DocumentView,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
+    KnowledgeDeletionReceipt,
     KnowledgeIngestionEvent,
     KnowledgeUploadTicket,
+    PreparedDocumentDeletion,
     PreparedDocumentVersion,
     PreparedKnowledgeAcceptance,
     StagingKnowledgeUpload,
@@ -407,6 +415,72 @@ class KnowledgeApplicationService:
             signed_assets.append(replace(asset, preview_url=preview_url))
         return replace(detail, assets=tuple(signed_assets))
 
+    async def delete_document(
+        self,
+        scope: WorkspaceScope,
+        command: DeleteDocument,
+    ) -> KnowledgeDeletionReceipt:
+        self._require(scope, WorkspaceAction.DELETE_RESOURCE)
+        now = self.clock()
+        idempotency_key = f"knowledge-delete:{command.document_id}:{command.expected_revision}"
+        definition = JobDefinition(
+            scope=ExecutionScope(workspace_id=scope.workspace_id),
+            task_name=KNOWLEDGE_DELETION_TASK_NAME,
+            queue_name=KNOWLEDGE_INGESTION_QUEUE_NAME,
+            payload={
+                "document_id": str(command.document_id),
+                "schema_version": KNOWLEDGE_SCHEMA_VERSION,
+            },
+            available_at=now,
+            max_attempts=10,
+            idempotency_key=idempotency_key,
+            soft_time_limit_seconds=1_500,
+            hard_time_limit_seconds=1_800,
+        )
+        return await self.repository.request_document_deletion(
+            scope,
+            PreparedDocumentDeletion(
+                document_id=command.document_id,
+                knowledge_base_id=command.knowledge_base_id,
+                workspace_id=scope.workspace_id,
+                expected_document_revision=command.expected_revision,
+                job=PreparedJobSubmission(
+                    job_id=self.id_source(),
+                    outbox_event_id=self.id_source(),
+                    scope=definition.scope,
+                    task_name=definition.task_name,
+                    queue_name=definition.queue_name,
+                    payload=definition.payload,
+                    available_at=definition.available_at,
+                    max_attempts=definition.max_attempts,
+                    priority=definition.priority,
+                    soft_time_limit_seconds=definition.soft_time_limit_seconds,
+                    hard_time_limit_seconds=definition.hard_time_limit_seconds,
+                    trace_id=command.trace_id,
+                    idempotency_key_hash=hash_job_idempotency_key(idempotency_key),
+                    request_fingerprint=fingerprint_job_request(definition),
+                    submitted_at=now,
+                ),
+                requested_at=now,
+            ),
+        )
+
+    async def activate_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: ActivateDocumentVersion,
+    ) -> Document:
+        self._require(scope, WorkspaceAction.UPDATE_RESOURCE)
+        return await self.repository.activate_document_version(scope, command)
+
+    async def cancel_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: CancelDocumentVersion,
+    ) -> DocumentVersion:
+        self._require(scope, WorkspaceAction.UPDATE_RESOURCE)
+        return await self.repository.cancel_document_version(scope, command)
+
     async def list_ingestion_events(
         self,
         scope: WorkspaceScope,
@@ -421,6 +495,20 @@ class KnowledgeApplicationService:
             knowledge_base_id=knowledge_base_id,
             document_id=document_id,
             version_id=version_id,
+        )
+
+    async def list_deletion_events(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_id: UUID,
+        document_id: UUID,
+    ) -> tuple[KnowledgeIngestionEvent, ...]:
+        self._require(scope, WorkspaceAction.VIEW)
+        return await self.repository.list_deletion_events(
+            scope,
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
         )
 
     @staticmethod

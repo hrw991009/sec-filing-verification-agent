@@ -22,6 +22,11 @@ from industry_platform.modules.data_explorer.ports import QueryRunReconciliation
 from industry_platform.modules.data_explorer.service import (
     StaleQueryRunReconciliationService,
 )
+from industry_platform.modules.ingestion.adapters.deletion_sqlalchemy import (
+    SqlAlchemyDeletionReconciler,
+)
+from industry_platform.modules.ingestion.deletion import DeletionReconciliationUseCase
+from industry_platform.modules.ingestion.domain import IngestionPersistenceError
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyJobTransactionFactory,
 )
@@ -43,6 +48,7 @@ class JobReconciler:
     service: JobReconciliationUseCase
     agent_runs: AgentRunOrphanReconciler | None = None
     query_runs: QueryRunReconciliationUseCase | None = None
+    knowledge_deletions: DeletionReconciliationUseCase | None = None
     agent_batch_size: int = 100
 
     def __post_init__(self) -> None:
@@ -59,6 +65,17 @@ class JobReconciler:
             reconciled = await self.query_runs.reconcile_stale(batch_size=self.agent_batch_size)
             if reconciled:
                 logger.info("query_run_reconciliation terminalized=%d", reconciled)
+        if self.knowledge_deletions is not None:
+            deletions = await self.knowledge_deletions.reconcile_deletions(
+                batch_size=self.agent_batch_size
+            )
+            if deletions.selected:
+                logger.info(
+                    "knowledge_deletion_reconciliation selected=%d finalized=%d orphaned=%d",
+                    deletions.selected,
+                    deletions.finalized,
+                    deletions.orphaned,
+                )
         return result
 
     async def run_forever(self, *, idle_sleep_seconds: float = 1.0) -> None:
@@ -71,6 +88,7 @@ class JobReconciler:
             except (
                 AgentEventPersistenceError,
                 DataExplorerPersistenceError,
+                IngestionPersistenceError,
                 JobPersistenceError,
             ) as error:
                 logger.error(
@@ -112,6 +130,7 @@ async def run_reconciler(settings: Settings) -> None:
                 SqlAlchemyDataExplorerRepository(session_factory),
                 stale_after_seconds=settings.text2sql_query_stale_seconds,
             ),
+            knowledge_deletions=SqlAlchemyDeletionReconciler(session_factory),
             agent_batch_size=settings.job_reconcile_batch_size,
         ).run_forever()
     finally:

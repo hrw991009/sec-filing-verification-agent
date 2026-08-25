@@ -11,7 +11,11 @@ import {
 import { Icon } from "../chat/icons";
 import { formatBytes, publicError, relativeTime } from "../chat/chat-workbench-model";
 import {
+  activateKnowledgeDocumentVersion,
+  cancelKnowledgeDocumentVersion,
+  createKnowledgeDocumentVersion,
   createKnowledgeBase,
+  deleteKnowledgeDocument,
   deleteKnowledgeBase,
   getKnowledgeDocument,
   listKnowledgeBases,
@@ -55,9 +59,12 @@ const eventNames: Readonly<Record<string, string>> = {
 
 const stageNames: Readonly<Record<string, string>> = {
   chunking: "文本切分",
+  embedding: "向量生成",
   extracting_assets: "资源提取",
+  lexical_indexing: "关键词索引",
   parsing: "内容解析",
   validating: "源文件校验",
+  vector_indexing: "向量索引",
 };
 
 const textSourceNames: Readonly<Record<string, string>> = {
@@ -67,7 +74,21 @@ const textSourceNames: Readonly<Record<string, string>> = {
   plain_text: "纯文本",
 };
 
-type DetailTab = "stages" | "pages" | "chunks" | "assets";
+const cancellableStatuses = new Set([
+  "queued",
+  "validating",
+  "parsing",
+  "extracting_assets",
+  "chunking",
+  "embedding",
+  "vector_indexing",
+  "lexical_indexing",
+  "retrying",
+]);
+
+const reindexableStatuses = new Set(["parsed", "ready", "failed", "cancelled"]);
+
+type DetailTab = "stages" | "versions" | "indexes" | "pages" | "chunks" | "assets";
 
 function tableRows(html: string): string[][] {
   if (typeof DOMParser === "undefined") return [];
@@ -102,6 +123,10 @@ function titleFromFile(file: File): string {
   return (dot > 0 ? file.name.slice(0, dot) : file.name).trim();
 }
 
+function runtimeConfigValue(value: unknown): string {
+  return typeof value === "string" && value.trim() ? value : "-";
+}
+
 export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspaceProps) {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -128,6 +153,8 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
   const [detailTab, setDetailTab] = useState<DetailTab>("stages");
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [documentAction, setDocumentAction] = useState<string | null>(null);
+  const [deleteDocumentFor, setDeleteDocumentFor] = useState<KnowledgeDocument | null>(null);
   const documentRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
 
@@ -351,6 +378,74 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
     setDetail(null);
   }
 
+  async function reindexDocument(document: KnowledgeDocument): Promise<void> {
+    setDocumentAction(document.id);
+    setDocumentsError(null);
+    try {
+      const accepted = await createKnowledgeDocumentVersion(workspaceId, document);
+      setDocuments((current) =>
+        current.map((item) => (item.id === document.id ? accepted.document : item)),
+      );
+      closeDetail();
+    } catch (caught: unknown) {
+      setDocumentsError(publicError(caught));
+    } finally {
+      setDocumentAction(null);
+    }
+  }
+
+  async function activateVersion(versionId: string): Promise<void> {
+    if (detail === null || detailFor === null) return;
+    setDocumentAction(detailFor.id);
+    setDetailError(null);
+    try {
+      await activateKnowledgeDocumentVersion(workspaceId, detail.document, versionId);
+      await loadDocuments(detail.document.knowledge_base_id);
+      setDetail(
+        await getKnowledgeDocument(
+          workspaceId,
+          detail.document.knowledge_base_id,
+          detail.document.id,
+        ),
+      );
+    } catch (caught: unknown) {
+      setDetailError(publicError(caught));
+    } finally {
+      setDocumentAction(null);
+    }
+  }
+
+  async function confirmDocumentDelete(): Promise<void> {
+    if (deleteDocumentFor === null) return;
+    const document = deleteDocumentFor;
+    setDocumentAction(document.id);
+    setDocumentsError(null);
+    try {
+      await deleteKnowledgeDocument(workspaceId, document);
+      setDeleteDocumentFor(null);
+      closeDetail();
+      await loadDocuments(document.knowledge_base_id);
+    } catch (caught: unknown) {
+      setDocumentsError(publicError(caught));
+      setDeleteDocumentFor(null);
+    } finally {
+      setDocumentAction(null);
+    }
+  }
+
+  async function cancelIngestion(document: KnowledgeDocument): Promise<void> {
+    setDocumentAction(document.id);
+    setDocumentsError(null);
+    try {
+      await cancelKnowledgeDocumentVersion(workspaceId, document);
+      await loadDocuments(document.knowledge_base_id);
+    } catch (caught: unknown) {
+      setDocumentsError(publicError(caught));
+    } finally {
+      setDocumentAction(null);
+    }
+  }
+
   return (
     <section className="knowledge-workspace" aria-labelledby="knowledge-title">
       <aside className="knowledge-sidebar">
@@ -534,6 +629,51 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
                             >
                               <Icon name="bolt" />
                             </button>
+                            {canManage ? (
+                              <>
+                                <button
+                                  aria-label={`重新索引 ${document.title}`}
+                                  className="icon-button icon-button--small"
+                                  disabled={
+                                    documentAction === document.id ||
+                                    !reindexableStatuses.has(document.latest_version.status)
+                                  }
+                                  onClick={() => void reindexDocument(document)}
+                                  title="重新索引"
+                                  type="button"
+                                >
+                                  <Icon name="refresh" />
+                                </button>
+                                <button
+                                  aria-label={`取消 ${document.title} 的入库任务`}
+                                  className="icon-button icon-button--small"
+                                  disabled={
+                                    documentAction === document.id ||
+                                    !cancellableStatuses.has(document.latest_version.status)
+                                  }
+                                  onClick={() => void cancelIngestion(document)}
+                                  title="取消入库"
+                                  type="button"
+                                >
+                                  <Icon name="stop" />
+                                </button>
+                                <button
+                                  aria-label={`删除 ${document.title}`}
+                                  className="icon-button icon-button--small icon-button--danger"
+                                  disabled={
+                                    documentAction === document.id ||
+                                    document.latest_version.status === "deleting"
+                                  }
+                                  onClick={() => {
+                                    setDeleteDocumentFor(document);
+                                  }}
+                                  title="删除文档"
+                                  type="button"
+                                >
+                                  <Icon name="trash" />
+                                </button>
+                              </>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -708,16 +848,63 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
         </div>
       )}
 
+      {deleteDocumentFor === null ? null : (
+        <div className="knowledge-dialog-backdrop" role="presentation">
+          <section
+            aria-modal="true"
+            className="knowledge-dialog knowledge-dialog--compact"
+            role="dialog"
+          >
+            <header>
+              <h2>删除文档</h2>
+              <button
+                aria-label="关闭"
+                className="icon-button"
+                disabled={documentAction === deleteDocumentFor.id}
+                onClick={() => {
+                  setDeleteDocumentFor(null);
+                }}
+                type="button"
+              >
+                <Icon name="close" />
+              </button>
+            </header>
+            <p>确认删除“{deleteDocumentFor.title}”？删除任务会清理私有对象和两类索引。</p>
+            <footer>
+              <button
+                className="knowledge-secondary-button"
+                disabled={documentAction === deleteDocumentFor.id}
+                onClick={() => {
+                  setDeleteDocumentFor(null);
+                }}
+                type="button"
+              >
+                取消
+              </button>
+              <button
+                className="knowledge-danger-button"
+                disabled={documentAction === deleteDocumentFor.id}
+                onClick={() => void confirmDocumentDelete()}
+                type="button"
+              >
+                {documentAction === deleteDocumentFor.id ? "正在受理..." : "删除"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
       {detailFor === null ? null : (
         <div className="knowledge-dialog-backdrop" role="presentation">
           <section
+            aria-labelledby="knowledge-detail-title"
             aria-modal="true"
             className="knowledge-dialog knowledge-dialog--detail"
             role="dialog"
           >
             <header>
               <div>
-                <h2>解析详情</h2>
+                <h2 id="knowledge-detail-title">解析详情</h2>
                 <small>{detailFor.title}</small>
               </div>
               <button aria-label="关闭" className="icon-button" onClick={closeDetail} type="button">
@@ -741,6 +928,9 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
                   <span>
                     <strong>{detail.assets.length}</strong> 个资产
                   </span>
+                  <span>
+                    <strong>{detail.indexes.length}</strong> 条索引
+                  </span>
                   <span
                     className={`knowledge-status knowledge-status--${detail.document.latest_version.status}`}
                   >
@@ -757,11 +947,23 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
                     {detail.document.latest_version.chunker_name} / v
                     {detail.document.latest_version.chunker_version}
                   </span>
+                  <span>
+                    {runtimeConfigValue(detail.document.latest_version.embedding_config.provider)} /{" "}
+                    {runtimeConfigValue(detail.document.latest_version.embedding_config.model)}
+                  </span>
+                  <span>
+                    {runtimeConfigValue(detail.document.latest_version.index_config.index_version)}
+                  </span>
                 </div>
+                {detail.document.latest_version.error_code === null ? null : (
+                  <p className="knowledge-error">{detail.document.latest_version.error_code}</p>
+                )}
                 <div aria-label="解析详情视图" className="knowledge-detail-tabs" role="tablist">
                   {(
                     [
                       ["stages", "阶段"],
+                      ["versions", "版本"],
+                      ["indexes", "索引"],
                       ["pages", "页面"],
                       ["chunks", "分块"],
                       ["assets", "资产"],
@@ -804,6 +1006,61 @@ export function KnowledgeWorkspace({ canManage, workspaceId }: KnowledgeWorkspac
                           </li>
                         ))}
                       </ol>
+                    )
+                  ) : null}
+                  {detailTab === "versions" ? (
+                    <div className="knowledge-version-list">
+                      {detail.versions.map(({ source, version }) => {
+                        const active = detail.document.active_version_id === version.id;
+                        return (
+                          <article key={version.id}>
+                            <div>
+                              <strong>v{version.version}</strong>
+                              <small>{source.original_name}</small>
+                            </div>
+                            <span
+                              className={`knowledge-status knowledge-status--${version.status}`}
+                            >
+                              {active
+                                ? "当前使用"
+                                : (statusNames[version.status] ?? version.status)}
+                            </span>
+                            {canManage && version.status === "ready" && !active ? (
+                              <button
+                                aria-label={`切换到版本 ${String(version.version)}`}
+                                className="icon-button icon-button--small"
+                                disabled={documentAction === detail.document.id}
+                                onClick={() => void activateVersion(version.id)}
+                                title="切换到此版本"
+                                type="button"
+                              >
+                                <Icon name="refresh" />
+                              </button>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {detailTab === "indexes" ? (
+                    detail.indexes.length === 0 ? (
+                      <p className="knowledge-detail-empty">尚未生成索引记录</p>
+                    ) : (
+                      <div className="knowledge-index-list">
+                        {detail.indexes.map((index) => (
+                          <article key={index.id}>
+                            <div>
+                              <strong>{index.kind === "vector" ? "向量" : "关键词"}</strong>
+                              <small>{index.external_id}</small>
+                            </div>
+                            <span className={`knowledge-status knowledge-status--${index.status}`}>
+                              {index.status === "succeeded" ? "成功" : "失败"}
+                            </span>
+                            <small>第 {index.attempt_count} 次尝试</small>
+                            {index.error_code === null ? null : <code>{index.error_code}</code>}
+                          </article>
+                        ))}
+                      </div>
                     )
                   ) : null}
                   {detailTab === "pages" ? (

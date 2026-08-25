@@ -579,6 +579,15 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByText(sourceName, { exact: true })).toBeVisible();
     await expect(page.getByText("排队中", { exact: true })).toBeVisible();
 
+    await page.getByRole("button", { name: `查看 ${documentTitle} 的解析详情` }).click();
+    const detail = page.getByRole("dialog", { name: "解析详情" });
+    await expect(detail.locator(".knowledge-detail-runtime")).toContainText(
+      /deterministic-hash\s*\/\s*feature-hash-64/u,
+    );
+    await expect(detail.getByText("knowledge-index-v1", { exact: true })).toBeVisible();
+    await expect(detail.getByRole("tab")).toHaveCount(6);
+    await detail.getByRole("button", { name: "关闭" }).click();
+
     await page.getByRole("button", { name: `查看 ${documentTitle} 的受理事件` }).click();
     await expect(page.getByRole("heading", { name: "受理事件" })).toBeVisible();
     await expect(page.getByText("任务已受理", { exact: true })).toBeVisible();

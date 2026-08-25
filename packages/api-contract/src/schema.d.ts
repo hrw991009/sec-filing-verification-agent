@@ -680,6 +680,24 @@ export interface paths {
         get: operations["get_document_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__get"];
         put?: never;
         post?: never;
+        /** Delete Document */
+        delete: operations["delete_document_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/deletion/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Deletion Events */
+        get: operations["list_deletion_events_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__deletion_events_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -697,6 +715,40 @@ export interface paths {
         put?: never;
         /** Create Document Version */
         post: operations["create_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Document Version */
+        post: operations["activate_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions__version_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions/{version_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Document Version */
+        post: operations["cancel_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions__version_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1787,6 +1839,21 @@ export interface components {
          * @enum {string}
          */
         DependencyStatus: "ok" | "failed";
+        /** DocumentActivationResponse */
+        DocumentActivationResponse: {
+            /**
+             * Active Version Id
+             * Format: uuid
+             */
+            active_version_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Revision */
+            revision: number;
+        };
         /**
          * DocumentAssetKind
          * @enum {string}
@@ -1828,6 +1895,17 @@ export interface components {
             preview_url: string;
             /** Title Path */
             title_path: string[];
+        };
+        /** DocumentCancellationResponse */
+        DocumentCancellationResponse: {
+            /** Revision */
+            revision: number;
+            status: components["schemas"]["DocumentVersionStatus"];
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
         };
         /** DocumentChunkResponse */
         DocumentChunkResponse: {
@@ -1875,6 +1953,8 @@ export interface components {
             /** Chunks */
             chunks: components["schemas"]["DocumentChunkResponse"][];
             document: components["schemas"]["DocumentResponse"];
+            /** Indexes */
+            indexes: components["schemas"]["DocumentIndexResponse"][];
             /** Ingestion Checkpoints */
             ingestion_checkpoints: components["schemas"]["IngestionCheckpointResponse"][];
             /** Pages */
@@ -1882,6 +1962,46 @@ export interface components {
             /** Versions */
             versions: components["schemas"]["DocumentVersionDetailResponse"][];
         };
+        /**
+         * DocumentIndexKind
+         * @enum {string}
+         */
+        DocumentIndexKind: "vector" | "lexical";
+        /** DocumentIndexResponse */
+        DocumentIndexResponse: {
+            /** Attempt Count */
+            attempt_count: number;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Error Code */
+            error_code: string | null;
+            /** External Id */
+            external_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Index Version */
+            index_version: string;
+            /** Indexed At */
+            indexed_at: string | null;
+            kind: components["schemas"]["DocumentIndexKind"];
+            status: components["schemas"]["DocumentIndexStatus"];
+        };
+        /**
+         * DocumentIndexStatus
+         * @enum {string}
+         */
+        DocumentIndexStatus: "succeeded" | "failed";
         /** DocumentPageResponse */
         DocumentPageResponse: {
             /** Bbox */
@@ -1929,6 +2049,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Deletion Error Code */
+            deletion_error_code: string | null;
+            /** Deletion Job Id */
+            deletion_job_id: string | null;
             /**
              * Id
              * Format: uuid
@@ -1958,6 +2082,11 @@ export interface components {
              */
             workspace_id: string;
         };
+        /**
+         * DocumentStatus
+         * @enum {string}
+         */
+        DocumentStatus: "active" | "deleting" | "deleted";
         /** DocumentVersionDetailResponse */
         DocumentVersionDetailResponse: {
             source: components["schemas"]["KnowledgeSourceResponse"];
@@ -1983,6 +2112,10 @@ export interface components {
              * Format: uuid
              */
             document_id: string;
+            /** Embedding Config */
+            embedding_config: {
+                [key: string]: unknown;
+            };
             /** Error Code */
             error_code: string | null;
             /**
@@ -1995,6 +2128,10 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Index Config */
+            index_config: {
+                [key: string]: unknown;
+            };
             /**
              * Ingestion Job Id
              * Format: uuid
@@ -2409,7 +2546,7 @@ export interface components {
          * IngestionCheckpointStage
          * @enum {string}
          */
-        IngestionCheckpointStage: "validating" | "parsing" | "extracting_assets" | "chunking";
+        IngestionCheckpointStage: "validating" | "parsing" | "extracting_assets" | "chunking" | "embedding" | "vector_indexing" | "lexical_indexing";
         /** InvalidateEvidenceRequest */
         InvalidateEvidenceRequest: {
             /** Reason */
@@ -2465,6 +2602,18 @@ export interface components {
              * Format: uuid
              */
             workspace_id: string;
+        };
+        /** KnowledgeDeletionResponse */
+        KnowledgeDeletionResponse: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            job: components["schemas"]["KnowledgeJobResponse"];
+            /** Revision */
+            revision: number;
+            status: components["schemas"]["DocumentStatus"];
         };
         /** KnowledgeIngestionEventCollectionResponse */
         KnowledgeIngestionEventCollectionResponse: {
@@ -10786,6 +10935,320 @@ export interface operations {
             };
         };
     };
+    delete_document_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                workspace_id: string;
+                knowledge_base_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeDeletionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge state conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge upload rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    list_deletion_events_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__deletion_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                knowledge_base_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeIngestionEventCollectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge state conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge upload rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
     create_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions_post: {
         parameters: {
             query?: never;
@@ -10809,6 +11272,324 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KnowledgeAcceptanceResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge state conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge upload rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    activate_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions__version_id__activate_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                workspace_id: string;
+                knowledge_base_id: string;
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentActivationResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge state conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge upload rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Knowledge service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    cancel_document_version_api_v1_workspaces__workspace_id__knowledge_bases__knowledge_base_id__documents__document_id__versions__version_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                workspace_id: string;
+                knowledge_base_id: string;
+                document_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentCancellationResponse"];
                 };
             };
             /** @description Invalid authenticated session */

@@ -6,18 +6,25 @@ from typing import Protocol
 from uuid import UUID
 
 from industry_platform.modules.knowledge.domain import (
+    ActivateDocumentVersion,
+    CancelDocumentVersion,
     ClaimedKnowledgeUpload,
     CompleteKnowledgeUpload,
     CreateDocumentVersion,
     CreateKnowledgeBase,
     CreateKnowledgeUpload,
+    DeleteDocument,
     DeleteKnowledgeBase,
+    Document,
     DocumentDetail,
+    DocumentVersion,
     DocumentView,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
+    KnowledgeDeletionReceipt,
     KnowledgeIngestionEvent,
     KnowledgeUploadTicket,
+    PreparedDocumentDeletion,
     PreparedDocumentVersion,
     PreparedKnowledgeAcceptance,
     StagingKnowledgeUpload,
@@ -89,6 +96,32 @@ class KnowledgeRepository(Protocol):
         version_id: UUID,
     ) -> tuple[KnowledgeIngestionEvent, ...]: ...
 
+    async def request_document_deletion(
+        self,
+        scope: WorkspaceScope,
+        prepared: PreparedDocumentDeletion,
+    ) -> KnowledgeDeletionReceipt: ...
+
+    async def activate_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: ActivateDocumentVersion,
+    ) -> Document: ...
+
+    async def cancel_document_version(
+        self,
+        scope: WorkspaceScope,
+        command: CancelDocumentVersion,
+    ) -> DocumentVersion: ...
+
+    async def list_deletion_events(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_id: UUID,
+        document_id: UUID,
+    ) -> tuple[KnowledgeIngestionEvent, ...]: ...
+
 
 class KnowledgeAcceptanceWriter(Protocol):
     async def submit(self, prepared: PreparedKnowledgeAcceptance) -> KnowledgeAcceptanceReceipt: ...
@@ -142,3 +175,11 @@ class KnowledgeUseCase(Protocol):
     async def get_document(
         self, scope: WorkspaceScope, *, knowledge_base_id: UUID, document_id: UUID
     ) -> DocumentDetail: ...
+
+    async def delete_document(
+        self, scope: WorkspaceScope, command: DeleteDocument
+    ) -> KnowledgeDeletionReceipt: ...
+
+    async def activate_document_version(
+        self, scope: WorkspaceScope, command: ActivateDocumentVersion
+    ) -> Document: ...
