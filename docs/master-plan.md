@@ -1,14 +1,14 @@
-# 行业智能平台七天 AI Agent 学习与开发主计划
+# 行业智能平台 Day 1～10 AI Agent 学习与开发主计划：SEC 披露与财务事实核验
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`1.7.2`
+> 版本：`2.0.0`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-22`
+> 修订日期：`2026-08-25`
 >
-> 状态：Agent-first 执行基线
+> 状态：SEC 财务事实核验 Agent 执行基线
 >
 > 项目目录：`D:\industry_intelligence_platform`
 >
@@ -16,7 +16,7 @@
 
 ## 0. 本文档的权威性与使用方法
 
-这不是一次性的聊天建议，而是新项目 Day 1～Day 7 的执行基线。新项目创建后，应在第一次提交中把本文档复制为 `docs/master-plan.md`，并长期纳入版本控制。
+这不是一次性的聊天建议，而是项目 Day 1～Day 10 的执行基线。Day 1～Day 4 及 Day 5 已发生的实现事实属于历史基线；从 Day 5 Step 4 起，后续产品与评测主线转为 SEC 上市公司披露与财务事实核验 Agent。本文档长期纳入版本控制。
 
 以后每次继续开发，人与 AI 都必须先做四件事：
 
@@ -25,7 +25,7 @@
 3. 只实现当前纵向切片；不得顺手引入未评审的新框架或第二套链路。
 4. 完成后更新测试结果、功能状态、技术债和学习日志，再进入下一项。
 
-决策优先级为：用户最新明确指令 > 经用户确认的 ADR > 本主计划 > 临时实现笔记。任何影响技术栈、数据所有权、安全边界、模块职责或七天范围的变化，都必须：
+决策优先级为：用户最新明确指令 > 经用户确认的 ADR > 本主计划 > 临时实现笔记。任何影响技术栈、数据所有权、安全边界、模块职责或 Day 1～Day 10 范围的变化，都必须：
 
 - 新增或更新 ADR；
 - 说明为什么变、替代方案、迁移代价和回滚办法；
@@ -40,60 +40,86 @@
 再开始操作。
 ```
 
-## 1. Agent-first 七天目标与诚实边界
+## 1. Agent-first 目标、路线转向与诚实边界
 
-产品定位不变：面向行业研究与企业知识工作的“多模态行业智能工作台”。但本计划的学习和工程主线调整为 **AI Agent 的构建、运行、调试与评测**，而不是平均用力完成一个大而全的平台。
+产品从通用“多模态行业智能工作台”收敛为 **SEC 披露公司监控与财务事实核验工作台**。学习主线仍是同一套 AI Agent Runtime/Harness、Tool Use、Memory、Evidence、Knowledge/RAG、durable execution 与 Eval；变化的是从 Day 5 Step 4 起，所有新增业务能力、数据集和发布验收都必须服务于 SEC `10-K/10-Q` 系列披露事实核验，而不再继续扩张通用行业页面。MVP 不代表覆盖所有海外市场或 `20-F/6-K`。
 
-七天按每天 8～10 小时设计，目标是产出 `v0.1.0-agent-learning-foundation`。时间预算固定为：
+### 1.1 已完成范围冻结
 
-- 85%：完整 Agent 核心栈——Runtime/Harness、Tool Use、Short/Long-term Memory、Context Engineering、Knowledge/RAG、Deep Research、durable execution 与 Eval。
-- 15%：身份、租户、任务队列、存储、CI 和必要安全门禁。
+本次转向不回写、降级或删除已经验收的基础能力：
 
-这 85% 不是再按“主次能力”切割，而是沿依赖顺序学习同一个系统：Day 2 建 Runtime 与基础 Harness，Day 3 建 Tool loop，Day 4 建 Memory、Evidence 与 Research L3，Day 5 建私有知识与 durable Research L4，Day 6 建 Hybrid RAG、多模态 Context 与 Research L5。RAG 排得较后是因为它依赖文件入库、Evidence、检索基线和评测数据，不代表它比 Runtime、Tool 或 Memory 次要。
+| 范围 | 当前事实 | 本计划处理 |
+|---|---|---|
+| Day 1～Day 4 | D1、D2、D3、D4 已按各自记录完成；D1-09 外部凭据处置和 Day 4 核心覆盖率债务仍保留 | 历史任务、提交、CI、DoD 和限制原文保留，不因业务转向重算 |
+| Day 5 Step 1～3 | 当前分支 `feat/day5-knowledge-ingestion-step1` 已实现知识受理、版本化解析资产、双索引写入/删除对账/Workbench；提交 `4daa028` 的分支 CI `32796096690` 已通过 | 记录为 `implemented_pending_verification`；在合入 `main`、合并提交 CI、DoD 与所有者复核前不得写成 `complete` |
+| Day 5 Step 4～Day 10 | 尚未完成 | 按 SEC 披露与财务事实核验路线重新冻结任务、测试和门禁 |
 
-七天结束时，学习者必须能用自己的话并用运行证据回答：
+Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
-1. 一个模型调用如何演进为有界、可观测、可恢复的 Agent run。
-2. Runtime、Harness、Context、State、Short/Long-term Memory、Checkpoint、Trace、Artifact 和 Eval 分别解决什么问题。
-3. Tool Call 如何被选择、校验、执行、观察和计入预算，模型为何不能自行扩大权限。
-4. Memory、Tool Observation、Knowledge Retrieval 和 RAG Context 如何协作，又为什么不能混为一体。
-5. Deep Research 为什么先做单 Agent/单图演进，何时才有证据引入多 Agent。
-6. 如何从完整轨迹、Evidence/Claim、恢复正确性、Memory/RAG 质量、成本和延迟判断 Agent 是否真的变好。
+### 1.2 目标产品与发布边界
 
-七天的核心交付不是“页面数量”，而是同一条 Agent 正式链路：
+目标版本调整为：
 
 ```text
-直接回答 → 流式 Run → 有界工具循环 → Agent Memory
-→ Evidence/Claim 账本 → 可恢复 Deep Research
-→ 私有知识与 Hybrid/Multimodal RAG → 轨迹评测与回归
+v0.2.0-sec-disclosure-verifier
 ```
 
-身份与 Workspace、Job/Outbox、私有文件、Provider 端口、CI 等仍是必要底座，但它们服务于 Agent 主线，不再占据同等学习篇幅。通用安全细节继续以 ADR、`docs/security-model.md`、`docs/tool-security.md` 和自动化门禁为权威来源；主计划只保留会直接改变 Agent 行为的边界。
+MVP 只覆盖：
 
-冻结范围描述七天内要深入学习的内容。Agent 核心能力必须使用正式数据、真实 Runtime、可恢复状态和可重复评测，不得用页面、Mock 成功或名义上的“多 Agent”冒充完成。外围行业 Adapter 和企业级运维只实现能力矩阵预先冻结的代表性真实切片与 readiness，不在执行中继续扩张；这些目标仍须完成各自的简化冻结范围，不能用 `thin_slice` 或 `contract_only` 冒充 Day 7 验收通过。
+- 官方 SEC EDGAR 数据；
+- `10-K`、`10-Q`、`10-K/A`，并为 `10-Q/A` 保留同一版本合同；
+- 公司/CIK 解析、filing/accession/期间锁定、XBRL 结构化事实、Filing 文本/表格检索、确定性计算、跨期/修订差异和可定位引用；
+- 中文提问与中文核验报告，证据保留 SEC 官方英文原文和稳定定位；
+- 可选披露监控，只有创建/修改订阅等写操作进入持久 HITL 审批。
 
-若每天只能投入 3～4 小时，应把一个“日”扩展为两个自然日。任何 Agent 门禁未通过就顺延；不得通过删除场景、放宽预算、绕过 Harness、伪造工具结果或只看最终答案来赶进度。
+明确不做：实时行情、股价预测、估值模型、目标价、荐股、组合建议、自动交易、税务或审计意见。产品输出是可复核的披露事实和证据包，不是投资建议。
 
-Day 1 的执行门禁以新仓工程链路和新仓 Secret 边界为准，D1-01～D1-08、D1-10～D1-12 已通过并允许进入 Agent 主线。D1-09 中参考仓历史凭据的 Provider 侧吊销/轮换属于独立外部治理尾项，不否定已经完成的 Day 1 工程结果，但在全部处置和复扫前仍阻断 Day 7 发布标签。
+核心用户路径为：
+
+```text
+中文问题或待核验陈述
+→ 明确公司、CIK、form、报告期间和 as_of
+→ 锁定 accession、原始 filing 快照与 XBRL context
+→ 结构化事实工具 + Filing Hybrid RAG
+→ typed calculator 重算并核对单位/scale/期间/修订
+→ Evidence/Claim verifier → 最多一次 bounded revise
+→ verified / partial / conflict / insufficient_evidence
+→ 可选人工批准创建披露监控 → 新 filing 到达后生成 diff/case
+```
+
+Day 1～Day 10 结束时，学习者除能解释 Runtime、Harness、Context、Memory、Checkpoint、Trace、Artifact 与 Eval 外，还必须能用运行证据回答：
+
+1. 为什么 XBRL 结构化事实和 Filing RAG 必须是两条互相核对的证据通道。
+2. 如何证明一次回答使用了正确公司、accession、form、fiscal period、unit、scale 和 `as_of`，并且没有未来信息泄漏。
+3. 为什么计算必须进入版本化 typed calculator，而不能让模型在自然语言中不可审计地心算。
+4. Agent loop 相对纯 Hybrid RAG 在复杂检索、计算、修订和冲突场景是否有净收益。
+5. 哪些结论由确定性规则、公开 benchmark、人工抽样或 live evaluation 支持，以及每类证据不能证明什么。
+
+身份与 Workspace、Job/Outbox、私有文件、Provider 端口、CI 等继续作为必要底座。Agent 核心能力必须使用正式数据、同一 Runtime、可恢复状态和可重复评测，不得用页面、Mock、冻结 replay、单次漂亮答案或名义上的多 Agent 冒充完成。
+
+若一个“Day”无法在当天通过门禁，则顺延该 Day；不得删减场景、放宽预算、绕过 Harness、伪造工具结果或把 live/model 质量与本地确定性合同混报。D1-09 外部凭据处置仍阻断最终发布标签；Day 4 核心 Domain/Application/Research workflow 覆盖率债务仍须在最终发布门禁前从 85% 补到 90%。
 
 ## 2. 从参考项目中提炼 Agent 能力栈
 
-| 能力 | 借鉴方向 | 新项目处理 | 七天目标 |
+| 能力 | 借鉴方向 | 新项目处理 | 当前计划目标 |
 |---|---|---|---|
 | Agent Runtime 与 Harness | 两项目均不足 | 建立统一 Run/Step/Event、Context、Tool、Budget、Checkpoint、Trace 与评测入口 | 普通聊天、工具调用和 Research 共用同一执行语义 |
 | Agent Tool 与 Skill | 参考项目 | typed Tool Registry/Executor、Harness profile、Observation、Artifact、审批与预算 | Web、行业、Text2SQL 和知识工具共用正式 Tool loop |
 | Short/Long-term Memory | 参考项目 | Thread state、用户可控长期记忆、写入/召回/遗忘策略和 Memory Eval | 聊天与 Research 均能可解释地使用、更新和删除 Memory |
 | Agent Knowledge 与 Hybrid RAG | `my_work_project` | 文件/知识作为 Context Source 与 Tool；Dense + BM25 + RRF + rerank + Context Compiler | 文本、图片、表格形成可评测、可引用的 Agent Context 闭环 |
+| SEC 披露数据底座 | SEC EDGAR 官方接口与原始 filing | CIK/issuer 解析、submissions、原始 filing/iXBRL 快照、XBRL facts、accession 与 point-in-time 版本锁定 | 官方披露可重放、可追溯，不依赖动态网页搜索作为事实真相 |
+| 财务事实工具与核验 | 新项目领域能力 | typed SEC tools、typed calculator、期间/单位/scale/修订核对、Filing RAG 与结构化事实交叉验证 | 每个数字、公式和变化都能反查输入事实、计算和 filing Evidence |
 | Evidence、Claim 与多模态 Artifact | 两项目方向整合 | 统一 locator、来源、支持/反驳关系和引用校验 | Research 与普通回答共享 Evidence 语义 |
-| Deep Research 工作流 | 参考项目 | 从 Tool Use 演进为一个可恢复状态图；多 Agent 仅在评测证明有净收益时引入 | 一个有边界、可评测、可恢复的真实 Research 闭环 |
+| Deep Research 工作流 | 参考项目 | 从 Tool Use 演进为可恢复状态图；从 Day 5 Step 4 起以 SEC scope、filing 选择、事实分解、核对与最多一次 revise 为正式业务图 | 一个有边界、可评测、可恢复的财务核验闭环 |
 | SSE、取消、Checkpoint、恢复 | 参考项目 | 版本化事件、持久状态、幂等副作用 | 完成基本闭环 |
-| Agent Trace、Harness 与 Eval | 两项目均不足 | 场景、Fake/Replay、故障注入、轨迹评分和成本/延迟对比 | 每次 Runtime/Prompt/Tool 变化都有回归证据 |
+| Agent Trace、Harness 与 Eval | 两项目均不足 | 通用场景与 SEC 专项场景分层；Fake/Replay、故障注入、公开 benchmark adapter、时点泄漏和轨迹评分 | 每次 Runtime/Prompt/Tool 变化都有回归证据，且不把通用 Runtime 绿灯冒充金融能力 |
 | PDF 版面、OCR、图片、表格 | `my_work_project` | 解析器端口 + 多模态资产模型 | 为 Agent Knowledge/RAG 提供代表性真实数据 |
 | Web 搜索与行业数据 | 参考项目 | Provider 端口、来源证据与代表性真实 Adapter | 为 Tool Use/Research 提供真实外部 Observation |
 | 数据库浏览与 Text2SQL | 参考项目 | 只读账号、AST 校验、预算和受校验图表 | 为 Agent 提供一个真实结构化数据 Tool |
 | 会话、附件、身份与 Workspace | 参考项目 | 提供 Thread、可信 Runtime Context 和租户范围 | 足以承载核心 Agent 用户旅程 |
 | PostgreSQL、Milvus、Elasticsearch、MinIO | `my_work_project` | 分别承担业务事实、向量/关键词索引和 Artifact 存储 | 支撑 Agent 状态、Knowledge/RAG 与可靠恢复 |
-| CI、迁移、任务可靠性与可观测 | 两项目均不足 | 作为 Agent 开发的支撑底座，不扩张为七天主角 | 足以稳定、可重复运行核心场景 |
+| 披露监控与 Case | 新项目领域能力 | 复用 Schedule/Job/Outbox、filing watermark、幂等 diff、持久审批与 Case | 新 filing 到达后可恢复地产生变化证据，不重复通知或写操作 |
+| CI、迁移、任务可靠性与可观测 | 两项目均不足 | 作为 Agent 开发的支撑底座，不扩张为业务主角 | 足以稳定、可重复运行核心场景 |
 
 支撑边界：
 
@@ -105,7 +131,7 @@ Day 1 的执行门禁以新仓工程链路和新仓 Secret 边界为准，D1-01�
 
 ### 3.1 总体形态
 
-采用“模块化单体 + 统一 Agent Runtime/Harness + 独立 Celery Worker + Celery Beat Scheduler”，七天版本不拆微服务：
+采用“模块化单体 + 统一 Agent Runtime/Harness + 独立 Celery Worker + Celery Beat Scheduler”，Day 1～Day 10 不拆微服务：
 
 ```text
 React Web ── REST / fetch-SSE ──► FastAPI Application Service
@@ -123,7 +149,7 @@ React Web ── REST / fetch-SSE ──► FastAPI Application Service
 └────────────────────────────────────────────────────────────────┘
               │ model ports                       │ typed tools
               ▼                                   ▼
-       Model Provider Adapter         knowledge/web/industry/sql/files
+       Model Provider Adapter         knowledge/sec/xbrl/filing/calculator
               │                                   │
               └──────────── Evidence / Artifact ──┘
                                       │
@@ -142,7 +168,7 @@ Celery Beat → Application Service → Job/Outbox → Dispatcher → Celery Wor
 - **Evaluation Harness**：以同一 Runtime/Harness 运行确定性 Fake、冻结响应 Replay、故障注入和 Scorer，不替代生产入口。
 - **LangGraph**：Deep Research 内部使用的低层 orchestration runtime adapter，负责图路由、durable state、Checkpoint 与 Interrupt；它必须映射到项目统一 Run/Event/Checkpoint 语义，不形成第二套公共 Runtime API。
 - **Celery/Job Runtime**：负责代码在哪个进程可靠执行、lease/fencing/retry；不决定 Agent 下一步思考或调用哪个工具。
-- **Sandbox**：未来执行代码、Shell 或文件写操作时的隔离环境。七天主线不开放通用代码/Shell 工具，因此不为展示概念而造一个假 Sandbox。
+- **Sandbox**：未来执行代码、Shell 或文件写操作时的隔离环境。当前主线不开放通用代码/Shell 工具，因此不为展示概念而造一个假 Sandbox。
 
 理由：Agent Runtime 解决“这次智能任务如何推进”，Celery 解决“它在哪里可靠运行”，Application Service 负责业务事实和权限，三者必须分层。PostgreSQL 保持唯一可信状态；Redis/Milvus/ES 是可恢复执行或派生层。长时 Research 由 Job 启动，但其 Plan、Action、Observation、Checkpoint 和终止原因属于 Agent Runtime。
 
@@ -162,7 +188,8 @@ Celery Beat → Application Service → Job/Outbox → Dispatcher → Celery Wor
 | 数据库 | PostgreSQL 16，所有表结构变化只用 Alembic |
 | 对象存储 | MinIO，Bucket 默认私有，只保存 object key，访问用短期签名 URL |
 | Agent Memory | Thread/checkpoint short-term memory + PostgreSQL long-term user memory；显式写入、召回、遗忘与评测策略 |
-| Agent Knowledge/RAG | MinIO/Parser → Milvus Dense + Elasticsearch BM25 → RRF/rerank → Context Compiler/Evidence |
+| Agent Knowledge/RAG | MinIO/Parser → Milvus Dense + Elasticsearch BM25 → RRF/rerank → Context Compiler/Evidence；SEC 场景另以 XBRL typed facts 作为结构化并行通道 |
+| SEC 数据接入 | 官方 EDGAR submissions/XBRL API + 原始 filing/iXBRL；PostgreSQL 保存身份、版本和 lineage，MinIO 保存不可变原件快照 |
 | 模型接入 | Provider-neutral Port；至少一个 OpenAI-compatible Adapter；供应商 SDK 不进入 Runtime 核心 |
 | Agent Runtime | 项目内正式执行层；普通回答、工具循环和 Research 共享 Run/Step/Event/Budget 语义 |
 | Agent Harness | 项目内组合与评测层；Tool/Skill、Context、Approval、Artifact、Fake/Replay/Scorer |
@@ -175,7 +202,7 @@ Celery Beat → Application Service → Job/Outbox → Dispatcher → Celery Wor
 
 版本规则：主技术选型不可随意替换；具体依赖精确版本以 Day 1 兼容性试验后生成的 lockfile 为准。依赖文件禁止大量无上限 `>=`，Compose 镜像使用明确 tag，发布阶段可进一步锁 digest。
 
-### 3.3 十条 Agent-first 核心原则
+### 3.3 十四条 Agent-first 核心原则
 
 1. 普通回答、Tool Use 和 Deep Research 共用同一 Runtime 入口；不得让聊天直连 Provider、Research 才走 Runtime。
 2. 每个 Run 必须有 typed state、单调 Step sequence、版本化 Event、明确 final/stop reason 和完整 Trace。
@@ -187,6 +214,10 @@ Celery Beat → Application Service → Job/Outbox → Dispatcher → Celery Wor
 8. 长任务、重试、恢复和副作用必须有预算、deadline、幂等键与持久 Checkpoint；Agent Runtime 与 Celery 的重试不能互相冒充。
 9. 不保存模型原始 chain-of-thought；保存用户可见结论、Evidence、Artifact、结构化决策结果和简短 reasoning summary。
 10. PostgreSQL、租户隔离、Secret、输入校验和 CI 作为底线持续生效，但只在阻断 Agent 正确性时进入主线讨论；详细规则留在专项 ADR/文档。
+11. SEC 原始 filing 是外部披露核验依据；PostgreSQL 是系统业务事实源。必须保存 CIK、accession、form、报告期间、抓取时间、官方 URL 与内容哈希，不能把动态网页摘要当作 filing 快照。
+12. 财务事实先锁 company/CIK、accession、`as_of`、period、unit、scale、concept/context，再进入计算或比较；模型不得自行把 fiscal period、calendar period、instant/duration 或修订前后事实混在一起。
+13. 所有派生数值必须由版本化 typed calculator 执行并保存输入 Evidence、公式、舍入和结果；自然语言模型只负责选择/解释，不充当不可审计计算器。
+14. 固定 replay 证明 Runtime/合同，公开 benchmark 证明特定覆盖面，live evaluation 证明固定模型和实时工具的当前能力；三者必须分报，任何 LLM judge 都不能成为唯一硬门禁。
 
 ## 4. 目标 Monorepo 与模块边界
 
@@ -211,10 +242,12 @@ industry-intelligence-platform/
 │  │  │  │  ├─ tools/
 │  │  │  │  ├─ research/
 │  │  │  │  ├─ industry/
+│  │  │  │  ├─ disclosures/          # SEC filer/filing/snapshot/XBRL facts
+│  │  │  │  ├─ financial_verification/ # scope/calculation/reconciliation/monitor
 │  │  │  │  ├─ data_explorer/
 │  │  │  │  ├─ jobs/
 │  │  │  │  └─ evaluation/
-│  │  │  ├─ ports/                # llm/parser/embed/vector/lexical/object/web/data
+│  │  │  ├─ ports/                # llm/parser/embed/vector/lexical/object/web/sec/data
 │  │  │  ├─ adapters/             # 具体供应商实现
 │  │  │  ├─ workflows/            # LangGraph research workflow adapter
 │  │  │  └─ workers/              # Celery app/tasks/beat、dispatcher/reconciler 入口
@@ -234,7 +267,7 @@ industry-intelligence-platform/
 │  ├─ integration/
 │  └─ evaluation/
 ├─ evals/
-│  ├─ datasets/
+│  ├─ datasets/                     # 通用、FinQA/TAT-QA adapter、SEC temporal manifests
 │  ├─ scenarios/                    # Harness 场景、冻结响应与故障配置
 │  └─ reports/                      # 轨迹、结果、Evidence、成本/延迟对比
 ├─ infra/
@@ -267,10 +300,12 @@ knowledge / vector / lexical / evidence → retrieval
 conversation → agent_harness / evidence；简单 CRUD 不进入 Agent loop
 research → agent_harness / retrieval / industry / data_explorer / evidence
 industry → jobs / evidence / connector ports
-evaluation → agent_harness；只读观察 Runtime / conversation / retrieval / research
+disclosures → jobs / files / evidence / SEC ports；不依赖具体 HTTP SDK
+financial_verification → disclosures / retrieval / tools / evidence；不实现第二套 Agent loop
+evaluation → agent_harness；只读观察 Runtime / conversation / retrieval / research / financial_verification
 ```
 
-`research` 不能直接调用 Provider SDK 或具体 Milvus/ES/MinIO 客户端；`conversation` 不能绕开 Runtime 调模型；`evaluation` 不得改变线上回答路径。Harness 的 Replay 只重放冻结的外部边界结果，不宣称模型本身确定。每个 HTTP 请求、Celery task 和并发协程各自拥有独立 SQLAlchemy Session，不能共享 AsyncSession。
+`research` 不能直接调用 Provider SDK 或具体 Milvus/ES/MinIO/SEC HTTP 客户端；`disclosures` 通过 SEC Port 复用统一受控 egress、缓存、限流与快照合同；`financial_verification` 只提供领域服务与 typed Tool，不复制 Retriever、ToolExecutor 或 Runtime。`conversation` 不能绕开 Runtime 调模型；`evaluation` 不得改变线上回答路径。Harness 的 Replay 只重放冻结的外部边界结果，不宣称模型本身确定。每个 HTTP 请求、Celery task 和并发协程各自拥有独立 SQLAlchemy Session，不能共享 AsyncSession。
 
 ## 5. 核心数据模型
 
@@ -348,12 +383,27 @@ Knowledge Base、Document/Chunk/Asset 与检索记录是 Agent Knowledge/RAG 的
 
 ### 5.5 行业数据、Text2SQL 与图表
 
+本节记录 Day 3 已完成的通用行业与 SQL 学习切片；从 Day 5 Step 4 起不再扩张其 Provider 或页面范围。
+
 - `data_sources`、`collection_runs`、`source_items`：公共来源、外部 ID、URL、发布时间、采集时间、内容哈希。
 - `news_items`、`policy_items`、`bidding_items`、`market_snapshots`：领域特有字段，避免把所有内容塞进无约束 JSON。
 - `companies`、`industries`、`metric_observations`。
 - `data_connections`：加密凭据引用、allowlisted schemas/tables、状态。
 - `query_runs`：问题、generated_sql、validated_sql、状态、行数、结果对象、错误。
 - `chart_specs`：query_run_id、chart_type、经过 Schema 校验的 ECharts option。
+
+### 5.6 SEC 披露、财务计算与监控
+
+- `sec_filers`：CIK、规范名称、ticker/exchange 映射、身份状态和官方来源版本；ticker 不是稳定主键。
+- `sec_filer_aliases`：历史名称、ticker、匹配类型、有效时间和解析置信度；歧义必须进入澄清，不能静默猜公司。
+- `sec_filings`：filer、accession、form、filing date、accepted at、report date、primary document、amendment/base filing 关系、官方 URL、抓取时间和状态；`accession` 在来源语义内唯一。
+- `sec_filing_documents`：原始 HTML/iXBRL/XML、附件类型、官方 URL、content hash、MinIO snapshot ref 与 retrieved at；更新创建新快照，不覆盖已用于回答的原件。
+- `sec_xbrl_contexts`：entity、period instant/start/end、dimensions、fiscal year/period、frame、来源文档和 context hash。
+- `sec_xbrl_facts`：taxonomy/concept、label、value、unit、decimals、scale、context、filed、accession、form 与 fact locator；聚合 API 的标准事实和原始 filing 中的 custom tag 必须区分来源。
+- `financial_calculations`：operator/schema version、rounding policy、result/unit、状态和创建 Step；`financial_calculation_inputs` 连接每个输入值与 XBRL/表格/文本 Evidence，禁止只保存最终数字。
+- `disclosure_monitors`：workspace、filer、forms、关注事实/章节、watermark、schedule 和 approval policy；`disclosure_cases` 保存一次新 filing/amendment diff、Evidence、状态与去重键。
+
+`AgentRun`、`ResearchBrief`、Context manifest 和 EvalCase 在 SEC profile 下必须记录 `as_of`、目标 filer/CIK、允许 forms、报告期间与选中的 accession。`latest` 只能是解析后落入 Trace 的显式选择结果，不能作为不可重放的隐式默认值。SEC 是外部披露来源，PostgreSQL 仍是系统业务事实源；MinIO 保存回答时实际使用的不可变原件，Milvus/Elasticsearch 只保存可重建的 filing 文本索引。
 
 ## 6. Agent 执行、API、SSE 与异步一致性契约
 
@@ -378,6 +428,10 @@ Knowledge Base、Document/Chunk/Asset 与检索记录是 Agent Knowledge/RAG 的
 /search/hybrid  /search/web
 /memories  /memories/search
 /research-runs/{id}/events|report|cancel|resume
+/sec/filers/resolve  /sec/filers/{cik}/filings
+/sec/filings/{accession}|documents|facts|sections|diff
+/financial-verifications  /financial-verifications/{id}/report|trace
+/disclosure-monitors  /disclosure-cases
 /data-connections/{id}/tables|test
 /query-runs  /query-runs/{id}/chart
 /industry/items|stats|collection-runs
@@ -422,6 +476,11 @@ ingestion.completed|failed|cancelled
 research.started|plan.created|phase.changed|step.started
 research.source.found|claim.extracted|chart.created|section.delta
 research.checkpoint.saved|completed|failed|cancelled
+
+disclosure.filing.discovered|snapshot.saved|xbrl.normalized|index.ready
+disclosure.verification.scoped|fact.selected|calculation.completed
+disclosure.conflict.detected|report.finalized|monitor.approval_required
+disclosure.case.created|failed
 ```
 
 ### 6.3 文档入库状态和跨存储一致性
@@ -458,7 +517,7 @@ Deep Research 不从“多个角色名字”或“多 Agent”开始。项目使
 | L5 核验与有限修订 | `verify → bounded revise → finalize` | 引用、覆盖、矛盾、质量/成本权衡 | 相对 L0/L2 基线有可测收益 |
 | L6 可选多 Agent | orchestrator-workers / specialist handoff | 上下文隔离、并行、合并冲突 | 收益显著高于延迟、Token 和调试成本 |
 
-L6 不是七天硬指标。Planner、Retriever、Analyst、Writer、Verifier 首先是同一个正式状态图中的节点职责；并行检索是受控并发，也不自动等于多 Agent。评测结论完全可以是“当前不需要多 Agent”。
+L6 不是 Day 1～Day 10 硬指标。Planner、Retriever、Analyst、Writer、Verifier 首先是同一个正式状态图中的节点职责；并行检索是受控并发，也不自动等于多 Agent。评测结论完全可以是“当前不需要多 Agent”。
 
 Agent Runtime 的最小接口语义：
 
@@ -495,7 +554,7 @@ clarify_scope → write_research_brief → plan → research_loop
 
 `ResearchState` 至少包含 schema version、run/scope、plan/current node、pending actions、Evidence/Claim/Artifact refs、预算使用量、step/revise 计数、审批状态、取消标记、stop reason 与脱敏错误摘要。节点成功后保存 Checkpoint。外部副作用遵循“持久化意图/幂等键 → 执行 → 持久化结果”；resume 先检查已有结果。Human-in-the-loop 只用于预算扩展、高成本或不可逆操作、策略规定的冲突，不在普通节点堆形式化审批。
 
-七天映射为：Day 2 完成 L0 与 Runtime/Harness v0；Day 3 完成 L1–L2 和 Tool/Harness v1；Day 4 完成可治理 Short/Long-term Memory、Evidence/Claim 与 L3；Day 5 完成 Agent Knowledge、Dense baseline 与 durable L4；Day 6 完成 Hybrid/Multimodal RAG、Context Engine 与 L5；Day 7 用统一轨迹与 Context Eval 决定是否做一个 L6 对照实验。
+演进映射调整为：Day 2 完成 L0 与 Runtime/Harness v0；Day 3 完成 L1–L2 和 Tool/Harness v1；Day 4 完成可治理 Short/Long-term Memory、Evidence/Claim 与 L3；Day 5 前三步完成 Knowledge 入库底座，后两步以冻结 SEC filing 夹具完成 Dense 查询、typed calculator 与 durable L4；Day 6 接入官方 EDGAR 与 point-in-time 数据合同；Day 7 完成 XBRL + Filing Hybrid Retrieval 和可审计计算；Day 8 完成 SEC Evidence-aware L5、最多一次 bounded revise、监控 HITL 与恢复；Day 9 运行专项 benchmark 和消融；Day 10 只做发布收口。L6 多 Agent 仍不是硬指标，只有 Day 9 证明净收益后才允许单独提案。
 
 ### 6.5 Harness 内的工具边界
 
@@ -505,7 +564,10 @@ clarify_scope → write_research_brief → plan → research_loop
 - 每个 Tool 声明 schema、capability、WorkspaceScope、timeout、budget、side-effect class 和 approval policy；模型只能请求，Harness profile 提供 surface/policy，Runtime 校验并由 ToolExecutor 执行。
 - Web/文件/SQL 返回都按不可信 Observation 处理；只有规范化、授权、记录来源后才能成为 Evidence。
 - 通用 SSRF、上传、Cookie、CORS 与对象存储细节不在本计划重复展开，分别由 `docs/tool-security.md`、安全 ADR 和自动化测试持续约束。
-- 七天内不开放通用 Shell/代码执行 Tool；未来若需要，必须先有真正的 Sandbox、网络/文件权限和独立 ADR。
+- 当前计划不开放通用 Shell/代码执行 Tool；未来若需要，必须先有真正的 Sandbox、网络/文件权限和独立 ADR。
+- SEC read Tool 必须由服务端注入当前 `as_of`、allowed forms、WorkspaceScope、请求预算和 SEC client policy；模型只能提交公司/期间等业务参数，不能覆盖官方 host、User-Agent、缓存、rate limit 或 accession 选择约束。
+- `finance.calculate@v1` 只接受受控运算符、十进制定点值、unit/scale、rounding policy 和 Evidence refs；禁止执行任意 Python、表达式、SQL 或模型生成代码。
+- `monitor.subscribe@v1` 是写 Tool，必须在持久 Approval 后执行，并以 workspace/filer/forms/rule hash 作为幂等边界；查询、计算和 diff 默认只读。
 
 ### 6.6 Agent Memory 与 Context 契约
 
@@ -526,28 +588,60 @@ Memory write 不能由模型一句“请记住”就绕过策略；必须记录�
 
 Memory Eval 至少覆盖：写入准确率、召回 precision/utility、无关或错误记忆污染率、冲突处理、Token 成本、用户修改后生效率和删除后残留率。删除后仍进入 Context 是 P0 回归失败。Memory 与 RAG 的对照实验必须分别报告：Memory 是否改善连续任务和个性化，RAG 是否改善外部事实与引用；不能只看最终答案总分。
 
-### 6.7 Agent Knowledge/RAG 与 Context Engineering
+### 6.7 Agent Knowledge/RAG 与 SEC 双通道 Context
 
-RAG 是 Agent 的核心 Context 能力，不是独立问答外挂。它负责在有限模型窗口内为当前 Step 选择、压缩并组织外部知识；Tool loop 决定何时检索，Knowledge/RAG 负责如何取得可靠候选，Context Compiler 决定哪些 Evidence 真正进入模型。
+RAG 是 Agent 的一等 Context 能力，但 SEC 财务事实核验不能退化为“把 filing 切块后聊天”。正式 profile 同时使用两条可独立评分的证据通道：
 
 ```text
-问题规范化
-→ workspace/KB 权限过滤
-→ Query Embedding 与 BM25 并行召回
-→ RRF 融合
-→ Rerank
-→ 去重与多样性控制
-→ PostgreSQL 重新加载并授权
-→ 关联图片/表格 Evidence
-→ 上下文预算
-→ LLM/VLM
-→ 引用校验
-→ SSE 回答
+结构化通道：CIK + accession + concept + context + unit + period
+→ SEC XBRL API / raw iXBRL fact → PostgreSQL 规范化 → typed fact Evidence
+
+叙述通道：锁定 accession 的 filing HTML/iXBRL/表格
+→ Dense + BM25 → RRF → rerank → PostgreSQL 重新加载
+→ section/table/text Evidence
+
+两路 Evidence → unit/scale/period/amendment reconcile
+→ Context budget → calculator / model → Claim/Citation verifier
 ```
 
-初始实验参数不是永久常量：Dense Top 40、BM25 Top 40、RRF `k=60`、Rerank Top 20、最终 6～10 个 Chunk、最多 3 张图片。任何参数变化必须由评测报告支持。
+结构化通道优先处理标准、可确定定位的财务事实；叙述通道补足 MD&A、Risk Factors、Notes、表格语义、自定义标签和脚注。两者发生冲突时不得按“结构化一定正确”或“文本更新”静默选边，必须保留 accession/context、形成 `conflict` 并说明采用或拒绝某一事实的规则。
 
-RAG 安排在 Day 6 是依赖顺序：它需要 Day 3 的 Tool/Observation、Day 4 的 Memory/Evidence/Claim 与 Eval、Day 5 的版本化 Knowledge/Asset；不是因为 RAG 次要。完成后它与 Tool、Memory 一起成为 Harness profile 的一等 Context 能力。
+SEC `companyfacts/companyconcept` 聚合数据只覆盖其官方合同支持的 XBRL 事实，不代表 custom tag、叙述脚注或原始 filing 全覆盖。`frames` 只可用于候选发现或横截面对照，不能作为精确 fiscal period 比较的最终上下文；最终核验必须锁定 accession 和原始 context。初始 Dense/BM25/RRF/rerank 参数仍是实验值，任何永久参数必须由 SEC 专项数据集报告支持。
+
+### 6.8 SEC Tool surface、point-in-time 与正式 Agent loop
+
+MVP 的 typed Tool surface 固定为：
+
+| Tool | 只读/写 | 主要输出 | 关键拒绝条件 |
+|---|---|---|---|
+| `sec.resolve_filer@v1` | 只读 | CIK、规范公司名、ticker/alias 候选和匹配依据 | 多候选或低置信时返回 ambiguous，不自动选第一个 |
+| `sec.list_filings@v1` | 只读 | 截至 `as_of` 可见的 form/accession/accepted/report date 列表 | cutoff 后 filing、form 不允许或 amendment 关系不明 |
+| `sec.get_xbrl_facts@v1` | 只读 | concept/context/unit/period/value/accession/fact locator | 精确 context 不匹配、unit/period 歧义或仅有 cutoff 后事实 |
+| `sec.search_filing@v1` | 只读 | 锁定 accession 内的 Hybrid Retrieval candidates | 未锁 accession、快照未就绪或跨 Workspace/版本 |
+| `sec.read_filing_section@v1` | 只读 | section/table/text Evidence 与原始 locator | section/locator 不存在或快照 hash 不匹配 |
+| `finance.calculate@v1` | 只读 | operator、输入 Evidence、公式、rounding、result/unit | 任意代码、无来源输入、unit 不兼容或除零 |
+| `sec.diff_filings@v1` | 只读 | 两个已锁 accession 的事实/章节变化及 Evidence | 公司/期间不可比、base/amendment 关系不明 |
+| `monitor.subscribe@v1` | 写 | 持久 monitor、schedule、watermark 与 audit ref | 未审批、重复订阅、无权限或范围过宽 |
+
+正式执行循环为：
+
+```text
+确认问题与输出边界
+→ resolve filer/CIK
+→ 锁定 as_of、form、report period、accession 与 amendment policy
+→ 将待核验陈述拆成原子 Claim、所需事实和公式
+→ 并行调用 XBRL facts 与 Filing RAG read tools
+→ typed calculator 执行派生计算
+→ reconcile company/period/unit/scale/context/source
+→ Evidence-aware verifier
+→ 最多一次补检索或 revise
+→ verified / partial / conflict / insufficient_evidence
+→ 可选持久审批后创建 monitor
+```
+
+Gold trajectory 不要求模型走唯一精确序列，而是定义 required milestones/tools、allowed/forbidden actions、参数约束、部分顺序、调用/成本预算、stop reason 和最终数据库状态。模型可以用等价顺序完成只读检索，但必须先解析 filer 并锁 accession，才能选择事实、计算和引用；任何未授权写 Tool、cutoff 后信息或无 Evidence 数值都直接失败。
+
+SEC Adapter 只在服务端运行。所有请求使用包含应用标识和联系邮箱的 `User-Agent`，所有进程合计限制在官方 Fair Access 上限以内并预留余量；启用缓存、条件请求、429/5xx 有界退避和 nightly bulk 优先策略。`data.sec.gov` 不支持浏览器 CORS，因此前端不得直连。每个 live 结果必须落原始响应或 filing snapshot、官方 URL、retrieved at、content hash 和 Adapter version，才能进入可重放 Eval。
 
 ## 7. 每日固定学习方式
 
@@ -560,11 +654,11 @@ RAG 安排在 Day 6 是依赖顺序：它需要 Day 3 的 Tool/Observation、Day
 5. 60 分钟：运行确定性规则与小型数据集，比较结果、轨迹、Evidence、Token、费用和延迟；LLM-as-judge 只能作为补充。
 6. 30 分钟：记录“保留/回退/继续实验”的结论，更新 feature matrix、ADR 和 `learning-log/day-N.md`。
 
-每天的代码时间遵循第 1 节 85/15 权重；85% 的 Agent 核心时间在 Runtime/Harness、Tool、Memory、Knowledge/RAG、Deep Research 与 Eval 之间按当天依赖顺序分配，不再按重要性分层。学习不是照抄 Agent 框架示例，也不是通过增加 Agent 数量制造进展。每个关键增量必须先说清输入、State 变化、Event、终止条件、失败恢复与评分方式，再编码。
+从 Day 5 Step 4 起，每个切片必须同时预留领域实现、确定性评测和可靠性/安全证据，不能先写完整功能再到 Day 9 临时补题。学习不是照抄 Agent 框架示例，也不是通过增加 Agent 数量制造进展。每个关键增量必须先说清输入、State 变化、Event、终止条件、失败恢复、point-in-time 边界与评分方式，再编码。
 
 每天至少保存三类证据：一条成功 Trace、一条失败或恢复 Trace、一份可比较 Eval 报告。只展示最终答案、UI 动画或一次偶然成功不能标记完成。
 
-Scenario/Eval 数据集按 Day 2 ≥5、Day 3 ≥10、Day 4 ≥20、Day 5 ≥30、Day 6 ≥40、Day 7 ≥50 逐日累计；Day 7 只补齐和冻结发布基线，不从零重做评测。复杂前端可由独立前端实现工作流依据 typed contract 并行交付，其编码工时不计入学习者的核心概念时段；但页面能力、交互状态和真实数据链路仍属于正式交付，学习者必须能借助 Workbench 解释状态、事件、provenance、恢复和评分，不能用 Mock 可视化代替理解。
+Day 4 已冻结的 50 条通用 Scenario 继续证明 Runtime/Memory/Evidence/L3 回归，但不能证明金融能力。新增数据集独立版本化：Day 5 建 `sec-fixture-v1`；Day 6 建 `sec-source-v1`；Day 7 建 `sec-tool-v1`；Day 8 建 `sec-verification-v1`；Day 9 冻结 `sec-temporal-v1`、中英配对集和公开 benchmark manifests；Day 10 只补跑发生版本变化的配置。固定 CI quick suite、离线 release suite 与定时 live suite 分开报告。复杂前端可以按 typed contract 并行实现，但页面、真实数据链路和 Workbench 反查仍属于正式交付，不能用 Mock 可视化代替理解。
 
 ## 8. Day 1：需求冻结、工程地基、身份与工作空间
 
@@ -678,7 +772,7 @@ Agent Runtime v0、`Scenario/EvalCase v1`、Fake Model、Harness CLI、DirectAns
 2. Runtime 实现 L1 单工具与 L2 有界循环；每轮只接受结构化 action，执行前验证，Observation 归一化后再注入下一次模型 Context。
 3. 冻结所有停止条件：final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error、no_progress；禁止无限自省。
 4. Harness 增加 Fake Tool、参数 matcher、timeout/error/duplicate result 注入和 trajectory scorer；Scenario 数据集累计不少于 10 条，并输出“为什么调用/为什么停止”的报告。
-5. 真实接通一个 Web Search/行业来源工具和一个 Text2SQL 链路；知识检索先保留 Tool 契约，Day 5/6 再接真实私有数据。
+5. 真实接通一个 Web Search/行业来源工具和一个 Text2SQL 链路；知识检索先保留 Tool 契约，Day 5 Step 4 再接正式私有数据与 Dense 查询。
 6. Text2SQL 由工具内部完成 schema discovery、只读 AST 校验、预算、表格 Artifact 和受校验 Chart Artifact；模型不能拿到数据库连接或执行任意 SQL。
 7. 外部结果统一转为带来源、时间、locator、content hash 的 Observation/EvidenceCandidate；只有 Day 4 的 Evidence Normalizer 才能将其提升为 Evidence。
 8. Tool/Skill 的差异写入文档：Tool 是一次 typed capability；Skill 是由 instructions、可用 Tools、Context 策略和输出契约组成的 Harness 配置，不是隐式任意代码。
@@ -713,7 +807,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 11. Day 4：Agent Memory、Evidence 与 Deep Research L3
 
-> 执行状态（2026-08-22）：Day 4 五个纵向步骤、正式 Trace/Eval/DoD 复核与项目所有者授权收口均已完成。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 通过全部 7 个适用 Job，因此 D4-01～D4-07 与步骤 1～5 统一为 `complete`，允许进入 Day 5。核心 Domain/Application/Research workflow 85% 覆盖率仍作为已说明原因、风险、缓解和复核人的 Day 7 前债务登记，必须在 Day 7 总门禁前达到 90%；它不是永久豁免。详细证据、复盘和限制见 [Day 4 学习日志](learning-log/day-4.md) 与 [能力矩阵](feature-matrix.md)。本次只同步已发生的关闭事实，不改变 Day 4～Day 7 的冻结范围、架构边界或验收门禁。
+> 执行状态（2026-08-22）：Day 4 五个纵向步骤、正式 Trace/Eval/DoD 复核与项目所有者授权收口均已完成。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 通过全部 7 个适用 Job，因此 D4-01～D4-07 与步骤 1～5 统一为 `complete`，允许进入 Day 5。核心 Domain/Application/Research workflow 85% 覆盖率是当时登记的 Day 7 前债务；计划 2.0.0 将最终发布收口延至 Day 10，但仍必须达到 90%，它不是永久豁免。详细证据、复盘和限制见 [Day 4 学习日志](learning-log/day-4.md) 与 [能力矩阵](feature-matrix.md)。
 
 ### 学习主题
 
@@ -730,7 +824,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 4. 实现 Memory 召回与治理：按目标、scope、时效、冲突、敏感度和预算检索；记录实际注入，支持 feedback、停用、修改、过期和删除。
 5. 建立独立 Memory Scorer：write accuracy、retrieval precision/utility、污染率、冲突处理、Token 成本和 deletion residual；用户修改/删除后的下一 Run 必须立即生效。
 6. 实现问题澄清与 `ResearchBrief`：原始问题、确认范围、排除项、完成标准和预算显式保存，不能让 Planner 静默改题。
-7. 实现 L3 Evidence Ledger：Observation/EvidenceCandidate 经授权、规范化、去重和 locator 校验后成为 Evidence；Claim 标注 support/refute/uncertain、coverage 与 conflict，并冻结 Day 6 Verifier 将消费的 typed input 与规则评分口径。
+7. 实现 L3 Evidence Ledger：Observation/EvidenceCandidate 经授权、规范化、去重和 locator 校验后成为 Evidence；Claim 标注 support/refute/uncertain、coverage 与 conflict，并冻结后续 Verifier 将消费的 typed input 与规则评分口径。
 8. 复用 Day 3 Runtime/Harness，在 LangGraph 内实现唯一正式 typed Research L3 graph；节点调用 Runtime/Domain Port，不直接调用 Provider SDK、不复制 tool loop，当天只形成带 Evidence/Claim 的可解释草稿。
 9. Harness 增加 Memory 候选/冲突/删除、Research scope、Evidence 缺失/矛盾和预算场景；Memory Scorer 与 Research Scorer 分开报告，也计算 Memory 对研究质量和 Context 成本的影响。
 10. 扩展 Agent Learning Workbench：完整展示 Memory 候选、确认、召回、冲突、修改、停用、删除和实际注入；同时展示 Plan–Action–Observation–Evidence–Claim 图、coverage 与不确定项。
@@ -756,7 +850,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 - Memory 的写入原因、来源、scope、实际注入、用户修改/删除都可追踪；删除后后续 Run 不再引用。
 - Tool surface 与策略来自 Harness profile，Tool Call 由 Runtime 校验并经 ToolExecutor 执行；所有关键 Claim 关联 Evidence，scope、coverage 与未确定项可解释。
 - Memory 与 Evidence 学习界面能回答“什么被写入、为何召回、什么进入 Context、哪些 Claim 由哪些来源支持”。
-- Durable Checkpoint、HITL、Verifier 与 bounded revise 属于 Day 5/6 后续成熟度，不得用当天的普通状态持久化冒充完成。
+- Durable Checkpoint/HITL 属于 Day 5，Verifier 与 bounded revise 属于 Day 8 后续成熟度，不得用当天的普通状态持久化冒充完成。
 
 ### 复盘题
 
@@ -764,25 +858,28 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 12. Day 5：Agent Knowledge 与 Durable Research L4
 
+> 执行状态（2026-08-25）：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，最新提交 `4daa028` 的分支 CI `32796096690` 已通过；因尚未合入 `main`、没有合并提交 CI、Day 5 DoD 与所有者收口，相关能力统一保持 `implemented_pending_verification` 或 `thin_slice`，不得写成 `complete`。Step 4～5 按本版 SEC 路线重新冻结，仍为 `planned`。详细逐步事实见 [Day 5 学习日志](learning-log/day-5.md)。
+
 ### 学习主题
 
 - 知识库作为 Context Source 与 typed Tool，而不是独立于 Agent 的另一套回答系统。
 - Document/Version/Chunk/Asset/Evidence 的可追溯关系；解析与检索配置版本。
 - 长入库任务的 stage/checkpoint/idempotency，以及 Agent 面对 not-ready/partial/failed 知识的语义。
 - Agent Checkpoint 与入库 stage checkpoint 的共同原则和不同状态语义；Interrupt/Resume、HITL 与幂等副作用。
+- 冻结 SEC filing 夹具如何复用通用 Knowledge 底座，并在 live EDGAR 接入前先验证 accession/period/unit、typed calculator 和财务 Evidence lineage。
 
 ### 实现任务
 
 1. 完成多知识库、文档管理和私有上传；保留完整创建/编辑/删除、上传校验、短签名 URL 与 Workspace 权限交互，通用文件安全由专项合同验收，不占当天 Agent 学习主线。
-2. 上传完成立即创建 Job；解析、OCR/资产抽取、Chunk、Embedding、vector indexing、lexical indexing 和跨存储删除在 Worker 分阶段执行，每阶段可观察、幂等、重试/取消并可由 Reconciler 修复。Day 5 完成两类索引写入才进入 ready，但 Harness 当天只建立 Dense 查询基线；BM25 查询、RRF 与 rerank 在 Day 6 启用。
+2. 上传完成立即创建 Job；解析、OCR/资产抽取、Chunk、Embedding、vector indexing、lexical indexing 和跨存储删除在 Worker 分阶段执行，每阶段可观察、幂等、重试/取消并可由 Reconciler 修复。只有两类索引写入成功才进入 ready；Day 5 Step 4 只启用 Dense 查询，Hybrid Retrieval 在 Day 7 启用。
 3. 定义版本化 `DocumentParser -> ParsedDocument`，用数字 PDF、扫描 PDF、含图片/复杂表格 PDF、TXT/Markdown 的代表性 fixture 验证正式 Adapter。
 4. Document/Version/Chunk/Asset 保留页码、标题、bbox、content hash、parser/chunker/index version，使 ToolResult 可转为可解析 Evidence，并支持旧版本追溯与 active version 切换。
-5. 定义版本化 `EmbeddingProvider` Port/Adapter 与 Fake/contract test，固定 provider/model、dimension、normalization、batch/timeout 和稳定错误；在此基础上实现最小 Dense Top-K baseline、`knowledge_search` Tool 与 `KnowledgeContextSource`。只返回 ready/active 版本和 Evidence-ready locator，Runtime/Harness 不感知 Embedding、Milvus 或对象存储客户端。
-6. 定义 not_ready、no_result、partial_index、dependency_failed、permission_denied 的稳定 Observation；把知识 Tool 加入 Research Harness profile，不修改 Day 4 的 Runtime/Tool loop。
-7. 复用 Day 2 的 Checkpoint envelope/CAS，将 LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，实现 L4 interrupt/resume token、取消和版本映射；Agent Checkpoint 与入库 stage checkpoint 分开建模。
-8. 复用 Day 3 的 Approval/幂等契约，实现持久 `ApprovalRequest/Decision`、副作用账本、allow/deny/timeout、审计和恢复；Worker 终止或重复 resume 不重复 Tool Call、知识写入或其他副作用。
-9. Harness 场景累计不少于 30 条，覆盖入库中断/重复 Job/解析失败/索引不可用/旧版本/删除后查询，以及一次 Research 节点 hard stop、重复 resume、allow/deny 和预算；组合取消竞态与跨刷新/Worker 重启回归在 Day 7 补齐。
-10. 扩展 Agent Learning Workbench：保留完整知识库、文档、页面、Chunk、图片和表格界面；增加入库阶段、版本/locator、Agent 引用关系，以及 Checkpoint/HITL 时间线、状态差异和恢复入口。
+5. Step 4 在现有 Embedding/index-write 基础上实现唯一 Dense Top-K、`knowledge_search` 与 `KnowledgeContextSource`；首个正式数据包使用经许可审核、固定 accession/hash 的 SEC `10-K/10-Q` fixture。只返回 ready/active 版本和 Evidence-ready filing locator，Runtime/Harness 不感知 Embedding、Milvus 或对象存储客户端。
+6. Step 4 定义版本化 `FinancialScope` 与 `finance.calculate@v1`：至少锁 CIK、accession、form、report period、`as_of`、unit/scale；计算器只接受受控 Decimal 运算和 Evidence refs。定义 not_ready、no_result、partial_index、dependency_failed、permission_denied、ambiguous_filer、period_mismatch 的稳定 Observation。
+7. Step 4 把 Knowledge/Calculator Tool 加入同一 Research Harness profile，使一个冻结 filing 问题形成“Dense candidate → Evidence → typed calculation → Claim/L3 draft”链路；不得修改 Day 4 Runtime/Tool loop，也不得把 fixture/replay 冒充 live SEC 质量。
+8. Step 5 复用 Day 2 Checkpoint envelope/CAS，将带 `FinancialScope` 的 LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，实现 L4 interrupt/resume、取消和版本映射；Agent Checkpoint 与 ingestion stage checkpoint 分开建模。
+9. Step 5 复用 Day 3 Approval/幂等契约，实现持久 `ApprovalRequest/Decision`、副作用账本、allow/deny/timeout、审计和恢复；仅对公司/期间歧义确认或未来写 Tool 建立真实 interrupt，Worker 终止或重复 resume 不重复 Tool Call、计算或 Artifact。
+10. 新增 `sec-fixture-v1` 场景与 Workbench：覆盖 accession/period/unit、计算、无答案、索引失败、旧版本、节点 hard stop、重复 resume/decision 和预算；展示 filing locator、计算输入/公式、Checkpoint/HITL 和恢复位置。Day 4 的 50 条通用 Scenario 原样保留，不能用其数量替代新领域覆盖。
 
 ### 测试
 
@@ -790,7 +887,9 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 - Worker 各主要阶段故障、重启、重复投递、取消；不产生重复 Chunk/索引/Artifact。
 - Knowledge Tool 的 workspace/version/status 过滤、Evidence locator 与 dependency failure。
 - Embedding Provider 的维度/归一化/批处理/超时/版本契约，以及同输入在确定 Fake 下的可重复索引记录。
-- Research 不改 Runtime/graph 即可消费新 Tool；知识未就绪或无结果时不伪造 Evidence。
+- Research 不改 Runtime/graph 即可消费 Knowledge/Calculator Tool；知识未就绪、无结果、公司或期间歧义时不伪造 Evidence。
+- 每个 SEC fixture 固定 CIK/accession/form/report period/`as_of`/hash；错误 accession、cutoff 后 fixture、unit/scale 不兼容和无 Evidence 计算全部拒绝。
+- calculator 的公式、Decimal 输入、rounding、unit 和结果可确定重放；模型输出数字不能绕过 Tool 成为 verified Claim。
 - 文档删除/新版本后，旧 Evidence 可追溯但不会被新 Run 当作 active Context。
 - Research 主要节点 hard stop 后从最后成功 Checkpoint 恢复；重复 resume、allow/deny/timeout 和取消不重复副作用。
 - LangGraph state 与 Checkpoint schema/version 映射不兼容时明确拒绝或迁移，不使用 Trace 或入库 stage 状态冒充 Agent Checkpoint。
@@ -798,131 +897,276 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ### 当日产物
 
-完整知识库/文档界面、可观察入库流水线、Knowledge Tool/Context Source、Dense baseline、版本化 Evidence locator、Deep Research L4、Checkpoint/HITL 时间线、≥30 条累计 Scenario、私有知识与恢复对照 Eval、`docs/ingestion-state-machine.md`、Checkpoint 契约、Parser fixture、`learning-log/day-5.md`。
+完整知识库/文档界面、可观察入库流水线、SEC fixture 数据包、Knowledge Tool/Context Source、typed calculator、Dense baseline、版本化 filing Evidence locator、Deep Research L4、Checkpoint/HITL 时间线、`sec-fixture-v1` 与恢复对照 Eval、`docs/ingestion-state-machine.md`、Checkpoint 契约、Parser fixture、`learning-log/day-5.md`。
 
 ### 验收门禁
 
-- 代表性文档进入 ready，Research 通过同一 Harness/Runtime 检索并引用真实页码/Chunk/Asset。
+- 代表性文档进入 ready；固定 SEC filing fixture 通过同一 Harness/Runtime 检索并引用真实 accession/section/page/Chunk/Asset。
 - 上传不等待解析，Worker 强制中断后恢复或安全重试，失败状态对 Agent 与用户都可解释。
-- 对照报告证明加入私有知识带来的 Evidence/质量变化；不能只证明“向量库返回了结果”。
-- Research 强制中断后可从版本化 Checkpoint 恢复；allow/deny、重复 resume、取消和预算真实生效，重复副作用数为 0；跨刷新与 Worker 重启的组合验收在 Day 7 完成。
-- Workbench 能沿“文档版本 → Chunk/Asset → Evidence locator → Research Step/Checkpoint”导航，而不是只展示状态标签。
+- 对照报告证明加入 filing Evidence 与 typed calculator 后的事实/计算变化；不能只证明“向量库返回了结果”或“模型给出了相同数字”。
+- Research 强制中断后可从版本化 Checkpoint 恢复；allow/deny、重复 resume、取消和预算真实生效，重复副作用数为 0；跨刷新与 Worker 重启的组合验收在 Day 8 完成，并在 Day 10 复跑发布回归。
+- Workbench 能沿“CIK/accession → 文档版本 → Chunk/Asset → Evidence/计算输入 → Research Step/Checkpoint”导航，而不是只展示状态标签。
 
 ### 复盘题
 
-知识库是 Tool、Context Source 还是 Memory？Agent Checkpoint 与入库 stage checkpoint 为什么不能共用一个状态模型？为什么 Runtime 不应知道 Milvus？Agent 如何区分 no result、not ready 和 dependency failed？
+知识库是 Tool、Context Source 还是 Memory？Agent Checkpoint 与 ingestion stage checkpoint 为什么不能共用一个状态模型？为什么 Runtime 不应知道 Milvus？冻结 SEC fixture 能证明哪些合同，又为什么不能证明 live EDGAR 或模型质量？
 
-## 13. Day 6：Agent Context Engine、Hybrid RAG 与 Research L5
+## 13. Day 6：SEC 官方披露数据底座与 Point-in-Time 合同
 
 ### 学习主题
 
-- Retrieval 与 Agent Context Compiler 的边界；检索候选不等于最终模型上下文。
-- Memory、Tool Observation 与 RAG Evidence 的所有权、时效、冲突和 Context 预算协调。
-- Dense/BM25/RRF/rerank、Evidence budget、引用与正确拒答。
-- 文本、表格、图片如何成为统一 Evidence/Artifact，并参与 Research Eval。
-- Verifier 的可判定标准、bounded revise 与 complete/partial/uncertain 报告语义。
+- CIK、ticker、公司名称、accession、form、filing date、accepted at 与 report period 的不同语义。
+- SEC submissions、XBRL 聚合 API、原始 filing/iXBRL 和 nightly bulk 的覆盖边界。
+- 外部披露权威、系统业务事实源、不可变快照与派生索引之间的关系。
+- Fair Access、服务端 User-Agent、缓存、限流、退避和来源使用条款。
+- `as_of`、amendment 和“当时可见信息”如何进入数据模型、Tool 参数与 Eval。
 
 ### 实现任务
 
-1. 复用 Day 5 的 Dense baseline，新增 BM25、RRF 与可插拔 reranker，并统一各层 Retrieval Trace；不建立第二套 Dense 链路，也不把调试分数混入用户答案。
-2. 实现 `ContextCompiler` v2：合并 system/instructions、会话摘要、Memory、Tool Observation、Evidence 与 Artifact refs，按来源/多样性/Token 预算裁剪。
-3. 检索强制过滤 Workspace、KB、ready/active version，结果回 PG 二次加载；这些是 Tool/Context Source 内部职责，不散落在 Prompt。
-4. 实现 Query rewrite/分解的可对照策略；原始用户目标始终保留，改写结果和收益进入 Trace/Eval。
-5. 实现 Evidence gate：支持度不足或冲突未解决时拒答/标 uncertain；Citation 必须指向真实 Evidence locator，生成后做结构校验。
-6. 将图片/表格 Asset 作为多模态 Evidence 输入 VLM；Context manifest 记录使用的 Asset 版本和预算，不把整个文档无界塞入模型。
-7. 实现 L5 Verifier：按 Claim 支持度、引用可解析性、coverage、conflict 和未决问题评分；`verify → bounded revise → finalize` 受 revise/budget/deadline 限制，输出 complete/partial/uncertain Report。
-8. 从 Day 4/5 数据集累积并补齐不少于 40 条 Agent Scenario，其中冻结至少 20 条 RAG 子集：可回答、无答案、表格、图片和多源冲突；分别评分 retrieval、evidence、final、trajectory 与 runtime recovery。
-9. Harness 完成 RAG 专项对照：no-context、Memory-only、Dense、Hybrid、Memory+Hybrid，以及 Direct Answer/Research profile；把 Day 3 的 Web/industry/sql 与 Day 5 knowledge 组合进受预算控制的 profile，冻结结果供 Day 7 聚合，Runtime 与 graph 保持不变。
-10. 扩展 Agent Learning Workbench：完整展示 query rewrite、Dense/BM25 排名、RRF/rerank、过滤/裁剪原因、Memory 冲突、Context manifest、Evidence→Claim→Citation 链，以及 Verifier/revise/report 时间线；无净收益的复杂策略必须可视化回退。
+1. 完成 SEC 来源与许可/使用边界复核，接受 [ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)；MVP 只启用 SEC 官方 host、`10-K`、`10-Q`、`10-K/A`，`10-Q/A` 仅复用同一合同。
+2. 建立 `disclosures` bounded context 和 Alembic migration：`sec_filers`、aliases、filings、filing documents/snapshots、XBRL contexts/facts；不复制现有 Knowledge、File、Job、Evidence 或 Tool 模型。
+3. 实现服务端 `SecEdgarPort` 与 Adapter：合规 User-Agent、全进程速率预算、缓存、条件请求、429/5xx 有界退避、响应大小/类型限制、超时和稳定错误。
+4. 实现 `sec.resolve_filer@v1` 与 `sec.list_filings@v1`；ticker/名称只产生候选，最终以 CIK 为身份；多候选、历史名称和 form/amendment 歧义必须澄清。
+5. 下载并保存原始 filing HTML/iXBRL、primary document 与必要附件；记录官方 URL、retrieved at、content hash、accession 和 source version，MinIO 快照不可被后续同步覆盖。
+6. 实现 `sec.get_xbrl_facts@v1`：规范 concept、context、unit、decimals/scale、instant/duration、dimensions、filed/accession；明确标记数据来自聚合 API 还是原始 iXBRL。
+7. 将 filing snapshot 送入现有 Document/Version/Chunk/Asset/双索引链；相同 accession/hash 幂等，相同 accession 的新内容进入异常审计而不是静默覆盖。
+8. 实现 `sec.search_filing@v1` 与 `sec.read_filing_section@v1` 的只读合同和 readiness；Day 6 允许固定 accession 内的 Dense baseline，不提前声明 Hybrid 或最终 Verifier。
+9. 扩展 Workbench 的 Filer/Filings/Snapshot/XBRL 面板，能够从 CIK 导航到 accession、原始文档、fact context 和入库版本；浏览器不直连 `data.sec.gov`。
+10. 建立 `sec-source-v1` 固定场景：身份歧义、amendment、cutoff 后 filing、自定义 tag、unit/period 冲突、429、损坏快照、重复同步和跨 Workspace 访问。
 
 ### 测试
 
-- RRF、去重/多样性、过滤、active version 与 Context budget 的确定性测试。
-- 每个 Citation/Claim 可反查 Evidence；索引重建和文档版本变化不产生悬空活跃引用。
-- 不可信文档不能改变 Tool/Scope/Budget；这些约束由可信 Runtime Context 和 Harness profile 决定。
-- no answer、冲突、图片、表格和 Tool failure 场景；固定数据/配置/冻结响应使回归可解释。
-- Memory 与 RAG 事实冲突、过期 Memory、新文档覆盖旧事实和 Context budget 竞争；输出必须保留来源并显式处理不确定性。
-- 比较报告同时呈现 Recall/MRR、引用支持度、任务完成率、Token/费用/延迟，不能只优化单一检索分数。
-- Verifier 对 support/refute/uncertain、coverage、conflict 和最大 revise 的判定可重复；partial/uncertain 不能被 UI 或 finalizer 伪装成 complete。
-- Retrieval/Context/Research 可视化使用同一 Trace/manifest，能从最终 Claim 反查检索候选、裁剪决定、Evidence 与 Citation。
+- CIK/ticker/name 解析、form allowlist、amendment/base 关系和 `as_of` 过滤的领域测试。
+- SEC client 的 User-Agent、速率预算、缓存、退避、超时、响应预算、失败分类和无浏览器 CORS 依赖合同。
+- 原始 filing/XBRL fixture 的解析、hash、重复同步、partial failure、Worker 重启和对账。
+- XBRL instant/duration、unit/scale、dimensions、standard/custom concept 与错误 context 负向测试。
+- filing snapshot → Knowledge version → Evidence candidate 的真实 PostgreSQL/MinIO/Milvus/Elasticsearch 集成。
+- 官方 live smoke 与冻结 replay 分开运行；PR CI 不访问实时 SEC，也不把 replay 写成 live 数据质量成功。
 
 ### 当日产物
 
-Context Compiler v2、Hybrid Retrieval、端到端多模态 Evidence、Deep Research L5、Verifier/bounded revise、complete/partial/uncertain Report、≥40 条累计 Agent Scenario、统一 Memory/RAG 数据集、Memory/RAG 消融与策略对照报告、完整检索/Context/Citation/Report Workbench、`docs/retrieval-design.md`、`learning-log/day-6.md`。
+SEC 来源复核、ADR 0007、`disclosures` 模块、迁移、EDGAR Adapter、五个只读 SEC Tool、原始 filing/XBRL 快照链、Filer/Filings Workbench、`sec-source-v1` 数据集与来源可靠性报告、`learning-log/day-6.md`。
 
 ### 验收门禁
 
-- 小型数据集记录 Recall@5/MRR@10 基线；Citation 可解析率 100%，跨 Workspace 召回 0。
-- 无答案正确拒答率 ≥ 0.90；至少一条图片和一条表格任务形成真实 Evidence→Claim→Artifact 闭环。
-- Research 接入 RAG 后相对 Day 4 基线的质量、成本和延迟变化有报告；参数选择来自实验而非感觉。
-- 报告能分别回答 Memory、Dense、Hybrid 和组合 Context 是否改善任务；RAG 虽在 Day 6 学习，仍按 P0 Agent 核心能力验收。
-- L5 相对 L3/L4 的 Claim 支持、覆盖、矛盾处理和报告质量有可测净收益；若无收益则回退，不因流程更复杂而强行保留。
+- 一个公司可从名称/ticker 解析到明确 CIK，并锁定截至 `as_of` 的正确 form/accession；歧义时不猜测。
+- 每个 XBRL fact 和文本 Evidence 可反查 accession、context/section、unit/period、官方 URL、retrieved at 和 snapshot hash。
+- cutoff 后 filing 进入 Context 的数量为 0；错误公司、form 或 accession 在确定性集上为 0。
+- SEC 限流/429/依赖失败不伪装成 no result；重复同步不产生重复 filing、snapshot、fact 或索引。
+- Day 6 只证明数据合同和只读 Tool，不提前声明财务计算、Hybrid Retrieval、L5 或中文 Agent 已完成。
 
 ### 复盘题
 
-Memory、Retrieval result、Evidence 和 LLM Context 有何不同？冲突时信谁、如何保留 provenance？错误来自召回、Context 编译、推理、Verifier 还是引用？bounded revise 为什么不能无限继续？
+为什么 ticker 不能作为稳定身份？为什么 companyfacts 不能替代原始 filing？为什么 frames 不能作为精确 fiscal period 核验的最终依据？`as_of` 应在哪些层强制执行？
 
-## 14. Day 7：Agent Eval、演进决策与完整交付
+## 14. Day 7：Filing Hybrid Retrieval、财务计算与核对
 
 ### 学习主题
 
-- Offline/online Eval、trajectory grading、数据集版本与基线比较。
-- Agent 故障模型、恢复正确性、HITL、成本/延迟/质量权衡。
-- Runtime/Harness/Prompt/Model/Tool 版本如何进入 Trace、回归与发布门禁。
-- 学习型可视化如何从正式 Event/Trace/Manifest 解释 Agent，而不是成为第二套事实源。
+- 结构化 XBRL 与 Filing 文本/表格 RAG 的互补边界。
+- 财务 concept、context、period、unit、scale、rounding、dimension 和 amendment 的核对顺序。
+- 检索候选、Evidence、calculator input、Claim 与 Citation 的不同语义。
+- 原子 Claim 分解和部分顺序 trajectory，为什么不要求唯一精确工具序列。
+- 中文问题、英文披露证据与双语输出一致性。
 
 ### 实现任务
 
-1. 将 Day 2 的 `Scenario/EvalCase v1` 定稿为 release schema，冻结 case/dataset、runtime/harness/model/prompt/tool/context version、budget、trace、artifact、scores、人工备注和向后兼容策略。
-2. 从逐日 Scenario 补齐到至少 50 条，覆盖直接回答、工具选择、Memory 写入/召回/冲突/遗忘、Text2SQL、Research L3/L4/L5、私有知识、RAG、多模态、审批、取消、恢复和故障。
-3. 组合 Day 3～6 的 Scorer：任务完成、Tool 选择/参数、Memory precision/utility/污染/删除残留、Evidence 支持、引用解析、stop reason、恢复/副作用、Token/费用/延迟；LLM judge 仅作辅助。
-4. 聚合逐日演进结果：L0/L2/L3/L4/L5、无 Memory/Memory，以及 Day 6 已冻结的无 RAG/Dense/Hybrid/Memory+Hybrid；只补跑版本发生变化的配置。根据净收益决定是否进入后续 L6 specialist/handoff 实验；如有余量，仅做 time-boxed 对照，否则明确冻结为单图。
-5. 在逐日 fault scenarios 上补齐 release fault suite：Provider timeout/限流、Tool failure、Worker hard stop、重复 resume、Checkpoint schema 不兼容、跨模块依赖不可用和取消竞态。
-6. 完成 HITL 发布验收：高成本/副作用 Tool 暂停，浏览器刷新、Worker 重启后仍可 approve/deny/timeout；重复 decision 幂等，审批事实与结果进入 Trace。
-7. 统一 Agent Learning Workbench：Run/Context、Tool、Memory、Evidence/Claim、Knowledge locator、Checkpoint/HITL、Retrieval/Citation 与 Report 面板保持完整交互、关联导航和真实刷新恢复；复杂前端由正式契约驱动，不减少学习内容。
-8. 用 OpenTelemetry/结构化日志串起 request/job/run/step/tool/evidence；聚合已有 Trace，完成 Token、费用、延迟、错误、Context 裁剪和恢复成功率面板，不在当天另建重叠观测栈。
-9. CI 运行确定性 Harness 快速集与离线回归；付费/慢模型评测作为受控任务。保留 format、type、migration、contract、secret scan 和关键 E2E；通用安全复用全局 DoD，当天重点验证 Tool scope/approval、Context/Secret 隔离和零跨租户泄露。
-10. 完成一键本地演示、Runbook 和 Agent evolution/evaluation 报告，更新并冻结 Runtime/Harness/Memory/Research/RAG 文档与策略回退决定。
+1. 在 Day 6 唯一 Dense 链路上启用 filing BM25、RRF、可插拔 reranker、去重和 section/table 多样性；检索始终锁 CIK/accession，不进行全网“相似文档”猜测。
+2. 建立 SEC locator 判别联合：filing text/table/section 和 XBRL fact 都能表达 accession、document、section/context、period、unit、dimensions、content hash 与来源版本。
+3. 实现 Financial Context Compiler：按原始问题、`FinancialScope`、XBRL facts、Filing Evidence、Memory、Tool Observation 和 Token 预算生成 manifest；cutoff 后、错误 accession 或不可比较 unit 的候选必须有排除原因。
+4. 完成 `finance.calculate@v1`：Decimal 运算、受控 operator、比例/百分比/变化率、rounding 与 unit propagation；保存公式和输入 Evidence lineage，禁止任意代码。
+5. 实现 reconciliation service：company、accession、form、fiscal period、instant/duration、unit、scale、dimensions、standard/custom concept 和来源一致性；冲突以 typed result 返回。
+6. 实现 `sec.diff_filings@v1`：同公司可比期间、base/amendment 或相邻 filing 的 fact/section diff；不可比范围返回明确理由。
+7. 将 Research L4 profile 专门化为 `scope → resolve → select filing → decompose claims → structured+narrative retrieval → calculate → reconcile → draft`，复用唯一 Runtime、ToolExecutor、Checkpoint 与 Evidence/Claim 账本。
+8. 支持中文提问和中文解释，但公司、指标、数字、公式和 Evidence 不经自由翻译改写；报告同时保留原始英文片段、标准 concept 和中文标签。
+9. 建立 `sec-tool-v1` 场景与 A0/A1/A2 对照：oracle/full context、纯 Filing Hybrid RAG、RAG + XBRL/SEC tools + calculator；分别报告简单事实、计算、跨章节、修订和无答案。
+10. 扩展 Workbench：显示 query rewrite、Dense/BM25/RRF/rerank、XBRL fact candidates、Context 排除、calculator trace、reconciliation 和 Citation 反查。
+
+### 测试
+
+- Hybrid ranking、filter、active snapshot、section diversity 和 Context budget 的确定性测试。
+- 财务公式、百分比/比例、负数、零分母、unit/scale、rounding 和输入 Evidence 完整性测试。
+- fiscal/calendar、instant/duration、amendment、custom tag 和表格/叙述冲突负向集。
+- 错误 CIK/accession、future leakage、伪造 fact/公式/Citation 和跨 Workspace 候选全部 fail closed。
+- 同题中文/英文 pair 必须选择相同 filer/accession、事实、公式和终态；只允许解释语言不同。
+- A0/A1/A2 同一 case manifest、预算和数据版本运行，不能给某个策略额外 oracle 信息。
+
+### 当日产物
+
+Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calculator、reconciliation、filing diff、SEC L4 profile、`sec-tool-v1`、A0/A1/A2 报告、完整 Retrieval/Calculation Workbench、`docs/sec-retrieval-design.md`、`learning-log/day-7.md`。
+
+### 验收门禁
+
+- Retrieval Recall@5 在冻结 SEC 黄金集不低于 0.80，Citation/source identity 可解析率 100%，跨 Workspace 与 future leakage 均为 0。
+- 所有用户可见派生数字都存在 calculator trace；无来源数字、公式或错误 unit/period 数量为 0。
+- 确定性集上错误 company/period/accession 为 0；证据不足正确拒答率不低于 0.90。
+- A2 必须在复杂计算/修订场景相对 A1 有可测净收益，简单题退化不得超过 2 个百分点；否则回退相应复杂策略。
+- Day 7 交付可解释 L4 draft，不把尚未执行 L5 Verifier 的结果标为 verified。
+
+### 复盘题
+
+什么时候应信结构化 fact，什么时候必须回原 filing？为什么“答案数字正确”仍可能是错误结果？模型分解 Claim 与确定性 calculator 的责任如何分开？
+
+## 15. Day 8：SEC Verified Agent L5、监控与 Durable HITL
+
+### 学习主题
+
+- Verified Claim precision 与回答覆盖率之间的权衡。
+- 可判定 Verifier、最多一次 revise、停止语义和人工审批边界。
+- 新 filing/amendment 监控如何复用 Schedule/Job/Outbox 和幂等 Case。
+- 间接 Prompt Injection、外部披露不可信输入与写 Tool 最小权限。
+- hard stop、重复 resume/decision、迟到结果和重复通知的恢复正确性。
+
+### 实现任务
+
+1. 在同一 Research graph 中实现 SEC L5 Verifier，逐 Claim 检查 filer/accession/`as_of`、Evidence 支持、unit/period/context、calculator lineage、coverage、conflict 和 Citation。
+2. 将终态冻结为 `verified`、`partial`、`conflict`、`insufficient_evidence`；运行失败、取消、预算耗尽仍使用 Runtime stop reason，不能与业务核验状态混淆。
+3. 实现最多一次 `verify → targeted retrieve/recalculate → revise → finalize`；Verifier 输出 typed issue list，不能自由改题、扩大 toolset 或无限循环。
+4. 把 filing/网页中的指令视为普通 Evidence 内容；增加 indirect prompt injection、伪造 system/tool 指令、恶意表格和超预算输入场景。
+5. 实现 `disclosure_monitors`、watermark、form/fact/section 规则和 `disclosure_cases`；Beat 只创建 occurrence/Job/Outbox，Worker 复用 SEC sync、diff、Evidence 与 Case service。
+6. 实现 `monitor.subscribe@v1` 持久审批：模型只能请求，当前用户 allow/deny/timeout 后才能写入；重复 decision/Job 不重复订阅、Case 或通知。
+7. 完成 L4/L5 hard stop、Checkpoint CAS、Worker 重启、取消竞态和依赖恢复；resume 先读副作用账本和现有计算/Case。
+8. 扩展 Workbench 的 Verifier issue、revise diff、业务终态、Approval、Monitor 与 Case 时间线，并允许从 Case 反查两个 accession 和全部 Evidence。
+9. 建立 `sec-verification-v1` 与 fault/security suite，覆盖支持、反驳、冲突、无答案、修订、错误期间、注入、审批、重复 resume 和通知。
+10. 运行 A2/A3/A4 对照：A2 tools+calculator，A3 + mandatory verifier/one revise，A4 + durable monitor/HITL；记录质量、coverage、步骤、恢复、成本和延迟。
+
+### 测试
+
+- Verifier 每条规则和四种业务终态的确定性单元测试；`partial/conflict/insufficient` 不能被 UI/导出改写为 verified。
+- 最大 revise、预算、deadline、取消、no progress 和重复 Observation/Calculation 的停止测试。
+- Prompt injection 下 read/write tool surface、WorkspaceScope、`as_of` 和 Budget 不变；未授权写 Tool 调用为 0。
+- Monitor 的时区、watermark、misfire、重复 tick、amendment、过期 lease、429 和 dead-letter 测试。
+- hard stop/重复 resume/decision/迟到结果后，ToolCall、Calculation、Monitor、Case 和通知重复数为 0。
+- A2/A3/A4 使用同一 frozen cases 和预算；LLM judge 只辅助，不决定 hard gate。
+
+### 当日产物
+
+SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fault/security suite、A2/A3/A4 报告、Verified Agent Workbench、`learning-log/day-8.md`。
+
+### 验收门禁
+
+- 冻结确定性集内伪造 source/accession/number/formula 为 0，verified Claim 的错误支持为 0。
+- Citation 可解析、future leakage、跨 Workspace 泄漏、未授权写操作和重复副作用分别为 100%/0/0/0/0。
+- A3 在复杂多源/计算/冲突场景相对 A2 有净收益，且简单题退化不超过 2 个百分点；无收益则移除强制 revise 或回退规则。
+- 一个 monitor 经审批创建，新 filing/amendment 只生成一个 Case；deny/timeout 不产生写入。
+- Worker 强制终止后从最后成功 Checkpoint 恢复，业务终态和 Runtime stop reason 均可解释。
+
+### 复盘题
+
+为什么 verified precision 可以通过更多拒答提升，却不代表产品更有用？Verifier 应该判断事实还是文风？哪些操作必须 HITL，哪些只读检索不应堆审批？
+
+## 16. Day 9：公开 Benchmark、SEC Temporal Eval 与中文验证链
+
+### 学习主题
+
+- Benchmark coverage、产品验收、数据许可、污染和时效漂移的区别。
+- 固定离线 CI、离线 release suite 与定时 live eval 的不同结论。
+- FinQA/TAT-QA 的数值推理能力、FinanceBench 的小型 filing RAG 证据能力和 FinSearchComp 的 live research 能力边界。
+- trajectory/result/evidence/runtime/point-in-time/security 分层评分。
+- 中英配对 case 如何验证同一事实链，而不伪造“中国金融专家 benchmark”。
+
+### 实现任务
+
+1. 定稿 [SEC Agent 评测计划](sec-agent-evaluation.md) 和 release `EvalCase/Manifest`：固定 dataset/split/license/commit/hash、filer/accession/`as_of`、runtime/harness/model/prompt/tool/context version、预算和 scorer。
+2. 接入 FinQA adapter，评分 supporting facts、program/execution answer；它只证明固定上下文数值推理，不作为开放检索或当前 SEC 质量证据。
+3. 接入 TAT-QA adapter，评分 answer EM/F1、source、scale 和 derivation；它只证明表格+文本与单位/算术。
+4. 对 FinanceBench 公开 150 题只做经许可审查的补充评测；CC BY-NC 和 source PDF 权利限制写入 dataset card，不作为商业分发基础。
+5. 接入 FinSearchComp 的固定 historical/可复现子集与定时 live suite；动态题、专业数据库依赖和 LLM judge 漂移单独报告，不进入普通 PR 硬门。
+6. 自建 `sec-temporal-v1`：锁 CIK/accession/`as_of`/fact/formula，覆盖 amendment、custom tag、期间/单位冲突、文本脚注、拒答和 cutoff；以官方 filing/XBRL 可确定复核，不要求专家撰写开放式投资结论。
+7. 建立中英配对集：同一 gold scope/Evidence/program 生成中文和英文问题，比较 source selection、formula、result、终态与引用；中文解释质量人工抽样，不能只靠翻译模型 judge。
+8. 固定 BFCL 非 live 类别或自建等价 function-call gold，使用 ToolSandbox/tau-bench 的 milestone/final-state 方法设计多轮状态题，并以 AgentDojo 方法验证间接提示注入；这些结果不替代财务正确性。
+9. 运行 A0～A4 全量消融和 failure taxonomy，输出 retrieval、answer/program、Evidence/Citation、trajectory、recovery、point-in-time、security、Token、费用和延迟。
+10. 对固定 provider/model/version 的 live/model suite 至少重复 3 次，报告均值、离散度和 `pass^k`；冻结 replay 只进入 deterministic contract 报告。
+
+### 测试与数据治理
+
+- 每个外部数据集有来源、版本/commit、split、license、checksum、允许用途、污染风险和本地转换测试。
+- Gold trajectory 使用 required/allowed/forbidden tools、argument constraints、partial order、budget 和 final state，不绑定唯一精确序列。
+- 规则 Scorer 与人工抽样校准；LLM judge 输出不稳定或与规则冲突时不能覆盖 hard gate。
+- Temporal case 构造器验证 cutoff，不允许从未来 filing、最新 companyfacts 快照或缓存侧漏答案。
+- 报告必须能从分数反查 case、run、trace、Evidence、calculation 和数据 manifest。
+
+### 当日产物
+
+FinQA/TAT-QA/FinanceBench/FinSearchComp adapters 与 dataset cards、`sec-temporal-v1`、中英配对集、agent/security suite、A0～A4 报告、live repeated-run 报告、failure taxonomy、`learning-log/day-9.md`。
+
+### 验收门禁
+
+- 固定离线集的来源/Citation 可解析率 100%，fabricated source/number/formula、future leakage、错误 company/period/accession、跨 Workspace、未授权写操作均为 0。
+- 无答案正确拒答率不低于 0.90，SEC Retrieval Recall@5 不低于 0.80；公开 benchmark 使用其官方指标并与本项目门禁分报。
+- 中英 pair 的 filer/accession/Evidence/formula/result/终态一致率为 100%；语言质量问题单独记录，不掩盖事实链差异。
+- A2/A3 相对 A1 的收益、简单题退化、成本和延迟满足已冻结门禁；否则回退相应 Agent 复杂度。
+- 任一公开 benchmark 缺失许可、版本或可复现 manifest 时只能记为实验，不能进入 release claim。
+
+### 复盘题
+
+哪个 benchmark 真正在测当前产品？为什么 FinQA 高分不能证明 EDGAR Agent 可用？为什么动态 benchmark 不应阻塞普通 PR？怎样发现中英问题使用了不同证据链？
+
+## 17. Day 10：披露核验工作台、发布评测与完整交付
+
+### 学习主题
+
+- 业务工作台如何将复杂 Agent 轨迹压缩为可操作的核验结果。
+- 发布门禁、运行证据、owner acceptance 与“代码存在”的区别。
+- 质量、coverage、延迟和成本如何共同决定默认 profile。
+- 数据源、模型、Tool、Prompt 和 benchmark 版本如何进入回滚与发布说明。
+
+### 实现任务
+
+1. 收敛产品路由为公司/filing 浏览、事实核验、Evidence/Calculation、Monitor/Case 和 Eval Workbench；已完成的通用页面保留历史入口或明确归档，不再扩张其 Provider。
+2. 完成统一 UI 状态：loading、empty、ambiguous、not-ready、error、forbidden、partial、conflict、insufficient、cancelled、approval-required 和 retry。
+3. 完成端到端中文用户路径：公司/期间澄清 → accession/`as_of` → XBRL + Filing Evidence → calculator → verifier → 引用报告 → 批准 monitor → 新 filing diff/Case。
+4. 聚合 request/job/run/step/tool/evidence/calculation/checkpoint/monitor/case 的 JSON 日志、OTel Trace 和指标；建立 SEC rate-limit、source freshness、future-leakage、citation、verification 和 recovery 面板。
+5. 完成 Agent/SEC 安全回归：Workspace、Tool allowlist、Prompt Injection、Secret、原始 filing/对象访问、写审批、数据许可和报告免责声明。
+6. 完成 fresh environment、migration、备份/恢复、清空并重建 Filing 索引、Worker/Redis/MinIO/ES/Milvus/SEC 依赖故障与上一镜像回退演练。
+7. CI 运行 deterministic quick suite、全量工程门禁、覆盖率、OpenAPI/SSE diff、Gitleaks、依赖/许可证/NOTICE 与关键浏览器 E2E；慢/付费/live eval 为受控 release job。
+8. 清偿 Day 4 核心 85%→90% 覆盖率债务；完成 D1-09 Provider 侧凭据处置和复扫，否则不得发布标签。
+9. 完成能力矩阵双向审计、ADR/README/Runbook、限制与 rollback；每个 `complete` 都附 branch CI、main merge CI、Trace/Eval/DoD 与项目所有者复核。
+10. 根据 A0～A4 报告冻结默认 profile；L6 多 Agent 只有显著净收益时另开 ADR/time-boxed 实验，不进入本版本尾声。
 
 ### 完整用户路径验收
 
 ```text
-登录 → 创建研究 Run → Runtime 先澄清并生成 research brief
-→ Agent 调用 Web/Text2SQL/私有知识工具 → 形成 Evidence/Claim
-→ 高成本步骤请求审批 → 中断 Worker → 从 Checkpoint 恢复
-→ 生成带页码/网页/表格/图片引用的 Report Artifact
-→ 在 Workbench 中反查 Context/Tool/Memory/Evidence/Checkpoint/Retrieval
-→ 在 Harness 中比较 L0/L2/L3/L4/L5 与 Memory/RAG 对照的质量、费用和延迟
+登录 → 输入中文财务事实核验问题
+→ resolve 公司/CIK → 选择 form、report period、as_of 与 accession
+→ XBRL fact + Filing Hybrid RAG → typed calculator
+→ reconcile unit/period/context/amendment → Evidence-aware verify
+→ 最多一次 revise → 查看 verified/partial/conflict/insufficient 报告
+→ 逐个反查官方 filing、fact/section、公式和计算输入
+→ 人工批准创建 monitor → 模拟新 filing 到达 → 单一 diff Case
+→ Workbench 比较 A0～A4、固定/公开/live 评测与成本延迟
 ```
 
 ### 最低质量门禁
 
-- Agent Runtime/Harness 核心 domain/application 覆盖率 ≥ 90%；关键 Web 状态和端到端旅程有测试。
-- 所有 Run 唯一终态/stop reason，Tool schema/allowlist/预算不可绕过，重复副作用数为 0。
-- Citation 可解析率 100%，跨租户泄露 0，Memory 删除残留率 0，无答案正确拒答率 ≥ 0.90；恢复场景成功率 100%。
-- Day 7 评测不得低于已接受 Day 4/6 基线；任何策略退化必须阻断或写明回退决定。
-- 新环境可按 README 运行核心 Scenario；migration、contracts、CI 和 secret scan 通过。
+- 核心 domain/application 覆盖率不低于 90%，后端总体不低于 80%，前端关键状态不低于 75%；关键 E2E、migration、contracts、CI 和 secret scan 全绿。
+- Citation/source identity 可解析率 100%；fabricated source/accession/number/formula、future leakage、错误 company/period/accession、跨 Workspace、未授权写操作和重复副作用均为 0。
+- 无答案正确拒答率不低于 0.90，SEC Retrieval Recall@5 不低于 0.80；accepted baseline 下降超过 2 个百分点阻断发布。
+- fixed/replay、public benchmark 和 live repeated-run 报告分开；LLM judge 不是任何硬门的唯一判据。
+- 所有 Run 有唯一 Runtime 终态/stop reason，所有报告有明确业务核验状态；恢复场景成功率 100%。
+- 不输出预测、估值、目标价、荐股或交易动作；所有产品页面和导出明确说明是披露事实核验而非投资建议。
+- 新环境可按 README/Runbook 复现核心 Scenario；备份恢复、索引重建和上一镜像回退成功。
 
 ### 当日产物
 
-完整 Agent Learning Workbench、release Eval schema、≥50 条 Harness 数据集、组合 Scorer/fault suite、`README.md`、更新定稿的 `docs/agent-runtime.md` 与 `docs/agent-harness.md`、`docs/research-evolution-report.md`、`docs/agent-evaluation-report.md`、Runbook、演示证据、`learning-log/day-7.md` 和 `v0.1.0-agent-learning-foundation` 标签。
+SEC 披露与财务事实核验工作台、release Eval manifests/reports、完整 Workbench、Runbook、来源/许可证清单、架构与评测报告、`learning-log/day-10.md`、演示证据和 `v0.2.0-sec-disclosure-verifier` 标签候选。
 
 ### 复盘题
 
-哪一层复杂度真正改善了结果？多 Agent 是否有净收益？哪个 Trace 揭示了最重要的失败？哪些指标会阻止一次“看起来更聪明”的回归？
+哪项 Agent 复杂度产生了可测净收益？哪些 case 仍只能拒答？当前证据能支持“财务事实核验”这一声明到什么边界，哪些能力仍然不能对外宣称？
 
-## 15. Agent-first 能力与证据审计
+## 18. Agent-first 能力与证据审计
 
-`docs/feature-matrix.md` 继续记录全部产品能力，并使用 `complete`、`implemented_pending_verification`、`thin_slice`、`contract_only`、`blocked`、`planned` 等事实状态。Day 7 时所有冻结目标都必须达到 `complete`；执行优先级首先由 Agent 主线证据决定，而不是由页面数量或外围 Adapter 数量决定。
+`docs/feature-matrix.md` 继续记录全部产品能力，并使用 `complete`、`implemented_pending_verification`、`thin_slice`、`contract_only`、`blocked`、`planned` 等事实状态。Day 10 时所有冻结目标都必须达到 `complete`；执行优先级首先由 SEC Agent 主线证据决定，而不是由页面数量、旧行业 Adapter 数量或公开 benchmark 总分决定。
 
-Day 7 采用两级门禁：
+Day 10 采用两级门禁：
 
-- **核心 Agent 能力**：Runtime、Harness、Tool Use、Short/Long-term Memory、Context Engineering、Knowledge/RAG、Research、Recovery/HITL 和 Eval 必须在冻结范围内达到 `complete`。
-- **支撑产品能力**：身份/Workspace、Job/Outbox、会话、文件和 Web 旅程必须足以真实承载核心 Run；行业长尾 Adapter、企业级运维与非核心页面按能力矩阵的代表性冻结范围完成，不扩张为额外学习主线。
+- **核心 Agent 能力**：Runtime/Harness、SEC typed Tool、XBRL + Filing RAG、typed calculator、Evidence/Claim、point-in-time、Verifier、Recovery/HITL、Monitor 和 Eval 必须在冻结范围内达到 `complete`。
+- **支撑产品能力**：身份/Workspace、Job/Outbox、会话、文件、Knowledge 入库和 Web 旅程必须足以真实承载核心 Run；已完成的旧行业 Adapter 只保留历史证据，不扩张为新主线。
 
 任何核心项只有最终答案、Mock、截图或一次手工成功而没有 Trace、失败/恢复场景和 Eval 报告，均视为未完成。
 
-### 15.1 必须覆盖的目标能力组
+### 18.1 必须覆盖的目标能力组
 
 | 优先级 | 能力组 | 实现日 | 必须提交的证据 |
 |---|---|---|---|
@@ -930,27 +1174,30 @@ Day 7 采用两级门禁：
 | P0 | Agent Harness | Day 2～3 | Scenario、Fake/Replay、Fault injection、Tool/Context/Approval 组合、报告 CLI 与同一 Runtime |
 | P0 | Tool-using Agent | Day 3 | L1/L2 轨迹、正确 Tool/参数、预算终止、Web/Text2SQL 真实 Artifact、越权拒绝 |
 | P0 | Agent Memory | Day 4 | Short/Long-term Memory 分层；写入、召回、冲突、反馈、治理与 Eval；删除后 Context 残留为 0 |
-| P0 | Deep Research | Day 4～6 | L3 Evidence graph、L4 durable state、L5 verifier/bounded revise，以及 L0/L2/L3/L4/L5 对照 |
-| P0 | Durable/HITL | Day 5、Day 7 | Worker 中断恢复、重复 resume 零副作用、跨刷新 approval、取消/预算耗尽 |
-| P0 | Agent Knowledge/RAG | Day 5～6 | 同一 Runtime 无改造接入私有知识、Hybrid Retrieval 与多模态 Evidence；Context manifest、引用、拒答和策略对照报告 |
-| P0 | Agent Evaluation | Day 2～7 | ≥50 场景；trajectory/result/evidence/runtime 四层指标；版本与回归基线 |
-| P0 | Agent Learning Workbench | Day 2～7 | Run/Context、Tool、Memory、Evidence/Claim、Knowledge、Checkpoint/HITL、Retrieval/Citation 与 Report 均由正式 Event/Trace/Manifest 驱动 |
+| P0 | SEC 披露数据合同 | Day 6 | CIK/accession/form/as_of、原始 snapshot、XBRL context/fact、Fair Access、amendment 与不可变 lineage |
+| P0 | 财务 Tool Agent | Day 5～7 | SEC Tool 选择/参数、结构化+叙述检索、typed calculator、unit/period/context reconciliation 与无越权调用 |
+| P0 | Deep Research | Day 4～8 | L3 Evidence graph、金融 L4 durable state、SEC L5 verifier/one revise，以及 A0～A4 对照 |
+| P0 | Durable/HITL 与 Monitor | Day 5、Day 8 | Worker 中断恢复、重复 resume/decision 零副作用、monitor 写审批、幂等 Case 与取消/预算 |
+| P0 | Agent Knowledge/RAG | Day 5～7 | 同一 Runtime 接入 filing snapshot、XBRL + Hybrid Retrieval；Context manifest、计算、引用、拒答和策略对照 |
+| P0 | Point-in-time 与 Evidence | Day 6～9 | company/period/accession/source identity、future leakage 0、Citation 100%、amendment/custom tag/冲突/无答案 |
+| P0 | Agent Evaluation | Day 2～10 | 通用 50 场景保留；SEC 专项、FinQA/TAT-QA、temporal/双语/agent/security 分层指标与版本基线 |
+| P0 | Agent Learning Workbench | Day 2～10 | Run/Context、Tool、Memory、Evidence/Claim、Filing/XBRL、Calculation、Checkpoint/HITL、Retrieval/Citation、Verifier/Monitor 均由正式事实驱动 |
 | P1 | 身份、Workspace、Job/Outbox、会话、文件 | Day 1～5 | 核心 Run 所需真实链路、跨租户负向、迁移、后台执行和最小 E2E |
-| P2 | 行业长尾 Adapter、非 Agent 外围页面、企业运维 | Day 3～7 | 完成矩阵冻结的代表性真实切片、readiness 与失败语义；范围外能力不扩张，也不占用 P0 学习工时 |
+| P2 | 已完成行业 Adapter 与非 SEC 页面 | Day 3（历史） | 保留既有验收与 readiness，不新增 Provider，不作为 SEC 能力替代证据 |
 
-### 15.2 双向审计方法
+### 18.2 双向审计方法
 
 1. 从 Scenario 出发，追到 Harness profile、Runtime/Workflow、Tool/Context、Application Service、Artifact 和 Scorer，确认只有一条正式链路。
-2. 从每个 Run 反查 runtime/harness/model/prompt/tool/context version、Event、Trace、Checkpoint、Evidence、final output 与可选 Artifact。
+2. 从每个 SEC Run 反查 runtime/harness/model/prompt/tool/context version、CIK/accession/as_of、Event、Trace、Checkpoint、Evidence、Calculation、final output 与可选 Artifact。
 3. 对每个复杂度增量比较前一层基线；没有净收益就回退，不把“更像 Agent”当作收益。
-4. 运行完整 Research 旅程、fresh migration、API/SSE contract、跨租户负向、fault suite、Agent/RAG 回归和 secret scan。
+4. 运行完整财务核验/监控旅程、fresh migration、API/SSE contract、跨租户与 future-leakage 负向、fault/security suite、公开/temporal/bilingual Eval 和 secret scan。
 5. 在 feature matrix 中分别记录 P0 门禁与 P1/P2 支撑状态；P1/P2 按简化后的冻结范围验收，范围外扩展不阻断 P0，但任何矩阵内未完成项都不能冒充 `complete`。
 
-生产级成熟度不属于本次七天能力审计，本计划不展开其他阶段。
+生产级投研、审计、投资建议和交易成熟度不属于本次能力审计；本计划只验收 SEC 披露事实核验和监控的冻结范围。
 
-## 16. 全局 Definition of Done
+## 19. 全局 Definition of Done
 
-任何七天目标从过程状态改为 `complete` 前，都必须逐条评审下列 Definition of Done 的适用性：凡适用项必须全部通过；标记 `N/A` 必须写明与该目标无关的具体理由和复核人，不能用来逃避实现。面向用户的业务能力不得把真实用户旅程、服务端权限、正常/失败/恢复测试或安全检查标为 `N/A`；工程、文档和治理目标可以用等价的开发者/运维旅程与自动化校验替代，只有确实不改变数据库、HTTP/SSE 或运行时行为时，才可把对应 migration、契约或遥测项记为 `N/A`。`thin_slice` 和 `contract_only` 不是质量豁免：
+任何 Day 1～Day 10 目标从过程状态改为 `complete` 前，都必须逐条评审下列 Definition of Done 的适用性：凡适用项必须全部通过；标记 `N/A` 必须写明与该目标无关的具体理由和复核人，不能用来逃避实现。面向用户的业务能力不得把真实用户旅程、服务端权限、正常/失败/恢复测试或安全检查标为 `N/A`；工程、文档和治理目标可以用等价的开发者/运维旅程与自动化校验替代，只有确实不改变数据库、HTTP/SSE 或运行时行为时，才可把对应 migration、契约或遥测项记为 `N/A`。`thin_slice` 和 `contract_only` 不是质量豁免：
 
 - 存在真实用户旅程，不是孤立接口或空页面。
 - 正常、边界、失败、权限和恢复测试齐全。
@@ -966,7 +1213,7 @@ Day 7 采用两级门禁：
 
 测试结构建议：60% 领域单元测试、25% 组件/集成测试、10% 契约测试、5% 关键 E2E；RAG/Agent evaluation 作为独立门禁。Flaky test 必须修复，不能长期靠 rerun 掩盖。
 
-### 16.1 Agent 能力追加 Definition of Done
+### 19.1 Agent 能力追加 Definition of Done
 
 从 Day 2 开始，Agent 核心能力除满足全局 Definition of Done 外，还必须同时满足：
 
@@ -980,13 +1227,16 @@ Day 7 采用两级门禁：
 - 复杂策略有前后基线，报告同时包含质量、轨迹、Evidence、恢复、Token/费用和延迟。
 - 真实用户可看到进度、partial/uncertain、审批、取消/恢复和 Artifact；错误不会被伪装成成功。
 - 支撑层通过迁移、权限、契约、基础可观测和关键 E2E；README 说明启动、限制和回退。
+- SEC profile 的 company/CIK、accession、form、report period、`as_of`、unit/scale/context 和 amendment 选择全部进入 typed contract、Trace 与 Scorer。
+- 每个派生数字由 typed calculator 生成并连接输入 Evidence；fabricated source/accession/number/formula 和 future leakage 在确定性发布集均为 0。
+- fixed replay、public benchmark 与 live repeated-run 使用独立 manifest/报告；外部数据集的版本、split、license、checksum 和允许用途可审计。
 
 Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 → Runtime/Tool/Memory/Knowledge-RAG 集成 → Harness 回归 → 少量关键 E2E。Flaky 场景必须定位到数据、并发或模型边界，不能长期靠 rerun 掩盖。
 
-## 17. 防偏航与明确禁止项
+## 20. 防偏航与明确禁止项
 
 - Day 1 门禁未过，不进入 Day 2 Agent 主线；当前日门禁未过，不进入下一日。
-- 此处 Day 1 执行门禁指新仓工程与新仓 Secret 边界；参考仓历史凭据处置 D1-09 是 Day 7 发布标签的独立阻断项，不允许被忽略或伪装关闭。
+- 此处 Day 1 执行门禁指新仓工程与新仓 Secret 边界；参考仓历史凭据处置 D1-09 是 Day 10 发布标签的独立阻断项，不允许被忽略或伪装关闭。
 - 禁止建立 `backend/app`、`backend/service` 两套入口，禁止 v1/v2/v3 多条正式链路并存。
 - 禁止 `Base.metadata.create_all()`、手工 ALTER 或启动时自动改表。
 - 禁止源码、`.env`、前端 `VITE_*`、日志、测试快照中出现真实服务端密钥。
@@ -1000,11 +1250,17 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 - 禁止提交模型权重、运行日志、PID、缓存、工具二进制，以及含敏感原文或未经审阅的大体积原始生成物；允许提交经审阅、去敏且可复现的评测摘要和基线报告。
 - 禁止只在前端“删除”资源，禁止硬编码 localhost API，禁止长期公开对象 URL。
 - 禁止用硬编码/Mock 数据把未完成的资讯、股票、政策或招投标页面伪装成可用。
-- 七天内不引入 Kubernetes、微服务、Neo4j 或多套重叠的可观测平台。
+- Day 1～Day 10 不引入 Kubernetes、微服务、Neo4j 或多套重叠的可观测平台。
+- 禁止输出股价预测、估值、目标价、荐股、组合建议、自动交易或把披露事实核验包装为审计/投资意见。
+- 禁止让模型心算后直接持久化派生数字，或使用任意代码执行替代 `finance.calculate@v1`。
+- 禁止混用 CIK/公司、accession、fiscal/calendar period、instant/duration、unit/scale、base/amendment；任何歧义必须澄清、冲突或拒答。
+- 禁止使用 SEC `frames` 的近似对齐做精确公司期间核验，或把 companyfacts 当作 custom tag、脚注和原始 filing 的完整替代。
+- 禁止在 point-in-time case 中读取 cutoff 后 filing、最新缓存、未来 companyfacts 或由答案派生的索引。
+- 禁止把动态 benchmark、单次 live run、公开 leaderboard 或 LLM judge 总分作为唯一发布证据。
 
 若本机资源不足以同时运行 Milvus、ES 和观测栈，使用 Compose profiles 分时启动，但不得改变目标架构或用低质量实现冒充最终方案。若没有外部/付费 Provider，测试使用 Fake Adapter，正式接口必须返回未配置错误。若解析器兼容性阻塞，先通过 Parser Port 交付基础 PDF Adapter，再单独解决许可和依赖，不能把解析逻辑耦合进业务 Service。
 
-### 17.1 Agent 专项防偏航规则
+### 20.1 Agent 专项防偏航规则
 
 - 禁止普通聊天、Research、Harness 各写一套 model/tool loop；所有正式执行必须经过同一 Runtime。
 - 禁止把 Celery、LangGraph、Session、Context window、Memory、Checkpoint、Trace 混为同一层。
@@ -1017,9 +1273,9 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 - 禁止在业务模块散落 Provider SDK、在 LangGraph 节点复制 Application Service，或让 Harness 变成第二套生产入口。
 - 通用工程底线仍然有效：Alembic、WorkspaceScope、私有 Secret、输入/输出限制、依赖锁定、关键 CI；细节由专项 ADR/文档管理，不在主计划重复堆叠。
 
-若本机资源不足，使用 Compose profiles 分时启动派生服务，优先保证 Runtime/Harness/PG/Redis 场景可重复；分时启动不等于删减核心能力，进入 Day 5/6 后仍必须运行 Knowledge/RAG 的正式 Scenario 与 Eval。没有付费 Provider 时使用 Fake/冻结响应完成快速回归，并让正式 Adapter 明确显示未配置；不得把 Fake 结果作为真实模型质量证据。
+若本机资源不足，使用 Compose profiles 分时启动派生服务，优先保证 Runtime/Harness/PG/Redis 场景可重复；分时启动不等于删减核心能力，进入 Day 5 后仍必须运行 Knowledge/SEC/RAG 的正式 Scenario 与 Eval。没有付费 Provider 时使用 Fake/冻结响应完成快速回归，并让正式 Adapter 明确显示未配置；不得把 Fake 结果作为真实模型质量证据。SEC 官方 read API 不需要模型凭据，但 live smoke 仍必须遵守 Fair Access，并与固定回归分报。
 
-## 18. 权威技术参考
+## 21. 权威技术参考
 
 - Runtime、Framework 与 Harness 概念：https://docs.langchain.com/oss/python/concepts/products
 - OpenAI Function Calling / Tool loop：https://developers.openai.com/api/docs/guides/function-calling
@@ -1035,10 +1291,21 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 - Celery Tasks/idempotency/retry：https://docs.celeryq.dev/en/stable/userguide/tasks.html
 - SQLAlchemy Session/AsyncSession：https://docs.sqlalchemy.org/en/20/orm/session_basics.html
 - OpenTelemetry Python：https://opentelemetry.io/docs/languages/python/getting-started/
+- SEC EDGAR API：https://www.sec.gov/search-filings/edgar-application-programming-interfaces
+- SEC Accessing EDGAR Data / Fair Access：https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data
+- SEC Developer Resources：https://www.sec.gov/about/developer-resources
+- FinQA 数据与任务：https://finqasite.github.io/ 、https://github.com/czyssrs/FinQA
+- TAT-QA 数据与任务：https://github.com/NExTplusplus/TAT-QA
+- FinSearchComp ICLR 2026：https://proceedings.iclr.cc/paper_files/paper/2026/hash/4d42358702dff82e1436550a05ade260-Abstract-Conference.html
+- FinanceBench：https://github.com/patronus-ai/financebench
+- Berkeley Function Calling Leaderboard：https://gorilla.cs.berkeley.edu/leaderboard
+- ToolSandbox：https://machinelearning.apple.com/research/toolsandbox-stateful-conversational-llm-benchmark
+- tau-bench：https://github.com/sierra-research/tau-bench
+- AgentDojo：https://github.com/ethz-spylab/agentdojo
 
-这些资料用于校准概念，不代表自动引入对应 SDK。尤其是 OpenAI Agents SDK、LangChain/LangGraph 与 Anthropic Agent SDK 都可以作为参考模型；依赖变更仍需 ADR，项目 Runtime/Harness 必须保持自己的 Provider-neutral 领域边界。
+这些资料用于校准概念、来源合同和评测覆盖，不代表自动引入对应 SDK 或数据。SEC 文档定义 live Adapter 边界；公开 benchmark 各自只覆盖一部分能力并受其许可证/数据权利约束。依赖或数据集进入仓库前仍需 dataset card/ADR/来源复核，项目 Runtime/Harness 必须保持 Provider-neutral，系统也不能把外部 benchmark 的 LLM judge 当成产品事实。
 
-## 19. 变更记录
+## 22. 变更记录
 
 | 版本 | 日期 | 变化 | 决策人 |
 |---|---|---|---|
@@ -1052,3 +1319,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 1.7.0 | 2026-08-12 | 按能力依赖与每日学习负担均衡 Day 2～Day 7：Runtime/Harness v0 → Tool loop → Memory/Evidence/L3 → Knowledge/Durable L4 → Hybrid RAG/L5 → 综合 Eval；Scenario、Scorer、Fault 与 Agent Learning Workbench 逐日累积，保留完整前端交互并简化重复的非 Agent 安全与运维学习内容 | 用户 |
 | 1.7.1 | 2026-08-22 | 同步 Day 4 五步提交、分支 CI、覆盖率例外和 `main` 尚未合并的实际状态；不改变冻结范围、架构或门禁 | 用户授权的文档收口 |
 | 1.7.2 | 2026-08-22 | 同步 PR #7 合并、`main` 合并提交 CI、Trace/Eval/DoD 复核与项目所有者授权收口；D4-01～D4-07 关闭并允许进入 Day 5，保留 Day 7 前 90% 核心覆盖率债务 | 用户授权的 Day 4 收口 |
+| 2.0.0 | 2026-08-25 | 冻结 Day 1～4 与 Day 5 Step 1～3 历史事实；从 Day 5 Step 4 起将后续路线收敛为 SEC 披露与财务事实核验 Agent，并扩展至 Day 10，新增官方数据/XBRL、typed calculator、point-in-time、Verifier/Monitor、公开 benchmark + SEC temporal + 中英配对评测和发布门禁 | 用户 |
