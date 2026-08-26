@@ -172,7 +172,16 @@ from industry_platform.modules.memory.domain import (
 )
 from industry_platform.modules.memory.resources import create_memory_resources
 from industry_platform.modules.memory.router import router as memory_router
+from industry_platform.modules.research.adapters.durability import (
+    ResearchDurabilityPersistenceError,
+)
 from industry_platform.modules.research.adapters.sqlalchemy import ResearchPersistenceError
+from industry_platform.modules.research.durability import (
+    ResearchApprovalConflictError,
+    ResearchApprovalNotFoundError,
+    ResearchResumeStateError,
+    ResearchResumeTokenError,
+)
 from industry_platform.modules.research.resources import create_research_resources
 from industry_platform.modules.research.router import router as research_router
 from industry_platform.modules.research.service import ResearchNotFoundError
@@ -245,7 +254,10 @@ def create_app(
             )
             memory_resources = create_memory_resources(database_session_factory)
             evidence_resources = create_evidence_resources(database_session_factory)
-            research_resources = create_research_resources(database_session_factory)
+            research_resources = create_research_resources(
+                active_settings,
+                database_session_factory,
+            )
             file_resources = create_file_resources(
                 active_settings,
                 database_session_factory,
@@ -420,9 +432,10 @@ def create_app(
         )
 
     @application.exception_handler(ResearchPersistenceError)
+    @application.exception_handler(ResearchDurabilityPersistenceError)
     async def handle_research_unavailable(
         request: Request,
-        _error: ResearchPersistenceError,
+        _error: ResearchPersistenceError | ResearchDurabilityPersistenceError,
     ) -> JSONResponse:
         return problem_response(
             trace_id=get_trace_id(request),
@@ -431,6 +444,36 @@ def create_app(
             code="RESEARCH_UNAVAILABLE",
             detail="Research facts could not be loaded safely.",
             problem_type="urn:iip:problem:research-unavailable",
+        )
+
+    @application.exception_handler(ResearchApprovalNotFoundError)
+    async def handle_research_approval_not_found(
+        request: Request,
+        _error: ResearchApprovalNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Research approval not found",
+            code="RESEARCH_APPROVAL_NOT_FOUND",
+            detail="The requested approval does not exist or is unavailable.",
+            problem_type="urn:iip:problem:research-approval-not-found",
+        )
+
+    @application.exception_handler(ResearchApprovalConflictError)
+    @application.exception_handler(ResearchResumeStateError)
+    @application.exception_handler(ResearchResumeTokenError)
+    async def handle_research_resume_conflict(
+        request: Request,
+        error: ResearchApprovalConflictError | ResearchResumeStateError | ResearchResumeTokenError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Research resume conflict",
+            code=error.code.upper(),
+            detail="Reload the durability timeline before retrying this operation.",
+            problem_type="urn:iip:problem:research-resume-conflict",
         )
 
     @application.exception_handler(EvidenceNotFoundError)

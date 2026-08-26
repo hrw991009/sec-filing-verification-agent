@@ -21,6 +21,7 @@ from industry_platform.core.database import (
 )
 from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerRunExecutionUseCase,
+    RecoverableAgentRunInterruption,
 )
 from industry_platform.modules.agent_runtime.resources import (
     create_direct_answer_runtime_resources,
@@ -201,11 +202,14 @@ class DirectAnswerJobHandler:
         if run_id.int == 0:
             raise InvalidJobPayloadError
 
-        result = await self.execution_use_case.execute_run(run_id)
+        try:
+            result = await self.execution_use_case.execute_run(run_id)
+        except RecoverableAgentRunInterruption:
+            raise RetryableJobHandlerError(JobExecutionErrorCode.AGENT_RECOVERY_RETRYABLE) from None
         return {
             "agent_run_id": str(result.run_id),
             "run_status": result.status.value,
-            "stop_reason": result.stop_reason.value,
+            "stop_reason": (None if result.stop_reason is None else result.stop_reason.value),
             "terminal_event_sequence": result.terminal_event_sequence,
         }
 

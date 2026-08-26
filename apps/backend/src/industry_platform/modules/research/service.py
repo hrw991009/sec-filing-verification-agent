@@ -1,4 +1,4 @@
-"""Authorized application services for the Research L3 user journey."""
+"""Authorized application services for the Research L3/L4 user journey."""
 
 from collections.abc import Callable
 from dataclasses import dataclass, field

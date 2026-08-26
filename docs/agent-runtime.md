@@ -1,8 +1,8 @@
 # Agent Runtime v0
 
-> 更新日期：2026-08-16
+> 更新日期：2026-08-25
 >
-> 计划基线：`docs/master-plan.md` 1.7.0 Day 2
+> 计划基线：Day 2 历史复核 + `docs/master-plan.md` 2.0.2 Day 5
 >
 > 当前状态：D2-01～D2-09 的仓库内实现、版本化 Eval、全量本地门禁、干净 GitHub CI 与学习者职责复盘均已关闭，统一为 `complete`。
 
@@ -209,3 +209,24 @@ Turn 持久化 `search_mode`、`industry_id` 和 `knowledge_base_ids`，消息�
 | 中断/恢复 | Day 2 的失败收敛适用；同一次模型调用的 durable resume 阶段性 `N/A` | `day2-unrecoverable-worker-interruption` 证明不可安全恢复时 Run/Job 原子收敛且各自只有一个终态；即使 Job 已进入 retry_wait 且仍有次数，也不会留下一个注定失败的重试。LangGraph graph state、Checkpoint resume 和幂等副作用恢复由主计划 D5-09 验收，Day 2 不能提前冒充 | 执行代理，2026-08-15；进入 Day 5 前由项目所有者复核范围仍未降级 |
 | 重复请求 | 适用 | `day2-duplicate-turn-request`，证明相同 payload 复用 Run/Job/Outbox，变更 payload 明确冲突 | 执行代理，2026-08-15 |
 | Tool 失败 | 阶段性 `N/A` | Day 2 是 `available_tools=[]` 的 L0 单模型调用，没有 Tool Action/Observation 或 Tool 副作用。主计划 D3 的 L1/L2 必须新增工具失败 Scenario，本结论不豁免或提前完成 Day 3 | 执行代理，2026-08-15；进入 Day 3 后由项目所有者复核对应义务已经恢复为适用 |
+
+## 12. Day 5 Research L4 扩展
+
+Day 2 的 `CheckpointEnvelope`/CAS 现由 Day 5 Step 5 接入正式 PostgreSQL Store，并作为唯一
+Research graph 的恢复事实。`ResearchL3Runtime` 保留兼容名称；配置 CheckpointStore 与
+ResearchDurabilityService 时执行 `research-l4-graph-v1`：每个成功节点保存 typed payload 和
+`checkpoint.saved` Event，审批或安全节点 hard stop 后从 `next_node` 继续同一 Run。
+
+L4 没有改变 L0/L1/L2 的公共执行语义：
+
+- Loader 重新加载当前 Workspace membership、Brief/FinancialScope、Run Budget 和 Tool policy；
+- Checkpoint scope 必须与 Brief scope 一致，schema/node/Event 尾部不一致时 fail closed；
+- 持久 Approval/Decision 与 resume proof 绑定 Checkpoint revision；proof 原文不落库；
+- resume Job 与 Outbox 原子创建，重复 resume 返回已有 Job；
+- side-effect ledger 以稳定幂等键收敛 Tool/Evidence/Artifact，恢复不重复 Knowledge/calculator；
+- `approval_denied`、`approval_timed_out` 加入统一 stop reason，Trace 只展示安全摘要。
+
+正式接口、payload、迁移与回滚见 [Research L4 Checkpoint 与 HITL 合同](research-checkpoint-contract.md)
+和 [Day 5 Research L4 运行手册](runbooks/day-5-research-l4.md)。本地实现状态为
+`implemented_pending_verification`；尚无 Step 5 提交/远端 CI、`main` 合并 CI、后台超时扫描、
+Day 8 跨刷新/Worker 重启组合证据或 owner 收口，不能反向改写本文件前述 Day 2 历史验收结论。

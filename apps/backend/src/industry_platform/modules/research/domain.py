@@ -1,4 +1,4 @@
-"""Versioned domain contracts for the Day 4 Evidence Research L3 slice."""
+"""Versioned domain contracts shared by Evidence Research L3 and durable L4."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -16,7 +16,7 @@ from industry_platform.modules.agent_runtime.domain import (
 from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import TraceId
 
-RESEARCH_GRAPH_VERSION: Final = "research-l3-graph-v1"
+RESEARCH_GRAPH_VERSION: Final = "research-l4-graph-v1"
 RESEARCH_STATE_SCHEMA_VERSION: Final = 1
 RESEARCH_RUNTIME_VERSION: Final = "agent-runtime-v1"
 RESEARCH_HARNESS_VERSION: Final = "harness-research-v1"
@@ -31,6 +31,7 @@ _RESEARCH_RUN_NAMESPACE: Final = UUID("b8990b32-12c8-4692-b895-4a3626ae6a13")
 class ResearchRunStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -48,6 +49,28 @@ class ResearchNode(StrEnum):
 
 
 RESEARCH_NODE_ORDER: Final = tuple(ResearchNode)
+
+
+class ResearchApprovalReason(StrEnum):
+    COMPANY_OR_PERIOD_AMBIGUITY = "company_or_period_ambiguity"
+
+
+class ResearchApprovalStatus(StrEnum):
+    PENDING = "pending"
+    ALLOWED = "allowed"
+    DENIED = "denied"
+    TIMED_OUT = "timed_out"
+
+
+class ResearchApprovalOutcome(StrEnum):
+    ALLOW = "allow"
+    DENY = "deny"
+
+
+class ResearchSideEffectStatus(StrEnum):
+    INTENT = "intent"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 def research_run_id_for_agent_run(agent_run_id: UUID) -> UUID:
@@ -68,8 +91,9 @@ def initial_research_state_document(
     agent_run_id: UUID,
     workspace_id: UUID,
     brief_revision: int = 1,
+    approval_reason: ResearchApprovalReason | None = None,
 ) -> dict[str, object]:
-    """Return the JSON-safe L3 state created atomically with the accepted Run."""
+    """Return the JSON-safe Research state created atomically with the accepted Run."""
 
     for value, name in (
         (research_run_id, "Research State aggregate ID"),
@@ -98,7 +122,10 @@ def initial_research_state_document(
         "output_tokens_used": 0,
         "cost_micro_usd": 0,
         "revise_count": 0,
-        "approval_status": "not_required",
+        "approval_status": (
+            ResearchApprovalStatus.PENDING.value if approval_reason is not None else "not_required"
+        ),
+        "approval_reason": None if approval_reason is None else approval_reason.value,
         "cancel_requested": False,
         "stop_reason": None,
         "error_summary": None,
@@ -117,6 +144,7 @@ class ResearchBriefInput:
     exclusions: tuple[str, ...]
     completion_criteria: tuple[str, ...]
     financial_scope: FinancialScope | None = None
+    approval_reason: ResearchApprovalReason | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -143,6 +171,8 @@ class ResearchBriefInput:
                 required=True,
             ),
         )
+        if self.approval_reason is not None and self.financial_scope is None:
+            raise ValueError("Research approval reason requires a Financial Scope")
 
 
 @dataclass(frozen=True, slots=True)

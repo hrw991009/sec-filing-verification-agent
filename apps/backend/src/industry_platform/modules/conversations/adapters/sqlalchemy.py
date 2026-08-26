@@ -255,6 +255,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                         research_run_id=research_run_id,
                         agent_run_id=run.run_id,
                         workspace_id=run.workspace_id,
+                        approval_reason=prepared.research_brief.approval_reason,
                     ),
                     error_summary=None,
                     created_at=run.created_at,
@@ -277,6 +278,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                         if prepared.research_brief.financial_scope is None
                         else dict(prepared.research_brief.financial_scope.to_mapping())
                     ),
+                    approval_reason=prepared.research_brief.approval_reason,
                     budget={
                         "schema_version": run.budget.schema_version,
                         "max_steps": run.budget.max_steps,

@@ -15,6 +15,9 @@ from industry_platform.adapters.openai_compatible import (
 )
 from industry_platform.core.config import Settings
 from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.modules.agent_runtime.adapters.checkpoints import (
+    SqlAlchemyCheckpointStore,
+)
 from industry_platform.modules.agent_runtime.adapters.execution import (
     SqlAlchemyDirectAnswerRunLoader,
 )
@@ -58,7 +61,14 @@ from industry_platform.modules.evidence.adapters.sqlalchemy import SqlAlchemyEvi
 from industry_platform.modules.evidence.service import EvidenceApplicationService
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.memory.adapters.context import SqlAlchemyMemoryContextLoader
+from industry_platform.modules.research.adapters.durability import (
+    SqlAlchemyResearchDurabilityRepository,
+)
 from industry_platform.modules.research.adapters.sqlalchemy import SqlAlchemyResearchQueryRepository
+from industry_platform.modules.research.durability import (
+    ResearchDurabilityService,
+    ResumeTokenCodec,
+)
 from industry_platform.modules.retrieval.fixtures import SecFixtureCatalog
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import (
@@ -252,6 +262,11 @@ def create_direct_answer_runtime_resources(
             tool_executor=shared_tool_executor,
             event_committer=event_committer,
             cancellation_probe=cancellation_probe,
+            checkpoint_store=SqlAlchemyCheckpointStore(session_factory),
+            durability_service=ResearchDurabilityService(
+                repository=SqlAlchemyResearchDurabilityRepository(session_factory),
+                token_codec=ResumeTokenCodec(settings.csrf_token_hmac_key.get_secret_value()),
+            ),
         )
     runtime = UnifiedAgentRuntime(
         direct_answer_runtime=direct_runtime,

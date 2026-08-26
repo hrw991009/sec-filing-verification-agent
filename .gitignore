@@ -45,6 +45,8 @@ evals/reports/*
 !evals/reports/day4-v1.md
 !evals/reports/sec-fixture-v1.json
 !evals/reports/sec-fixture-v1.md
+!evals/reports/sec-fixture-l4-v1.json
+!evals/reports/sec-fixture-l4-v1.md
 
 # Runtime and infrastructure state
 *.log

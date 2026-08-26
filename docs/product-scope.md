@@ -333,7 +333,8 @@ Day 10 验收必须做一次双向能力审计：
 - Day 3 的同一 Runtime L0/L1/L2、受控 Tool Use、行业采集切片和 24 条累计 Scenario 已完成；PR #5 合并提交为 `6968c63f`，CI 为 `32112639811`。
 - Day 4 的 Memory、Evidence/Claim、Research L3、Workbench 与累计 50 条 Scenario 已完成；PR #7 合并提交为 `c0b854e`，CI 为 `32549438592`。核心 Domain/Application/Research workflow 合集覆盖率仍为 85%，必须在最终发布前补到 90%。
 - Day 5 Step 1～3 已在分支 `feat/day5-knowledge-ingestion-step1` 实现：提交依次为 `bba63e6`、`ad57073`/CI 修复 `adec643`、`4daa028`，当前分支 head 的 CI `32796096690` 已通过。
+- Day 5 Step 4～5 当前工作树已实现冻结 SEC fixture Knowledge/calculator/Evidence、成功节点 Checkpoint、持久 HITL、同 Run resume、副作用账本、Workbench 时间线和 L4 recovery eval；尚未提交或取得远端 CI。
 
-Day 5 分支尚未合入 `main`，也没有完成 `main` 合并 CI、Day 5 全量 DoD 和项目所有者收口，因此 D5-01～D5-07 只能标为 `implemented_pending_verification`；D5-08 仅具备 Embedding/索引写入薄切片，仍为 `thin_slice`；D5-09 以及 Day 5 Step 4～Day 10 均保持 `planned`。
+Day 5 分支尚未合入 `main`，也没有完成 Step 4/5 分支 CI、`main` 合并 CI、Day 5 全量 DoD 和项目所有者收口，因此 D5-01～D5-09 只能标为 `implemented_pending_verification`。live SEC、公开 benchmark、Verifier/Monitor、后台审批超时扫描与 Day 8 跨刷新/Worker 重启组合门仍保持 `planned`。
 
 本文定义的是后续 SEC 披露事实核验 Agent 的范围和验收合同，不是已经具备该金融能力的实现声明。只有在相应代码、migration、正式 Tool、固定/公开/live Eval、安全审计、恢复演练和合并门禁全部留下证据后，相关目标才能升级为 `complete`。

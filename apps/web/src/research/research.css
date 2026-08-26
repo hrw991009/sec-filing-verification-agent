@@ -130,6 +130,21 @@
   padding: 0 0.3rem;
 }
 
+.research-form .research-approval-toggle {
+  grid-column: 1 / -1;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  align-items: center;
+  padding: 0.45rem 0;
+  color: #45574f;
+}
+
+.research-form .research-approval-toggle input {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  accent-color: #2d705d;
+}
+
 .research-form small,
 .research-detail small,
 .research-run-item small {
@@ -399,6 +414,95 @@
   margin-top: 0.55rem;
 }
 
+.research-durability-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.65rem;
+  border-left: 0.2rem solid #4b718f;
+  background: #f3f6f8;
+  color: #566572;
+  font-size: 0.63rem;
+}
+
+.research-durability-summary strong {
+  color: #274c68;
+  font-size: 0.78rem;
+}
+
+.research-checkpoint-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.research-checkpoint-list li {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  padding: 0.58rem;
+  border: 1px solid #dde4e8;
+  border-radius: 0.45rem;
+  background: #fafbfc;
+}
+
+.research-checkpoint-list strong,
+.research-approval-panel strong {
+  color: #30455a;
+  font-size: 0.66rem;
+}
+
+.research-checkpoint-list span,
+.research-approval-panel span {
+  color: #687784;
+  font-size: 0.6rem;
+  line-height: 1.45;
+}
+
+.research-approval-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.7rem;
+  border: 1px solid #d8c892;
+  border-radius: 0.45rem;
+  background: #fffbed;
+}
+
+.research-approval-panel > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.research-approval-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+}
+
+.research-approval-panel button {
+  min-height: 2rem;
+  padding: 0.45rem 0.65rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: #2d705d;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.research-approval-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .research-claim-list {
   display: grid;
   gap: 0.55rem;
@@ -466,11 +570,18 @@
   }
 
   .research-form fieldset,
-  .research-metrics {
+  .research-metrics,
+  .research-checkpoint-list {
     grid-template-columns: 1fr;
   }
 
   .research-detail__header {
+    flex-direction: column;
+  }
+
+  .research-approval-panel,
+  .research-approval-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 }

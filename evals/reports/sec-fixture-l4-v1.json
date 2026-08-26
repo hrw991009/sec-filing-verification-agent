@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "sec-fixture-research-l4-recovery",
+  "dataset_version": "sec-fixture-l4-v1",
+  "scorer_version": "research-l4-recovery-v1",
+  "case_count": 7,
+  "metrics": {
+    "checkpoint_recovery_accuracy": { "numerator": 3, "denominator": 3, "value": 1.0 },
+    "decision_accuracy": { "numerator": 4, "denominator": 4, "value": 1.0 },
+    "resume_gate_accuracy": { "numerator": 5, "denominator": 5, "value": 1.0 },
+    "zero_duplicate_side_effect_rate": { "numerator": 7, "denominator": 7, "value": 1.0 }
+  },
+  "coverage": ["hard_stop", "allow", "deny", "timeout", "repeat", "cancel", "budget"],
+  "executable_evidence": {
+    "hard_stop_resume": "apps/backend/tests/workflows/research/test_runtime.py::test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effects",
+    "postgres_approval_resume": "apps/backend/tests/integration/test_research_durability_postgres.py::test_approval_resume_is_atomic_idempotent_and_does_not_store_raw_token",
+    "http_workbench_contract": "apps/backend/tests/modules/research/test_api.py::test_durability_timeline_decision_and_resume_contracts",
+    "browser_component_contract": "apps/web/src/research/ResearchWorkspace.test.tsx"
+  },
+  "execution_boundary": {
+    "fixture_only": true,
+    "same_run_resume": true,
+    "live_sec": false,
+    "production_model_quality": false,
+    "cross_refresh_worker_restart": false
+  }
+}

@@ -277,6 +277,7 @@ class SqlAlchemyResearchQueryRepository:
                     if brief_record.financial_scope is None
                     else FinancialScope.from_mapping(brief_record.financial_scope)
                 ),
+                approval_reason=brief_record.approval_reason,
             ),
             budget=budget,
             confirmed_by_user_id=brief_record.confirmed_by_user_id,

@@ -54,6 +54,7 @@ const researchRun: ResearchRun = {
   agent_run_id: evidence.origin_run_id,
   agent_status: "running",
   brief: {
+    approval_reason: null,
     budget: {
       deadline: "2026-08-21T08:10:00Z",
       max_cost_micro_usd: 300_000,

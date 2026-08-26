@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.0.1`
+> 版本：`2.0.3`
 >
 > 制定日期：`2026-07-23`
 >
@@ -53,7 +53,8 @@
 | Day 1～Day 4 | D1、D2、D3、D4 已按各自记录完成；D1-09 外部凭据处置和 Day 4 核心覆盖率债务仍保留 | 历史任务、提交、CI、DoD 和限制原文保留，不因业务转向重算 |
 | Day 5 Step 1～3 | 当前分支 `feat/day5-knowledge-ingestion-step1` 已实现知识受理、版本化解析资产、双索引写入/删除对账/Workbench；提交 `4daa028` 的分支 CI `32796096690` 已通过 | 记录为 `implemented_pending_verification`；在合入 `main`、合并提交 CI、DoD 与所有者复核前不得写成 `complete` |
 | Day 5 Step 4 | 当前工作树已实现固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 本地合同对照；尚未提交或取得远端 CI | 记录为 `implemented_pending_verification`；F2/no-result 已走同一 Runtime/Harness，F0/F1 仍是冻结合同对照，不表述为 live/model 质量 |
-| Day 5 Step 5～Day 10 | 尚未完成 | 按 SEC 披露与财务事实核验路线继续执行；不得因 Step 4 本地通过而提前进入 Day 6 |
+| Day 5 Step 5 | 当前工作树已实现节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval，本地统一门禁已通过；尚未提交或取得远端 CI | 记录为 `implemented_pending_verification`；只证明成功节点边界恢复，不把本地测试写成 Day 5 完成 |
+| Day 6～Day 10 | 尚未完成 | 按 SEC 披露与财务事实核验路线继续执行；Day 5 合并门禁和 owner 复核前不得开始 Day 6 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -859,7 +860,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 12. Day 5：Agent Knowledge 与 Durable Research L4
 
-> 执行状态（2026-08-25）：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，最新已提交基线 `4daa028` 的分支 CI `32796096690` 已通过。Step 4 当前工作树已实现固定 SEC fixture、Dense Knowledge Tool、typed calculator、FinancialScope、filing/calculation Evidence、Workbench 请求合同与 F0～F2 本地对照，并通过锁定环境下的本地全量门禁，状态为 `implemented_pending_verification`；它尚未提交、没有 Step 4 分支 CI，也没有 `main` 合并 CI、Day 5 DoD 或所有者收口。Step 5 仍为 `planned`，不得写成 Day 5 `complete`。详细逐步事实见 [Day 5 学习日志](learning-log/day-5.md)。
+> 执行状态（2026-08-25）：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，最新已提交基线 `4daa028` 的分支 CI `32796096690` 已通过。Step 4～5 当前工作树已实现 SEC fixture Knowledge/calculator/Evidence、节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval，并通过本地统一门禁，状态均为 `implemented_pending_verification`。当前工作树尚未提交，没有 Step 4/5 分支 CI、`main` 合并 CI、完整 Day 5 DoD 或所有者收口；成功节点恢复测试也不等于 Day 8 跨刷新/Worker 重启组合门。详细事实见 [Day 5 学习日志](learning-log/day-5.md)。
 
 ### 学习主题
 
@@ -1322,3 +1323,5 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 1.7.2 | 2026-08-22 | 同步 PR #7 合并、`main` 合并提交 CI、Trace/Eval/DoD 复核与项目所有者授权收口；D4-01～D4-07 关闭并允许进入 Day 5，保留 Day 7 前 90% 核心覆盖率债务 | 用户授权的 Day 4 收口 |
 | 2.0.0 | 2026-08-25 | 冻结 Day 1～4 与 Day 5 Step 1～3 历史事实；从 Day 5 Step 4 起将后续路线收敛为 SEC 披露与财务事实核验 Agent，并扩展至 Day 10，新增官方数据/XBRL、typed calculator、point-in-time、Verifier/Monitor、公开 benchmark + SEC temporal + 中英配对评测和发布门禁 | 用户 |
 | 2.0.1 | 2026-08-25 | 同步 Day 5 Step 4 工作树实现与本地门禁：固定 SEC fixture、Dense `knowledge_search`、typed calculator、Evidence lineage、F0～F2 合同对照和 Workbench；明确尚无提交/远端 CI，F0/F1 不是 live/model 质量，Step 5 仍为 planned | 用户授权的步骤实施记录 |
+| 2.0.2 | 2026-08-25 | 同步 Day 5 Step 5 本地实现：成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval；明确尚无提交/远端 CI、后台超时扫描和 Day 8 跨刷新/Worker 重启组合证据 | 用户授权的 Day 5 本地收尾 |
+| 2.0.3 | 2026-08-25 | 记录 Day 5 Step 5 统一本地门禁结果：真实依赖下 Python 1018、Vitest 83、Playwright 7、构建、OpenAPI 确定性、依赖审计与 Gitleaks 通过；状态仍等待提交、远端 CI、合并和 owner 收口 | 用户授权的 Day 5 本地门禁收尾 |

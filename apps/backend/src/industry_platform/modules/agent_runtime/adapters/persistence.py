@@ -144,6 +144,35 @@ class SqlAlchemyAgentEventCommitter:
             run.state_revision = _optional_int(payload, "state_revision") or 1
             await _project_research_lifecycle(session, run, event)
             return
+        if event.event_type is AgentEventType.RUN_PAUSED:
+            revision = _required_int(payload, "state_revision")
+            if run.status is not AgentRunStatus.RUNNING or revision <= run.state_revision:
+                raise AgentEventPersistenceError()
+            run.status = AgentRunStatus.PAUSED
+            run.state_revision = revision
+            await _project_research_lifecycle(session, run, event)
+            return
+        if event.event_type is AgentEventType.RUN_RESUMED:
+            revision = _required_int(payload, "state_revision")
+            if (
+                run.status
+                not in {
+                    AgentRunStatus.PAUSED,
+                    AgentRunStatus.RUNNING,
+                }
+                or revision <= run.state_revision
+            ):
+                raise AgentEventPersistenceError()
+            run.status = AgentRunStatus.RUNNING
+            run.state_revision = revision
+            await _project_research_lifecycle(session, run, event)
+            return
+        if event.event_type in {
+            AgentEventType.CHECKPOINT_SAVED,
+            AgentEventType.APPROVAL_REQUESTED,
+            AgentEventType.APPROVAL_DECIDED,
+        }:
+            return
         if event.event_type in {
             AgentEventType.RESEARCH_NODE_STARTED,
             AgentEventType.RESEARCH_NODE_COMPLETED,
@@ -273,7 +302,11 @@ async def _project_research_lifecycle(
         return
     if not isinstance(session, AsyncSession):
         raise AgentEventPersistenceError()
-    from industry_platform.modules.research.domain import ResearchNode, ResearchRunStatus
+    from industry_platform.modules.research.domain import (
+        ResearchApprovalStatus,
+        ResearchNode,
+        ResearchRunStatus,
+    )
     from industry_platform.modules.research.models import ResearchRunRecord
 
     research = await session.scalar(
@@ -289,6 +322,25 @@ async def _project_research_lifecycle(
         raise AgentEventPersistenceError()
     if event.event_type is AgentEventType.RUN_STARTED:
         research.status = ResearchRunStatus.ACTIVE
+    elif event.event_type is AgentEventType.RUN_PAUSED:
+        research.status = ResearchRunStatus.PAUSED
+        state = dict(research.state)
+        state.update(status=AgentRunStatus.PAUSED.value, approval_status="pending")
+        research.state = state
+    elif event.event_type is AgentEventType.RUN_RESUMED:
+        research.status = ResearchRunStatus.ACTIVE
+        state = dict(research.state)
+        resume_kind = _required_str(event.payload, "resume_kind")
+        state.update(
+            status=AgentRunStatus.RUNNING.value,
+            approval_status=(
+                ResearchApprovalStatus.ALLOWED.value
+                if resume_kind == "approval"
+                else state.get("approval_status", "not_required")
+            ),
+            stop_reason=None,
+        )
+        research.state = state
     elif event.event_type in {
         AgentEventType.RESEARCH_NODE_STARTED,
         AgentEventType.RESEARCH_NODE_COMPLETED,
@@ -322,7 +374,17 @@ async def _project_research_lifecycle(
             stop_reason=run.stop_reason.value if run.stop_reason is not None else None,
             cancel_requested=event.event_type is AgentEventType.RUN_CANCELLED,
             approval_status=(
-                "required" if run.stop_reason is RunStopReason.APPROVAL_REQUIRED else "not_required"
+                "required"
+                if run.stop_reason is RunStopReason.APPROVAL_REQUIRED
+                else (
+                    "denied"
+                    if run.stop_reason is RunStopReason.APPROVAL_DENIED
+                    else (
+                        "timed_out"
+                        if run.stop_reason is RunStopReason.APPROVAL_TIMED_OUT
+                        else "not_required"
+                    )
+                )
             ),
             error_summary=terminal_error,
         )

@@ -388,18 +388,21 @@ class ToolL2RunCommand:
 
     def __post_init__(self) -> None:
         validate_run_state(self.run, self.state)
-        if (
-            self.run.run_type
-            not in (
-                {AgentRunType.RESEARCH} if self.embedded_in_research else {AgentRunType.TOOL_LOOP}
-            )
-            or self.run.status is not AgentRunStatus.QUEUED
-            or self.state.status is not AgentRunStatus.QUEUED
-            or self.state.revision != 0
-            or self.state.step_count != 0
-            or self.state.event_count != 1
-        ):
-            raise ValueError("Tool L2 Runtime requires a fresh queued Tool Run")
+        fresh = (
+            self.run.status is AgentRunStatus.QUEUED
+            and self.state.status is AgentRunStatus.QUEUED
+            and self.state.revision == 0
+            and self.state.step_count == 0
+            and self.state.event_count == 1
+        )
+        research_resume = self.embedded_in_research and self.run.status in {
+            AgentRunStatus.RUNNING,
+            AgentRunStatus.PAUSED,
+        }
+        if self.run.run_type not in (
+            {AgentRunType.RESEARCH} if self.embedded_in_research else {AgentRunType.TOOL_LOOP}
+        ) or not (fresh or research_resume):
+            raise ValueError("Tool L2 Runtime requires a fresh or Research-owned resumable Run")
         if self.run.runtime_version != TOOL_L2_RUNTIME_VERSION:
             raise ValueError("Run runtime version does not match Tool L2 Runtime")
         if self.run.budget.max_steps < 2:

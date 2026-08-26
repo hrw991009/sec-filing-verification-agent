@@ -2,13 +2,13 @@
 
 面向中文研究、企业战略、IR、财务和咨询团队的 SEC 公开披露监控与财务事实核验工作台。
 
-当前状态：Day 1～Day 4 已完成并合入 `main`；对应 D1、D2、D3、D4 状态和证据保持不变。Day 5 Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，提交为 `bba63e6`、`ad57073`/CI 修复 `adec643`、`4daa028`，当前 head 的分支 CI `32796096690` 已通过；该分支尚未合入 `main`，没有合并提交 CI、Day 5 全量 DoD 或项目所有者收口，因此 D5-01～D5-07 为 `implemented_pending_verification`，D5-08 为 `thin_slice`，D5-09 与 Step 4～Day 10 均为 `planned`。
+当前状态：Day 1～Day 4 已完成并合入 `main`；对应 D1、D2、D3、D4 状态和证据保持不变。Day 5 Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，提交为 `bba63e6`、`ad57073`/CI 修复 `adec643`、`4daa028`，当前已提交基线的分支 CI `32796096690` 已通过。Step 4～5 当前工作树已实现 SEC fixture Knowledge/calculator/Evidence、成功节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval，并通过本地统一门禁；D5-01～D5-09 均为 `implemented_pending_verification`。该工作树尚未提交或取得 Step 4/5 远端 CI，分支也未合入 `main`，没有合并提交 CI、Day 5 全量 DoD 或项目所有者收口。
 
-后续路线从 Day 5 Step 4 起收敛为 SEC `10-K/10-Q` 系列披露事实核验：固定 filing fixture 与 calculator → 官方 EDGAR/XBRL → filing Hybrid Retrieval → Verifier/Monitor/HITL → 分层 benchmark 与中文验证 → Day 10 发布收口。规划不代表这些金融能力已经实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
+后续路线已经从 Day 5 Step 4 收敛为 SEC `10-K/10-Q` 系列披露事实核验。Day 5 当前只证明冻结 filing fixture、Dense Tool、calculator 和成功节点边界 L4 恢复；官方 EDGAR/XBRL、Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.0.0（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.0.3（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -32,6 +32,8 @@
 - [Day 4 安全与隐私复核](docs/security/day-4-memory-research-review.md)
 - [Day 4 运行与回滚手册](docs/runbooks/day-4-memory-research.md)
 - [Day 5 Knowledge 与 SEC Fixture L4 执行日志](docs/learning-log/day-5.md)
+- [Research L4 Checkpoint 与 HITL 合同](docs/research-checkpoint-contract.md)
+- [Day 5 Research L4 运行与回滚手册](docs/runbooks/day-5-research-l4.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
 
 ## 已实现的 Day 1 范围

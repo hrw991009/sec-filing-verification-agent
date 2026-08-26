@@ -105,6 +105,7 @@ class JobExecutionErrorCode(StrEnum):
     INGESTION_STATE_INVALID = "ingestion_state_invalid"
     INGESTION_CANCELLED = "ingestion_cancelled"
     INGESTION_UNAVAILABLE = "ingestion_unavailable"
+    AGENT_RECOVERY_RETRYABLE = "agent_recovery_retryable"
 
 
 class JobRetryDisposition(StrEnum):

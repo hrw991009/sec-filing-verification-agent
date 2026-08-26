@@ -1,0 +1,424 @@
+{
+  "schema_version": 1,
+  "dataset_id": "sec-fixture-research-l4-recovery",
+  "dataset_version": "sec-fixture-l4-v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-hard-stop-after-tool-loop",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-hard-stop-after-tool-loop",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": {
+          "question": "Apple 2023 net sales compared with 2022 changed by what percentage?"
+        },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 20,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" },
+          { "name": "research/checkpoint-contract", "version": "research-l4-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Resume after the Research loop and complete the same Run.",
+        "recovery_eval": {
+          "gate": "hard_stop",
+          "checkpoint_recovery_expected": 1,
+          "checkpoint_recovery_correct": 1,
+          "decision_expected": 0,
+          "decision_correct": 0,
+          "resume_expected": 1,
+          "resume_correct": 1,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "research_loop",
+          "expected_resume_node": "normalize_evidence"
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-hard-stop-after-tool-loop", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Executable Harness test forces a hard stop only after the successful node checkpoint and verifies zero repeated Knowledge, calculation, Evidence, Claim, and Draft writes."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-approval-allow-resume",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-approval-allow-resume",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": {
+          "question": "Confirm Apple and fiscal 2023 before calculating net sales change."
+        },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 20,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" },
+          { "name": "research/approval-contract", "version": "research-l4-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Persist allow, claim the resume proof once, and continue the same Run.",
+        "recovery_eval": {
+          "gate": "allow",
+          "checkpoint_recovery_expected": 1,
+          "checkpoint_recovery_correct": 1,
+          "decision_expected": 1,
+          "decision_correct": 1,
+          "resume_expected": 1,
+          "resume_correct": 1,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "plan",
+          "expected_resume_node": "research_loop"
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-approval-allow-resume", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Real PostgreSQL test verifies Decision, hashed proof, Job, and Outbox transaction facts."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-approval-deny",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-approval-deny",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": { "question": "Reject the ambiguous company or period selection." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 20,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "approval_denied",
+      "expected_behavior": {
+        "recovery_eval": {
+          "gate": "deny",
+          "checkpoint_recovery_expected": 0,
+          "checkpoint_recovery_correct": 0,
+          "decision_expected": 1,
+          "decision_correct": 1,
+          "resume_expected": 0,
+          "resume_correct": 0,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "plan",
+          "expected_resume_node": null
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-approval-deny", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Deny must append an auditable Decision and one approval_denied terminal event without scheduling a resume Job."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-approval-timeout",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-approval-timeout",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": {
+          "question": "Attempt the company or period decision when the approval expires."
+        },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 20,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "approval_timed_out",
+      "expected_behavior": {
+        "recovery_eval": {
+          "gate": "timeout",
+          "checkpoint_recovery_expected": 0,
+          "checkpoint_recovery_correct": 0,
+          "decision_expected": 1,
+          "decision_correct": 1,
+          "resume_expected": 0,
+          "resume_correct": 0,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "plan",
+          "expected_resume_node": null
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-approval-timeout", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "A decision attempted at expiry becomes timed_out and terminates without a resume Job or downstream Tool call; this does not claim a background expiry scanner."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-repeat-decision-resume",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-repeat-decision-resume",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": { "question": "Repeat the same allow decision and resume request." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 20,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Repeated allow and resume return the existing Decision and Job.",
+        "recovery_eval": {
+          "gate": "repeat",
+          "checkpoint_recovery_expected": 1,
+          "checkpoint_recovery_correct": 1,
+          "decision_expected": 1,
+          "decision_correct": 1,
+          "resume_expected": 1,
+          "resume_correct": 1,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "plan",
+          "expected_resume_node": "research_loop"
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-repeat-decision-resume", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Real PostgreSQL test asserts one Decision row, one resume Job identity, and one side-effect ledger row."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-cancel-before-resume",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-cancel-before-resume",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": { "question": "Cancel the paused Run before resume is claimed." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 20,
+          "max_total_tokens": 5000,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "cancelled",
+      "expected_behavior": {
+        "recovery_eval": {
+          "gate": "cancel",
+          "checkpoint_recovery_expected": 0,
+          "checkpoint_recovery_correct": 0,
+          "decision_expected": 0,
+          "decision_correct": 0,
+          "resume_expected": 1,
+          "resume_correct": 1,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "plan",
+          "expected_resume_node": null
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-cancel-before-resume", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The resume transaction reauthorizes current cancellation state and must reject scheduling downstream work."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-l4-budget-exhausted-before-resume",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-l4-budget-exhausted-before-resume",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator-l4", "version": "v1" },
+        "input": { "question": "Attempt resume after the trusted step budget is exhausted." },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "max_steps",
+      "expected_behavior": {
+        "recovery_eval": {
+          "gate": "budget",
+          "checkpoint_recovery_expected": 0,
+          "checkpoint_recovery_correct": 0,
+          "decision_expected": 0,
+          "decision_correct": 0,
+          "resume_expected": 1,
+          "resume_correct": 1,
+          "duplicate_side_effects": 0,
+          "expected_checkpoint_node": "plan",
+          "expected_resume_node": null
+        }
+      },
+      "scorers": [
+        {
+          "category": "runtime_recovery",
+          "name": "research-l4-recovery",
+          "version": "v1",
+          "parameters": {}
+        }
+      ],
+      "trace_refs": [{ "name": "trace/sec-l4-budget-exhausted-before-resume", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "Resume rechecks max steps, token, cost, and deadline from the authoritative Run before creating a Job."
+    }
+  ]
+}

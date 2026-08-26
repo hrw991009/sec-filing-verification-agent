@@ -46,6 +46,8 @@
           "agent.tool.cancelled",
           "agent.artifact.created",
           "agent.checkpoint.saved",
+          "agent.approval.requested",
+          "agent.approval.decided",
           "agent.research.node_started",
           "agent.research.node_completed",
           "agent.research.node_failed"
@@ -1542,6 +1544,25 @@
         },
         "required": ["columns", "rows", "truncated", "limit", "offset"],
         "title": "DatabaseRowsResponse",
+        "type": "object"
+      },
+      "DecideResearchApprovalRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_request_id": {
+            "$ref": "#/components/schemas/NonNilUuid"
+          },
+          "checkpoint_revision": {
+            "minimum": 0.0,
+            "title": "Checkpoint Revision",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ResearchApprovalOutcome"
+          }
+        },
+        "required": ["approval_request_id", "checkpoint_revision", "outcome"],
+        "title": "DecideResearchApprovalRequest",
         "type": "object"
       },
       "DependencyStatus": {
@@ -4717,9 +4738,162 @@
         "title": "RenameConversationRequest",
         "type": "object"
       },
+      "ResearchApprovalOutcome": {
+        "enum": ["allow", "deny"],
+        "title": "ResearchApprovalOutcome",
+        "type": "string"
+      },
+      "ResearchApprovalReason": {
+        "enum": ["company_or_period_ambiguity"],
+        "title": "ResearchApprovalReason",
+        "type": "string"
+      },
+      "ResearchApprovalResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_request_id": {
+            "format": "uuid",
+            "title": "Approval Request Id",
+            "type": "string"
+          },
+          "checkpoint_id": {
+            "format": "uuid",
+            "title": "Checkpoint Id",
+            "type": "string"
+          },
+          "checkpoint_revision": {
+            "title": "Checkpoint Revision",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ResearchApprovalReason"
+          },
+          "requested_by_user_id": {
+            "format": "uuid",
+            "title": "Requested By User Id",
+            "type": "string"
+          },
+          "resume_claimed": {
+            "title": "Resume Claimed",
+            "type": "boolean"
+          },
+          "resume_job_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Job Id"
+          },
+          "resume_token": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Token"
+          },
+          "resumed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumed At"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResearchApprovalStatus"
+          }
+        },
+        "required": [
+          "approval_request_id",
+          "run_id",
+          "checkpoint_id",
+          "checkpoint_revision",
+          "reason",
+          "status",
+          "requested_by_user_id",
+          "created_at",
+          "expires_at",
+          "decided_by_user_id",
+          "decided_at",
+          "resume_claimed",
+          "resume_job_id",
+          "resumed_at"
+        ],
+        "title": "ResearchApprovalResponse",
+        "type": "object"
+      },
+      "ResearchApprovalStatus": {
+        "enum": ["pending", "allowed", "denied", "timed_out"],
+        "title": "ResearchApprovalStatus",
+        "type": "string"
+      },
       "ResearchBriefResponse": {
         "additionalProperties": false,
         "properties": {
+          "approval_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchApprovalReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "budget": {
             "$ref": "#/components/schemas/ResearchBudgetResponse"
           },
@@ -4786,6 +4960,7 @@
           "exclusions",
           "completion_criteria",
           "financial_scope",
+          "approval_reason",
           "budget",
           "confirmed_by_user_id",
           "confirmed_at"
@@ -4816,6 +4991,58 @@
         },
         "required": ["max_steps", "max_total_tokens", "max_cost_micro_usd", "deadline"],
         "title": "ResearchBudgetResponse",
+        "type": "object"
+      },
+      "ResearchCheckpointResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "checkpoint_id": {
+            "format": "uuid",
+            "title": "Checkpoint Id",
+            "type": "string"
+          },
+          "next_node": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchNode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "node": {
+            "$ref": "#/components/schemas/ResearchNode"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "run_state_revision": {
+            "title": "Run State Revision",
+            "type": "integer"
+          },
+          "saved_at": {
+            "format": "date-time",
+            "title": "Saved At",
+            "type": "string"
+          },
+          "state_diff": {
+            "additionalProperties": true,
+            "title": "State Diff",
+            "type": "object"
+          }
+        },
+        "required": [
+          "checkpoint_id",
+          "revision",
+          "run_state_revision",
+          "node",
+          "next_node",
+          "saved_at",
+          "state_diff"
+        ],
+        "title": "ResearchCheckpointResponse",
         "type": "object"
       },
       "ResearchClaimCollectionResponse": {
@@ -4987,6 +5214,33 @@
         "enum": ["explainable_draft", "uncertain_draft"],
         "title": "ResearchDraftStatus",
         "type": "string"
+      },
+      "ResearchDurabilityTimelineResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchApprovalResponse"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCheckpointResponse"
+            },
+            "title": "Checkpoints",
+            "type": "array"
+          },
+          "duplicate_side_effect_count": {
+            "minimum": 0.0,
+            "title": "Duplicate Side Effect Count",
+            "type": "integer"
+          }
+        },
+        "required": ["checkpoints", "approvals", "duplicate_side_effect_count"],
+        "title": "ResearchDurabilityTimelineResponse",
+        "type": "object"
       },
       "ResearchNode": {
         "enum": [
@@ -5226,7 +5480,7 @@
         "type": "object"
       },
       "ResearchRunStatus": {
-        "enum": ["draft", "active", "completed", "failed", "cancelled"],
+        "enum": ["draft", "active", "paused", "completed", "failed", "cancelled"],
         "title": "ResearchRunStatus",
         "type": "string"
       },
@@ -5292,6 +5546,51 @@
         "title": "ResolveMemoryCandidateRequest",
         "type": "object"
       },
+      "ResumeResearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_request_id": {
+            "$ref": "#/components/schemas/NonNilUuid"
+          },
+          "checkpoint_revision": {
+            "minimum": 0.0,
+            "title": "Checkpoint Revision",
+            "type": "integer"
+          },
+          "resume_token": {
+            "maxLength": 100,
+            "minLength": 40,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Resume Token",
+            "type": "string"
+          }
+        },
+        "required": ["approval_request_id", "checkpoint_revision", "resume_token"],
+        "title": "ResumeResearchRequest",
+        "type": "object"
+      },
+      "ResumeResearchResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_run_id": {
+            "format": "uuid",
+            "title": "Agent Run Id",
+            "type": "string"
+          },
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": ["agent_run_id", "job_id", "created"],
+        "title": "ResumeResearchResponse",
+        "type": "object"
+      },
       "RunStopReason": {
         "description": "Stable reason explaining why a run will no longer advance.",
         "enum": [
@@ -5310,6 +5609,8 @@
           "tool_error",
           "no_progress",
           "approval_required",
+          "approval_denied",
+          "approval_timed_out",
           "runtime_error"
         ],
         "title": "RunStopReason",
@@ -5740,6 +6041,16 @@
       "StartResearchRequest": {
         "additionalProperties": false,
         "properties": {
+          "approval_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchApprovalReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "completion_criteria": {
             "items": {
               "type": "string"
@@ -28845,6 +29156,342 @@
         "tags": ["research"]
       }
     },
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/approval-decisions": {
+      "post": {
+        "operationId": "decide_research_approval_api_v1_workspaces__workspace_id__research_runs__research_run_id__approval_decisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "research_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Research Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideResearchApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchApprovalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research Run not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research request conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research request rejected"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research service temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Decide Research Approval",
+        "tags": ["research"]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/claims": {
       "get": {
         "operationId": "list_claims_api_v1_workspaces__workspace_id__research_runs__research_run_id__claims_get",
@@ -29853,6 +30500,332 @@
         "tags": ["evidence"]
       }
     },
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/durability": {
+      "get": {
+        "operationId": "get_research_durability_api_v1_workspaces__workspace_id__research_runs__research_run_id__durability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "research_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Research Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchDurabilityTimelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research Run not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research request conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research request rejected"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research service temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Get Research Durability",
+        "tags": ["research"]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/graph": {
       "get": {
         "operationId": "get_claim_graph_api_v1_workspaces__workspace_id__research_runs__research_run_id__graph_get",
@@ -30177,6 +31150,342 @@
         ],
         "summary": "Get Claim Graph",
         "tags": ["evidence"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/resume": {
+      "post": {
+        "operationId": "resume_research_api_v1_workspaces__workspace_id__research_runs__research_run_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "research_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Research Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeResearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeResearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research Run not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research request conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research request rejected"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Research service temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Resume Research",
+        "tags": ["research"]
       }
     },
     "/health/live": {

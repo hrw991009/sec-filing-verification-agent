@@ -1,4 +1,4 @@
-"""Strict HTTP contracts for Research L3 creation and inspection."""
+"""Strict HTTP contracts for Research creation, inspection, and L4 recovery."""
 
 from datetime import datetime
 from typing import Annotated, Literal, Self
@@ -16,6 +16,9 @@ from pydantic import (
 from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunStopReason
 from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.research.domain import (
+    ResearchApprovalOutcome,
+    ResearchApprovalReason,
+    ResearchApprovalStatus,
     ResearchDraftStatus,
     ResearchNode,
     ResearchRunStatus,
@@ -44,6 +47,7 @@ class StartResearchRequest(StrictResearchModel):
     industry_id: NonNilUuid | None = None
     knowledge_base_ids: list[NonNilUuid] = Field(default_factory=list, max_length=100)
     financial_scope: FinancialScopePayload | None = None
+    approval_reason: ResearchApprovalReason | None = None
     max_steps: int = Field(default=20, ge=12, le=64)
     max_total_tokens: int = Field(default=16_384, ge=1_024, le=100_000)
     max_cost_micro_usd: int = Field(default=500_000, ge=0, le=10_000_000)
@@ -69,7 +73,12 @@ class StartResearchRequest(StrictResearchModel):
         if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
             raise ValueError("Knowledge Base IDs must be unique")
         if self.mode == "web":
-            if self.industry_id is None or self.knowledge_base_ids or self.financial_scope:
+            if (
+                self.industry_id is None
+                or self.knowledge_base_ids
+                or self.financial_scope
+                or self.approval_reason
+            ):
                 raise ValueError("Web Research source scope is invalid")
         elif self.industry_id is not None or not self.knowledge_base_ids:
             raise ValueError("Local Research source scope is invalid")
@@ -102,6 +111,7 @@ class ResearchBriefResponse(StrictResearchModel):
     exclusions: list[str]
     completion_criteria: list[str]
     financial_scope: FinancialScopePayload | None
+    approval_reason: ResearchApprovalReason | None
     budget: ResearchBudgetResponse
     confirmed_by_user_id: UUID
     confirmed_at: datetime
@@ -160,3 +170,55 @@ class ResearchRunDetailResponse(StrictResearchModel):
 
 class ResearchRunCollectionResponse(StrictResearchModel):
     research_runs: list[ResearchRunDetailResponse]
+
+
+class ResearchCheckpointResponse(StrictResearchModel):
+    checkpoint_id: UUID
+    revision: int
+    run_state_revision: int
+    node: ResearchNode
+    next_node: ResearchNode | None
+    saved_at: datetime
+    state_diff: dict[str, object]
+
+
+class ResearchApprovalResponse(StrictResearchModel):
+    approval_request_id: UUID
+    run_id: UUID
+    checkpoint_id: UUID
+    checkpoint_revision: int
+    reason: ResearchApprovalReason
+    status: ResearchApprovalStatus
+    requested_by_user_id: UUID
+    created_at: datetime
+    expires_at: datetime
+    decided_by_user_id: UUID | None
+    decided_at: datetime | None
+    resume_claimed: bool
+    resume_job_id: UUID | None
+    resumed_at: datetime | None
+    resume_token: str | None = Field(default=None, min_length=40, max_length=100)
+
+
+class ResearchDurabilityTimelineResponse(StrictResearchModel):
+    checkpoints: list[ResearchCheckpointResponse]
+    approvals: list[ResearchApprovalResponse]
+    duplicate_side_effect_count: int = Field(ge=0)
+
+
+class DecideResearchApprovalRequest(StrictResearchModel):
+    approval_request_id: NonNilUuid
+    checkpoint_revision: int = Field(ge=0)
+    outcome: ResearchApprovalOutcome
+
+
+class ResumeResearchRequest(StrictResearchModel):
+    approval_request_id: NonNilUuid
+    checkpoint_revision: int = Field(ge=0)
+    resume_token: str = Field(min_length=40, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class ResumeResearchResponse(StrictResearchModel):
+    agent_run_id: UUID
+    job_id: UUID
+    created: bool

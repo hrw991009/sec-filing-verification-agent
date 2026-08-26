@@ -1,4 +1,4 @@
-"""Acceptance tests for the single Day 4 Research L3 execution chain."""
+"""Acceptance tests for the single Research L3/L4 execution chain."""
 
 from __future__ import annotations
 
@@ -25,6 +25,20 @@ from industry_platform.modules.agent_harness.tool_fakes import (
     FakeIndustryLookupTool,
     FakeLookupRecord,
 )
+from industry_platform.modules.agent_runtime.adapters.execution import (
+    _restore_final_decision,
+    _restore_model_response,
+    _restore_observations,
+    _restore_steps,
+)
+from industry_platform.modules.agent_runtime.checkpoints import (
+    CheckpointEnvelope,
+    CheckpointNotFoundError,
+    LoadCheckpointRequest,
+    SaveCheckpointCommand,
+    create_checkpoint_envelope,
+    validate_checkpoint_cas,
+)
 from industry_platform.modules.agent_runtime.context import (
     ContextManifest,
     TrustedRuntimeContext,
@@ -46,7 +60,11 @@ from industry_platform.modules.agent_runtime.model import (
     ModelStreamItem,
     ModelUsage,
 )
-from industry_platform.modules.agent_runtime.ports import CancellationProbe, ModelProvider
+from industry_platform.modules.agent_runtime.ports import (
+    CancellationProbe,
+    CheckpointStore,
+    ModelProvider,
+)
 from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 from industry_platform.modules.agent_runtime.state import RunState
 from industry_platform.modules.agent_runtime.tool_runtime import UnifiedAgentRuntime
@@ -95,6 +113,11 @@ from industry_platform.modules.research.domain import (
     ResearchNode,
     ResearchPlan,
 )
+from industry_platform.modules.research.durability import (
+    ResearchDurabilityRepository,
+    ResearchDurabilityService,
+    ResumeTokenCodec,
+)
 from industry_platform.modules.research.ports import ResearchWorkflowStore
 from industry_platform.modules.retrieval.domain import (
     KnowledgeSearchHit,
@@ -107,8 +130,16 @@ from industry_platform.modules.retrieval.tool import KnowledgeSearchTool
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
-from industry_platform.workflows.research.contracts import ResearchL3RunCommand
-from industry_platform.workflows.research.runtime import ResearchL3Runtime
+from industry_platform.workflows.research.contracts import (
+    ResearchGraphState,
+    ResearchL3RunCommand,
+    ResearchResumeKind,
+    ResearchResumeSnapshot,
+)
+from industry_platform.workflows.research.runtime import (
+    ResearchHardStopError,
+    ResearchL3Runtime,
+)
 
 NOW = datetime(2026, 8, 21, 8, 0, tzinfo=UTC)
 RUN_ID = UUID("10000000-0000-4000-8000-000000000001")
@@ -126,6 +157,7 @@ QUESTION = "Compare steel and copper market changes."
 REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
 SEC_MANIFEST = REPOSITORY_ROOT / "evals" / "fixtures" / "sec" / "sec-fixture-v1" / "manifest.json"
 SEC_SCENARIOS = REPOSITORY_ROOT / "evals" / "scenarios" / "sec-fixture-v1.json"
+SEC_L4_SCENARIOS = REPOSITORY_ROOT / "evals" / "scenarios" / "sec-fixture-l4-v1.json"
 SEC_QUESTION = "Apple 2023 net sales compared with 2022 changed by what percentage?"
 SEC_KNOWLEDGE_BASE_ID = UUID("10000000-0000-4000-8000-000000000012")
 SEC_DOCUMENT_ID = UUID("10000000-0000-4000-8000-000000000013")
@@ -164,6 +196,57 @@ class RecordingCommitter:
 
     async def append_batch(self, events: tuple[AgentEvent, ...]) -> None:
         self.events.extend(events)
+
+
+@dataclass
+class RecordingCheckpointStore:
+    checkpoints: list[CheckpointEnvelope] = field(default_factory=list)
+
+    async def save(self, command: SaveCheckpointCommand) -> CheckpointEnvelope:
+        current = self.checkpoints[-1] if self.checkpoints else None
+        validate_checkpoint_cas(command, current)
+        envelope = create_checkpoint_envelope(
+            command,
+            checkpoint_id=stable_id(f"checkpoint-{len(self.checkpoints)}"),
+            saved_at=command.state.updated_at + timedelta(microseconds=1),
+        )
+        self.checkpoints.append(envelope)
+        return envelope
+
+    async def load(self, request: LoadCheckpointRequest) -> CheckpointEnvelope:
+        selected = [
+            checkpoint
+            for checkpoint in self.checkpoints
+            if checkpoint.run_id == request.run_id
+            and checkpoint.workspace_id == request.workspace_id
+            and (request.revision is None or checkpoint.revision == request.revision)
+        ]
+        if not selected:
+            raise CheckpointNotFoundError
+        return selected[-1]
+
+
+@dataclass
+class RecordingDurabilityRepository:
+    effects: set[tuple[str, str]] = field(default_factory=set)
+    duplicate_attempt_count: int = 0
+
+    async def record_completed_effects(
+        self,
+        scope: WorkspaceScope,
+        *,
+        run_id: UUID,
+        effects: tuple[tuple[str, str, str], ...],
+        completed_at: datetime,
+    ) -> None:
+        del completed_at
+        assert scope.workspace_id == WORKSPACE_ID
+        assert run_id == RUN_ID
+        for kind, reference, _digest in effects:
+            key = (kind, reference)
+            if key in self.effects:
+                self.duplicate_attempt_count += 1
+            self.effects.add(key)
 
 
 class NeverCancelled:
@@ -827,17 +910,24 @@ def build_sec_runtime(
     evidence_service: SecEvidenceService,
     *,
     knowledge_status: KnowledgeSearchStatus = KnowledgeSearchStatus.OK,
+    knowledge_service: SecKnowledgeService | None = None,
+    operand_repository: SecOperandRepository | None = None,
+    committer: RecordingCommitter | None = None,
+    checkpoint_store: CheckpointStore | None = None,
+    durability_service: ResearchDurabilityService | None = None,
+    hard_stop_after_node: ResearchNode | None = None,
+    runtime_clock: Callable[[], datetime] | None = None,
 ) -> tuple[UnifiedAgentRuntime, SecKnowledgeService, SecOperandRepository]:
-    clock: Callable[[], datetime] = IncrementingClock()
+    clock = runtime_clock or IncrementingClock()
     manifests = RecordingManifestStore()
-    committer = RecordingCommitter()
+    selected_committer = committer or RecordingCommitter()
     compiler = ContextCompilerV1(token_counter=FixedTokenCounter())
-    knowledge_service = SecKnowledgeService(status=knowledge_status)
-    operand_repository = SecOperandRepository()
+    selected_knowledge = knowledge_service or SecKnowledgeService(status=knowledge_status)
+    selected_operands = operand_repository or SecOperandRepository()
     catalog = load_sec_fixture_catalog(SEC_MANIFEST, repository_root=REPOSITORY_ROOT)
     tools = (
-        KnowledgeSearchTool(knowledge_service),  # type: ignore[arg-type]
-        FinanceCalculateTool(operand_repository, catalog),  # type: ignore[arg-type]
+        KnowledgeSearchTool(selected_knowledge),  # type: ignore[arg-type]
+        FinanceCalculateTool(selected_operands, catalog),  # type: ignore[arg-type]
     )
     registry = ToolRegistry(tools)
     executor = RegistryToolExecutor(registry, clock=clock)
@@ -850,15 +940,18 @@ def build_sec_runtime(
         model_provider=provider,
         tool_registry=registry,
         tool_executor=executor,
-        event_committer=committer,
+        event_committer=selected_committer,
         cancellation_probe=cancellation,
+        checkpoint_store=checkpoint_store,
+        durability_service=durability_service,
+        hard_stop_after_node=hard_stop_after_node,
         clock=clock,
     )
     direct_runtime = DirectAnswerRuntime(
         context_compiler=compiler,
         context_manifest_store=manifests,
         model_provider=provider,
-        event_committer=committer,
+        event_committer=selected_committer,
         cancellation_probe=cancellation,
         clock=clock,
     )
@@ -867,8 +960,58 @@ def build_sec_runtime(
             direct_answer_runtime=direct_runtime,
             research_l3_runtime=research_runtime,
         ),
-        knowledge_service,
-        operand_repository,
+        selected_knowledge,
+        selected_operands,
+    )
+
+
+def recovery_command(
+    command: ResearchL3RunCommand,
+    checkpoint: CheckpointEnvelope,
+    events: tuple[AgentEvent, ...],
+) -> ResearchL3RunCommand:
+    payload = checkpoint.payload
+    execution = payload["execution"]
+    graph = payload["graph_state"]
+    assert isinstance(execution, Mapping)
+    assert isinstance(graph, Mapping)
+    next_node_value = payload["next_node"]
+    started = next(
+        event.occurred_at for event in events if event.event_type is AgentEventType.RUN_STARTED
+    )
+    run = replace(
+        command.run,
+        status=AgentRunStatus.RUNNING,
+        state_revision=checkpoint.state.revision,
+        started_at=started,
+    )
+    state = replace(
+        checkpoint.state,
+        status=AgentRunStatus.RUNNING,
+        event_count=len(events),
+        updated_at=events[-1].occurred_at,
+    )
+    raw_outline = execution["outline"]
+    assert isinstance(raw_outline, list)
+    snapshot = ResearchResumeSnapshot(
+        kind=ResearchResumeKind.RECOVERY,
+        checkpoint_revision=checkpoint.revision,
+        next_node=(None if next_node_value is None else ResearchNode(cast(str, next_node_value))),
+        graph=cast(ResearchGraphState, dict(graph)),
+        event_history=events,
+        steps=_restore_steps(execution["steps"], RUN_ID, WORKSPACE_ID),
+        observations=_restore_observations(execution["observations"], WORKSPACE_ID),
+        final_decision=_restore_final_decision(execution["final_decision"]),
+        final_response=_restore_model_response(execution["final_response"]),
+        final_markdown=cast(str | None, execution["final_markdown"]),
+        outline=tuple(cast(list[str], raw_outline)),
+    )
+    return replace(
+        command,
+        run=run,
+        state=state,
+        loop_command=replace(command.loop_command, run=run, state=state),
+        resume=snapshot,
     )
 
 
@@ -944,6 +1087,129 @@ async def test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime(
         filing_evidence_id,
         SEC_CALCULATION_EVIDENCE_ID,
     )
+
+
+@pytest.mark.asyncio
+async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effects() -> None:
+    case = next(
+        item
+        for item in load_scenario_dataset(SEC_L4_SCENARIOS).cases
+        if item.case_id == "sec-l4-hard-stop-after-tool-loop"
+    )
+    recovery_eval = cast(Mapping[str, object], case.expected_behavior["recovery_eval"])
+    assert recovery_eval["expected_checkpoint_node"] == ResearchNode.RESEARCH_LOOP.value
+    assert recovery_eval["expected_resume_node"] == ResearchNode.NORMALIZE_EVIDENCE.value
+    fixture = load_sec_fixture_catalog(SEC_MANIFEST, repository_root=REPOSITORY_ROOT).filings[0]
+    filing_evidence_id = knowledge_evidence_ref(
+        workspace_id=WORKSPACE_ID,
+        accession=fixture.accession,
+        document_version_id=SEC_VERSION_ID,
+        chunk_id=SEC_CHUNK_ID,
+        content_sha256=SEC_CHUNK_HASH,
+    )
+    provider = QueueModelProvider(
+        (
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"tool_call",'
+                '"name":"knowledge_search","version":"v1",'
+                '"arguments":{"query":"Apple 2023 and 2022 net sales"}}}',
+                "sec-l4-knowledge",
+            ),
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"tool_call",'
+                '"name":"finance.calculate","version":"v1","arguments":{'
+                '"operator":"percent_change","operands":['
+                f'{{"value":"383285","evidence_ref":"{filing_evidence_id}"}},'
+                f'{{"value":"394328","evidence_ref":"{filing_evidence_id}"}}],'
+                '"decimal_places":2,"rounding_mode":"half_even"}}}',
+                "sec-l4-calculation",
+            ),
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"final",'
+                '"content_markdown":"## Finding\\n\\nNet sales decreased by 2.80% [S1]."}}',
+                "sec-l4-final",
+            ),
+        )
+    )
+    budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    command = sec_research_command(budget)
+    store = RecordingWorkflowStore()
+    evidence = SecEvidenceService()
+    checkpoints = RecordingCheckpointStore()
+    durability_repository = RecordingDurabilityRepository()
+    runtime_clock = IncrementingClock()
+    durability = ResearchDurabilityService(
+        repository=cast(ResearchDurabilityRepository, durability_repository),
+        token_codec=ResumeTokenCodec(b"r" * 32),
+        clock=IncrementingClock(),
+    )
+    committer = RecordingCommitter()
+    runtime, knowledge, calculator = build_sec_runtime(
+        provider,
+        store,
+        evidence,
+        committer=committer,
+        checkpoint_store=checkpoints,
+        durability_service=durability,
+        hard_stop_after_node=ResearchNode.RESEARCH_LOOP,
+        runtime_clock=runtime_clock,
+    )
+
+    with pytest.raises(ResearchHardStopError):
+        _ = [
+            event
+            async for event in runtime.run(
+                command,
+                sec_runtime_context(budget),
+            )
+        ]
+
+    assert checkpoints.checkpoints[-1].payload["node"] == ResearchNode.RESEARCH_LOOP.value
+    assert checkpoints.checkpoints[-1].payload["financial_scope"] == dict(
+        sec_financial_scope().to_mapping()
+    )
+    assert knowledge.queries == ["Apple 2023 and 2022 net sales"]
+    assert len(calculator.values) == 1
+    assert evidence.normalizations == []
+
+    resumed_command = recovery_command(
+        command,
+        checkpoints.checkpoints[-1],
+        tuple(committer.events),
+    )
+    resumed_runtime, _, _ = build_sec_runtime(
+        QueueModelProvider(()),
+        store,
+        evidence,
+        knowledge_service=knowledge,
+        operand_repository=calculator,
+        committer=committer,
+        checkpoint_store=checkpoints,
+        durability_service=durability,
+        runtime_clock=runtime_clock,
+    )
+    resumed_events = [
+        event
+        async for event in resumed_runtime.run(
+            resumed_command,
+            sec_runtime_context(budget),
+        )
+    ]
+
+    assert resumed_events[-1].event_type is AgentEventType.RUN_COMPLETED
+    assert knowledge.queries == ["Apple 2023 and 2022 net sales"]
+    assert len(calculator.values) == 1
+    assert len(evidence.normalizations) == 2
+    assert len(evidence.claims) == 1
+    assert len(store.drafts) == 1
+    assert len(durability_repository.effects) == 4
+    assert [event.event_type for event in committer.events].count(AgentEventType.RUN_RESUMED) == 1
 
 
 @pytest.mark.asyncio
