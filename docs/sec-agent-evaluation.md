@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.0.0`
+> 版本：`1.1.0`
 >
-> 日期：2026-08-25
+> 日期：2026-08-26
 >
-> 权威范围：`docs/master-plan.md` v2.0.0 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.0.4 Day 5 Step 4～Day 10
 >
 > 状态：后续实现基线；本文定义计划和门禁，不代表任何 SEC benchmark 已接入或通过
 
@@ -108,15 +108,45 @@ Day 5 使用少量已审核 SEC filing 快照验证 Knowledge、locator、calcul
 
 ### 4.2 `sec-source-v1`
 
-Day 6 验证官方数据和 point-in-time source contract：
+Day 6 验证官方数据和 point-in-time source contract。最低规模为 24 个确定性 case：18 个 `contract` cases 用于开发期回归，6 个 `closeout_regression` cases 在步骤收口时复跑。两组 case/gold 均对开发可见，只保证 gold 不进入模型 Context，不支持“未见数据泛化”声明。它不是公开 benchmark，也不评价开放式投资判断。
+
+每个 case manifest 至少固定：
+
+```text
+case_id / dataset_version / split / execution_kind=tool|sync
+optional sync_kind=canonical_source|workspace_import
+license_or_use_record / checksum / eligible_metrics
+expected_snapshot_presence / expected_import_presence
+optional frozen_source_refs / source_snapshot_hashes / source_version_available_at
+optional bulk_published_at / coverage_through / incremental_coverage_refs
+visibility_basis / source_version_valid_from / source_version_valid_to
+adapter_version
+question_or_operation / cik_candidates / expected_cik
+allowed_forms / report_period / as_of / timezone
+visibility_policy_version / amendment_policy / expected_accession
+expected_fact_or_section_locators / expected_result_or_error
+required_milestones / allowed_tools / forbidden_tools
+argument_constraints / budget / scorer_version
+```
+
+最低覆盖：
 
 - company/ticker/name/CIK 歧义；
 - 启用 `10-K`、`10-Q`、`10-K/A`，并验证 `10-Q/A` amendment 合同兼容与 base 关系；
-- filing/accepted/report date；
+- report/filed/accepted/public-available time 与 visibility policy；
+- submissions current list、`filings.files` supplemental history、coverage manifest、重复 accession 和 supplemental 缺失/损坏；
+- bulk `coverage_through` 前/等于/后、post-watermark 增量补齐，以及未补齐 gap 禁止 `no_result`；
+- append-only document/response source version、correction/deletion、hash 幂等和内容变化异常；
 - standard/custom XBRL fact；
 - instant/duration、dimensions、unit/period；
 - cutoff 后 filing；
-- 429/5xx/timeout、重复同步、损坏快照和跨 Workspace。
+- 429/5xx/timeout、99/100 CIK bulk threshold、bulk partial/failure、重复同步、损坏快照和跨 Workspace。
+
+规则 Scorer 必须分别输出 identity/selection、source/locator、point-in-time、XBRL context、trajectory/readiness、failure classification、idempotency 和 Workspace/security 指标，并为每项指标从 manifest 计算固定 eligible denominator。source identity/locator 可解析率 100% 只统计预期返回来源的 eligible cases；ambiguous/no-result/依赖/权限 case 不进入该分母，但必须进入各自错误分类分母。future leakage、错误 company/form/accession、跨 Workspace、未授权写 Tool、重复 filing/snapshot/fact/index 和依赖错误误报 `no_result` 均为 0。
+
+成功且 `expected_snapshot_presence=true` 的 `execution_kind=tool` case 必须由 case → AgentRun/ToolCall/Trace → source snapshot 反查。`sync_kind=canonical_source` 由 case → Job/Outbox → canonical sync/source snapshot 反查，合法成功时可固定 `expected_import_presence=false`；`sync_kind=workspace_import` 才必须由 case → Job/Outbox/`workspace_sec_imports` → source snapshot 反查，并分别验证 manifest 的 snapshot/import presence。429、连接失败、bulk 下载前失败或快照提交前 hard stop 可固定 `expected_snapshot_presence=false`/`expected_import_presence=false`，此时 source refs/hash/visibility 字段可空，证据链在 request attempt 或 Job/Event + typed error 收口，并断言零已提交 snapshot/import；这些 case 仍进入适用错误指标的固定 denominator。
+
+冻结 response/replay 进入普通 PR CI；live smoke 单独记录日期、官方 URL、retrieved_at、content hash、Adapter/version、请求速率、失败和重试，不进入普通 PR 硬门，也不得与 deterministic 指标平均。
 
 ### 4.3 `sec-temporal-v1`
 

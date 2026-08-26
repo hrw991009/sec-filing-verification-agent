@@ -2,15 +2,17 @@
 
 > 制定日期：2026-08-23
 >
-> 更新日期：2026-08-25
+> 更新日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.2 Day 5
+> 原计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.2 Day 5
+>
+> 2026-08-26 状态同步基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.4
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D5-01～D5-09
 >
 > 相关架构：[系统架构](../architecture.md)第 3、5、6、10.3、11、12、15.2、15.4、15.6、18 节，[ADR 0002](../adr/0002-postgresql-source-of-truth.md)、[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0004](../adr/0004-celery-redis-background-jobs.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)、[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现且已提交基线的分支 CI 通过，但尚未合入 `main`；Step 4～5 当前工作树已完成本地实现，D5-01～D5-09 均为 `implemented_pending_verification`。当前工作树尚未提交或取得 Step 4/5 远端 CI，本地验证不等于 Day 5 `complete`。
+> 当前状态：五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，分支 push、PR 与合并提交 CI 均通过；D5-01～D5-07 为 `complete`。现有记录明确缺少 ready SEC fixture 的“Dense/calculation Evidence → 暂停/审批/resume → 刷新反查”真实浏览器旅程，因此 D5-08、D5-09 与 Day 5 总门禁仍为 `implemented_pending_verification`。项目所有者于 2026-08-26 授权进入 Day 6 文档规划，不视为放弃该 DoD；Day 6 代码实现仍须等待该旅程关闭。本文件保留 2026-08-23～25 的过程状态作为历史快照。
 
 ## 1. 当前门禁与今日边界
 
@@ -43,7 +45,7 @@ Day 5 从 Day 4 已完成的 Memory、Observation→Evidence→Claim、ResearchB
 
 历史环境预检记录：本计划创建时仓库 `.nvmrc`/`package.json` 固定 Node `24.16.0`，当时终端为 Node `24.19.0`、pnpm `10.10.0`。该记录不否定已取得的远端分支 CI；Step 4 及后续本地完整门禁必须切换到 Node `24.16.0`，否则只能记录非锁定环境的局部结果，不能表述为可复现的 Day 5 验收通过。
 
-### 1.1 当前分支证据
+### 1.1 2026-08-25 分支证据快照
 
 | 步骤 | 提交 | 当前证据 | 尚缺门禁 |
 |---|---|---|---|
@@ -53,11 +55,11 @@ Day 5 从 Day 4 已完成的 Memory、Observation→Evidence→Claim、ResearchB
 | Step 4 | 当前工作树，未提交 | 固定 SEC fixture、Dense `knowledge_search`、`FinancialScope`、`finance.calculate@v1`、filing/calculation Evidence、F0～F2 报告与 Workbench 请求合同；本地全量门禁通过 | Step 4 提交与分支 CI、`main` 合并 CI、owner 复核；F0/F1 真实可执行对照和 SEC 浏览器全链仍需后续增强 |
 | Step 5 | 当前工作树，未提交 | 成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 Approval/Decision、同 Run resume、Job/Outbox、副作用账本、Workbench 时间线与 7 条 L4 recovery 场景；本地统一门禁通过 | Step 5 提交/分支 CI、`main` 合并 CI、Day 5 DoD/owner 复核；后台超时扫描和 Day 8 跨刷新/Worker 重启组合门未实现 |
 
-这些证据只支持 `implemented_pending_verification`。当前分支未合入 `main`，Step 4～5 尚未形成提交或远端分支 CI；同时没有 `main` 合并提交 CI、正式 Day 5 DoD 复核与项目所有者验收记录。
+在该历史快照时点，这些证据只支持 `implemented_pending_verification`；2026-08-26 的提交、远端 CI、合并与所有者收口见第 8 节，后者取代本段作为当前状态。
 
 ## 2. 现有实现与复用边界
 
-当前工作树已在 Step 1～3 的正式 `knowledge`、`ingestion` 与索引写入链上增加 Step 4 的 `retrieval`、SEC fixture/FinancialScope、财务计算 Tool 与 Evidence lineage，并在同一 Research graph 上增加 Step 5 L4 Checkpoint/HITL/resume；没有建立第二套 Runtime、Tool loop、Research graph 或索引真相源。
+Day 5 最终实现已在 Step 1～3 的正式 `knowledge`、`ingestion` 与索引写入链上增加 Step 4 的 `retrieval`、SEC fixture/FinancialScope、财务计算 Tool 与 Evidence lineage，并在同一 Research graph 上增加 Step 5 L4 Checkpoint/HITL/resume；没有建立第二套 Runtime、Tool loop、Research graph 或索引真相源。
 
 | 现有能力 | 必须复用 | Day 5 扩展 | 禁止做法 |
 |---|---|---|---|
@@ -200,11 +202,11 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 
 | 步骤 | 当前状态 | 关闭条件 |
 |---|---|---|
-| 1. 知识库、私有上传与异步受理 | `implemented_pending_verification` | `bba63e6` 已实现且分支 CI 通过；尚缺 `main` 合并 CI、Day 5 DoD 和 owner 收口 |
-| 2. 版本化解析与可追溯资产 | `implemented_pending_verification` | `ad57073`、CI 修复 `adec643` 已实现且修复后分支 CI 通过；尚缺最终合并门禁 |
-| 3. 双索引 ready、删除对账与文档 Workbench | `implemented_pending_verification` | `4daa028` 与 head CI `32796096690` 已通过；Dense query/Tool 不属于本步已实现证据 |
-| 4. SEC Fixture Knowledge、计算与 Evidence | `implemented_pending_verification` | 当前工作树已实现并通过本地全量门禁；尚缺提交、Step 4 分支 CI、`main` 合并 CI、owner 复核，且 F0/F1 与 SEC 浏览器全链仍是后续增强项 |
-| 5. SEC Fixture Durable Research L4、HITL 与收口 | `implemented_pending_verification` | 当前工作树已实现并通过本地统一门禁；尚缺提交、Step 5 分支 CI、`main` 合并 CI、Day 5 DoD 和 owner 收口 |
+| 1. 知识库、私有上传与异步受理 | `complete` | 已由 PR #9、分支/PR/main CI、DoD 与所有者收口关闭 |
+| 2. 版本化解析与可追溯资产 | `complete` | 已由 PR #9、分支/PR/main CI、DoD 与所有者收口关闭 |
+| 3. 双索引 ready、删除对账与文档 Workbench | `complete` | 已由 PR #9、分支/PR/main CI、DoD 与所有者收口关闭；Dense query/Tool 仍由 Step 4 证明 |
+| 4. SEC Fixture Knowledge、计算与 Evidence | `implemented_pending_verification` | 实现、分支/PR/main CI 与确定性 Trace/Eval 已完成；仍缺 ready SEC fixture 的浏览器 Dense/calculation/Evidence 旅程 |
+| 5. SEC Fixture Durable Research L4、HITL 与收口 | `implemented_pending_verification` | 实现、分支/PR/main CI 与恢复场景已完成；仍缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程；Day 8 组合恢复门另行保留 |
 
 状态只随证据推进：
 
@@ -295,3 +297,22 @@ Agent 追加 DoD 同时要求：
 - 全局与 Agent DoD、D5-01～D5-09 双向映射、功能分支 CI、`main` 合并提交 CI 和项目所有者复核全部完成。
 
 若任一条件未通过，保持 Day 5 相应过程状态并继续当前步骤，不开始 Day 6 官方 SEC 来源接入，不通过删除场景、放宽预算、静默 Mock、跳过真实依赖或把 Day 6～Day 8 能力提前混入来制造进度。
+
+## 8. 2026-08-26 合并证据与剩余 DoD
+
+本节取代前文 2026-08-25 过程记录中的“未提交/未合并”描述，但不覆盖其中明确记录的浏览器证据缺口；历史记录保留用于说明状态如何推进。
+
+| 门禁 | 最终证据 | 结论 |
+|---|---|---|
+| 功能 head | `cff25c1`，分支 `feat/day5-knowledge-ingestion-step1` | Step 1～5 已形成可审计提交历史 |
+| 分支 push CI | [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147) | 7 个适用 Job 全部成功 |
+| PR CI | [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) | 7 个适用 Job 全部成功 |
+| 合并 | [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) → [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) | 已合入 `main` |
+| 合并提交 CI | [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) | Python/Web 质量、PostgreSQL/Redis/MinIO 集成、Chromium E2E、Python/Node 依赖审计和完整历史 Secret 扫描共 7 个适用 Job 全部成功 |
+| Trace/Eval | 第 3～5 节及版本化报告、合同、Runbook | 后端/Harness/组件与通用浏览器证据已完成 |
+| 未关闭浏览器 DoD | 第 3 节记录没有 ready Apple fixture 浏览器全链，也没有该 fixture 的暂停/审批/resume 浏览器旅程 | D5-08、D5-09 保持 `implemented_pending_verification` |
+| 项目所有者 | 2026-08-26 明确要求进入 Day 6 | 授权进入 Day 6 文档规划；未明确放弃浏览器 DoD，故不作为豁免 |
+
+因此 D5-01～D5-07 更新为 `complete`；D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`。关闭条件是用真实 Chromium、正式 API 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 完成一条无手工改库旅程：准备 ready SEC fixture → 发起 Dense/typed calculation Research → 在 Workbench 反查 filing/calculation Evidence → 触发暂停 → allow/deny 或 timeout → resume → 刷新后仍从同一 Checkpoint 展示结果，并断言重复 Tool/计算/Artifact 为 0。该证据进入分支 CI 和 `main` CI 后，才可关闭 D5-08/D5-09 并开始 Day 6 代码实现。
+
+live SEC/XBRL 仍属于 Day 6，BM25/RRF/rerank 和正式核对属于 Day 7，Verifier/Monitor 与跨刷新/Worker 重启组合恢复属于 Day 8。D1-09 外部凭据治理和 Day 4 核心覆盖率 85%→90% 债务继续阻断 Day 10 发布标签。

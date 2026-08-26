@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.0.3`
+> 版本：`2.0.4`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-25`
+> 修订日期：`2026-08-26`
 >
 > 状态：SEC 财务事实核验 Agent 执行基线
 >
@@ -51,10 +51,10 @@
 | 范围 | 当前事实 | 本计划处理 |
 |---|---|---|
 | Day 1～Day 4 | D1、D2、D3、D4 已按各自记录完成；D1-09 外部凭据处置和 Day 4 核心覆盖率债务仍保留 | 历史任务、提交、CI、DoD 和限制原文保留，不因业务转向重算 |
-| Day 5 Step 1～3 | 当前分支 `feat/day5-knowledge-ingestion-step1` 已实现知识受理、版本化解析资产、双索引写入/删除对账/Workbench；提交 `4daa028` 的分支 CI `32796096690` 已通过 | 记录为 `implemented_pending_verification`；在合入 `main`、合并提交 CI、DoD 与所有者复核前不得写成 `complete` |
-| Day 5 Step 4 | 当前工作树已实现固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 本地合同对照；尚未提交或取得远端 CI | 记录为 `implemented_pending_verification`；F2/no-result 已走同一 Runtime/Harness，F0/F1 仍是冻结合同对照，不表述为 live/model 质量 |
-| Day 5 Step 5 | 当前工作树已实现节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval，本地统一门禁已通过；尚未提交或取得远端 CI | 记录为 `implemented_pending_verification`；只证明成功节点边界恢复，不把本地测试写成 Day 5 完成 |
-| Day 6～Day 10 | 尚未完成 | 按 SEC 披露与财务事实核验路线继续执行；Day 5 合并门禁和 owner 复核前不得开始 Day 6 |
+| Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
+| Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
+| Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
+| Day 6～Day 10 | 尚未完成 | Day 6 五步文档计划已冻结，D6-01～D6-08 仍为 `planned`；D5-08/D5-09 浏览器 DoD 关闭前不开始 Day 6 代码实现 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -398,14 +398,16 @@ Knowledge Base、Document/Chunk/Asset 与检索记录是 Agent Knowledge/RAG 的
 
 - `sec_filers`：CIK、规范名称、ticker/exchange 映射、身份状态和官方来源版本；ticker 不是稳定主键。
 - `sec_filer_aliases`：历史名称、ticker、匹配类型、有效时间和解析置信度；歧义必须进入澄清，不能静默猜公司。
-- `sec_filings`：filer、accession、form、filing date、accepted at、report date、primary document、amendment/base filing 关系、官方 URL、抓取时间和状态；`accession` 在来源语义内唯一。
-- `sec_filing_documents`：原始 HTML/iXBRL/XML、附件类型、官方 URL、content hash、MinIO snapshot ref 与 retrieved at；更新创建新快照，不覆盖已用于回答的原件。
-- `sec_xbrl_contexts`：entity、period instant/start/end、dimensions、fiscal year/period、frame、来源文档和 context hash。
-- `sec_xbrl_facts`：taxonomy/concept、label、value、unit、decimals、scale、context、filed、accession、form 与 fact locator；聚合 API 的标准事实和原始 filing 中的 custom tag 必须区分来源。
+- `sec_filings`：filer、accession、form、filing date、accepted at、report date、`public_available_at`、可见性依据/策略版本、primary document、amendment/base filing 关系、官方 URL 和版本化 current projection；`accession` 在来源语义内唯一，官方 correction/deletion 通过新 source version 推进 projection。
+- `sec_filing_documents`：accession 下的官方 document identity、sequence、filename/type 与 canonical URL；document identity 与实际抓取字节分开建模。
+- `sec_source_snapshots`：filing document、submissions/companyfacts/companyconcept response、raw iXBRL 或 XBRL instance XML 的 append-only 不可变 MinIO ref、content hash、retrieved at、`source_version_available_at`/有效区间/依据、Adapter/source version 和异常状态；更新创建新快照，不覆盖已用于回答的原件。
+- `workspace_sec_imports`：Workspace 对 canonical filing/source snapshot 的授权绑定、导入状态和 Knowledge DocumentVersion；`resolve_filer/list_filings` 可在认证 Workspace 内读公共 discovery catalog，facts/text/bytes 读取必须通过 import 绑定重新授权。
+- `sec_xbrl_contexts`：entity、period instant/start/end、dimensions、fiscal year/period、frame、来源 snapshot 和 context hash；仅 raw iXBRL/instance XML 承诺精确原始 context。
+- `sec_xbrl_facts`：taxonomy/concept、label、value、unit、source-specific nullable decimals/scale/context/dimensions、filed、accession、form、source kind/snapshot 与 fact locator；aggregate locator 与 raw locator 分型，不能补造聚合 API 未提供的原始字段。
 - `financial_calculations`：operator/schema version、rounding policy、result/unit、状态和创建 Step；`financial_calculation_inputs` 连接每个输入值与 XBRL/表格/文本 Evidence，禁止只保存最终数字。
 - `disclosure_monitors`：workspace、filer、forms、关注事实/章节、watermark、schedule 和 approval policy；`disclosure_cases` 保存一次新 filing/amendment diff、Evidence、状态与去重键。
 
-`AgentRun`、`ResearchBrief`、Context manifest 和 EvalCase 在 SEC profile 下必须记录 `as_of`、目标 filer/CIK、允许 forms、报告期间与选中的 accession。`latest` 只能是解析后落入 Trace 的显式选择结果，不能作为不可重放的隐式默认值。SEC 是外部披露来源，PostgreSQL 仍是系统业务事实源；MinIO 保存回答时实际使用的不可变原件，Milvus/Elasticsearch 只保存可重建的 filing 文本索引。
+`AgentRun`、`ResearchBrief`、Context manifest 和 EvalCase 在 SEC profile 下必须记录版本化 `FilingSelectionScope v1`：`as_of`、目标 filer/CIK 候选、允许 forms、报告期间和 amendment policy；选定后再物化 accession-bound `FinancialScope`。现有 Day 5 `FinancialScope v1` 保持 replay 兼容，不能原地扩字段改变旧语义。`latest` 只能是解析后落入 Trace 的显式选择结果，不能作为不可重放的隐式默认值。SEC 是外部披露来源，PostgreSQL 仍是系统业务事实源；MinIO 保存回答时实际使用的不可变原件，Milvus/Elasticsearch 只保存可重建的 filing 文本索引。
 
 ## 6. Agent 执行、API、SSE 与异步一致性契约
 
@@ -430,8 +432,10 @@ Knowledge Base、Document/Chunk/Asset 与检索记录是 Agent Knowledge/RAG 的
 /search/hybrid  /search/web
 /memories  /memories/search
 /research-runs/{id}/events|report|cancel|resume
-/sec/filers/resolve  /sec/filers/{cik}/filings
-/sec/filings/{accession}|documents|facts|sections|diff
+/workspaces/{workspace_id}/sec/filers/resolve
+/workspaces/{workspace_id}/sec/filers/{cik}/filings
+/workspaces/{workspace_id}/sec/filing-imports
+/workspaces/{workspace_id}/sec/filings/{accession}/documents|facts|sections|diff
 /financial-verifications  /financial-verifications/{id}/report|trace
 /disclosure-monitors  /disclosure-cases
 /data-connections/{id}/tables|test
@@ -619,11 +623,13 @@ MVP 的 typed Tool surface 固定为：
 | `sec.resolve_filer@v1` | 只读 | CIK、规范公司名、ticker/alias 候选和匹配依据 | 多候选或低置信时返回 ambiguous，不自动选第一个 |
 | `sec.list_filings@v1` | 只读 | 截至 `as_of` 可见的 form/accession/accepted/report date 列表 | cutoff 后 filing、form 不允许或 amendment 关系不明 |
 | `sec.get_xbrl_facts@v1` | 只读 | concept/context/unit/period/value/accession/fact locator | 精确 context 不匹配、unit/period 歧义或仅有 cutoff 后事实 |
-| `sec.search_filing@v1` | 只读 | 锁定 accession 内的 Hybrid Retrieval candidates | 未锁 accession、快照未就绪或跨 Workspace/版本 |
+| `sec.search_filing@v1` | 只读 | 锁定 accession 内的检索候选与 `retrieval_profile_version`；Day 6=`dense-v1`，Day 7=`hybrid-v1` | 未锁 accession、快照未就绪或跨 Workspace/版本 |
 | `sec.read_filing_section@v1` | 只读 | section/table/text Evidence 与原始 locator | section/locator 不存在或快照 hash 不匹配 |
 | `finance.calculate@v1` | 只读 | operator、输入 Evidence、公式、rounding、result/unit | 任意代码、无来源输入、unit 不兼容或除零 |
 | `sec.diff_filings@v1` | 只读 | 两个已锁 accession 的事实/章节变化及 Evidence | 公司/期间不可比、base/amendment 关系不明 |
 | `monitor.subscribe@v1` | 写 | 持久 monitor、schedule、watermark 与 audit ref | 未审批、重复订阅、无权限或范围过宽 |
+
+Day 6 只交付前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Day 5 fixture 实现保留但不计入 Day 6 完成声明，正式计算/核对、diff 与 monitor 分别在 Day 7～Day 8 验收。`sec.search_filing@v1` 保持 typed input/output 向前兼容，用显式 `retrieval_profile_version` 区分候选策略，禁止把 Day 6 Dense 结果写成 Hybrid 证据。
 
 正式执行循环为：
 
@@ -860,7 +866,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 12. Day 5：Agent Knowledge 与 Durable Research L4
 
-> 执行状态（2026-08-25）：Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，最新已提交基线 `4daa028` 的分支 CI `32796096690` 已通过。Step 4～5 当前工作树已实现 SEC fixture Knowledge/calculator/Evidence、节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval，并通过本地统一门禁，状态均为 `implemented_pending_verification`。当前工作树尚未提交，没有 Step 4/5 分支 CI、`main` 合并 CI、完整 Day 5 DoD 或所有者收口；成功节点恢复测试也不等于 Day 8 跨刷新/Worker 重启组合门。详细事实见 [Day 5 学习日志](learning-log/day-5.md)。
+> 执行状态（2026-08-26）：Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`；分支 push CI `32920879147`、PR CI `32924323618` 与合并提交 `a38d0ae` 的 CI `32924732755` 均通过 7 个适用 Job，D5-01～D5-07 已关闭为 `complete`。但既有记录明确没有 ready SEC fixture 的 Dense/calculation Evidence 浏览器全链，也没有同一 fixture 暂停/审批/resume/刷新旅程，故 D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`。项目所有者授权进入 Day 6 文档规划不等于放弃该 DoD；在补齐旅程并取得分支/main CI 前不开始 Day 6 代码实现。live SEC、L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门仍未实现。详细事实见 [Day 5 学习日志](learning-log/day-5.md)。
 
 ### 学习主题
 
@@ -915,6 +921,8 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 13. Day 6：SEC 官方披露数据底座与 Point-in-Time 合同
 
+> 执行状态（2026-08-26）：五步文档规划已冻结，D6-01～D6-08 均为 `planned`，尚未开始 Day 6 代码实现。D5-08/D5-09 的 SEC fixture 浏览器 DoD 是第一行 Day 6 代码前的入口阻断项，不计为第六个 Day 6 步骤。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
+
 ### 学习主题
 
 - CIK、ticker、公司名称、accession、form、filing date、accepted at 与 report period 的不同语义。
@@ -925,34 +933,29 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ### 实现任务
 
-1. 完成 SEC 来源与许可/使用边界复核，接受 [ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)；MVP 只启用 SEC 官方 host、`10-K`、`10-Q`、`10-K/A`，`10-Q/A` 仅复用同一合同。
-2. 建立 `disclosures` bounded context 和 Alembic migration：`sec_filers`、aliases、filings、filing documents/snapshots、XBRL contexts/facts；不复制现有 Knowledge、File、Job、Evidence 或 Tool 模型。
-3. 实现服务端 `SecEdgarPort` 与 Adapter：合规 User-Agent、全进程速率预算、缓存、条件请求、429/5xx 有界退避、响应大小/类型限制、超时和稳定错误。
-4. 实现 `sec.resolve_filer@v1` 与 `sec.list_filings@v1`；ticker/名称只产生候选，最终以 CIK 为身份；多候选、历史名称和 form/amendment 歧义必须澄清。
-5. 下载并保存原始 filing HTML/iXBRL、primary document 与必要附件；记录官方 URL、retrieved at、content hash、accession 和 source version，MinIO 快照不可被后续同步覆盖。
-6. 实现 `sec.get_xbrl_facts@v1`：规范 concept、context、unit、decimals/scale、instant/duration、dimensions、filed/accession；明确标记数据来自聚合 API 还是原始 iXBRL。
-7. 将 filing snapshot 送入现有 Document/Version/Chunk/Asset/双索引链；相同 accession/hash 幂等，相同 accession 的新内容进入异常审计而不是静默覆盖。
-8. 实现 `sec.search_filing@v1` 与 `sec.read_filing_section@v1` 的只读合同和 readiness；Day 6 允许固定 accession 内的 Dense baseline，不提前声明 Hybrid 或最终 Verifier。
-9. 扩展 Workbench 的 Filer/Filings/Snapshot/XBRL 面板，能够从 CIK 导航到 accession、原始文档、fact context 和入库版本；浏览器不直连 `data.sec.gov`。
-10. 建立 `sec-source-v1` 固定场景：身份歧义、amendment、cutoff 后 filing、自定义 tag、unit/period 冲突、429、损坏快照、重复同步和跨 Workspace 访问。
+1. **官方 Adapter 与 CIK 解析**：建立最小 `disclosures` bounded context、`SecEdgarPort`、Frozen/Live Adapter、canonical filer/alias 和 `sec.resolve_filer@v1`；落实官方 host allowlist、身份化 User-Agent、跨进程速率预算、缓存/条件请求、响应预算、429/5xx 有界退避和来源使用记录。交互/小批量走 API；同批次达到 100 个 CIK 或全量刷新强制走官方 bulk，保存 `bulk_published_at`/`coverage_through`，晚于水位的 `as_of` 必须由版本化官方增量快照补齐，否则返回 typed incomplete/partial；失败不静默退化为高扇出请求。ticker/name 只返回带依据的候选，歧义不猜。
+2. **Point-in-Time filing 选择**：建立 canonical filing、base/amendment 关系、版本化 `FilingSelectionScope v1`、`public_available_at`/可见性依据/策略和 `sec.list_filings@v1`；`latest` 必须在 `as_of` 与 amendment policy 下解析成明确 accession 并进入 Trace。按查询区间跟随并快照 submissions `filings.files` supplemental JSON，保存包含 bulk/incremental watermark 的 coverage manifest、按 accession 去重；只有 current、所需 supplemental 文件和截至 `as_of` 的时间覆盖均完整后才能返回 `no_result`。每个 source version 另存可见时间/依据/有效区间；`retrieved_at` 既不能代替版本可见时间，也不能把更正后字节追溯到更正前。
+3. **不可变快照、Dense read 与 Workbench**：分离 official document identity/current projection 与 append-only `sec_source_snapshots`，通过 `workspace_sec_imports` 复用既有 File/Knowledge/Ingestion、Job/Outbox 和双索引；discovery Tool 可读公共 catalog，facts/search/read 强制 import。交付锁定 accession 的 `sec.search_filing@v1`/`sec.read_filing_section@v1`、`dense-v1` 和 CIK→accession→snapshot→DocumentVersion/Chunk 导航。
+4. **XBRL context/fact 与 typed read**：保存聚合响应/raw iXBRL/instance XML snapshot、source kind、concept/unit/period/accession 和 source-specific nullable context/dimensions/decimals/scale，交付 `sec.get_xbrl_facts@v1`；aggregate 与 raw locator 分型，精确 raw/custom fact 回到锁定原始 XBRL。Workbench 增加 context/fact 面板与 standard/raw 浏览器反查；`frames` 只作候选发现。
+5. **五个只读 Tool 与 `sec-source-v1` 收口**：建立只暴露 Day 6 五 Tool 的同一 Runtime/Harness profile；至少 24 个确定性 case 分为 contract/closeout regression，并用 `execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import` 和 eligible denominator 覆盖 identity、visibility/amendment、coverage watermark、snapshot/XBRL、故障、幂等和权限。deterministic replay 与 live smoke 分报；完成适用 DoD、分支/main CI 和所有者复核后再关闭 D6-01～D6-08。
 
 ### 测试
 
-- CIK/ticker/name 解析、form allowlist、amendment/base 关系和 `as_of` 过滤的领域测试。
-- SEC client 的 User-Agent、速率预算、缓存、退避、超时、响应预算、失败分类和无浏览器 CORS 依赖合同。
+- CIK/ticker/name 解析、form allowlist、amendment/base 关系和 `as_of` 过滤的领域测试；覆盖只存在于 supplemental JSON 的历史 filing、current/supplemental 重复 accession、缺失/损坏 supplemental response 和不完整 coverage 禁止 `no_result`。
+- SEC client 的 User-Agent、跨进程速率预算、缓存、退避、超时、响应预算、失败分类、官方跳转限制、99/100 CIK bulk threshold、bulk published/coverage watermark、post-watermark 增量补齐、partial/hash/failure 和无浏览器 CORS 依赖合同。
 - 原始 filing/XBRL fixture 的解析、hash、重复同步、partial failure、Worker 重启和对账。
-- XBRL instant/duration、unit/scale、dimensions、standard/custom concept 与错误 context 负向测试。
+- XBRL instant/duration、unit/scale、dimensions、aggregate nullable 字段、raw/aggregate locator、standard/custom concept 与错误 context 负向测试。
 - filing snapshot → Knowledge version → Evidence candidate 的真实 PostgreSQL/MinIO/Milvus/Elasticsearch 集成。
 - 官方 live smoke 与冻结 replay 分开运行；PR CI 不访问实时 SEC，也不把 replay 写成 live 数据质量成功。
 
 ### 当日产物
 
-SEC 来源复核、ADR 0007、`disclosures` 模块、迁移、EDGAR Adapter、五个只读 SEC Tool、原始 filing/XBRL 快照链、Filer/Filings Workbench、`sec-source-v1` 数据集与来源可靠性报告、`learning-log/day-6.md`。
+SEC 来源复核、ADR 0007 修订、`disclosures` 模块、迁移、EDGAR Adapter、五个只读 SEC Tool、原始 filing/XBRL 快照链、Filer/Filings Workbench、`sec-source-v1` 数据集与来源可靠性报告、[Day 6 执行计划与日志](learning-log/day-6.md)。
 
 ### 验收门禁
 
 - 一个公司可从名称/ticker 解析到明确 CIK，并锁定截至 `as_of` 的正确 form/accession；歧义时不猜测。
-- 每个 XBRL fact 和文本 Evidence 可反查 accession、context/section、unit/period、官方 URL、retrieved at 和 snapshot hash。
+- 每个 eligible XBRL fact 和文本 Evidence 可反查 accession、适用的 context/section、unit/period、官方 URL、source snapshot/version hash、该版本可见时间/依据和 retrieved at；aggregate 缺失 raw 字段时明确为空而非伪造。
 - cutoff 后 filing 进入 Context 的数量为 0；错误公司、form 或 accession 在确定性集上为 0。
 - SEC 限流/429/依赖失败不伪装成 no result；重复同步不产生重复 filing、snapshot、fact 或索引。
 - Day 6 只证明数据合同和只读 Tool，不提前声明财务计算、Hybrid Retrieval、L5 或中文 Agent 已完成。
@@ -1325,3 +1328,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.0.1 | 2026-08-25 | 同步 Day 5 Step 4 工作树实现与本地门禁：固定 SEC fixture、Dense `knowledge_search`、typed calculator、Evidence lineage、F0～F2 合同对照和 Workbench；明确尚无提交/远端 CI，F0/F1 不是 live/model 质量，Step 5 仍为 planned | 用户授权的步骤实施记录 |
 | 2.0.2 | 2026-08-25 | 同步 Day 5 Step 5 本地实现：成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval；明确尚无提交/远端 CI、后台超时扫描和 Day 8 跨刷新/Worker 重启组合证据 | 用户授权的 Day 5 本地收尾 |
 | 2.0.3 | 2026-08-25 | 记录 Day 5 Step 5 统一本地门禁结果：真实依赖下 Python 1018、Vitest 83、Playwright 7、构建、OpenAPI 确定性、依赖审计与 Gitleaks 通过；状态仍等待提交、远端 CI、合并和 owner 收口 | 用户授权的 Day 5 本地门禁收尾 |
+| 2.0.4 | 2026-08-26 | 记录 PR #9 与分支/PR/main CI，关闭 D5-01～D5-07；保留 D5-08/D5-09 缺失 SEC fixture 浏览器全链的 DoD，不把进入 Day 6 规划授权解释为豁免。Day 6 收敛为五个纵向步骤，并冻结 canonical source version + Workspace import、双层可见性、Dense/Hybrid 演进和 `sec-source-v1` 硬门 | 用户授权进入 Day 6 文档规划 |

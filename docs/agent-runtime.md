@@ -1,8 +1,8 @@
 # Agent Runtime v0
 
-> 更新日期：2026-08-25
+> 更新日期：2026-08-26
 >
-> 计划基线：Day 2 历史复核 + `docs/master-plan.md` 2.0.2 Day 5
+> 计划基线：Day 2 历史复核 + `docs/master-plan.md` 2.0.4 Day 5
 >
 > 当前状态：D2-01～D2-09 的仓库内实现、版本化 Eval、全量本地门禁、干净 GitHub CI 与学习者职责复盘均已关闭，统一为 `complete`。
 
@@ -227,6 +227,6 @@ L4 没有改变 L0/L1/L2 的公共执行语义：
 - `approval_denied`、`approval_timed_out` 加入统一 stop reason，Trace 只展示安全摘要。
 
 正式接口、payload、迁移与回滚见 [Research L4 Checkpoint 与 HITL 合同](research-checkpoint-contract.md)
-和 [Day 5 Research L4 运行手册](runbooks/day-5-research-l4.md)。本地实现状态为
-`implemented_pending_verification`；尚无 Step 5 提交/远端 CI、`main` 合并 CI、后台超时扫描、
-Day 8 跨刷新/Worker 重启组合证据或 owner 收口，不能反向改写本文件前述 Day 2 历史验收结论。
+和 [Day 5 Research L4 运行手册](runbooks/day-5-research-l4.md)。该实现已由 PR #9 合入 `main`，
+分支/PR/main CI 均成功；但同一 ready SEC fixture 的暂停/审批/resume/刷新浏览器旅程尚无证据，
+因此 D5-09 保持 `implemented_pending_verification`。后台超时扫描和 Day 8 跨刷新/Worker 重启组合证据也未完成；这既不扩大 L4 声明，也不反向改写本文件前述 Day 2 历史验收结论。

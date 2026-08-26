@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-25
+> 更新日期：2026-08-26
 >
-> 权威来源：`docs/master-plan.md` 2.0.0
+> 权威来源：`docs/master-plan.md` 2.0.4
 
 ## 1. 产品定位
 
@@ -14,9 +14,9 @@
 
 平台的核心目标不是简单提供聊天页面，而是帮助用户围绕 SEC 官方 filing、XBRL 事实和原始披露文本，完成可追溯、可恢复、可验证的事实查询、计算、变化核对和监控工作。
 
-Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence 与 Research L3，以及 Day 5 Step 1～3 已在分支实现的 Knowledge 入库底座继续复用。后续能力目标是以同一正式链路接入 SEC 披露和系统性评测，而不是复制一套“金融 Agent”旁路。
+Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence、Research L3，以及 Day 5 已合并的 Knowledge/Research L4 实现继续复用；Day 5 的 SEC fixture 浏览器 DoD 仍须补齐。后续能力目标是以同一正式链路接入 SEC 披露和系统性评测，而不是复制一套“金融 Agent”旁路。
 
-“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 4 和 Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.0.0 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
+“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.0.4 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
 
 ## 2. Day 1～Day 10 目标与诚实边界
 
@@ -316,7 +316,7 @@ OpenAPI 是前后端唯一契约源；SSE 信封必须版本化并支持向前�
 
 Day 10 验收必须做一次双向能力审计：
 
-1. 从已完成基础能力出发，确认 Day 1～Day 4 和 Day 5 Step 1～3 的正式链路没有被 SEC 方向复制、绕过或回退。
+1. 从已完成或已合并的基础能力出发，确认 Day 1～Day 5 的正式 Runtime、Knowledge、Evidence、Calculator 与 Durable L4 链路没有被 SEC 方向复制、绕过或回退，并先关闭 Day 5 已登记的浏览器 DoD。
 2. 从 SEC 产品路径出发，确认每项能力映射到唯一模块、Application Service、Tool、Evidence locator、Scenario 和 Scorer。
 3. 对每项能力核对真实用户结果、自动化测试、失败恢复、安全边界、数据/许可证、质量指标和已知限制。
 4. 运行完整中文核验/监控旅程、fresh migration、CI、密钥扫描、依赖/许可证扫描、固定/公开/live Eval、备份恢复和索引重建。
@@ -326,15 +326,15 @@ Day 10 验收必须做一次双向能力审计：
 
 ## 8. 当前实现状态
 
-截至 2026-08-25：
+截至 2026-08-26：
 
 - Day 1 的工程基础、身份与 Workspace、持久 Job/Outbox/Schedule 以及统一质量门已经完成；D1-09 的 6 组参考仓凭据候选仍为 `open`，因此该项继续保持 `thin_slice`，并阻断最终发布标签。
 - Day 2 的 Agent Runtime/Harness、L0 聊天、可恢复 SSE、Learning Workbench 和版本化 Eval 已完成；合并证据为提交 `bf4feaff` 与 CI `31922391846`。
 - Day 3 的同一 Runtime L0/L1/L2、受控 Tool Use、行业采集切片和 24 条累计 Scenario 已完成；PR #5 合并提交为 `6968c63f`，CI 为 `32112639811`。
 - Day 4 的 Memory、Evidence/Claim、Research L3、Workbench 与累计 50 条 Scenario 已完成；PR #7 合并提交为 `c0b854e`，CI 为 `32549438592`。核心 Domain/Application/Research workflow 合集覆盖率仍为 85%，必须在最终发布前补到 90%。
-- Day 5 Step 1～3 已在分支 `feat/day5-knowledge-ingestion-step1` 实现：提交依次为 `bba63e6`、`ad57073`/CI 修复 `adec643`、`4daa028`，当前分支 head 的 CI `32796096690` 已通过。
-- Day 5 Step 4～5 当前工作树已实现冻结 SEC fixture Knowledge/calculator/Evidence、成功节点 Checkpoint、持久 HITL、同 Run resume、副作用账本、Workbench 时间线和 L4 recovery eval；尚未提交或取得远端 CI。
+- Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`：功能 head `cff25c1` 的 push CI `32920879147` 与 PR CI `32924323618` 成功，合并提交 `a38d0ae` 的 main CI `32924732755` 再次通过 7 个适用 Job。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器旅程，保持 `implemented_pending_verification`。
+- Day 6 已冻结不超过五步的执行文档，但 `disclosures`、SEC Adapter、migration、五个只读 Tool 与 `sec-source-v1` 尚未实现，D6-01～D6-08 仍为 `planned`。
 
-Day 5 分支尚未合入 `main`，也没有完成 Step 4/5 分支 CI、`main` 合并 CI、Day 5 全量 DoD 和项目所有者收口，因此 D5-01～D5-09 只能标为 `implemented_pending_verification`。live SEC、公开 benchmark、Verifier/Monitor、后台审批超时扫描与 Day 8 跨刷新/Worker 重启组合门仍保持 `planned`。
+项目所有者授权进入 Day 6 文档规划不等于放弃 Day 5 浏览器硬门；该旅程进入分支/main CI 前不开始 Day 6 代码。live SEC/XBRL 属于 Day 6，Hybrid Retrieval 与正式计算/核对属于 Day 7，Verifier/Monitor、后台审批超时扫描和跨刷新/Worker 重启组合门属于 Day 8，公开 benchmark release suite 属于 Day 9。这些能力继续保持 `planned`。
 
 本文定义的是后续 SEC 披露事实核验 Agent 的范围和验收合同，不是已经具备该金融能力的实现声明。只有在相应代码、migration、正式 Tool、固定/公开/live Eval、安全审计、恢复演练和合并门禁全部留下证据后，相关目标才能升级为 `complete`。

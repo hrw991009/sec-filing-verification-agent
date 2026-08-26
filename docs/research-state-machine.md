@@ -1,11 +1,10 @@
 # Research L3/L4 状态机与恢复边界
 
-> 版本：1.4（Day 5 Step 5 本地实现）
+> 版本：1.5（Day 5 Step 5 合并后待浏览器 DoD）
 >
-> 更新日期：2026-08-25
+> 更新日期：2026-08-26
 >
-> 当前能力：Evidence Research L3 已完成；Durable Research L4 为
-> `implemented_pending_verification`
+> 当前能力：Evidence Research L3 已完成；Durable Research L4 已合并，待 SEC fixture 浏览器 DoD
 >
 > 明确不含：live SEC、Verifier、bounded revise、多 Agent，以及跨浏览器刷新与 Worker
 > 重启的组合验收
@@ -158,8 +157,9 @@ Job，备份 PostgreSQL，并确认允许丢失 L4 审批/恢复事实；随后�
 | 层级 | 状态 | 能力 |
 |---|---|---|
 | L3 Evidence Research | Day 4 `complete` | Brief、Plan、唯一 graph、Evidence/Claim、可解释/uncertain 草稿 |
-| L4 Durable Research | Day 5 Step 5 `implemented_pending_verification` | 节点 Checkpoint、CAS、HITL、同 Run resume、幂等副作用 |
+| L4 Durable Research | Day 5 Step 5 `implemented_pending_verification` | 节点 Checkpoint、CAS、HITL、同 Run resume、幂等副作用已合并；缺同一 ready SEC fixture 暂停/审批/resume/刷新浏览器旅程 |
 | L5 Verified Research | `planned`（Day 8） | Evidence-aware Verifier、bounded revise 与最终业务状态 |
 
-本地实现和测试通过不能替代 Step 5 提交/分支 CI、`main` 合并提交 CI、完整 Day 5 DoD 与项目
-所有者复核；在这些证据齐全前不得把 Day 5 或 D5-09 写成 `complete`。
+Step 5 已由 PR #9 合入 `main`，分支/PR/main CI 均成功；但完整 Day 5 DoD 仍缺 ready SEC fixture
+的暂停/审批/resume/刷新浏览器旅程，因此 D5-09 保持 `implemented_pending_verification`。live SEC、
+Verifier 与 Day 8 跨刷新/Worker 重启组合门仍不在该状态内。

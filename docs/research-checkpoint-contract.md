@@ -2,7 +2,7 @@
 
 > 合同版本：`research_l4_v1`  
 > graph 版本：`research-l4-graph-v1`  
-> 状态：Day 5 Step 5 `implemented_pending_verification`
+> 状态：Day 5 Step 5 `implemented_pending_verification`（PR #9 与 main CI `32924732755` 已完成；缺 ready SEC fixture 暂停/审批/resume/刷新浏览器 DoD）
 
 ## 1. 数据所有权
 

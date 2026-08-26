@@ -58,6 +58,7 @@ Checkpoint/HITL 时间线来自正式 API。
 
 ## 5. 完成边界
 
-本地测试、迁移往返和 Workbench 组件通过只支持 `implemented_pending_verification`。Step 5
-提交、功能分支 CI、`main` 合并提交 CI、完整 Day 5 DoD 和项目所有者复核全部完成后，才可关闭
-D5-09 并进入 Day 6。
+Step 5 已由 PR #9 合入 `main`；功能 head 的分支/PR CI 与合并提交 `a38d0ae` 的 main CI
+`32924732755` 均成功。但完整 Day 5 DoD 仍缺同一 ready SEC fixture 的暂停/审批/resume/刷新
+浏览器旅程，D5-09 因此保持 `implemented_pending_verification`；该证据进入分支/main CI 后才可
+关闭并开始 Day 6 代码。后台自动超时扫描和 Day 8 跨刷新/Worker 重启组合门仍不属于本手册的完成声明。

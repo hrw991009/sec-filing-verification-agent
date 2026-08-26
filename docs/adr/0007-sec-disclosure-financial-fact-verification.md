@@ -4,13 +4,17 @@
 >
 > 日期：2026-08-25
 >
+> 修订日期：2026-08-26
+>
 > 决策人：用户
 >
-> 依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
+> 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
+>
+> 2026-08-26 修订同步基线：`docs/master-plan.md` v2.0.4
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。Day 5 Step 1～3 已在功能分支实现 Knowledge 受理、版本化解析资产、双索引写入和删除对账，但尚未合入 `main`。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-26，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`；进入 Day 6 文档规划不视为豁免。该状态变化不改变本 ADR 的产品决策。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 
@@ -43,12 +47,14 @@ MVP 不支持：
 ### 外部事实与系统事实
 
 - SEC 原始 filing 是本产品的外部披露核验依据。
-- PostgreSQL 仍是系统业务事实源，保存当前系统认定的 filer/filing、版本、状态、Evidence 关系、Agent Run、计算、审批、Monitor 和 Eval。
-- MinIO 保存回答时实际使用的原始 filing/iXBRL/XML/附件快照。
+- PostgreSQL 仍是系统业务事实源，保存 canonical SEC filer/filing/document/source snapshot/XBRL 目录、Workspace import、版本、状态、Evidence 关系、Agent Run、计算、审批、Monitor 和 Eval。
+- MinIO 保存回答时实际使用的原始 filing/iXBRL/XML/附件与 submissions/companyfacts/companyconcept response 快照；对象保持私有且不可变。
 - Milvus 和 Elasticsearch 只保存可重建的 filing 文本索引。
 - SEC 聚合 API 或索引返回的候选必须回 PostgreSQL 重新加载并检查版本、`as_of`、状态和 Workspace。
 
 “PostgreSQL 是系统事实源”不表示系统可以改写 SEC 披露；“SEC 是外部披露依据”也不表示 live SEC 响应可以绕过本地版本、授权、hash 和 Evidence 正规化。
+
+SEC canonical source catalog 是全局、按稳定来源身份去重的公共披露目录；snapshot blob 与历史 source version append-only、不可变，filer/filing current projection 只能由新的官方 source version 推进。`workspace_sec_imports` 保存 Workspace 对 canonical filing/snapshot 的授权绑定、导入状态和 Knowledge DocumentVersion。认证 Workspace 内的 `resolve_filer/list_filings` 可以读取公共 discovery catalog，但不能暴露其他 Workspace import 状态；`get_xbrl_facts/search_filing/read_filing_section` 读取内容前必须经当前 Workspace import 授权。删除一个 import 不得删除仍被其他 Workspace、Run/Evidence 或固定评测引用的 canonical snapshot。
 
 ### 来源合同
 
@@ -56,8 +62,8 @@ MVP 不支持：
 
 1. 所有进程合计遵守 SEC Fair Access，服务端设置包含应用标识与联系邮箱的 `User-Agent`。
 2. 实施全局速率预算、缓存、条件请求、429/5xx 有界退避、timeout、响应大小/类型限制和稳定错误。
-3. 大规模同步优先使用官方 bulk 数据；浏览器不直接调用 `data.sec.gov`。
-4. 每次快照保存 CIK、accession、form、filing/accepted/report date、primary document、官方 URL、retrieved at、content hash 和 Adapter version。
+3. 交互/小批量读取使用 API；同批次达到 100 个 CIK 或计划全量刷新时强制使用官方 `submissions.zip`/`companyfacts.zip` bulk 路径。bulk snapshot 必须保存 `bulk_published_at`/`coverage_through`；请求 `as_of` 晚于水位时以版本化官方增量快照补齐，否则返回 typed incomplete/partial，不得返回 `no_result`。bulk 不可用时重试或明确失败，不静默退化为高扇出逐主体请求；浏览器不直接调用 `data.sec.gov`。
+4. 每个快照共同保存 source kind、官方 URL、retrieved at、content hash、Adapter/source version、`source_version_available_at`、可见性依据和有效区间；来源定位字段按 source kind 判别，不伪造不适用字段：filing document 保存 CIK、accession、form、filing/accepted/report date、primary document 和 document locator；submissions/companyfacts/companyconcept 保存 CIK、endpoint/query、coverage manifest 与 supplemental references；bulk 保存 archive URL/date/hash、`bulk_published_at`、`coverage_through` 和 member locator，CIK/accession 可空。各类原始响应与 raw iXBRL 均须可重放。
 5. 同一 accession/hash 幂等；同一 accession 内容变化不得静默覆盖，必须进入异常审计。
 6. 原始 filing 可能包含第三方材料；“公开可访问”不自动表示整个 corpus 可按统一开放许可证再分发。每个 fixture/dataset 仍须记录来源、允许用途和再分发边界。
 
@@ -74,13 +80,23 @@ MVP 不支持：
 - amendment/base relation；
 - source snapshot/hash。
 
-`latest` 必须在运行时解析成明确 accession 并进入 Trace。任何 accepted/filed 时间晚于 `as_of` 的 filing、fact 或缓存都不得进入候选、Context、Calculation 或 final answer。
+Day 6 在 accession 选择前新增版本化 `FilingSelectionScope v1`，至少包含 CIK 候选、allowed forms、report period、`as_of` 和 amendment policy；选定后才物化 accession-bound scope。现有 Day 5 `FinancialScope v1` 保持 replay 兼容，不原地改变字段或语义。`sec.list_filings@v1` 必须计算查询区间 coverage，跟随 submissions 响应中与该区间相交的 `filings.files` supplemental JSON，保存包含 bulk/incremental watermark 的 coverage manifest 并按 accession 去重；current、所需 supplemental 文件或截至 `as_of` 的时间覆盖未全部检查时不得返回 `no_result`，缺失、损坏或时间缺口使用 typed dependency/incomplete/partial error。
+
+`latest` 必须在运行时解析成明确 accession 并进入 Trace。Point-in-time 过滤使用 `public_available_at`、`visibility_basis` 和 `visibility_policy_version`：
+
+- `report_date`、`filed_date`、`accepted_at` 保留各自业务/受理语义，不能混成一个 cutoff 字段；
+- `retrieved_at` 只记录本地抓取时间，不能把事后抓取但在 `as_of` 前已公开的 filing 判为未来信息；
+- 每个 source snapshot/version 还必须保存 `source_version_available_at`、可见性依据和有效区间；filing identity 当时存在不等于任一事后抓取字节版本当时存在；
+- `retrieved_at` 也不能把 correction 后首次抓取的字节追溯成 correction 前版本；无法证明 source version 时必须 fail closed；
+- SEC 后续更正、删除或晚间提交的传播差异必须形成新的来源/可见性版本，不能静默改写旧 Run；
+- 无法证明历史日内公开时间时 fail closed，不能用 UTC 零点或当前索引猜测；
+- 任何 `public_available_at` 晚于 `as_of` 的 filing、fact 或派生索引都不得进入 Tool output、Context、Calculation 或 final answer。
 
 SEC `frames` 只用于候选发现或横截面探索，不能作为精确 fiscal period 核验的最终上下文。`companyfacts/companyconcept` 不能被解释为 custom tag、脚注、叙述文本或原始 filing 的完整覆盖。
 
 ### 双通道 Evidence
 
-结构化通道保存 XBRL concept/context/unit/period/dimensions/value/accession 的 typed fact Evidence。叙述通道从锁定 accession 的原始 filing 中检索 section/table/text Evidence。
+结构化通道保存 source-typed XBRL fact Evidence。aggregate fact locator 固定 endpoint response snapshot、accession、concept、unit 和 period，原始 context ID、dimensions、decimals/scale 按来源能力可空；raw iXBRL 或独立 XBRL instance XML locator 才承诺原始 element/context/dimensions。叙述通道从锁定 accession 的原始 filing 中检索 section/table/text Evidence。
 
 两通道都必须经过：
 
@@ -111,6 +127,8 @@ source result
 - `monitor.subscribe@v1`
 
 前七个是只读 Tool；`monitor.subscribe@v1` 是写 Tool，必须持久审批。Tool capability、WorkspaceScope、`as_of`、allowed forms、Budget、SEC client policy 和审批结果来自可信 Runtime Context，模型不能提交或扩大这些字段。
+
+交付按日分层：Day 6 只验收前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Day 5 fixture 实现保留，正式 SEC 计算/核对与 `sec.diff_filings@v1` 在 Day 7 验收，`monitor.subscribe@v1` 在 Day 8 验收。`sec.search_filing@v1` 输出必须携带 `retrieval_profile_version`：Day 6 仅为 `dense-v1`，Day 7 才能声明 `hybrid-v1`；不能用同一 Tool 名静默把 Dense 结果描述为 Hybrid。
 
 `finance.calculate@v1` 只允许受控 Decimal operator、unit/scale、rounding policy 和 Evidence refs。它不能执行 Python、JavaScript、Shell、SQL 或任意表达式。
 
@@ -171,9 +189,9 @@ Planner、Retriever、Analyst、Calculator coordinator 和 Verifier 首先是同
 
 ## 迁移与回滚
 
-1. Day 1～Day 4 和 Day 5 Step 1～3 的表、API、页面、提交与验收事实不回滚。
-2. 新增 `disclosures` 和 `financial_verification` 模块时通过 Alembic 扩展，不改写旧行业表或 Evidence 历史。
-3. SEC filing 复用现有 File/Knowledge/Ingestion；旧私有知识仍可读取，默认新产品 profile 只暴露 SEC scope。
+1. Day 1～Day 5 的表、API、页面、提交与验收事实不回滚。
+2. 新增 `disclosures` 和 `financial_verification` 模块时通过 Alembic 扩展，不改写旧行业表或 Evidence 历史；migration 同时建立 canonical source 与 Workspace import 的引用/唯一约束。
+3. SEC filing 复用现有 File/Knowledge/Ingestion；旧私有知识仍可读取，默认新产品 profile 只暴露当前 Workspace 已导入的 SEC scope。
 4. 回滚时停止新 SEC sync、verification 和 monitor 创建；保留已落 PostgreSQL 的 Run/Evidence/Calculation/Audit，撤回新路由/profile，不删除历史快照。
 5. 已创建 Monitor 先禁用 schedule 并完成在途 Job 对账，再回滚应用；不得通过删表或丢弃 Outbox 消除副作用。
 6. 任何扩大到行情、估值、交易、其他监管源或多 Agent 的决定必须新增 ADR。
