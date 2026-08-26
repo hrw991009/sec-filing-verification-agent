@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.0.5`
+> 版本：`2.0.6`
 >
 > 制定日期：`2026-07-23`
 >
@@ -54,7 +54,7 @@
 | Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
 | Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
 | Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
-| Day 6～Day 10 | 尚未完成 | Day 6 Step 1 当前工作树已实现：D6-01 为 `implemented_pending_verification`，D6-05/D6-06 为 `thin_slice`，其余 Day 6 目标仍为 `planned`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
+| Day 6～Day 10 | 尚未完成 | Day 6 Step 1 已在当前分支提交中实现；Step 2 当前工作树已实现 current + supplemental point-in-time 核心链。D6-01 为 `implemented_pending_verification`，D6-02/D6-05/D6-06 为 `thin_slice`，其余 Day 6 目标仍为 `planned`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -921,7 +921,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 13. Day 6：SEC 官方披露数据底座与 Point-in-Time 合同
 
-> 执行状态（2026-08-26）：Step 1 当前工作树已实现 `disclosures` 身份目录、Frozen/Live EDGAR Adapter、canonical filer/alias migration、解析 API 与 `sec.resolve_filer@v1`，并通过适用本地、真实 PostgreSQL/Redis 与生成契约门禁。D6-01 为 `implemented_pending_verification`；D6-05 只有 1/5 Tool，D6-06 还缺 bulk snapshot/watermark 和 live smoke，因此两项为 `thin_slice`。D6-02～D6-04、D6-07～D6-08 仍为 `planned`，且尚无分支/main CI 或所有者收口。D5-08/D5-09 浏览器 DoD 保持未关闭。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
+> 执行状态（2026-08-26）：Step 1 已在当前分支提交中实现 `disclosures` 身份目录、Frozen/Live EDGAR Adapter、canonical filer/alias migration、解析 API 与 `sec.resolve_filer@v1`。Step 2 当前工作树新增 `FilingSelectionScope v1`、submissions current + supplemental Adapter、不可变 response snapshot、canonical filing/observation/coverage persistence、point-in-time API 与 `sec.list_filings@v1`，并通过完整本地统一门禁。D6-01 为 `implemented_pending_verification`；D6-02 因尚缺 bulk published/coverage watermark 和 post-watermark gap 补齐为 `thin_slice`，D6-05 为 2/5 Tool 的 `thin_slice`，D6-06 同样保持 `thin_slice`。D6-03～D6-04、D6-07～D6-08 仍为 `planned`；尚无 live SEC、分支/main CI 或所有者收口。D5-08/D5-09 浏览器 DoD 保持未关闭。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ### 学习主题
 
@@ -1330,3 +1330,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.0.3 | 2026-08-25 | 记录 Day 5 Step 5 统一本地门禁结果：真实依赖下 Python 1018、Vitest 83、Playwright 7、构建、OpenAPI 确定性、依赖审计与 Gitleaks 通过；状态仍等待提交、远端 CI、合并和 owner 收口 | 用户授权的 Day 5 本地门禁收尾 |
 | 2.0.4 | 2026-08-26 | 记录 PR #9 与分支/PR/main CI，关闭 D5-01～D5-07；保留 D5-08/D5-09 缺失 SEC fixture 浏览器全链的 DoD，不把进入 Day 6 规划授权解释为豁免。Day 6 收敛为五个纵向步骤，并冻结 canonical source version + Workspace import、双层可见性、Dense/Hybrid 演进和 `sec-source-v1` 硬门 | 用户授权进入 Day 6 文档规划 |
 | 2.0.5 | 2026-08-26 | 同步 Day 6 Step 1 当前工作树：新增官方 filer catalog Adapter、canonical identity migration、解析 API/Tool、Fair Access 与本地/真实依赖证据；D6-01 为 `implemented_pending_verification`，D6-05/D6-06 为 `thin_slice`。将实际 bulk snapshot/watermark 归入消费其数据的 Step 2/4，并保留 live SEC、分支/main CI、所有者复核与 D5 浏览器 DoD 的未完成边界 | 用户授权开始 Day 6 Step 1 |
+| 2.0.6 | 2026-08-26 | 同步 Day 6 Step 2 当前工作树：新增 submissions current + supplemental point-in-time 选择、不可变 response snapshot、canonical filing/coverage migration、认证 API 与 `sec.list_filings@v1`；D6-02/D6-05/D6-06 保持 `thin_slice`，明确 bulk watermark/post-watermark gap、live SEC、后续三步、分支/main CI 与所有者收口仍未完成 | 用户授权继续 Day 6 下一步 |

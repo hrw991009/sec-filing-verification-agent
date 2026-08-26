@@ -2,13 +2,13 @@
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.5 Day 6
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.6 Day 6
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：Step 1 已在当前工作树完成本地实现与适用本地门禁，D6-01 为 `implemented_pending_verification`；D6-06 已实现 Fair Access client 与 99/100 CIK 选路合同，但 bulk snapshot/watermark 仍待后续正式来源同步，因此为 `thin_slice`。Step 2～5 仍为 `planned`。尚无 live SEC、分支/main CI 或项目所有者收口证据。
+> 当前状态：Step 1 已在当前分支提交中实现；Step 2 当前工作树已实现 current + supplemental point-in-time 核心链并通过完整本地统一门禁。D6-01 为 `implemented_pending_verification`；D6-02、D6-05、D6-06 为 `thin_slice`，其中五个 SEC Tool 已有 2/5，但 bulk published/coverage watermark、post-watermark gap 与 live SEC 仍缺失。Step 3～5 仍为 `planned`；尚无分支/main CI 或项目所有者收口证据。
 
 ## 1. 进入条件与今日边界
 
@@ -16,7 +16,7 @@ Day 5 已完成合并验证：[PR #9](https://github.com/hrw991009/industry-inte
 
 Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 先授权 Day 6 文档规划，随后明确要求开始 Day 6 Step 1；按主计划的“用户最新明确指令优先”执行 Step 1 代码。该指令只调整 Step 1 的开始顺序，不构成 D5-08/D5-09 豁免，两项及 Day 5 总门禁继续保持 `implemented_pending_verification`。
 
-本轮只实现 Day 6 Step 1，不进入 filing/accession、原始快照、XBRL、Workbench 或 `sec-source-v1`。D6-02～D6-05、D6-07～D6-08 继续保持 `planned`；D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐必须在出现正式批量 filing/XBRL 来源读取的后续步骤落地，不能用当前 99/100 选路函数冒充完整 bulk 能力。
+本轮只实现 Day 6 Step 2：filing/accession point-in-time 选择、submissions response snapshot 与 `sec.list_filings@v1`。不进入 accession-bound 原始 HTML/iXBRL/XML、Workspace import/Dense Workbench、XBRL fact 或 `sec-source-v1`。D6-03～D6-04、D6-07～D6-08 继续保持 `planned`；D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地，不能用 current + supplemental API 覆盖冒充完整 bulk 能力。
 
 ### 1.1 官方来源合同复核
 
@@ -61,7 +61,7 @@ Point-in-time 必须区分：
 | 步骤 | 能力映射 | 可验收用户结果 | 当前状态 |
 |---|---|---|---|
 | 1. 官方 Adapter 与 CIK 解析 | D6-01、D6-06 | 公司名/ticker 产生可解释候选，用户锁定明确 CIK；歧义不猜 | 本地已实现，待外部验证 |
-| 2. Point-in-Time filing 选择 | D6-02、D6-05 部分 | 在 `as_of` 与 amendment policy 下锁定正确 form/accession | `planned` |
+| 2. Point-in-Time filing 选择 | D6-02、D6-05 部分 | 在 `as_of` 与 amendment policy 下锁定正确 form/accession | current + supplemental 核心链本地已实现；bulk coverage 尚缺 |
 | 3. 不可变快照、Dense read 与 Workbench | D6-03、D6-05 部分、D6-07 | 锁定 filing 可入库、检索、读取并沿来源链反查 | `planned` |
 | 4. XBRL context/fact 与 typed read | D6-04、D6-05 部分 | 结构化事实保留 unit/period/context/source 并可定位 | `planned` |
 | 5. 五 Tool 同 Runtime 与 `sec-source-v1` 收口 | D6-05、D6-08 | 数据、时点、权限、故障和 live/replay 链路可系统评测 | `planned` |
@@ -101,6 +101,18 @@ Point-in-time 必须区分：
 - 至少支持 `as_filed` 与 `latest_amendment_known_by_as_of`；未来 filing/alias 可落 canonical source catalog，但进入 Tool output、Context、Calculation 前必须过滤。
 
 验收证据：正确 company/form/report period/accession，cutoff 后 base/amendment 候选为 0，歧义与缺失可见性证据返回 typed 状态；覆盖仅存在于 supplemental JSON 的历史 filing、current/supplemental 重复 accession、缺失/损坏 supplemental response，以及 `as_of` 分别位于 bulk `coverage_through` 之前、相等和之后的测试。未补齐 post-watermark gap 时不得返回 `no_result`；`as_of`、coverage manifest、policy、selected accession、base relation 和 source identity 可从 Trace 重放。
+
+#### Step 2 实施记录（2026-08-26）
+
+- 新增版本化 `FilingSelectionScope v1`，固定 CIK、排序去重后的 allowed forms、report-period 区间、UTC-aware `as_of` 和 `as_filed`/`latest_amendment_known_by_as_of`。API 可提交该业务 scope；`sec.list_filings@v1` 的模型输入为空对象，真实 scope 只从 `TrustedRuntimeContext` 注入，模型不能覆盖 CIK、form、host、URL、User-Agent、速率或 cutoff。
+- `OfficialSecJsonClient` 统一承载 allowlist、全局 Redis request budget、缓存/条件请求、大小/类型/跳转限制、429/5xx 重试和 Last-Modified availability；`LiveSecSubmissionsAdapter` 固定读取 `CIK##########.json`，并跟随与查询区间相交的 `filings.files` supplemental JSON。列长、重复 JSON key、CIK、日期、accession、primary document 和 current/supplemental coverage 均严格校验，支持的 form 按 accession 去重，依赖/覆盖错误不转成 `no_result`。
+- MinIO 保存内容寻址、私有、回读 hash 验证后的官方 submissions response bytes；PostgreSQL 新增 append-only `sec_submission_sources`/`sec_filing_observations`、canonical `sec_filings` current projection 及精确绑定 source version 的 coverage manifest/link。相同 source/version/scope 幂等；base/amendment 关系无法唯一解析时返回 `incomplete`。
+- point-in-time 过滤同时检查 `accepted_at`、`public_available_at` 与 `source_available_at`。`latest` 解析为明确 accession；coverage source version 晚于 `as_of`、amendment relation 未解析或候选超限均为 typed `incomplete`。只有 current + 所需 supplemental source set 已完整持久化且过滤结果确为空时才返回 `no_result`。
+- 新增认证 API `GET /api/v1/workspaces/{workspace_id}/disclosures/filings`、严格 query model、no-store response，以及带完整 SEC source URL/version/hash/observed time 的 Tool Observation。它尚未加入 Day 6 专用生产 Harness profile，五 Tool profile 仍留 Step 5。
+- 当前直接证据：`disclosures` 模块 33 条测试通过；真实 PostgreSQL migration 全历史往返与 filing source/observation/coverage 幂等重建 2 条通过；真实 MinIO submissions snapshot 1 条通过；OpenAPI 与 TypeScript DTO 连续生成 hash 一致。
+- 统一门禁证据：强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量套件为 `1074 passed`，分支覆盖率 `80.95%`；Python format、Ruff、mypy、wheel/sdist build，Web Prettier/ESLint/typecheck/`83 passed`/production build 和 Playwright `7 passed` 均通过。Python/Node audit 无已知漏洞；受控路径和 67 个可达提交的 Gitleaks 扫描无发现。上述均为当前工作树本地证据，不替代远端 CI。
+
+未关闭项：当前环境没有合法配置的真实 SEC 联系身份，因此本步骤没有发起 live SEC 请求。`submissions.zip` bytes、`bulk_published_at`/`coverage_through`、post-watermark 官方增量补齐、历史 correction/deletion source validity、普通 Conversation 专用 profile、分支/main CI 和所有者复核均未完成。D6-02、D6-05、D6-06 因此保持 `thin_slice`；D6-03 不因本步骤保存 submissions response bytes 而关闭，因为 accession-bound 原始 filing/附件与 Workspace import 尚未实现。
 
 ### 步骤 3：不可变快照、Dense read 与 Workbench
 

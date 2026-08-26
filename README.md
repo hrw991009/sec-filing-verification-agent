@@ -4,11 +4,11 @@
 
 当前状态：Day 1～Day 4 已完成；Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)，分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。
 
-Day 6 Step 1 已在当前工作树实现 `disclosures` 身份目录、官方 Frozen/Live EDGAR Adapter、canonical filer/alias migration、认证解析 API 和 `sec.resolve_filer@v1`；D6-01 为 `implemented_pending_verification`。D6-05 只有 1/5 Tool；Fair Access 的服务端 User-Agent、Redis 跨进程预算、缓存/条件请求、失败分类和 99/100 CIK 选路合同虽已落地，但 bulk snapshot/watermark 尚未进入正式同步链，因此 D6-05/D6-06 均保持 `thin_slice`，D6-02～D6-04、D6-07～D6-08 仍为 `planned`。本地 replay、真实 PostgreSQL/Redis 与统一门禁不能代替 live SEC、分支/main CI 或所有者验收。D5-08/D5-09 浏览器 DoD 也没有因此关闭。Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
+Day 6 Step 1 已在当前分支提交中实现 filer identity 与 `sec.resolve_filer@v1`；Step 2 当前工作树新增 `FilingSelectionScope v1`、submissions current + `filings.files` supplemental Adapter、不可变 response snapshot、canonical filing/observation/coverage migration、point-in-time API 与 `sec.list_filings@v1`，完整本地统一门禁已通过。D6-01 为 `implemented_pending_verification`；D6-02、D6-05、D6-06 均为 `thin_slice`：五个 SEC Tool 现有 2/5，且 `submissions.zip` 的 published/coverage watermark、post-watermark gap 补齐与 live SEC smoke 尚未实现。D6-03～D6-04、D6-07～D6-08 仍为 `planned`。本地 replay、真实 PostgreSQL/MinIO/Redis 与统一门禁不能代替分支/main CI、live SEC 或所有者验收；D5-08/D5-09 浏览器 DoD 也没有因此关闭。Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.0.5（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.0.6（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -292,7 +292,7 @@ Day 3 已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright
 
 Day 4 的五个实现步骤和收口文档已通过功能分支 CI；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 随后合入 `main`。合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 对应的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 已通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。正式 Trace、50 条累计 Scenario、四套独立 Scorer、真实浏览器旅程、DoD 与项目所有者授权收口均已复核，D4-01～D4-07 已为 `complete`，可以进入 Day 5。
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2～Day 9 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 10 发布标签。后续开发以 [Day 1～Day 10 主计划 v2.0.5](docs/master-plan.md) 为权威执行基线。
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2～Day 9 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 10 发布标签。后续开发以 [Day 1～Day 10 主计划 v2.0.6](docs/master-plan.md) 为权威执行基线。
 
 ## 常见问题
 
