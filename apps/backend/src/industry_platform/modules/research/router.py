@@ -1,4 +1,4 @@
-"""Authenticated HTTP delivery for Research L3 creation and inspection."""
+"""Authenticated HTTP delivery for Research creation, inspection, and L4 recovery."""
 
 from typing import Annotated, Any
 from uuid import UUID
@@ -6,19 +6,37 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 
 from industry_platform.core.http import get_trace_id, problem_openapi_response, set_no_store_headers
+from industry_platform.modules.conversations.domain import TurnSearchMode
 from industry_platform.modules.conversations.schemas import IdempotencyKey
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
-from industry_platform.modules.research.domain import ResearchBriefInput, ResearchRunView
+from industry_platform.modules.research.domain import (
+    ResearchApprovalStatus,
+    ResearchBriefInput,
+    ResearchRunView,
+)
+from industry_platform.modules.research.durability import (
+    DecideResearchApproval,
+    ResearchApprovalRequest,
+    ResearchDurabilityService,
+    ResumeResearch,
+)
 from industry_platform.modules.research.resources import ResearchResources, get_research_resources
 from industry_platform.modules.research.schemas import (
+    DecideResearchApprovalRequest,
+    ResearchApprovalResponse,
     ResearchBriefResponse,
     ResearchBudgetResponse,
+    ResearchCheckpointResponse,
     ResearchDraftResponse,
+    ResearchDurabilityTimelineResponse,
     ResearchPlanActionResponse,
     ResearchPlanResponse,
     ResearchRunCollectionResponse,
     ResearchRunDetailResponse,
+    ResumeResearchRequest,
+    ResumeResearchResponse,
     StartResearchRequest,
     StartResearchResponse,
 )
@@ -57,6 +75,12 @@ def get_query_service(
     return resources.query_service
 
 
+def get_durability_service(
+    resources: Annotated[ResearchResources, Depends(get_research_resources)],
+) -> ResearchDurabilityService:
+    return resources.durability_service
+
+
 @router.post(
     "",
     status_code=status.HTTP_202_ACCEPTED,
@@ -77,11 +101,17 @@ async def start_research(
         StartResearch(
             trace_id=TraceId(get_trace_id(request)),
             industry_id=payload.industry_id,
+            search_mode=TurnSearchMode(payload.mode),
+            knowledge_base_ids=tuple(payload.knowledge_base_ids),
             brief=ResearchBriefInput(
                 original_question=payload.original_question,
                 confirmed_scope=tuple(payload.confirmed_scope),
                 exclusions=tuple(payload.exclusions),
                 completion_criteria=tuple(payload.completion_criteria),
+                financial_scope=(
+                    None if payload.financial_scope is None else payload.financial_scope.to_domain()
+                ),
+                approval_reason=payload.approval_reason,
             ),
             idempotency_key=idempotency_key,
             max_steps=payload.max_steps,
@@ -127,6 +157,95 @@ async def get_research(
     return _view_response(view)
 
 
+@router.get(
+    "/{research_run_id}/durability",
+    response_model=ResearchDurabilityTimelineResponse,
+    responses=_RESPONSES,
+)
+async def get_research_durability(
+    workspace_id: UUID,
+    research_run_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[ResearchDurabilityService, Depends(get_durability_service)],
+) -> ResearchDurabilityTimelineResponse:
+    timeline = await service.timeline(_workspace_scope(principal, workspace_id), research_run_id)
+    set_no_store_headers(response)
+    return ResearchDurabilityTimelineResponse(
+        checkpoints=[
+            ResearchCheckpointResponse(
+                checkpoint_id=item.checkpoint_id,
+                revision=item.revision,
+                run_state_revision=item.run_state_revision,
+                node=item.node,
+                next_node=item.next_node,
+                saved_at=item.saved_at,
+                state_diff=dict(item.state_diff),
+            )
+            for item in timeline.checkpoints
+        ],
+        approvals=[_approval_response(service, item) for item in timeline.approvals],
+        duplicate_side_effect_count=timeline.duplicate_side_effect_count,
+    )
+
+
+@router.post(
+    "/{research_run_id}/approval-decisions",
+    response_model=ResearchApprovalResponse,
+    responses=_RESPONSES,
+)
+async def decide_research_approval(
+    workspace_id: UUID,
+    research_run_id: UUID,
+    payload: DecideResearchApprovalRequest,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[ResearchDurabilityService, Depends(get_durability_service)],
+) -> ResearchApprovalResponse:
+    approval = await service.decide(
+        _workspace_scope(principal, workspace_id),
+        DecideResearchApproval(
+            research_run_id=research_run_id,
+            approval_request_id=payload.approval_request_id,
+            checkpoint_revision=payload.checkpoint_revision,
+            outcome=payload.outcome,
+        ),
+    )
+    set_no_store_headers(response)
+    return _approval_response(service, approval)
+
+
+@router.post(
+    "/{research_run_id}/resume",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ResumeResearchResponse,
+    responses=_RESPONSES,
+)
+async def resume_research(
+    workspace_id: UUID,
+    research_run_id: UUID,
+    payload: ResumeResearchRequest,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[ResearchDurabilityService, Depends(get_durability_service)],
+) -> ResumeResearchResponse:
+    receipt = await service.resume(
+        _workspace_scope(principal, workspace_id),
+        ResumeResearch(
+            research_run_id=research_run_id,
+            approval_request_id=payload.approval_request_id,
+            checkpoint_revision=payload.checkpoint_revision,
+            resume_token=payload.resume_token,
+        ),
+    )
+    set_no_store_headers(response)
+    return ResumeResearchResponse(
+        agent_run_id=receipt.run_id,
+        job_id=receipt.job_id,
+        created=receipt.created,
+    )
+
+
 def _view_response(view: ResearchRunView) -> ResearchRunDetailResponse:
     brief = view.brief
     plan = view.plan
@@ -155,6 +274,12 @@ def _view_response(view: ResearchRunView) -> ResearchRunDetailResponse:
             confirmed_scope=list(brief.input.confirmed_scope),
             exclusions=list(brief.input.exclusions),
             completion_criteria=list(brief.input.completion_criteria),
+            financial_scope=(
+                None
+                if brief.input.financial_scope is None
+                else FinancialScopePayload.from_domain(brief.input.financial_scope)
+            ),
+            approval_reason=brief.input.approval_reason,
             budget=ResearchBudgetResponse(
                 max_steps=brief.budget.max_steps,
                 max_total_tokens=brief.budget.max_total_tokens,
@@ -200,6 +325,35 @@ def _view_response(view: ResearchRunView) -> ResearchRunDetailResponse:
         ),
         created_at=view.research_run.created_at,
         updated_at=view.research_run.updated_at,
+    )
+
+
+def _approval_response(
+    service: ResearchDurabilityService,
+    approval: ResearchApprovalRequest,
+) -> ResearchApprovalResponse:
+    token = (
+        service.token_for(approval)
+        if approval.status in {ResearchApprovalStatus.PENDING, ResearchApprovalStatus.ALLOWED}
+        and not approval.resume_claimed
+        else None
+    )
+    return ResearchApprovalResponse(
+        approval_request_id=approval.approval_request_id,
+        run_id=approval.run_id,
+        checkpoint_id=approval.checkpoint_id,
+        checkpoint_revision=approval.checkpoint_revision,
+        reason=approval.reason,
+        status=approval.status,
+        requested_by_user_id=approval.requested_by_user_id,
+        created_at=approval.created_at,
+        expires_at=approval.expires_at,
+        decided_by_user_id=approval.decided_by_user_id,
+        decided_at=approval.decided_at,
+        resume_claimed=approval.resume_claimed,
+        resume_job_id=approval.resume_job_id,
+        resumed_at=approval.resumed_at,
+        resume_token=token,
     )
 
 

@@ -12,6 +12,7 @@ from industry_platform.core.config import Settings, get_settings
 from industry_platform.modules.conversations.domain import DIRECT_ANSWER_QUEUE_NAME
 from industry_platform.modules.industry.domain import INDUSTRY_COLLECTION_QUEUE_NAME
 from industry_platform.modules.jobs.domain import CELERY_JOB_DISPATCH_TASK_NAME
+from industry_platform.modules.knowledge.domain import KNOWLEDGE_INGESTION_QUEUE_NAME
 from industry_platform.workers.runtime import run_job_delivery
 from industry_platform.workers.tasks import register_job_execution_task
 
@@ -31,7 +32,14 @@ def create_celery_app(settings: Settings) -> Celery:
 
     default_queue = settings.job_default_queue
     queue_names = tuple(
-        dict.fromkeys((default_queue, DIRECT_ANSWER_QUEUE_NAME, INDUSTRY_COLLECTION_QUEUE_NAME))
+        dict.fromkeys(
+            (
+                default_queue,
+                DIRECT_ANSWER_QUEUE_NAME,
+                INDUSTRY_COLLECTION_QUEUE_NAME,
+                KNOWLEDGE_INGESTION_QUEUE_NAME,
+            )
+        )
     )
     app = Celery(
         "industry_platform",

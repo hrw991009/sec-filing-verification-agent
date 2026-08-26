@@ -1,13 +1,15 @@
 """Transactional PostgreSQL adapter for the Evidence and Claim ledger."""
 
+import hashlib
 import json
 from collections.abc import Sequence
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.agent_runtime.domain import AgentRunType, AgentStepStatus
@@ -41,6 +43,7 @@ from industry_platform.modules.evidence.domain import (
     EvidenceNotFoundError,
     EvidencePersistenceError,
     EvidenceStatus,
+    FinancialCalculationLocatorV1,
     GraphEdge,
     GraphNode,
     GraphNodeType,
@@ -50,6 +53,7 @@ from industry_platform.modules.evidence.domain import (
     RelationStatus,
     ResearchClaim,
     ResearchRunNotFoundError,
+    SecFilingChunkLocatorV1,
     SqlResultLocatorV1,
     canonical_fingerprint,
     claim_coverage,
@@ -65,32 +69,71 @@ from industry_platform.modules.evidence.models import (
     ResearchClaimRecord,
 )
 from industry_platform.modules.evidence.normalizer import (
+    FINANCE_CALCULATION_SOURCE_TYPE,
+    FINANCE_CALCULATION_SOURCE_VERSION,
     INDUSTRY_SOURCE_TYPE,
+    KNOWLEDGE_SEC_SOURCE_TYPE,
     SQL_SOURCE_TYPE,
     SQL_SOURCE_VERSION,
     license_allows_evidence,
+    parse_calculation_source_locator,
+    parse_knowledge_source_locator,
     parse_persisted_observation,
     parse_sql_source_locator,
     referenced_sql_columns,
     schema_columns_for_table,
 )
+from industry_platform.modules.files.domain import FileObjectStatus
+from industry_platform.modules.files.models import FileObject
+from industry_platform.modules.financial_verification.domain import (
+    FinancialCalculation,
+    FinancialOperand,
+    calculate_financial_result,
+)
+from industry_platform.modules.financial_verification.tool import FinanceCalculateOutput
 from industry_platform.modules.identity.models import AuditLog, AuditOutcome
 from industry_platform.modules.industry.domain import SourceKind
 from industry_platform.modules.industry.models import DataSourceRecord, SourceItemRecord
+from industry_platform.modules.knowledge.domain import (
+    DocumentIndexKind,
+    DocumentIndexStatus,
+    DocumentStatus,
+    DocumentVersionStatus,
+    KnowledgeBaseStatus,
+)
+from industry_platform.modules.knowledge.models import (
+    DocumentChunkRecord,
+    DocumentIndexRecord,
+    DocumentRecord,
+    DocumentVersionRecord,
+    KnowledgeBaseRecord,
+)
 from industry_platform.modules.research.domain import (
     CreateResearchRun,
     ResearchRun,
     ResearchRunStatus,
 )
 from industry_platform.modules.research.models import ResearchRunRecord
+from industry_platform.modules.retrieval.domain import (
+    KnowledgeSearchStatus,
+    SecFilingFixture,
+    knowledge_evidence_ref,
+)
+from industry_platform.modules.retrieval.fixtures import SecFixtureCatalog
 from industry_platform.modules.tools.domain import ToolObservation, ToolSource
 from industry_platform.modules.tools.models import ToolCallRecord
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 
 class SqlAlchemyEvidenceRepository:
-    def __init__(self, session_factory: AsyncSessionFactory) -> None:
+    def __init__(
+        self,
+        session_factory: AsyncSessionFactory,
+        *,
+        fixture_catalog: SecFixtureCatalog | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._fixture_catalog = fixture_catalog
 
     async def normalize_observation(
         self,
@@ -690,7 +733,364 @@ class SqlAlchemyEvidenceRepository:
                 ordinal=ordinal,
                 authorization=authorization,
             )
+        if source.source_type == KNOWLEDGE_SEC_SOURCE_TYPE:
+            return await self._normalize_knowledge_source(
+                session,
+                scope,
+                call,
+                observation,
+                source,
+                ordinal=ordinal,
+                authorization=authorization,
+            )
+        if source.source_type == FINANCE_CALCULATION_SOURCE_TYPE:
+            return await self._normalize_calculation_source(
+                session,
+                scope,
+                call,
+                observation,
+                source,
+                ordinal=ordinal,
+                authorization=authorization,
+            )
         return None, EvidenceDecisionReason.UNSUPPORTED_SOURCE
+
+    async def _normalize_knowledge_source(
+        self,
+        session: AsyncSession,
+        scope: WorkspaceScope,
+        call: ToolCallRecord,
+        observation: ToolObservation,
+        source: ToolSource,
+        *,
+        ordinal: int,
+        authorization: AuthorizationSnapshot,
+    ) -> tuple[EvidenceRecord | None, EvidenceDecisionReason]:
+        catalog = self._fixture_catalog
+        if catalog is None or source.source_version != catalog.dataset_version:
+            return None, EvidenceDecisionReason.SOURCE_VERSION_MISSING
+        try:
+            parsed = parse_knowledge_source_locator(source.locator)
+        except ValueError:
+            return None, EvidenceDecisionReason.LOCATOR_INVALID
+        fixtures = tuple(
+            item
+            for item in catalog.filings
+            if item.accession == parsed.accession and item.dataset_version == source.source_version
+        )
+        if len(fixtures) != 1:
+            return None, EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
+        fixture = fixtures[0]
+        vector_record = aliased(DocumentIndexRecord)
+        lexical_record = aliased(DocumentIndexRecord)
+        row = (
+            await session.execute(
+                select(
+                    DocumentChunkRecord,
+                    DocumentVersionRecord,
+                    DocumentRecord,
+                    FileObject,
+                    vector_record,
+                )
+                .join(
+                    DocumentVersionRecord,
+                    and_(
+                        DocumentVersionRecord.id == DocumentChunkRecord.document_version_id,
+                        DocumentVersionRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    DocumentRecord,
+                    and_(
+                        DocumentRecord.id == DocumentChunkRecord.document_id,
+                        DocumentRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    KnowledgeBaseRecord,
+                    and_(
+                        KnowledgeBaseRecord.id == DocumentVersionRecord.knowledge_base_id,
+                        KnowledgeBaseRecord.workspace_id == DocumentVersionRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    FileObject,
+                    and_(
+                        FileObject.id == DocumentVersionRecord.file_object_id,
+                        FileObject.workspace_id == DocumentVersionRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    vector_record,
+                    and_(
+                        vector_record.chunk_id == DocumentChunkRecord.id,
+                        vector_record.document_version_id
+                        == DocumentChunkRecord.document_version_id,
+                        vector_record.workspace_id == DocumentChunkRecord.workspace_id,
+                        vector_record.kind == DocumentIndexKind.VECTOR,
+                        vector_record.status == DocumentIndexStatus.SUCCEEDED,
+                    ),
+                )
+                .join(
+                    lexical_record,
+                    and_(
+                        lexical_record.chunk_id == DocumentChunkRecord.id,
+                        lexical_record.document_version_id
+                        == DocumentChunkRecord.document_version_id,
+                        lexical_record.workspace_id == DocumentChunkRecord.workspace_id,
+                        lexical_record.kind == DocumentIndexKind.LEXICAL,
+                        lexical_record.status == DocumentIndexStatus.SUCCEEDED,
+                        lexical_record.index_version == vector_record.index_version,
+                    ),
+                )
+                .where(
+                    DocumentChunkRecord.id == parsed.chunk_id,
+                    DocumentChunkRecord.document_version_id == parsed.document_version_id,
+                    DocumentChunkRecord.workspace_id == scope.workspace_id,
+                    DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                    DocumentRecord.status == DocumentStatus.ACTIVE,
+                    DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                    KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+                    FileObject.status == FileObjectStatus.READY,
+                    FileObject.source_sha256 == fixture.content_sha256,
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+        chunk, version, document, _file, vector = row
+        if chunk.content_hash.hex() != source.content_sha256:
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        section, source_page = self._fixture_locator(chunk.text_content, chunk.title_path, fixture)
+        locator = SecFilingChunkLocatorV1(
+            cik=fixture.cik,
+            accession=fixture.accession,
+            form=fixture.form,
+            report_period=fixture.report_period.isoformat(),
+            filed_at=fixture.filed_at.isoformat(),
+            accepted_at=fixture.accepted_at.isoformat(),
+            primary_document=fixture.primary_document,
+            canonical_url=fixture.canonical_url,
+            dataset_version=fixture.dataset_version,
+            fixture_sha256=fixture.content_sha256,
+            knowledge_base_id=version.knowledge_base_id,
+            document_id=document.id,
+            document_version_id=version.id,
+            chunk_id=chunk.id,
+            section=section,
+            page_number=source_page,
+            content_sha256=source.content_sha256,
+            parser_version=version.parser_version,
+            chunker_version=chunk.chunker_version,
+            index_version=vector.index_version,
+        )
+        dedupe = canonical_fingerprint(
+            {
+                "authorization_role": authorization.role,
+                "content_sha256": source.content_sha256,
+                "locator": dict(locator.to_mapping()),
+                "workspace_id": str(scope.workspace_id),
+            }
+        )
+        evidence, reason = await self._existing_or_reason(session, scope, dedupe)
+        if evidence is not None or reason is not None:
+            return evidence, reason or EvidenceDecisionReason.ACCEPTED
+        evidence_id = knowledge_evidence_ref(
+            workspace_id=scope.workspace_id,
+            accession=fixture.accession,
+            document_version_id=version.id,
+            chunk_id=chunk.id,
+            content_sha256=source.content_sha256,
+        )
+        record = EvidenceRecord(
+            id=evidence_id,
+            workspace_id=scope.workspace_id,
+            schema_version=1,
+            kind=EvidenceKind.FILING,
+            title=f"{document.title}: {section}",
+            canonical_url=fixture.canonical_url,
+            locator_type=locator.locator_type,
+            locator=dict(locator.to_mapping()),
+            excerpt=chunk.text_content,
+            content_sha256=source.content_sha256,
+            source_published_at=fixture.filed_at,
+            retrieved_at=source.observed_at,
+            license_or_terms=fixture.license_or_terms,
+            status=EvidenceStatus.ACTIVE,
+            revision=1,
+            invalidated_at=None,
+            invalidation_reason=None,
+            origin_run_id=call.run_id,
+            origin_step_id=call.execution_step_id,
+            origin_tool_call_id=call.id,
+            origin_observation_id=observation.observation_id,
+            origin_source_ordinal=ordinal,
+            normalizer_version=EVIDENCE_NORMALIZER_VERSION,
+            authorization_snapshot=dict(authorization.to_mapping()),
+            source_resource_version=(
+                f"{fixture.dataset_version}:{fixture.accession}:{vector.index_version}"
+            ),
+            source_item_id=None,
+            query_run_id=None,
+            document_version_id=version.id,
+            chunk_id=chunk.id,
+            deduplication_key=dedupe,
+            created_at=authorization.captured_at,
+            updated_at=authorization.captured_at,
+        )
+        session.add(record)
+        await session.flush()
+        return record, EvidenceDecisionReason.ACCEPTED
+
+    async def _normalize_calculation_source(
+        self,
+        session: AsyncSession,
+        scope: WorkspaceScope,
+        call: ToolCallRecord,
+        observation: ToolObservation,
+        source: ToolSource,
+        *,
+        ordinal: int,
+        authorization: AuthorizationSnapshot,
+    ) -> tuple[EvidenceRecord | None, EvidenceDecisionReason]:
+        if source.source_version != FINANCE_CALCULATION_SOURCE_VERSION:
+            return None, EvidenceDecisionReason.SOURCE_VERSION_MISSING
+        try:
+            locator_hash = parse_calculation_source_locator(source.locator)
+        except ValueError:
+            return None, EvidenceDecisionReason.LOCATOR_INVALID
+        model_hash = hashlib.sha256(observation.model_text.encode("utf-8")).hexdigest()
+        if source.content_sha256 != model_hash or locator_hash != model_hash:
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        try:
+            output = FinanceCalculateOutput.model_validate_json(
+                observation.model_text,
+                strict=True,
+            )
+        except ValueError:
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        if (
+            output.status is not KnowledgeSearchStatus.OK
+            or output.result is None
+            or output.formula is None
+            or output.unit is None
+            or output.scale is None
+            or output.error_code is not None
+            or output.evidence_refs != [UUID(item.evidence_ref) for item in output.operands]
+        ):
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        evidence_rows = tuple(
+            (
+                await session.execute(
+                    select(EvidenceRecord).where(
+                        EvidenceRecord.workspace_id == scope.workspace_id,
+                        EvidenceRecord.id.in_(output.evidence_refs),
+                        EvidenceRecord.kind == EvidenceKind.FILING,
+                        EvidenceRecord.status == EvidenceStatus.ACTIVE,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if {record.id for record in evidence_rows} != set(output.evidence_refs):
+            return None, EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
+        financial_scope = output.financial_scope.to_domain()
+        for record in evidence_rows:
+            try:
+                filing_locator = parse_evidence_locator(record.locator)
+            except ValueError:
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            if not isinstance(filing_locator, SecFilingChunkLocatorV1) or (
+                filing_locator.cik != financial_scope.cik
+                or filing_locator.accession != financial_scope.accession
+                or filing_locator.form != financial_scope.form.value
+                or filing_locator.report_period != financial_scope.report_period.isoformat()
+            ):
+                return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+        calculation = FinancialCalculation(
+            operator=output.operator,
+            operands=tuple(
+                FinancialOperand(value=item.value, evidence_ref=UUID(item.evidence_ref))
+                for item in output.operands
+            ),
+            decimal_places=output.decimal_places,
+            rounding_mode=output.rounding_mode,
+        )
+        try:
+            recomputed = calculate_financial_result(financial_scope, calculation)
+        except ValueError:
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        if (
+            output.result != recomputed.value
+            or output.formula != recomputed.formula
+            or output.unit != recomputed.unit
+            or output.scale != recomputed.scale
+        ):
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        locator = FinancialCalculationLocatorV1(
+            financial_scope=dict(financial_scope.to_mapping()),
+            operator=output.operator.value,
+            operand_values=tuple(item.value for item in output.operands),
+            input_evidence_refs=tuple(output.evidence_refs),
+            decimal_places=output.decimal_places,
+            rounding_mode=output.rounding_mode.value,
+            formula=output.formula,
+            result=output.result,
+            unit=output.unit,
+            scale=output.scale,
+            observation_sha256=model_hash,
+        )
+        dedupe = canonical_fingerprint(
+            {
+                "authorization_role": authorization.role,
+                "content_sha256": model_hash,
+                "locator": dict(locator.to_mapping()),
+                "workspace_id": str(scope.workspace_id),
+            }
+        )
+        evidence, reason = await self._existing_or_reason(session, scope, dedupe)
+        if evidence is not None or reason is not None:
+            return evidence, reason or EvidenceDecisionReason.ACCEPTED
+        record = EvidenceRecord(
+            id=uuid5(NAMESPACE_URL, f"{scope.workspace_id}:finance-calculation:{dedupe}"),
+            workspace_id=scope.workspace_id,
+            schema_version=1,
+            kind=EvidenceKind.CALCULATION,
+            title=f"Financial calculation: {output.operator.value}",
+            canonical_url=None,
+            locator_type=locator.locator_type,
+            locator=dict(locator.to_mapping()),
+            excerpt=observation.model_text,
+            content_sha256=model_hash,
+            source_published_at=None,
+            retrieved_at=source.observed_at,
+            license_or_terms=(
+                "Deterministic workspace calculation derived from authorized filing Evidence."
+            ),
+            status=EvidenceStatus.ACTIVE,
+            revision=1,
+            invalidated_at=None,
+            invalidation_reason=None,
+            origin_run_id=call.run_id,
+            origin_step_id=call.execution_step_id,
+            origin_tool_call_id=call.id,
+            origin_observation_id=observation.observation_id,
+            origin_source_ordinal=ordinal,
+            normalizer_version=EVIDENCE_NORMALIZER_VERSION,
+            authorization_snapshot=dict(authorization.to_mapping()),
+            source_resource_version=FINANCE_CALCULATION_SOURCE_VERSION,
+            source_item_id=None,
+            query_run_id=None,
+            document_version_id=None,
+            chunk_id=None,
+            deduplication_key=dedupe,
+            created_at=authorization.captured_at,
+            updated_at=authorization.captured_at,
+        )
+        session.add(record)
+        await session.flush()
+        return record, EvidenceDecisionReason.ACCEPTED
 
     async def _normalize_industry_source(
         self,
@@ -1033,7 +1433,91 @@ class SqlAlchemyEvidenceRepository:
                 and connection is not None
                 and set(locator.tables).issubset(connection.allowed_tables)
             )
+        if record.document_version_id is not None and record.chunk_id is not None:
+            try:
+                locator = parse_evidence_locator(record.locator)
+            except ValueError:
+                raise EvidencePersistenceError from None
+            if not isinstance(locator, SecFilingChunkLocatorV1):
+                raise EvidencePersistenceError
+            row = (
+                await session.execute(
+                    select(DocumentChunkRecord, DocumentVersionRecord, DocumentRecord, FileObject)
+                    .join(
+                        DocumentVersionRecord,
+                        and_(
+                            DocumentVersionRecord.id == DocumentChunkRecord.document_version_id,
+                            DocumentVersionRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                        ),
+                    )
+                    .join(
+                        DocumentRecord,
+                        and_(
+                            DocumentRecord.id == DocumentChunkRecord.document_id,
+                            DocumentRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                        ),
+                    )
+                    .join(
+                        FileObject,
+                        and_(
+                            FileObject.id == DocumentVersionRecord.file_object_id,
+                            FileObject.workspace_id == DocumentVersionRecord.workspace_id,
+                        ),
+                    )
+                    .where(
+                        DocumentChunkRecord.id == record.chunk_id,
+                        DocumentChunkRecord.document_version_id == record.document_version_id,
+                        DocumentChunkRecord.workspace_id == record.workspace_id,
+                        DocumentChunkRecord.content_hash == bytes.fromhex(record.content_sha256),
+                        DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                        DocumentRecord.status == DocumentStatus.ACTIVE,
+                        DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                        FileObject.status == FileObjectStatus.READY,
+                        FileObject.source_sha256 == locator.fixture_sha256,
+                    )
+                )
+            ).one_or_none()
+            return row is not None
+        try:
+            locator = parse_evidence_locator(record.locator)
+        except ValueError:
+            raise EvidencePersistenceError from None
+        if isinstance(locator, FinancialCalculationLocatorV1):
+            inputs = tuple(
+                (
+                    await session.execute(
+                        select(EvidenceRecord).where(
+                            EvidenceRecord.workspace_id == record.workspace_id,
+                            EvidenceRecord.id.in_(locator.input_evidence_refs),
+                            EvidenceRecord.status == EvidenceStatus.ACTIVE,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if {item.id for item in inputs} != set(locator.input_evidence_refs):
+                return False
+            for input_record in inputs:
+                if not await self._is_available(session, input_record):
+                    return False
+            return True
         return False
+
+    @staticmethod
+    def _fixture_locator(
+        text: str,
+        title_path: list[str],
+        fixture: SecFilingFixture,
+    ) -> tuple[str, int]:
+        matching = tuple(
+            fact for fact in fixture.facts if fact.anchor.casefold() in text.casefold()
+        )
+        if matching:
+            return matching[0].section, matching[0].source_page
+        if title_path:
+            return title_path[-1], 1
+        return "Filing excerpt", 1
 
     async def _invalidate_claim_relations(
         self,

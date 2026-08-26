@@ -78,6 +78,8 @@ class RunStopReason(StrEnum):
     TOOL_ERROR = "tool_error"
     NO_PROGRESS = "no_progress"
     APPROVAL_REQUIRED = "approval_required"
+    APPROVAL_DENIED = "approval_denied"
+    APPROVAL_TIMED_OUT = "approval_timed_out"
     RUNTIME_ERROR = "runtime_error"
 
 

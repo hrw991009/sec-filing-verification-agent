@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.agent_runtime.domain import RunBudget
 from industry_platform.modules.agent_runtime.models import AgentRunRecord
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.research.domain import (
     ResearchBrief,
     ResearchBriefInput,
@@ -271,6 +272,12 @@ class SqlAlchemyResearchQueryRepository:
                 confirmed_scope=tuple(brief_record.confirmed_scope),
                 exclusions=tuple(brief_record.exclusions),
                 completion_criteria=tuple(brief_record.completion_criteria),
+                financial_scope=(
+                    None
+                    if brief_record.financial_scope is None
+                    else FinancialScope.from_mapping(brief_record.financial_scope)
+                ),
+                approval_reason=brief_record.approval_reason,
             ),
             budget=budget,
             confirmed_by_user_id=brief_record.confirmed_by_user_id,

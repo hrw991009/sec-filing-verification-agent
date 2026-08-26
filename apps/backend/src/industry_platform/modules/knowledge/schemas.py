@@ -1,0 +1,590 @@
+"""Strict HTTP contracts for Knowledge management and ingestion acceptance."""
+
+import re
+from datetime import datetime
+from typing import Annotated, Literal, Self
+from uuid import UUID
+
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from industry_platform.modules.files.domain import (
+    AttachmentMediaType,
+    require_matching_extension,
+    sanitize_display_filename,
+)
+from industry_platform.modules.jobs.domain import JobStatus
+from industry_platform.modules.knowledge.domain import (
+    KNOWLEDGE_MEDIA_TYPES,
+    MAX_DOCUMENT_TITLE_LENGTH,
+    MAX_KNOWLEDGE_BASE_DESCRIPTION_LENGTH,
+    MAX_KNOWLEDGE_BASE_NAME_LENGTH,
+    MAX_KNOWLEDGE_DOCUMENT_BYTES,
+    Document,
+    DocumentAsset,
+    DocumentAssetKind,
+    DocumentDetail,
+    DocumentIndex,
+    DocumentIndexKind,
+    DocumentIndexStatus,
+    DocumentPageTextSource,
+    DocumentStatus,
+    DocumentVersion,
+    DocumentVersionStatus,
+    DocumentView,
+    IngestionCheckpointStage,
+    KnowledgeAcceptanceReceipt,
+    KnowledgeBase,
+    KnowledgeDeletionReceipt,
+    KnowledgeIngestionEvent,
+    KnowledgeSource,
+    KnowledgeUploadTicket,
+)
+
+_IDEMPOTENCY_PATTERN = re.compile(r"^[\x21-\x7e]{1,200}$")
+
+
+def _idempotency_key(value: str) -> str:
+    if not _IDEMPOTENCY_PATTERN.fullmatch(value):
+        raise ValueError("Idempotency key is invalid")
+    return value
+
+
+type IdempotencyKey = Annotated[str, AfterValidator(_idempotency_key)]
+
+
+class StrictKnowledgeModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class CreateKnowledgeBaseRequest(StrictKnowledgeModel):
+    name: str = Field(min_length=1, max_length=MAX_KNOWLEDGE_BASE_NAME_LENGTH)
+    description: str | None = Field(default=None, max_length=MAX_KNOWLEDGE_BASE_DESCRIPTION_LENGTH)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        if value != value.strip() or any(
+            ord(character) < 32 or ord(character) == 127 for character in value
+        ):
+            raise ValueError("Knowledge-base name is invalid")
+        return value
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if (
+            not normalized
+            or "\x00" in normalized
+            or any(ord(character) == 127 for character in normalized)
+        ):
+            raise ValueError("Knowledge-base description is invalid")
+        return normalized
+
+
+class UpdateKnowledgeBaseRequest(CreateKnowledgeBaseRequest):
+    pass
+
+
+class CreateKnowledgeUploadRequest(StrictKnowledgeModel):
+    original_name: str = Field(min_length=1, max_length=1_024)
+    declared_media_type: AttachmentMediaType
+    expected_size: int = Field(ge=1, le=MAX_KNOWLEDGE_DOCUMENT_BYTES)
+    expected_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def validate_file_contract(self) -> Self:
+        if self.declared_media_type not in KNOWLEDGE_MEDIA_TYPES:
+            raise ValueError("Knowledge media type is unsupported")
+        display_name = sanitize_display_filename(self.original_name)
+        require_matching_extension(display_name, self.declared_media_type)
+        self.original_name = display_name
+        return self
+
+
+class CompleteKnowledgeUploadRequest(StrictKnowledgeModel):
+    title: str = Field(min_length=1, max_length=MAX_DOCUMENT_TITLE_LENGTH)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value: str) -> str:
+        if value != value.strip() or any(
+            ord(character) < 32 or ord(character) == 127 for character in value
+        ):
+            raise ValueError("Document title is invalid")
+        return value
+
+
+class KnowledgeBaseResponse(StrictKnowledgeModel):
+    id: UUID
+    workspace_id: UUID
+    name: str
+    description: str | None
+    document_count: int
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class KnowledgeBaseCollectionResponse(StrictKnowledgeModel):
+    knowledge_bases: list[KnowledgeBaseResponse]
+
+
+class KnowledgeSourceResponse(StrictKnowledgeModel):
+    file_id: UUID
+    original_name: str
+    declared_media_type: AttachmentMediaType
+    expected_size: int
+    actual_size: int
+
+
+class DocumentVersionResponse(StrictKnowledgeModel):
+    id: UUID
+    document_id: UUID
+    file_id: UUID
+    ingestion_job_id: UUID
+    version: int
+    status: DocumentVersionStatus
+    revision: int
+    error_code: str | None
+    uploaded_at: datetime
+    queued_at: datetime
+    processing_started_at: datetime | None
+    ready_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    parser_name: str
+    parser_version: str
+    parser_schema_version: int
+    parser_config: dict[str, object]
+    chunker_name: str
+    chunker_version: str
+    chunker_config: dict[str, object]
+    embedding_config: dict[str, object]
+    index_config: dict[str, object]
+
+
+class DocumentPageResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    page_number: int
+    width_points: float
+    height_points: float
+    text: str
+    text_source: DocumentPageTextSource
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+
+
+class DocumentChunkResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    ordinal: int
+    page_number: int
+    text: str
+    token_count: int
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+    asset_ids: tuple[UUID, ...]
+
+
+class DocumentAssetResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    ordinal: int
+    page_number: int
+    kind: DocumentAssetKind
+    bbox: tuple[float, float, float, float]
+    title_path: tuple[str, ...]
+    content_hash: str
+    preview_sha256: str
+    preview_mime_type: str
+    preview_url: str
+    html: str | None
+
+
+class IngestionCheckpointResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    ingestion_job_id: UUID
+    stage: IngestionCheckpointStage
+    stage_sequence: int
+    fencing_token: int
+    attempt_count: int
+    input_hash: str
+    output_hash: str
+    stats: dict[str, object]
+    completed_at: datetime
+
+
+class DocumentIndexResponse(StrictKnowledgeModel):
+    id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    kind: DocumentIndexKind
+    status: DocumentIndexStatus
+    index_version: str
+    external_id: str
+    attempt_count: int
+    error_code: str | None
+    indexed_at: datetime | None
+
+
+class DocumentResponse(StrictKnowledgeModel):
+    id: UUID
+    workspace_id: UUID
+    knowledge_base_id: UUID
+    title: str
+    active_version_id: UUID | None
+    latest_version_number: int
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+    deletion_job_id: UUID | None
+    deletion_error_code: str | None
+    latest_version: DocumentVersionResponse
+    source: KnowledgeSourceResponse
+
+
+class DocumentCollectionResponse(StrictKnowledgeModel):
+    documents: list[DocumentResponse]
+
+
+class DocumentVersionDetailResponse(StrictKnowledgeModel):
+    version: DocumentVersionResponse
+    source: KnowledgeSourceResponse
+
+
+class DocumentDetailResponse(StrictKnowledgeModel):
+    document: DocumentResponse
+    versions: list[DocumentVersionDetailResponse]
+    pages: list[DocumentPageResponse]
+    chunks: list[DocumentChunkResponse]
+    assets: list[DocumentAssetResponse]
+    ingestion_checkpoints: list[IngestionCheckpointResponse]
+    indexes: list[DocumentIndexResponse]
+
+
+class KnowledgeUploadFileResponse(StrictKnowledgeModel):
+    id: UUID
+    original_name: str
+    declared_media_type: AttachmentMediaType
+    expected_size: int
+    status: Literal["uploaded"] = "uploaded"
+
+
+class KnowledgeUploadResponse(StrictKnowledgeModel):
+    file: KnowledgeUploadFileResponse
+    method: Literal["POST"]
+    url: str
+    fields: dict[str, str]
+    expires_at: datetime
+
+
+class KnowledgeJobResponse(StrictKnowledgeModel):
+    id: UUID
+    status: JobStatus
+    outbox_event_id: UUID
+    events_url: str
+
+
+class KnowledgeAcceptanceResponse(StrictKnowledgeModel):
+    document: DocumentResponse
+    version: DocumentVersionResponse
+    job: KnowledgeJobResponse
+    created: bool
+
+
+class KnowledgeDeletionResponse(StrictKnowledgeModel):
+    document_id: UUID
+    status: DocumentStatus
+    revision: int
+    job: KnowledgeJobResponse
+
+
+class DocumentActivationResponse(StrictKnowledgeModel):
+    document_id: UUID
+    active_version_id: UUID
+    revision: int
+
+
+class DocumentCancellationResponse(StrictKnowledgeModel):
+    version_id: UUID
+    status: DocumentVersionStatus
+    revision: int
+
+
+class KnowledgeIngestionEventResponse(StrictKnowledgeModel):
+    id: UUID
+    event_type: str
+    generation: int
+    event_sequence: int
+    occurred_at: datetime
+
+
+class KnowledgeIngestionEventCollectionResponse(StrictKnowledgeModel):
+    events: list[KnowledgeIngestionEventResponse]
+
+
+def knowledge_base_response(value: KnowledgeBase) -> KnowledgeBaseResponse:
+    return KnowledgeBaseResponse(
+        id=value.id,
+        workspace_id=value.workspace_id,
+        name=value.name,
+        description=value.description,
+        document_count=value.document_count,
+        revision=value.revision,
+        created_at=value.created_at,
+        updated_at=value.updated_at,
+    )
+
+
+def source_response(value: KnowledgeSource) -> KnowledgeSourceResponse:
+    return KnowledgeSourceResponse(
+        file_id=value.file_id,
+        original_name=value.original_name,
+        declared_media_type=value.declared_media_type,
+        expected_size=value.expected_size,
+        actual_size=value.actual_size,
+    )
+
+
+def version_response(value: DocumentVersion) -> DocumentVersionResponse:
+    return DocumentVersionResponse(
+        id=value.id,
+        document_id=value.document_id,
+        file_id=value.file_id,
+        ingestion_job_id=value.ingestion_job_id,
+        version=value.version,
+        status=value.status,
+        revision=value.revision,
+        error_code=value.error_code,
+        uploaded_at=value.uploaded_at,
+        queued_at=value.queued_at,
+        processing_started_at=value.processing_started_at,
+        ready_at=value.ready_at,
+        created_at=value.created_at,
+        updated_at=value.updated_at,
+        parser_name=value.parser_name,
+        parser_version=value.parser_version,
+        parser_schema_version=value.parser_schema_version,
+        parser_config=value.parser_config,
+        chunker_name=value.chunker_name,
+        chunker_version=value.chunker_version,
+        chunker_config=value.chunker_config,
+        embedding_config=value.embedding_config,
+        index_config=value.index_config,
+    )
+
+
+def document_response(value: DocumentView) -> DocumentResponse:
+    document = value.document
+    return DocumentResponse(
+        id=document.id,
+        workspace_id=document.workspace_id,
+        knowledge_base_id=document.knowledge_base_id,
+        title=document.title,
+        active_version_id=document.active_version_id,
+        latest_version_number=document.latest_version_number,
+        revision=document.revision,
+        created_at=document.created_at,
+        updated_at=document.updated_at,
+        deletion_job_id=document.deletion_job_id,
+        deletion_error_code=document.deletion_error_code,
+        latest_version=version_response(value.latest_version),
+        source=source_response(value.source),
+    )
+
+
+def _asset_response(asset: DocumentAsset) -> DocumentAssetResponse:
+    if asset.preview_url is None:
+        raise ValueError("Knowledge asset preview URL was not signed")
+    return DocumentAssetResponse(
+        id=asset.id,
+        document_version_id=asset.document_version_id,
+        ordinal=asset.ordinal,
+        page_number=asset.page_number,
+        kind=asset.kind,
+        bbox=asset.bbox,
+        title_path=asset.title_path,
+        content_hash=asset.content_hash,
+        preview_sha256=asset.preview_sha256,
+        preview_mime_type=asset.preview_mime_type,
+        preview_url=asset.preview_url,
+        html=asset.html,
+    )
+
+
+def document_detail_response(value: DocumentDetail) -> DocumentDetailResponse:
+    latest_version = value.versions[0]
+    latest_source = value.sources[0]
+    return DocumentDetailResponse(
+        document=document_response(
+            DocumentView(
+                document=value.document,
+                latest_version=latest_version,
+                source=latest_source,
+            )
+        ),
+        versions=[
+            DocumentVersionDetailResponse(
+                version=version_response(version),
+                source=source_response(source),
+            )
+            for version, source in zip(value.versions, value.sources, strict=True)
+        ],
+        pages=[
+            DocumentPageResponse(
+                id=page.id,
+                document_version_id=page.document_version_id,
+                page_number=page.page_number,
+                width_points=page.width_points,
+                height_points=page.height_points,
+                text=page.text,
+                text_source=page.text_source,
+                bbox=page.bbox,
+                title_path=page.title_path,
+                content_hash=page.content_hash,
+            )
+            for page in value.pages
+        ],
+        chunks=[
+            DocumentChunkResponse(
+                id=chunk.id,
+                document_version_id=chunk.document_version_id,
+                ordinal=chunk.ordinal,
+                page_number=chunk.page_number,
+                text=chunk.text,
+                token_count=chunk.token_count,
+                bbox=chunk.bbox,
+                title_path=chunk.title_path,
+                content_hash=chunk.content_hash,
+                asset_ids=chunk.asset_ids,
+            )
+            for chunk in value.chunks
+        ],
+        assets=[_asset_response(asset) for asset in value.assets],
+        ingestion_checkpoints=[
+            IngestionCheckpointResponse(
+                id=checkpoint.id,
+                document_version_id=checkpoint.document_version_id,
+                ingestion_job_id=checkpoint.ingestion_job_id,
+                stage=checkpoint.stage,
+                stage_sequence=checkpoint.stage_sequence,
+                fencing_token=checkpoint.fencing_token,
+                attempt_count=checkpoint.attempt_count,
+                input_hash=checkpoint.input_hash,
+                output_hash=checkpoint.output_hash,
+                stats=checkpoint.stats,
+                completed_at=checkpoint.completed_at,
+            )
+            for checkpoint in value.ingestion_checkpoints
+        ],
+        indexes=[_document_index_response(index) for index in value.indexes],
+    )
+
+
+def _document_index_response(index: DocumentIndex) -> DocumentIndexResponse:
+    return DocumentIndexResponse(
+        id=index.id,
+        document_version_id=index.document_version_id,
+        chunk_id=index.chunk_id,
+        kind=index.kind,
+        status=index.status,
+        index_version=index.index_version,
+        external_id=index.external_id,
+        attempt_count=index.attempt_count,
+        error_code=index.error_code,
+        indexed_at=index.indexed_at,
+    )
+
+
+def upload_response(value: KnowledgeUploadTicket) -> KnowledgeUploadResponse:
+    return KnowledgeUploadResponse(
+        file=KnowledgeUploadFileResponse(
+            id=value.file_id,
+            original_name=value.original_name,
+            declared_media_type=value.declared_media_type,
+            expected_size=value.expected_size,
+        ),
+        method="POST",
+        url=value.url,
+        fields=value.fields,
+        expires_at=value.expires_at,
+    )
+
+
+def acceptance_response(
+    value: KnowledgeAcceptanceReceipt,
+    *,
+    events_url: str,
+) -> KnowledgeAcceptanceResponse:
+    view = DocumentView(
+        document=value.document,
+        latest_version=value.version,
+        source=value.source,
+    )
+    return KnowledgeAcceptanceResponse(
+        document=document_response(view),
+        version=version_response(value.version),
+        job=KnowledgeJobResponse(
+            id=value.job_id,
+            status=value.job_status,
+            outbox_event_id=value.outbox_event_id,
+            events_url=events_url,
+        ),
+        created=value.created,
+    )
+
+
+def deletion_response(
+    value: KnowledgeDeletionReceipt,
+    *,
+    events_url: str,
+) -> KnowledgeDeletionResponse:
+    document = value.document
+    return KnowledgeDeletionResponse(
+        document_id=document.id,
+        status=document.status,
+        revision=document.revision,
+        job=KnowledgeJobResponse(
+            id=value.job_id,
+            status=value.job_status,
+            outbox_event_id=value.outbox_event_id,
+            events_url=events_url,
+        ),
+    )
+
+
+def activation_response(value: Document) -> DocumentActivationResponse:
+    if value.active_version_id is None:
+        raise ValueError("Activated Knowledge document has no active version")
+    return DocumentActivationResponse(
+        document_id=value.id,
+        active_version_id=value.active_version_id,
+        revision=value.revision,
+    )
+
+
+def cancellation_response(value: DocumentVersion) -> DocumentCancellationResponse:
+    return DocumentCancellationResponse(
+        version_id=value.id,
+        status=value.status,
+        revision=value.revision,
+    )
+
+
+def ingestion_event_response(
+    value: KnowledgeIngestionEvent,
+) -> KnowledgeIngestionEventResponse:
+    return KnowledgeIngestionEventResponse(
+        id=value.id,
+        event_type=value.event_type,
+        generation=value.generation,
+        event_sequence=value.event_sequence,
+        occurred_at=value.occurred_at,
+    )

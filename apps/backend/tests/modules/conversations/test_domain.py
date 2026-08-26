@@ -1,7 +1,7 @@
 """Domain tests for durable direct-answer turn acceptance."""
 
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -14,7 +14,12 @@ from industry_platform.modules.conversations.domain import (
     deterministic_run_id,
     fingerprint_direct_answer_turn,
 )
+from industry_platform.modules.financial_verification.domain import (
+    FinancialForm,
+    FinancialScope,
+)
 from industry_platform.modules.identity.domain import TraceId
+from industry_platform.modules.research.domain import ResearchBriefInput
 
 NOW = datetime(2026, 8, 13, 8, 0, tzinfo=UTC)
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -22,6 +27,28 @@ OTHER_WORKSPACE_ID = UUID("22222222-2222-4222-8222-222222222222")
 USER_ID = UUID("33333333-3333-4333-8333-333333333333")
 INDUSTRY_ID = UUID("55555555-5555-4555-8555-555555555555")
 ATTACHMENT_IDS = tuple(UUID(f"00000000-0000-4000-8000-{value:012d}") for value in range(1, 6))
+
+
+def financial_scope() -> FinancialScope:
+    return FinancialScope(
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form=FinancialForm.TEN_K,
+        report_period=date(2023, 9, 30),
+        as_of=datetime(2023, 11, 3, tzinfo=UTC),
+        unit="USD",
+        scale=6,
+    )
+
+
+def research_brief() -> ResearchBriefInput:
+    return ResearchBriefInput(
+        original_question="请总结这家公司的主要风险。",
+        confirmed_scope=("Apple 2023 10-K",),
+        exclusions=("实时行情",),
+        completion_criteria=("给出可追溯证据",),
+        financial_scope=financial_scope(),
+    )
 
 
 def budget() -> RunBudget:
@@ -73,12 +100,31 @@ def test_new_conversation_can_derive_a_bounded_one_line_title() -> None:
     assert title.endswith("...")
 
 
-@pytest.mark.parametrize("mode", [TurnSearchMode.LOCAL, TurnSearchMode.BOTH])
-def test_unready_local_search_modes_fail_instead_of_returning_mock_results(
-    mode: TurnSearchMode,
-) -> None:
-    with pytest.raises(ValueError, match="Only search modes 'none' and 'web'"):
-        command(search_mode=mode)
+def test_combined_search_mode_stays_unavailable() -> None:
+    with pytest.raises(ValueError, match="Search mode is not ready"):
+        command(search_mode=TurnSearchMode.BOTH)
+
+
+def test_local_search_requires_the_pinned_research_scope() -> None:
+    with pytest.raises(ValueError, match="Knowledge Base allowlist"):
+        command(search_mode=TurnSearchMode.LOCAL)
+
+    with pytest.raises(ValueError, match="only ready for Research"):
+        command(
+            search_mode=TurnSearchMode.LOCAL,
+            knowledge_base_ids=(INDUSTRY_ID,),
+        )
+
+    accepted = command(
+        search_mode=TurnSearchMode.LOCAL,
+        knowledge_base_ids=(INDUSTRY_ID,),
+        research_brief=research_brief(),
+        runtime_version="agent-runtime-v1",
+        harness_version="harness-research-v1",
+    )
+
+    assert accepted.research_brief is not None
+    assert accepted.research_brief.financial_scope == financial_scope()
 
 
 def test_web_mode_requires_an_industry_and_the_l2_runtime_version() -> None:
@@ -99,8 +145,8 @@ def test_web_mode_requires_an_industry_and_the_l2_runtime_version() -> None:
     assert accepted.industry_id == INDUSTRY_ID
 
 
-def test_local_knowledge_selection_is_rejected_until_its_real_tool_is_ready() -> None:
-    with pytest.raises(ValueError, match="Local knowledge mode is not ready"):
+def test_non_local_turn_rejects_a_knowledge_base_allowlist() -> None:
+    with pytest.raises(ValueError, match="requires local search mode"):
         command(knowledge_base_ids=(INDUSTRY_ID,))
 
 

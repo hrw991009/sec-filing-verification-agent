@@ -336,6 +336,7 @@ class AgentCheckpointRecord(UUIDPrimaryKeyMixin, Base):
 
     __tablename__ = "agent_checkpoints"
     __table_args__ = (
+        UniqueConstraint("id", "run_id", "workspace_id"),
         ForeignKeyConstraint(
             ["run_id", "workspace_id"],
             ["agent_runs.id", "agent_runs.workspace_id"],

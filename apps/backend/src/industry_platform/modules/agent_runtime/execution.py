@@ -29,6 +29,10 @@ type ProductionAgentRunCommand = DirectAnswerRunCommand | ToolL2RunCommand | Res
 logger = logging.getLogger(__name__)
 
 
+class RecoverableAgentRunInterruption(RuntimeError):
+    """Leave a checkpointed Run active so the durable Job can retry it."""
+
+
 @dataclass(frozen=True, slots=True)
 class DirectAnswerExecutionInput:
     """Trusted Runtime command and authorization context loaded from durable facts."""
@@ -43,17 +47,18 @@ class DirectAnswerExecutionResult:
 
     run_id: UUID
     status: AgentRunStatus
-    stop_reason: RunStopReason
+    stop_reason: RunStopReason | None
     terminal_event_sequence: int
 
     def __post_init__(self) -> None:
         require_non_nil_uuid(self.run_id, field_name="Executed Agent Run ID")
         if self.status not in {
+            AgentRunStatus.PAUSED,
             AgentRunStatus.COMPLETED,
             AgentRunStatus.FAILED,
             AgentRunStatus.CANCELLED,
         }:
-            raise ValueError("Agent execution result must be terminal")
+            raise ValueError("Agent execution result must be paused or terminal")
         validate_stop_reason(self.status, self.stop_reason)
         if isinstance(self.terminal_event_sequence, bool) or self.terminal_event_sequence < 1:
             raise ValueError("Agent execution terminal sequence is invalid")
@@ -108,12 +113,18 @@ class DirectAnswerRunExecutionService:
                     )
                 ]
             )
-            if not events or events[-1].event_type not in TERMINAL_AGENT_EVENT_TYPES:
-                raise ValueError("Agent Runtime ended without one terminal Event")
+            if not events or events[-1].event_type not in {
+                *TERMINAL_AGENT_EVENT_TYPES,
+                AgentEventType.RUN_PAUSED,
+            }:
+                raise ValueError("Agent Runtime ended without one terminal Event or durable pause")
 
             terminal = events[-1]
-            status = _status_for_terminal_event(terminal.event_type)
-            stop_reason = _stop_reason(terminal)
+            paused = terminal.event_type is AgentEventType.RUN_PAUSED
+            status = (
+                AgentRunStatus.PAUSED if paused else _status_for_terminal_event(terminal.event_type)
+            )
+            stop_reason = None if paused else _stop_reason(terminal)
             started = next(
                 (
                     event.occurred_at
@@ -126,12 +137,14 @@ class DirectAnswerRunExecutionService:
                 run,
                 status=status,
                 started_at=started,
-                terminal_at=terminal.occurred_at,
+                terminal_at=None if paused else terminal.occurred_at,
                 stop_reason=stop_reason,
             )
             validate_event_stream(events, terminal_run)
         except asyncio.CancelledError:
             await self._settle_unrecoverable(run_id, error_code="execution_cancelled")
+            raise
+        except RecoverableAgentRunInterruption:
             raise
         except Exception:
             await self._settle_unrecoverable(run_id, error_code="execution_failed")
@@ -150,7 +163,7 @@ class DirectAnswerRunExecutionService:
             run.job_id or "none",
             run.trace_id,
             status.value,
-            stop_reason.value,
+            "none" if stop_reason is None else stop_reason.value,
             duration_ms,
             input_tokens,
             output_tokens,

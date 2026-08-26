@@ -38,11 +38,19 @@ class FileObjectStatus(StrEnum):
     DELETED = "deleted"
 
 
+class FileObjectPurpose(StrEnum):
+    """Keep private object consumers from crossing lifecycle boundaries."""
+
+    CHAT_ATTACHMENT = "chat_attachment"
+    KNOWLEDGE_SOURCE = "knowledge_source"
+
+
 class AttachmentKind(StrEnum):
-    """The two attachment paths intentionally available on Day 2."""
+    """Broad classification shared by chat and Knowledge file metadata."""
 
     TEXT = "text"
     IMAGE = "image"
+    DOCUMENT = "document"
 
 
 class AttachmentMediaType(StrEnum):
@@ -50,6 +58,7 @@ class AttachmentMediaType(StrEnum):
 
     TEXT_PLAIN = "text/plain"
     TEXT_MARKDOWN = "text/markdown"
+    APPLICATION_PDF = "application/pdf"
     IMAGE_PNG = "image/png"
     IMAGE_JPEG = "image/jpeg"
     IMAGE_WEBP = "image/webp"
@@ -60,6 +69,8 @@ class AttachmentMediaType(StrEnum):
 
         if self in {self.TEXT_PLAIN, self.TEXT_MARKDOWN}:
             return AttachmentKind.TEXT
+        if self is self.APPLICATION_PDF:
+            return AttachmentKind.DOCUMENT
         return AttachmentKind.IMAGE
 
     @property
@@ -87,6 +98,8 @@ class AttachmentValidationCode(StrEnum):
     IMAGE_DECODE_FAILED = "image_decode_failed"
     IMAGE_ANIMATED = "image_animated"
     IMAGE_DIMENSIONS_EXCEEDED = "image_dimensions_exceeded"
+    PDF_DECODE_FAILED = "pdf_decode_failed"
+    PDF_ENCRYPTED = "pdf_encrypted"
     SAFE_OUTPUT_TOO_LARGE = "safe_output_too_large"
 
 
@@ -114,12 +127,15 @@ _SAFE_ERROR_MESSAGES: Final[dict[AttachmentValidationCode, str]] = {
     AttachmentValidationCode.IMAGE_DECODE_FAILED: "Image attachment could not be decoded safely",
     AttachmentValidationCode.IMAGE_ANIMATED: "Animated images are not supported",
     AttachmentValidationCode.IMAGE_DIMENSIONS_EXCEEDED: "Image dimensions exceed their limit",
+    AttachmentValidationCode.PDF_DECODE_FAILED: "PDF structure could not be validated",
+    AttachmentValidationCode.PDF_ENCRYPTED: "Encrypted PDF files are not supported",
     AttachmentValidationCode.SAFE_OUTPUT_TOO_LARGE: ("Sanitized attachment exceeds its byte limit"),
 }
 
 _ALLOWED_EXTENSIONS: Final[dict[AttachmentMediaType, frozenset[str]]] = {
     AttachmentMediaType.TEXT_PLAIN: frozenset({".txt"}),
     AttachmentMediaType.TEXT_MARKDOWN: frozenset({".md", ".markdown"}),
+    AttachmentMediaType.APPLICATION_PDF: frozenset({".pdf"}),
     AttachmentMediaType.IMAGE_PNG: frozenset({".png"}),
     AttachmentMediaType.IMAGE_JPEG: frozenset({".jpg", ".jpeg"}),
     AttachmentMediaType.IMAGE_WEBP: frozenset({".webp"}),

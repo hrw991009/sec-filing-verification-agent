@@ -1,5 +1,6 @@
 """Versioned Checkpoint envelope and optimistic compare-and-swap rules."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
@@ -8,6 +9,7 @@ from industry_platform.modules.agent_runtime.domain import (
     AGENT_RUNTIME_SCHEMA_VERSION,
     require_non_nil_uuid,
     require_utc,
+    snapshot_json_mapping,
 )
 from industry_platform.modules.agent_runtime.state import RunState
 
@@ -59,12 +61,33 @@ class SaveCheckpointCommand:
     workspace_id: UUID
     expected_revision: int | None
     state: RunState = field(repr=False)
+    checkpoint_revision: int | None = None
+    payload: Mapping[str, object] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         require_non_nil_uuid(self.run_id, field_name="Checkpoint save run ID")
         require_non_nil_uuid(self.workspace_id, field_name="Checkpoint save workspace ID")
         if self.state.run_id != self.run_id or self.state.workspace_id != self.workspace_id:
             raise ValueError("Checkpoint State belongs to another run or workspace")
+        object.__setattr__(
+            self,
+            "payload",
+            snapshot_json_mapping(
+                self.payload,
+                error_message="Checkpoint payload must be canonical JSON data",
+            ),
+        )
+        if self.checkpoint_revision is not None:
+            _require_non_negative_revision(
+                self.checkpoint_revision,
+                field_name="Checkpoint revision",
+            )
+            expected_checkpoint_revision = (
+                0 if self.expected_revision is None else self.expected_revision + 1
+            )
+            if self.checkpoint_revision != expected_checkpoint_revision:
+                raise ValueError("Checkpoint revision must increase by exactly one")
+            return
         if self.expected_revision is None:
             if self.state.revision != 0:
                 raise ValueError("Initial Checkpoint State must use revision zero")
@@ -107,6 +130,7 @@ class CheckpointEnvelope:
     revision: int
     saved_at: datetime
     state: RunState = field(repr=False)
+    payload: Mapping[str, object] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         if self.envelope_schema_version != CHECKPOINT_ENVELOPE_SCHEMA_VERSION:
@@ -125,8 +149,16 @@ class CheckpointEnvelope:
         require_utc(self.saved_at, field_name="Checkpoint save time")
         if self.state.run_id != self.run_id or self.state.workspace_id != self.workspace_id:
             raise ValueError("Checkpoint State belongs to another run or workspace")
-        if self.state.revision != self.revision:
+        if self.state.revision != self.revision and not self.payload:
             raise ValueError("Checkpoint and State revisions must match")
+        object.__setattr__(
+            self,
+            "payload",
+            snapshot_json_mapping(
+                self.payload,
+                error_message="Checkpoint payload must be canonical JSON data",
+            ),
+        )
         if self.saved_at < self.state.updated_at:
             raise ValueError("Checkpoint cannot be saved before its State update")
 
@@ -163,7 +195,12 @@ def create_checkpoint_envelope(
         checkpoint_id=checkpoint_id,
         run_id=command.run_id,
         workspace_id=command.workspace_id,
-        revision=command.state.revision,
+        revision=(
+            command.state.revision
+            if command.checkpoint_revision is None
+            else command.checkpoint_revision
+        ),
         saved_at=saved_at,
         state=command.state,
+        payload=command.payload,
     )

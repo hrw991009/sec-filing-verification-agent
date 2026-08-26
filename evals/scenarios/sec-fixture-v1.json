@@ -1,0 +1,337 @@
+{
+  "schema_version": 1,
+  "dataset_id": "sec-fixture-financial-research",
+  "dataset_version": "sec-fixture-v1",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "sec-net-sales-change-f0",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-net-sales-change-f0",
+        "scenario_version": "v1",
+        "run_type": "direct_answer",
+        "profile": { "name": "sec-fixture-oracle", "version": "v1" },
+        "input": {
+          "question": "Apple 2023 net sales compared with 2022 changed by what percentage?"
+        },
+        "runtime_version": "direct-answer-runtime-v1",
+        "harness_version": "harness-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "sec-fixture-oracle-prompt-v1",
+        "context_version": "sec-fixture-full-context-v1",
+        "toolset_version": "no-tools-v1",
+        "available_tools": [],
+        "budget": {
+          "max_steps": 2,
+          "max_total_tokens": 2048,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Net sales decreased by 2.80% from 2022 to 2023.",
+        "financial_eval": {
+          "comparison_tier": "f0",
+          "case_kind": "derived",
+          "source_expected": 1,
+          "source_correct": 1,
+          "numeric_expected": 1,
+          "numeric_correct": 1,
+          "formula_expected": 1,
+          "formula_correct": 1,
+          "evidence_expected": 0,
+          "evidence_correct": 0,
+          "typed_calculation_expected": 0,
+          "typed_calculation_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "steps": 1,
+          "input_tokens": 120,
+          "output_tokens": 40,
+          "cost_micro_usd": 30,
+          "latency_ms": 20,
+          "source_count": 1,
+          "evidence_count": 0,
+          "typed_calculation_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "sec-financial", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/sec-net-sales-change-f0", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "F0 receives the bounded fixture as oracle context but creates no typed Evidence or calculation lineage."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-net-sales-change-f1",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-net-sales-change-f1",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense", "version": "v1" },
+        "input": {
+          "question": "Apple 2023 net sales compared with 2022 changed by what percentage?"
+        },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "sec-fixture-dense-v1",
+        "available_tools": [{ "name": "knowledge_search", "version": "v1" }],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Net sales decreased by 2.80%, citing the filing chunk but without a typed calculation.",
+        "financial_eval": {
+          "comparison_tier": "f1",
+          "case_kind": "derived",
+          "source_expected": 1,
+          "source_correct": 1,
+          "numeric_expected": 1,
+          "numeric_correct": 1,
+          "formula_expected": 1,
+          "formula_correct": 1,
+          "evidence_expected": 1,
+          "evidence_correct": 1,
+          "typed_calculation_expected": 0,
+          "typed_calculation_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "steps": 3,
+          "input_tokens": 300,
+          "output_tokens": 100,
+          "cost_micro_usd": 90,
+          "latency_ms": 70,
+          "source_count": 1,
+          "evidence_count": 1,
+          "typed_calculation_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "sec-financial", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/sec-net-sales-change-f1", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "F1 uses only the Dense Knowledge Tool. Any arithmetic remains model-produced and is not typed calculation Evidence."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-net-sales-change-f2",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-net-sales-change-f2",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator", "version": "v1" },
+        "input": {
+          "question": "Apple 2023 net sales compared with 2022 changed by what percentage?"
+        },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Net sales decreased by 2.80% with filing and typed calculation Evidence.",
+        "financial_eval": {
+          "comparison_tier": "f2",
+          "case_kind": "derived",
+          "source_expected": 1,
+          "source_correct": 1,
+          "numeric_expected": 1,
+          "numeric_correct": 1,
+          "formula_expected": 1,
+          "formula_correct": 1,
+          "evidence_expected": 1,
+          "evidence_correct": 1,
+          "typed_calculation_expected": 1,
+          "typed_calculation_correct": 1,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "steps": 5,
+          "input_tokens": 460,
+          "output_tokens": 180,
+          "cost_micro_usd": 150,
+          "latency_ms": 110,
+          "source_count": 1,
+          "evidence_count": 2,
+          "typed_calculation_count": 1
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "sec-financial", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/sec-net-sales-change-f2", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "F2 is the executable same-Runtime path bound to the Harness test and includes filing plus calculation lineage."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-net-sales-fact-f2",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-net-sales-fact-f2",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator", "version": "v1" },
+        "input": { "question": "What were Apple's fiscal 2023 net sales?" },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "Apple fiscal 2023 net sales were USD 383,285 million with filing Evidence.",
+        "financial_eval": {
+          "comparison_tier": "f2",
+          "case_kind": "fact",
+          "source_expected": 1,
+          "source_correct": 1,
+          "numeric_expected": 1,
+          "numeric_correct": 1,
+          "formula_expected": 0,
+          "formula_correct": 0,
+          "evidence_expected": 1,
+          "evidence_correct": 1,
+          "typed_calculation_expected": 0,
+          "typed_calculation_correct": 0,
+          "uncertainty_expected": 0,
+          "uncertainty_correct": 0,
+          "steps": 3,
+          "input_tokens": 280,
+          "output_tokens": 90,
+          "cost_micro_usd": 80,
+          "latency_ms": 65,
+          "source_count": 1,
+          "evidence_count": 1,
+          "typed_calculation_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "evidence", "name": "sec-financial", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/sec-net-sales-fact-f2", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "A source fact does not require the calculator, even when it is available in the profile."
+    },
+    {
+      "schema_version": 1,
+      "case_id": "sec-pharma-revenue-insufficient-f2",
+      "case_version": "v1",
+      "scenario": {
+        "schema_version": 1,
+        "scenario_id": "sec-pharma-revenue-insufficient-f2",
+        "scenario_version": "v1",
+        "run_type": "research",
+        "profile": { "name": "sec-fixture-dense-calculator", "version": "v1" },
+        "input": { "question": "What was Apple's fiscal 2023 pharmaceutical revenue?" },
+        "runtime_version": "agent-runtime-v1",
+        "harness_version": "harness-research-v1",
+        "model_version": "fake-model-v1",
+        "prompt_version": "conversation-local-l2-prompt-v1",
+        "context_version": "context-v1",
+        "toolset_version": "conversation-local-toolset-v1",
+        "available_tools": [
+          { "name": "knowledge_search", "version": "v1" },
+          { "name": "finance.calculate", "version": "v1" }
+        ],
+        "budget": {
+          "max_steps": 12,
+          "max_total_tokens": 4096,
+          "max_cost_micro_usd": 10000,
+          "timeout_seconds": 30
+        },
+        "deterministic_fixture_refs": [
+          { "name": "sec/apple-2023-10-k", "version": "sec-fixture-v1" }
+        ]
+      },
+      "expected_stop_reason": "final",
+      "expected_behavior": {
+        "final_output": "The bounded fixture does not contain this fact; no number or Evidence is fabricated.",
+        "financial_eval": {
+          "comparison_tier": "f2",
+          "case_kind": "insufficient",
+          "source_expected": 1,
+          "source_correct": 1,
+          "numeric_expected": 0,
+          "numeric_correct": 0,
+          "formula_expected": 0,
+          "formula_correct": 0,
+          "evidence_expected": 0,
+          "evidence_correct": 0,
+          "typed_calculation_expected": 0,
+          "typed_calculation_correct": 0,
+          "uncertainty_expected": 1,
+          "uncertainty_correct": 1,
+          "steps": 3,
+          "input_tokens": 260,
+          "output_tokens": 80,
+          "cost_micro_usd": 75,
+          "latency_ms": 60,
+          "source_count": 0,
+          "evidence_count": 0,
+          "typed_calculation_count": 0
+        }
+      },
+      "scorers": [
+        { "category": "result", "name": "sec-financial", "version": "v1", "parameters": {} }
+      ],
+      "trace_refs": [{ "name": "trace/sec-pharma-revenue-insufficient-f2", "version": "v1" }],
+      "artifact_refs": [],
+      "human_notes": "The no-result path must end in an uncertain L3 draft and must not invoke the calculator."
+    }
+  ]
+}

@@ -23,6 +23,7 @@ from industry_platform.modules.files.ports import (
 
 _ResultT = TypeVar("_ResultT")
 _NOT_FOUND_CODES = frozenset({"NoSuchKey", "NoSuchObject", "NotFound"})
+_MAX_PREFIX_DELETE_OBJECTS = 10_000
 
 
 def utc_now() -> datetime:
@@ -156,6 +157,21 @@ class MinioPrivateFileObjectStore:
 
     async def remove(self, *, bucket: str, object_key: str) -> None:
         await self._call(partial(self._client.remove_object, bucket, object_key))
+
+    async def remove_prefix(self, *, bucket: str, object_prefix: str) -> None:
+        if not object_prefix or not object_prefix.endswith("/"):
+            raise ValueError("Private object prefix is invalid")
+
+        def remove() -> None:
+            for count, item in enumerate(
+                self._client.list_objects(bucket, prefix=object_prefix, recursive=True),
+                start=1,
+            ):
+                if count > _MAX_PREFIX_DELETE_OBJECTS:
+                    raise FileObjectStoreError
+                self._client.remove_object(bucket, item.object_name)
+
+        await self._call(remove)
 
     async def presign_get(
         self,

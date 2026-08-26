@@ -100,19 +100,27 @@ class StartDirectAnswerTurn:
             raise ValueError("Turn idempotency key is invalid")
         _require_version(self.runtime_version, field_name="Runtime version")
         _require_version(self.harness_version, field_name="Harness version")
-        if self.search_mode not in {TurnSearchMode.NONE, TurnSearchMode.WEB}:
-            raise ValueError("Only search modes 'none' and 'web' are ready")
+        if self.search_mode not in {
+            TurnSearchMode.NONE,
+            TurnSearchMode.WEB,
+            TurnSearchMode.LOCAL,
+        }:
+            raise ValueError("Search mode is not ready")
         if self.industry_id is not None:
             require_non_nil_uuid(self.industry_id, field_name="Turn industry ID")
         if self.search_mode is TurnSearchMode.WEB and self.industry_id is None:
             raise ValueError("Web search mode requires one industry snapshot")
+        if self.search_mode is TurnSearchMode.LOCAL and self.industry_id is not None:
+            raise ValueError("Local search mode cannot use an industry snapshot")
         knowledge_base_ids = tuple(self.knowledge_base_ids)
         if len(set(knowledge_base_ids)) != len(knowledge_base_ids):
             raise ValueError("Turn knowledge-base IDs must be unique")
         for knowledge_base_id in knowledge_base_ids:
             require_non_nil_uuid(knowledge_base_id, field_name="Turn knowledge-base ID")
-        if knowledge_base_ids:
-            raise ValueError("Local knowledge mode is not ready on Day 2")
+        if self.search_mode is TurnSearchMode.LOCAL and not knowledge_base_ids:
+            raise ValueError("Local search mode requires a Knowledge Base allowlist")
+        if self.search_mode is not TurnSearchMode.LOCAL and knowledge_base_ids:
+            raise ValueError("Knowledge Base allowlist requires local search mode")
         object.__setattr__(self, "knowledge_base_ids", knowledge_base_ids)
         attachment_ids = tuple(self.attachment_ids)
         if len(attachment_ids) > MAX_TURN_ATTACHMENTS:
@@ -123,10 +131,16 @@ class StartDirectAnswerTurn:
             require_non_nil_uuid(attachment_id, field_name="Turn attachment ID")
         object.__setattr__(self, "attachment_ids", attachment_ids)
         if self.research_brief is not None:
-            if self.search_mode is not TurnSearchMode.WEB:
-                raise ValueError("Research requires the Web Tool surface")
+            if self.search_mode not in {TurnSearchMode.WEB, TurnSearchMode.LOCAL}:
+                raise ValueError("Research requires a ready Tool surface")
             if self.research_brief.original_question != self.question.strip():
                 raise ValueError("Research Brief cannot rewrite the original question")
+            if (self.search_mode is TurnSearchMode.LOCAL) != (
+                self.research_brief.financial_scope is not None
+            ):
+                raise ValueError("Local Research requires one Financial Scope")
+        elif self.search_mode is TurnSearchMode.LOCAL:
+            raise ValueError("Local Knowledge mode is only ready for Research")
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,6 +246,11 @@ def fingerprint_direct_answer_turn(
                 "confirmed_scope": list(command.research_brief.confirmed_scope),
                 "exclusions": list(command.research_brief.exclusions),
                 "completion_criteria": list(command.research_brief.completion_criteria),
+                "financial_scope": (
+                    None
+                    if command.research_brief.financial_scope is None
+                    else dict(command.research_brief.financial_scope.to_mapping())
+                ),
             }
         ),
         "run_id": str(run_id),

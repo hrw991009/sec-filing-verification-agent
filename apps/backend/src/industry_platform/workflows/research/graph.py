@@ -1,4 +1,4 @@
-"""LangGraph-only adapter for the one ordered Day 4 Research L3 graph."""
+"""LangGraph-only adapter for the one ordered Research L3/L4 graph."""
 
 from collections.abc import AsyncIterator
 from itertools import pairwise
@@ -20,8 +20,12 @@ class CompiledResearchGraph(Protocol):
     def astream(self, state: ResearchGraphState, *, stream_mode: str) -> AsyncIterator[object]: ...
 
 
-def build_research_graph(executor: ResearchNodeExecutor) -> CompiledResearchGraph:
-    """Compile exactly the L3 nodes; Runtime and domain work stay behind the executor."""
+def build_research_graph(
+    executor: ResearchNodeExecutor,
+    *,
+    start_node: ResearchNode = ResearchNode.CLARIFY_SCOPE,
+) -> CompiledResearchGraph:
+    """Compile the Research nodes; Runtime and domain work stay behind the executor."""
 
     builder = StateGraph(ResearchGraphState)
     for node in ResearchNode:
@@ -34,9 +38,10 @@ def build_research_graph(executor: ResearchNodeExecutor) -> CompiledResearchGrap
             return await executor.execute(selected, state)
 
         builder.add_node(node.value, execute_node)
-    builder.add_edge(START, ResearchNode.CLARIFY_SCOPE.value)
+    builder.add_edge(START, start_node.value)
     nodes = tuple(ResearchNode)
-    for current, following in pairwise(nodes):
+    start_index = nodes.index(start_node)
+    for current, following in pairwise(nodes[start_index:]):
 
         def route(
             state: ResearchGraphState,

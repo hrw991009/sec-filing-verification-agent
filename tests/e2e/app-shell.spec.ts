@@ -527,6 +527,72 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByText("uncertain_draft")).toBeVisible();
   });
 
+  test("creates and restores a queued Knowledge document", async ({ page }) => {
+    test.setTimeout(60_000);
+    const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+    const email = `knowledge-${uniquePart}@example.com`;
+    const password = "Browser!Pass123";
+    const knowledgeBaseName = `私有资料 ${uniquePart}`;
+    const documentTitle = `行业摘要 ${uniquePart}`;
+    const sourceName = `source-${uniquePart}.txt`;
+
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "创建账户" }).click();
+    await page.getByLabel("邮箱").fill(email);
+    await page.getByLabel("密码").fill(password);
+    await page.getByRole("button", { name: "创建账户并进入" }).click();
+    await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+
+    await page.getByRole("button", { name: "知识库" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "知识库" })).toBeVisible();
+    await page.getByRole("button", { name: "新建知识库" }).click();
+    await page.getByLabel("名称").fill(knowledgeBaseName);
+    await page.getByLabel("描述").fill("浏览器旅程的私有知识来源");
+    await page.getByRole("button", { exact: true, name: "保存" }).click();
+    await expect(page.getByRole("heading", { level: 2, name: knowledgeBaseName })).toBeVisible();
+
+    await page.getByRole("button", { name: "上传文档" }).click();
+    await page.getByLabel("文件").setInputFiles({
+      name: sourceName,
+      mimeType: "text/plain",
+      buffer: Buffer.from("Private browser Knowledge source.\n"),
+    });
+    await page.getByLabel("文档标题").fill(documentTitle);
+    const acceptedResponse = page.waitForResponse((response) => {
+      const request = response.request();
+      return (
+        request.method() === "POST" &&
+        /\/knowledge-bases\/[^/]+\/uploads\/[^/]+\/complete$/u.test(
+          new URL(response.url()).pathname,
+        ) &&
+        response.status() === 202
+      );
+    });
+    await page.getByRole("button", { exact: true, name: "上传" }).click();
+    await acceptedResponse;
+    await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
+    await expect(page.getByText("排队中", { exact: true })).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "知识库" }).click();
+    await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
+    await expect(page.getByText(sourceName, { exact: true })).toBeVisible();
+    await expect(page.getByText("排队中", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: `查看 ${documentTitle} 的解析详情` }).click();
+    const detail = page.getByRole("dialog", { name: "解析详情" });
+    await expect(detail.locator(".knowledge-detail-runtime")).toContainText(
+      /deterministic-hash\s*\/\s*feature-hash-64/u,
+    );
+    await expect(detail.getByText("knowledge-index-v1", { exact: true })).toBeVisible();
+    await expect(detail.getByRole("tab")).toHaveCount(6);
+    await detail.getByRole("button", { name: "关闭" }).click();
+
+    await page.getByRole("button", { name: `查看 ${documentTitle} 的受理事件` }).click();
+    await expect(page.getByRole("heading", { name: "受理事件" })).toBeVisible();
+    await expect(page.getByText("任务已受理", { exact: true })).toBeVisible();
+  });
+
   test("creates, stops, and restores a real Day 2 conversation", async ({ page }) => {
     test.setTimeout(45_000);
     const uniquePart = [Date.now(), test.info().workerIndex].join("-");

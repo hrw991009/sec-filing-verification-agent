@@ -4,12 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentTrace } from "../chat/chat-api";
 import type { Industry } from "../industry/industry-api";
-import type { ResearchRun } from "./research-api";
+import type { ResearchDurability, ResearchRun } from "./research-api";
 
 const workspaceId = "11111111-1111-4111-8111-111111111111";
 const researchRunId = "22222222-2222-4222-8222-222222222222";
 const agentRunId = "33333333-3333-4333-8333-333333333333";
 const industryId = "5ae94c40-4441-5e6f-b4cb-0679e8a92f9e";
+const knowledgeBaseId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 const industry: Industry = {
   code: "smart_transport",
@@ -30,10 +31,12 @@ const researchRun: ResearchRun = {
       max_total_tokens: 12_000,
     },
     completion_criteria: ["Produce an attributable L3 draft"],
+    approval_reason: null,
     confirmed_at: "2026-08-22T08:00:00Z",
     confirmed_by_user_id: "44444444-4444-4444-8444-444444444444",
     confirmed_scope: ["Public smart transport news"],
     exclusions: ["Investment advice"],
+    financial_scope: null,
     id: "55555555-5555-4555-8555-555555555555",
     original_question: "Find a public transport policy update.",
     revision: 1,
@@ -53,7 +56,7 @@ const researchRun: ResearchRun = {
     updated_at: "2026-08-22T08:00:05Z",
   },
   event_count: 32,
-  graph_version: "research-l3-graph-v1",
+  graph_version: "research-l4-graph-v1",
   id: researchRunId,
   input_tokens_used: 40,
   output_tokens_used: 20,
@@ -150,17 +153,38 @@ const trace = {
   ],
 } satisfies AgentTrace;
 
+const durability: ResearchDurability = {
+  approvals: [],
+  checkpoints: [
+    {
+      checkpoint_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      next_node: "research_loop",
+      node: "plan",
+      revision: 2,
+      run_state_revision: 7,
+      saved_at: "2026-08-22T08:00:02Z",
+      state_diff: { approval_status: "not_required" },
+    },
+  ],
+  duplicate_side_effect_count: 0,
+};
+
 const researchMocks = vi.hoisted(() => ({
+  decideResearchApproval: vi.fn(),
+  getResearchDurability: vi.fn(),
   getResearchRun: vi.fn(),
   listResearchRuns: vi.fn(),
+  resumeResearch: vi.fn(),
   startResearch: vi.fn(),
 }));
 const chatMocks = vi.hoisted(() => ({ cancelRun: vi.fn(), getAgentTrace: vi.fn() }));
 const evidenceMocks = vi.hoisted(() => ({ listResearchClaims: vi.fn() }));
+const knowledgeMocks = vi.hoisted(() => ({ listKnowledgeBases: vi.fn() }));
 
 vi.mock("./research-api", () => researchMocks);
 vi.mock("../chat/chat-api", () => chatMocks);
 vi.mock("../evidence/evidence-api", () => evidenceMocks);
+vi.mock("../knowledge/knowledge-api", () => knowledgeMocks);
 
 import { ResearchWorkspace } from "./ResearchWorkspace";
 
@@ -169,6 +193,19 @@ describe("ResearchWorkspace", () => {
     vi.clearAllMocks();
     researchMocks.listResearchRuns.mockResolvedValue([researchRun]);
     researchMocks.getResearchRun.mockResolvedValue(researchRun);
+    researchMocks.getResearchDurability.mockResolvedValue(durability);
+    knowledgeMocks.listKnowledgeBases.mockResolvedValue([
+      {
+        created_at: "2026-08-25T08:00:00Z",
+        description: "SEC fixture filings",
+        document_count: 1,
+        id: knowledgeBaseId,
+        name: "SEC Filings",
+        revision: 1,
+        updated_at: "2026-08-25T08:00:00Z",
+        workspace_id: workspaceId,
+      },
+    ]);
     chatMocks.getAgentTrace.mockResolvedValue(trace);
     evidenceMocks.listResearchClaims.mockResolvedValue([
       {
@@ -267,8 +304,150 @@ describe("ResearchWorkspace", () => {
       exclusions: ["Investment advice"],
       industry_id: industryId,
       max_steps: 20,
+      mode: "web",
       original_question: "Find a transport update.",
     });
     expect(researchMocks.startResearch.mock.calls[0]?.[2]).toEqual(expect.any(String));
+  });
+
+  it("submits a pinned SEC fixture scope and Knowledge Base", async () => {
+    const user = userEvent.setup();
+    researchMocks.listResearchRuns.mockResolvedValueOnce([]).mockResolvedValueOnce([researchRun]);
+    researchMocks.startResearch.mockResolvedValue({
+      agent_run_id: agentRunId,
+      conversation_id: "99999999-9999-4999-8999-999999999999",
+      created: true,
+      job_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      research_run_id: researchRunId,
+      turn_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    });
+
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={null}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    await screen.findByText("尚无 Research Run。");
+    await user.click(screen.getByRole("button", { name: "SEC Fixture" }));
+    expect(await screen.findByLabelText("Research Knowledge Base")).toHaveValue(knowledgeBaseId);
+    await user.click(screen.getByLabelText("公司或期间存在歧义，计划后暂停确认"));
+    await user.type(
+      screen.getByLabelText("Research 原始问题"),
+      "Calculate Apple net sales change.",
+    );
+    await user.type(screen.getByLabelText("Research 已确认范围"), "Apple 2023 Form 10-K");
+    await user.click(screen.getByRole("button", { name: "确认 Brief 并开始" }));
+
+    await waitFor(() => {
+      expect(researchMocks.startResearch).toHaveBeenCalledTimes(1);
+    });
+    expect(researchMocks.startResearch.mock.calls[0]?.[1]).toMatchObject({
+      approval_reason: "company_or_period_ambiguity",
+      financial_scope: {
+        accession: "0000320193-23-000106",
+        cik: "0000320193",
+        form: "10-K",
+        report_period: "2023-09-30",
+        scale: 6,
+        schema_version: 1,
+        unit: "USD",
+      },
+      knowledge_base_ids: [knowledgeBaseId],
+      mode: "local",
+    });
+    expect(researchMocks.startResearch.mock.calls[0]?.[1]).not.toHaveProperty("industry_id");
+  });
+
+  it("persists an approval decision before creating the resume job", async () => {
+    const user = userEvent.setup();
+    const resumeProof = "r".repeat(43);
+    const checkpoint = durability.checkpoints[0];
+    if (checkpoint === undefined) throw new Error("Test durability fixture is incomplete");
+    const pausedRun: ResearchRun = {
+      ...researchRun,
+      agent_status: "paused",
+      brief: {
+        ...researchRun.brief,
+        approval_reason: "company_or_period_ambiguity",
+      },
+      current_node: "plan",
+      draft: null,
+      status: "paused",
+      stop_reason: null,
+    };
+    const pendingApproval = {
+      approval_request_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      checkpoint_id: checkpoint.checkpoint_id,
+      checkpoint_revision: 2,
+      created_at: "2026-08-22T08:00:02Z",
+      decided_at: null,
+      decided_by_user_id: null,
+      expires_at: "2026-08-22T08:15:02Z",
+      reason: "company_or_period_ambiguity" as const,
+      requested_by_user_id: researchRun.owner_user_id,
+      resume_claimed: false,
+      resume_job_id: null,
+      resume_token: resumeProof,
+      resumed_at: null,
+      run_id: agentRunId,
+      status: "pending" as const,
+    };
+    researchMocks.listResearchRuns.mockResolvedValue([pausedRun]);
+    researchMocks.getResearchRun.mockResolvedValue(pausedRun);
+    researchMocks.getResearchDurability.mockResolvedValue({
+      ...durability,
+      approvals: [pendingApproval],
+    });
+    researchMocks.decideResearchApproval.mockResolvedValue({
+      ...pendingApproval,
+      decided_at: "2026-08-22T08:01:00Z",
+      decided_by_user_id: researchRun.owner_user_id,
+      status: "allowed",
+    });
+    researchMocks.resumeResearch.mockResolvedValue({
+      agent_run_id: agentRunId,
+      created: true,
+      job_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    });
+
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={researchRunId}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "允许并继续" }));
+
+    await waitFor(() => {
+      expect(researchMocks.resumeResearch).toHaveBeenCalledTimes(1);
+    });
+    expect(researchMocks.decideResearchApproval).toHaveBeenCalledWith(workspaceId, researchRunId, {
+      approval_request_id: pendingApproval.approval_request_id,
+      checkpoint_revision: 2,
+      outcome: "allow",
+    });
+    expect(researchMocks.resumeResearch).toHaveBeenCalledWith(workspaceId, researchRunId, {
+      approval_request_id: pendingApproval.approval_request_id,
+      checkpoint_revision: 2,
+      resume_token: resumeProof,
+    });
+    expect(researchMocks.decideResearchApproval.mock.invocationCallOrder[0]).toBeLessThan(
+      researchMocks.resumeResearch.mock.invocationCallOrder[0] ?? -1,
+    );
   });
 });

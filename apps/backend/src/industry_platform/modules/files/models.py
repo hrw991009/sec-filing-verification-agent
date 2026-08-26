@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -23,6 +24,7 @@ from industry_platform.core.database import Base, TimestampMixin, UUIDPrimaryKey
 from industry_platform.modules.files.domain import (
     AttachmentKind,
     AttachmentMediaType,
+    FileObjectPurpose,
     FileObjectStatus,
 )
 from industry_platform.modules.identity.models import enum_values
@@ -35,10 +37,26 @@ class FileObject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("id", "workspace_id"),
         UniqueConstraint("bucket", "staging_object_key"),
+        ForeignKeyConstraint(
+            ["knowledge_base_id", "workspace_id"],
+            ["knowledge_bases.id", "knowledge_bases.workspace_id"],
+            name="fk_file_objects_knowledge_base_workspace",
+            ondelete="RESTRICT",
+            use_alter=True,
+        ),
         CheckConstraint(
             "status IN ('staging', 'processing', 'ready', 'rejected', 'failed', "
             "'deleting', 'deleted')",
             name="status",
+        ),
+        CheckConstraint(
+            "purpose IN ('chat_attachment', 'knowledge_source')",
+            name="purpose",
+        ),
+        CheckConstraint(
+            "(purpose = 'chat_attachment' AND knowledge_base_id IS NULL) OR "
+            "(purpose = 'knowledge_source' AND knowledge_base_id IS NOT NULL)",
+            name="purpose_owner_consistent",
         ),
         CheckConstraint("expected_size > 0", name="expected_size_positive"),
         CheckConstraint("actual_size IS NULL OR actual_size > 0", name="actual_size_positive"),
@@ -53,12 +71,14 @@ class FileObject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "(status = 'ready' AND object_key IS NOT NULL AND detected_media_type IS NOT NULL "
             "AND kind IS NOT NULL AND actual_size IS NOT NULL AND safe_size IS NOT NULL "
             "AND source_sha256 IS NOT NULL "
-            "AND safe_sha256 IS NOT NULL AND parser_version IS NOT NULL "
-            "AND sanitizer_version IS NOT NULL AND ready_at IS NOT NULL "
+            "AND safe_sha256 IS NOT NULL AND ready_at IS NOT NULL "
+            "AND (purpose = 'knowledge_source' OR (parser_version IS NOT NULL "
+            "AND sanitizer_version IS NOT NULL)) "
             "AND error_code IS NULL) OR status <> 'ready'",
             name="ready_state_consistent",
         ),
         CheckConstraint(
+            "purpose = 'knowledge_source' OR "
             "(kind = 'text' AND extracted_text IS NOT NULL AND width IS NULL "
             "AND height IS NULL) OR (kind = 'image' AND extracted_text IS NULL "
             "AND width IS NOT NULL AND height IS NOT NULL) OR kind IS NULL",
@@ -90,6 +110,21 @@ class FileObject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     created_by_user_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
+    purpose: Mapped[FileObjectPurpose] = mapped_column(
+        SqlEnum(
+            FileObjectPurpose,
+            name="file_object_purpose",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=24,
+        ),
+        nullable=False,
+        default=FileObjectPurpose.CHAT_ATTACHMENT,
+        server_default=FileObjectPurpose.CHAT_ATTACHMENT.value,
+    )
+    knowledge_base_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     original_name: Mapped[str] = mapped_column(String(255), nullable=False)
     declared_media_type: Mapped[str] = mapped_column(String(64), nullable=False)
     detected_media_type: Mapped[AttachmentMediaType | None] = mapped_column(

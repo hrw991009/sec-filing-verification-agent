@@ -15,6 +15,9 @@ from industry_platform.modules.tools.domain import ToolObservation, ToolReferenc
 INDUSTRY_SOURCE_TYPE = "industry_public_source"
 SQL_SOURCE_TYPE = "sql_query_result"
 SQL_SOURCE_VERSION = "query-table-v1"
+KNOWLEDGE_SEC_SOURCE_TYPE = "knowledge_sec_filing_chunk"
+FINANCE_CALCULATION_SOURCE_TYPE = "finance_calculation"
+FINANCE_CALCULATION_SOURCE_VERSION = "financial-calculation-v1"
 PROHIBITED_TERMS_MARKERS = (
     "evidence-use-prohibited",
     "evidence use prohibited",
@@ -26,6 +29,51 @@ class ParsedSqlSource:
     connection_id: UUID
     table: str
     query_run_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedKnowledgeSource:
+    accession: str
+    document_version_id: UUID
+    chunk_id: UUID
+
+
+def parse_knowledge_source_locator(locator: str) -> ParsedKnowledgeSource:
+    parsed = urlsplit(locator)
+    path = tuple(part for part in parsed.path.split("/") if part)
+    if (
+        parsed.scheme != "fixture"
+        or parsed.hostname != "sec-filings"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or len(path) != 3
+    ):
+        raise ValueError("Knowledge Evidence source locator is invalid")
+    return ParsedKnowledgeSource(
+        accession=path[0],
+        document_version_id=UUID(path[1]),
+        chunk_id=UUID(path[2]),
+    )
+
+
+def parse_calculation_source_locator(locator: str) -> str:
+    parsed = urlsplit(locator)
+    path = tuple(part for part in parsed.path.split("/") if part)
+    if (
+        parsed.scheme != "fixture"
+        or parsed.hostname != "finance-calculations"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or len(path) != 1
+        or len(path[0]) != 64
+        or any(character not in "0123456789abcdef" for character in path[0])
+    ):
+        raise ValueError("Calculation Evidence source locator is invalid")
+    return path[0]
 
 
 def parse_persisted_observation(

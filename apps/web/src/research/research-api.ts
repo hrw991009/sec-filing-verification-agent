@@ -3,8 +3,11 @@ import type { components } from "@industry-platform/api-contract";
 import { apiClient, unwrapData, withAccessToken } from "../api/api";
 
 export type ResearchRun = components["schemas"]["ResearchRunDetailResponse"];
+export type ResearchApproval = components["schemas"]["ResearchApprovalResponse"];
+export type ResearchDurability = components["schemas"]["ResearchDurabilityTimelineResponse"];
 export type StartResearchRequest = components["schemas"]["StartResearchRequest"];
 export type StartResearchResponse = components["schemas"]["StartResearchResponse"];
+export type ResumeResearchResponse = components["schemas"]["ResumeResearchResponse"];
 
 function authorization(accessToken: string) {
   return { Authorization: `Bearer ${accessToken}` };
@@ -60,6 +63,61 @@ export function getResearchRun(workspaceId: string, researchRunId: string): Prom
           path: { research_run_id: researchRunId, workspace_id: workspaceId },
         },
       }),
+    ),
+  );
+}
+
+export function getResearchDurability(
+  workspaceId: string,
+  researchRunId: string,
+): Promise<ResearchDurability> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<ResearchDurability>(
+      await apiClient.GET(
+        "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/durability",
+        {
+          headers: authorization(accessToken),
+          params: { path: { research_run_id: researchRunId, workspace_id: workspaceId } },
+        },
+      ),
+    ),
+  );
+}
+
+export function decideResearchApproval(
+  workspaceId: string,
+  researchRunId: string,
+  request: components["schemas"]["DecideResearchApprovalRequest"],
+): Promise<ResearchApproval> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<ResearchApproval>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/approval-decisions",
+        {
+          body: request,
+          headers: authorization(accessToken),
+          params: { path: { research_run_id: researchRunId, workspace_id: workspaceId } },
+        },
+      ),
+    ),
+  );
+}
+
+export function resumeResearch(
+  workspaceId: string,
+  researchRunId: string,
+  request: components["schemas"]["ResumeResearchRequest"],
+): Promise<ResumeResearchResponse> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<ResumeResearchResponse>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/resume",
+        {
+          body: request,
+          headers: authorization(accessToken),
+          params: { path: { research_run_id: researchRunId, workspace_id: workspaceId } },
+        },
+      ),
     ),
   );
 }

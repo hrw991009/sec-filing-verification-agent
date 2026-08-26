@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "dataset_version": "sec-fixture-v1",
+  "filings": [
+    {
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "filed_at": "2023-11-03T00:00:00Z",
+      "accepted_at": "2023-11-02T18:08:27Z",
+      "primary_document": "aapl-20230930.htm",
+      "canonical_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm",
+      "fixture_path": "evals/fixtures/sec/sec-fixture-v1/apple-2023-10-k.md",
+      "content_sha256": "821b7526e6cde71b432dcc972c1ba8141db41bc73426200500d27d8635a19d2b",
+      "license_or_terms": "SEC public information; redistribution permitted with source citation; no SEC affiliation implied.",
+      "facts": [
+        {
+          "key": "net_sales_2023",
+          "value": "383285",
+          "unit": "USD",
+          "scale": 6,
+          "period_start": "2022-09-25",
+          "period_end": "2023-09-30",
+          "section": "Item 8. Consolidated Statements of Operations",
+          "source_page": 29,
+          "anchor": "Total net sales"
+        },
+        {
+          "key": "net_sales_2022",
+          "value": "394328",
+          "unit": "USD",
+          "scale": 6,
+          "period_start": "2021-09-26",
+          "period_end": "2022-09-24",
+          "section": "Item 8. Consolidated Statements of Operations",
+          "source_page": 29,
+          "anchor": "Total net sales"
+        },
+        {
+          "key": "net_income_2023",
+          "value": "96995",
+          "unit": "USD",
+          "scale": 6,
+          "period_start": "2022-09-25",
+          "period_end": "2023-09-30",
+          "section": "Item 8. Consolidated Statements of Operations",
+          "source_page": 29,
+          "anchor": "Net income"
+        },
+        {
+          "key": "net_income_2022",
+          "value": "99803",
+          "unit": "USD",
+          "scale": 6,
+          "period_start": "2021-09-26",
+          "period_end": "2022-09-24",
+          "section": "Item 8. Consolidated Statements of Operations",
+          "source_page": 29,
+          "anchor": "Net income"
+        }
+      ]
+    }
+  ]
+}

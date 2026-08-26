@@ -99,6 +99,13 @@ class JobExecutionErrorCode(StrEnum):
     COLLECTION_PROVIDER_FAILED = "collection_provider_failed"
     COLLECTION_PROVIDER_NOT_CONFIGURED = "collection_provider_not_configured"
     COLLECTION_UNAVAILABLE = "collection_unavailable"
+    INGESTION_DEPENDENCY_RETRYABLE = "ingestion_dependency_retryable"
+    INGESTION_PARSER_RETRYABLE = "ingestion_parser_retryable"
+    INGESTION_PARSER_FAILED = "ingestion_parser_failed"
+    INGESTION_STATE_INVALID = "ingestion_state_invalid"
+    INGESTION_CANCELLED = "ingestion_cancelled"
+    INGESTION_UNAVAILABLE = "ingestion_unavailable"
+    AGENT_RECOVERY_RETRYABLE = "agent_recovery_retryable"
 
 
 class JobRetryDisposition(StrEnum):

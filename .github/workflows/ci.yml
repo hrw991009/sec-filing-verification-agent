@@ -78,6 +78,8 @@ jobs:
       MINIO_BUCKET: migration-ci-private
       MINIO_REGION: us-east-1
       MINIO_SECURE: "false"
+      MILVUS_ENDPOINT: http://127.0.0.1:19530
+      ELASTICSEARCH_ENDPOINT: http://127.0.0.1:9200
       REFRESH_TOKEN_HMAC_KEY_B64: cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnI
       CSRF_TOKEN_HMAC_KEY_B64: Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M
       DEVICE_TOKEN_HMAC_KEY_B64: ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ
@@ -85,6 +87,8 @@ jobs:
       POSTGRES_TESTS_REQUIRED: "1"
       REDIS_TESTS_REQUIRED: "1"
       MINIO_TESTS_REQUIRED: "1"
+      VECTOR_TESTS_REQUIRED: "1"
+      ELASTICSEARCH_TESTS_REQUIRED: "1"
     services:
       postgres:
         image: postgres:16.14-bookworm
@@ -203,6 +207,48 @@ jobs:
             --env MINIO_BUCKET="$MINIO_BUCKET" \
             quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z \
             -c 'set -eu; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; mc mb --ignore-existing "local/$MINIO_BUCKET"; mc anonymous set none "local/$MINIO_BUCKET"'
+
+      - name: Start Milvus and Elasticsearch
+        run: |
+          docker run --detach --rm --name day5-etcd --network host \
+            quay.io/coreos/etcd:v3.5.25 \
+            etcd --advertise-client-urls=http://127.0.0.1:2379 \
+            --listen-client-urls=http://0.0.0.0:2379
+          docker run --detach --rm --name day5-milvus --network host \
+            --security-opt seccomp=unconfined \
+            --env ETCD_ENDPOINTS=127.0.0.1:2379 \
+            --env MINIO_ADDRESS=127.0.0.1:9000 \
+            --env MINIO_ACCESS_KEY_ID="$MINIO_ACCESS_KEY" \
+            --env MINIO_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY" \
+            --env MINIO_REGION=us-east-1 \
+            milvusdb/milvus:v3.0.0 milvus run standalone
+          docker run --detach --rm --name day5-elasticsearch --network host \
+            --env discovery.type=single-node \
+            --env xpack.security.enabled=false \
+            --env ES_JAVA_OPTS='-Xms512m -Xmx512m' \
+            docker.elastic.co/elasticsearch/elasticsearch:9.5.1
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:9091/healthz >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              docker logs day5-milvus
+              exit 1
+            fi
+            sleep 2
+          done
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent \
+              'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s' \
+              >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              docker logs day5-elasticsearch
+              exit 1
+            fi
+            sleep 2
+          done
 
       - name: Exercise PostgreSQL, Redis, and MinIO integration paths
         run: |

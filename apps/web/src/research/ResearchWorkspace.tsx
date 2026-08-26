@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SubmitEvent } from "react";
 
 import type { Industry } from "../industry/industry-api";
+import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-api";
 import { cancelRun, getAgentTrace, type AgentTrace } from "../chat/chat-api";
 import {
   formatCost,
@@ -12,9 +13,14 @@ import {
 import { SafeMarkdown } from "../chat/SafeMarkdown";
 import { listResearchClaims, type ResearchClaim } from "../evidence/evidence-api";
 import {
+  decideResearchApproval,
+  getResearchDurability,
   getResearchRun,
   listResearchRuns,
+  resumeResearch,
   startResearch,
+  type ResearchApproval,
+  type ResearchDurability,
   type ResearchRun,
   type StartResearchRequest,
 } from "./research-api";
@@ -48,6 +54,14 @@ const researchStatusNames: Readonly<Record<string, string>> = {
   completed: "已完成",
   draft: "已建立",
   failed: "失败",
+  paused: "等待确认",
+};
+
+const approvalStatusNames: Readonly<Record<string, string>> = {
+  allowed: "已允许",
+  denied: "已拒绝",
+  pending: "等待决定",
+  timed_out: "已超时",
 };
 
 function lines(value: string): string[] {
@@ -80,16 +94,29 @@ export function ResearchWorkspace({
   const [detail, setDetail] = useState<ResearchRun | null>(null);
   const [trace, setTrace] = useState<AgentTrace | null>(null);
   const [claims, setClaims] = useState<ResearchClaim[]>([]);
+  const [durability, setDurability] = useState<ResearchDurability | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailRefreshRevision, setDetailRefreshRevision] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [deciding, setDeciding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<{
     readonly researchRunId: string;
     readonly message: string;
   } | null>(null);
   const [originalQuestion, setOriginalQuestion] = useState("");
+  const [mode, setMode] = useState<"web" | "local">("web");
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<string | null>(null);
+  const [cik, setCik] = useState("0000320193");
+  const [accession, setAccession] = useState("0000320193-23-000106");
+  const [form, setForm] = useState<"10-K" | "10-Q">("10-K");
+  const [reportPeriod, setReportPeriod] = useState("2023-09-30");
+  const [asOf, setAsOf] = useState("2023-11-03T12:00");
+  const [unit, setUnit] = useState("USD");
+  const [scale, setScale] = useState(6);
+  const [requireAmbiguityApproval, setRequireAmbiguityApproval] = useState(false);
   const [confirmedScope, setConfirmedScope] = useState("");
   const [exclusions, setExclusions] = useState("");
   const [completionCriteria, setCompletionCriteria] = useState(
@@ -114,6 +141,7 @@ export function ResearchWorkspace({
         setDetail(null);
         setTrace(null);
         setClaims([]);
+        setDurability(null);
       }
     },
     [focusedResearchRunId],
@@ -158,21 +186,43 @@ export function ResearchWorkspace({
   }, [chooseLoadedRun, workspaceId]);
 
   useEffect(() => {
+    let active = true;
+    void listKnowledgeBases(workspaceId)
+      .then((loaded) => {
+        if (!active) return;
+        setKnowledgeBases(loaded);
+        setSelectedKnowledgeBaseId((current) =>
+          current !== null && loaded.some((item) => item.id === current)
+            ? current
+            : (loaded[0]?.id ?? null),
+        );
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(publicError(caught));
+      });
+    return () => {
+      active = false;
+    };
+  }, [workspaceId]);
+
+  useEffect(() => {
     if (selectedId === null) return;
     const requestNumber = detailRequestRef.current + 1;
     detailRequestRef.current = requestNumber;
     void getResearchRun(workspaceId, selectedId)
       .then(async (loaded) => {
         if (detailRequestRef.current !== requestNumber) return;
-        const [loadedTrace, loadedClaims] = await Promise.allSettled([
+        const [loadedTrace, loadedClaims, loadedDurability] = await Promise.allSettled([
           getAgentTrace(workspaceId, loaded.agent_run_id),
           listResearchClaims(workspaceId, loaded.id, 100),
+          getResearchDurability(workspaceId, loaded.id),
         ]);
         if (detailRequestRef.current !== requestNumber) return;
         setDetail(loaded);
         setTrace(loadedTrace.status === "fulfilled" ? loadedTrace.value : null);
         setClaims(loadedClaims.status === "fulfilled" ? loadedClaims.value : []);
-        const failures = [loadedTrace, loadedClaims]
+        setDurability(loadedDurability.status === "fulfilled" ? loadedDurability.value : null);
+        const failures = [loadedTrace, loadedClaims, loadedDurability]
           .filter((item) => item.status === "rejected")
           .map((item) => publicError(item.reason));
         setDetailError(
@@ -186,15 +236,25 @@ export function ResearchWorkspace({
         setDetail(null);
         setTrace(null);
         setClaims([]);
+        setDurability(null);
         setDetailError({ message: publicError(caught), researchRunId: selectedId });
       });
   }, [detailRefreshRevision, selectedId, workspaceId]);
 
   const scopeItems = useMemo(() => lines(confirmedScope), [confirmedScope]);
   const criteriaItems = useMemo(() => lines(completionCriteria), [completionCriteria]);
+  const sourceReady =
+    mode === "web"
+      ? selectedIndustryId !== null
+      : selectedKnowledgeBaseId !== null &&
+        cik.trim() !== "" &&
+        accession.trim() !== "" &&
+        reportPeriod !== "" &&
+        asOf !== "" &&
+        unit.trim() !== "";
   const canSubmit =
     canManage &&
-    selectedIndustryId !== null &&
+    sourceReady &&
     originalQuestion.trim() !== "" &&
     scopeItems.length > 0 &&
     criteriaItems.length > 0 &&
@@ -203,17 +263,42 @@ export function ResearchWorkspace({
   async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!canSubmit) return;
-    const request: StartResearchRequest = {
+    if (mode === "local" && selectedKnowledgeBaseId === null) return;
+    const commonRequest = {
       completion_criteria: criteriaItems,
       confirmed_scope: scopeItems,
       exclusions: lines(exclusions),
-      industry_id: selectedIndustryId,
       max_cost_micro_usd: maxCostMicroUsd,
       max_steps: maxSteps,
       max_total_tokens: maxTotalTokens,
+      mode,
       original_question: originalQuestion.trim(),
       timeout_seconds: timeoutSeconds,
     };
+    let request: StartResearchRequest;
+    if (mode === "web") {
+      request = { ...commonRequest, industry_id: selectedIndustryId, mode };
+    } else {
+      if (selectedKnowledgeBaseId === null) return;
+      request = {
+        ...commonRequest,
+        financial_scope: {
+          accession: accession.trim(),
+          as_of: new Date(asOf).toISOString(),
+          cik: cik.trim(),
+          form,
+          report_period: reportPeriod,
+          scale,
+          schema_version: 1,
+          unit: unit.trim().toUpperCase(),
+        },
+        knowledge_base_ids: [selectedKnowledgeBaseId],
+        mode,
+        ...(requireAmbiguityApproval
+          ? { approval_reason: "company_or_period_ambiguity" as const }
+          : {}),
+      };
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -240,23 +325,77 @@ export function ResearchWorkspace({
     }
   }
 
+  async function decideApproval(
+    approval: ResearchApproval,
+    outcome: "allow" | "deny",
+  ): Promise<void> {
+    if (detail === null) return;
+    setDeciding(true);
+    setDetailError(null);
+    try {
+      const decided = await decideResearchApproval(workspaceId, detail.id, {
+        approval_request_id: approval.approval_request_id,
+        checkpoint_revision: approval.checkpoint_revision,
+        outcome,
+      });
+      if (outcome === "allow") {
+        const resumeToken = decided.resume_token;
+        if (resumeToken === null || resumeToken === undefined) {
+          throw new Error("审批已允许，但服务端没有返回可用的恢复凭据。");
+        }
+        await resumeResearch(workspaceId, detail.id, {
+          approval_request_id: decided.approval_request_id,
+          checkpoint_revision: decided.checkpoint_revision,
+          resume_token: resumeToken,
+        });
+      }
+      await loadRuns(detail.id);
+    } catch (caught: unknown) {
+      setDetailError({ message: publicError(caught), researchRunId: detail.id });
+    } finally {
+      setDeciding(false);
+    }
+  }
+
+  async function resumeAllowedApproval(approval: ResearchApproval): Promise<void> {
+    const resumeToken = approval.resume_token;
+    if (detail === null || resumeToken === null || resumeToken === undefined) return;
+    setDeciding(true);
+    setDetailError(null);
+    try {
+      await resumeResearch(workspaceId, detail.id, {
+        approval_request_id: approval.approval_request_id,
+        checkpoint_revision: approval.checkpoint_revision,
+        resume_token: resumeToken,
+      });
+      await loadRuns(detail.id);
+    } catch (caught: unknown) {
+      setDetailError({ message: publicError(caught), researchRunId: detail.id });
+    } finally {
+      setDeciding(false);
+    }
+  }
+
   const events = nodeEvents(trace);
   const visibleDetail = detail?.id === selectedId ? detail : null;
   const visibleDetailError = detailError?.researchRunId === selectedId ? detailError.message : null;
   const detailLoading =
     selectedId !== null && visibleDetail === null && visibleDetailError === null;
   const detailIsActive =
-    visibleDetail?.agent_status === "queued" || visibleDetail?.agent_status === "running";
+    visibleDetail?.agent_status === "queued" ||
+    visibleDetail?.agent_status === "running" ||
+    visibleDetail?.agent_status === "paused";
+  const latestApproval = durability?.approvals.at(-1) ?? null;
 
   return (
-    <section className="research-workspace" aria-label="Research L3 工作台">
+    <section className="research-workspace" aria-label="Research L4 工作台">
       <header className="workspace-page-header">
         <div>
-          <span className="eyebrow">Day 4 · Evidence Research L3</span>
+          <span className="eyebrow">Day 5 · SEC Fixture Research L4</span>
           <h1>Research Workbench</h1>
           <p>
-            显式确认 Brief，经唯一 Runtime/Tool loop 生成可解释草稿；当前不含 durable resume 或
-            Verifier。
+            显式确认 Brief，经唯一 Runtime/Tool loop 生成可解释草稿，并以持久 Checkpoint、HITL
+            和恢复事实解释执行过程。
           </p>
         </div>
         <button
@@ -277,25 +416,178 @@ export function ResearchWorkspace({
       <div className="research-layout">
         <aside className="research-sidebar">
           <form className="research-form" onSubmit={(event) => void submit(event)}>
-            <h2>新建 L3 Research</h2>
-            <label>
-              行业范围
-              <select
-                aria-label="Research 行业"
+            <h2>新建 L4 Research</h2>
+            <div className="research-mode" role="group" aria-label="Research 数据源">
+              <button
+                aria-pressed={mode === "web"}
                 disabled={!canManage || submitting}
-                onChange={(event) => {
-                  onSelectIndustry(event.currentTarget.value);
+                onClick={() => {
+                  setMode("web");
                 }}
-                value={selectedIndustryId ?? ""}
+                type="button"
               >
-                <option value="">选择行业</option>
-                {industries.map((industry) => (
-                  <option key={industry.id} value={industry.id}>
-                    {industry.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                公开网页
+              </button>
+              <button
+                aria-pressed={mode === "local"}
+                disabled={!canManage || submitting}
+                onClick={() => {
+                  setMode("local");
+                }}
+                type="button"
+              >
+                SEC Fixture
+              </button>
+            </div>
+            {mode === "web" ? (
+              <label>
+                行业范围
+                <select
+                  aria-label="Research 行业"
+                  disabled={!canManage || submitting}
+                  onChange={(event) => {
+                    onSelectIndustry(event.currentTarget.value);
+                  }}
+                  value={selectedIndustryId ?? ""}
+                >
+                  <option value="">选择行业</option>
+                  {industries.map((industry) => (
+                    <option key={industry.id} value={industry.id}>
+                      {industry.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <fieldset className="research-financial-scope">
+                <legend>SEC filing 范围</legend>
+                <label>
+                  Knowledge Base
+                  <select
+                    aria-label="Research Knowledge Base"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setSelectedKnowledgeBaseId(event.currentTarget.value || null);
+                    }}
+                    value={selectedKnowledgeBaseId ?? ""}
+                  >
+                    <option value="">选择知识库</option>
+                    {knowledgeBases.map((knowledgeBase) => (
+                      <option key={knowledgeBase.id} value={knowledgeBase.id}>
+                        {knowledgeBase.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  CIK
+                  <input
+                    aria-label="Research CIK"
+                    disabled={!canManage || submitting}
+                    inputMode="numeric"
+                    maxLength={10}
+                    onChange={(event) => {
+                      setCik(event.currentTarget.value);
+                    }}
+                    pattern="[0-9]{10}"
+                    required
+                    value={cik}
+                  />
+                </label>
+                <label>
+                  Accession
+                  <input
+                    aria-label="Research accession"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setAccession(event.currentTarget.value);
+                    }}
+                    pattern="[0-9]{10}-[0-9]{2}-[0-9]{6}"
+                    required
+                    value={accession}
+                  />
+                </label>
+                <label>
+                  Form
+                  <select
+                    aria-label="Research form"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setForm(event.currentTarget.value as "10-K" | "10-Q");
+                    }}
+                    value={form}
+                  >
+                    <option value="10-K">10-K</option>
+                    <option value="10-Q">10-Q</option>
+                  </select>
+                </label>
+                <label>
+                  Report period
+                  <input
+                    aria-label="Research report period"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setReportPeriod(event.currentTarget.value);
+                    }}
+                    required
+                    type="date"
+                    value={reportPeriod}
+                  />
+                </label>
+                <label>
+                  As of
+                  <input
+                    aria-label="Research as of"
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setAsOf(event.currentTarget.value);
+                    }}
+                    required
+                    type="datetime-local"
+                    value={asOf}
+                  />
+                </label>
+                <label>
+                  Unit
+                  <input
+                    aria-label="Research unit"
+                    disabled={!canManage || submitting}
+                    maxLength={16}
+                    onChange={(event) => {
+                      setUnit(event.currentTarget.value);
+                    }}
+                    required
+                    value={unit}
+                  />
+                </label>
+                <label>
+                  Scale
+                  <input
+                    aria-label="Research scale"
+                    disabled={!canManage || submitting}
+                    max={12}
+                    min={-12}
+                    onChange={(event) => {
+                      setScale(event.currentTarget.valueAsNumber);
+                    }}
+                    required
+                    type="number"
+                    value={scale}
+                  />
+                </label>
+                <label className="research-approval-toggle">
+                  <input
+                    checked={requireAmbiguityApproval}
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setRequireAmbiguityApproval(event.currentTarget.checked);
+                    }}
+                    type="checkbox"
+                  />
+                  公司或期间存在歧义，计划后暂停确认
+                </label>
+              </fieldset>
+            )}
             <label>
               原始问题
               <textarea
@@ -561,6 +853,19 @@ export function ResearchWorkspace({
                       {formatCost(visibleDetail.brief.budget.max_cost_micro_usd)}
                     </dd>
                   </div>
+                  {visibleDetail.brief.financial_scope === null ? null : (
+                    <div>
+                      <dt>FinancialScope</dt>
+                      <dd>
+                        {visibleDetail.brief.financial_scope.cik} ·{" "}
+                        {visibleDetail.brief.financial_scope.accession} ·{" "}
+                        {visibleDetail.brief.financial_scope.form} ·{" "}
+                        {visibleDetail.brief.financial_scope.report_period} ·{" "}
+                        {visibleDetail.brief.financial_scope.unit} ×10^
+                        {visibleDetail.brief.financial_scope.scale}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </section>
 
@@ -630,6 +935,92 @@ export function ResearchWorkspace({
                       ))}
                     </ol>
                   </details>
+                )}
+              </section>
+
+              <section className="research-card research-durability">
+                <div className="research-section-heading">
+                  <h3>Checkpoint / HITL</h3>
+                  <span>
+                    {durability === null
+                      ? "读取失败"
+                      : `${String(durability.checkpoints.length)} checkpoints`}
+                  </span>
+                </div>
+                {durability === null ? (
+                  <div className="research-empty">暂时无法读取持久恢复事实。</div>
+                ) : (
+                  <>
+                    <div className="research-durability-summary">
+                      <span>重复副作用</span>
+                      <strong>{durability.duplicate_side_effect_count}</strong>
+                    </div>
+                    {durability.checkpoints.length === 0 ? (
+                      <div className="research-empty">Run 尚未提交首个 Checkpoint。</div>
+                    ) : (
+                      <ol className="research-checkpoint-list">
+                        {durability.checkpoints.map((checkpoint) => (
+                          <li key={checkpoint.checkpoint_id}>
+                            <strong>
+                              r{checkpoint.revision} ·{" "}
+                              {nodeNames[checkpoint.node] ?? checkpoint.node}
+                            </strong>
+                            <span>
+                              下一节点：
+                              {checkpoint.next_node === null
+                                ? "最终提交"
+                                : (nodeNames[checkpoint.next_node] ?? checkpoint.next_node)}
+                            </span>
+                            <small>
+                              State r{checkpoint.run_state_revision} ·{" "}
+                              {new Date(checkpoint.saved_at).toLocaleString("zh-CN")}
+                            </small>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    {latestApproval === null ? null : (
+                      <div className="research-approval-panel">
+                        <div>
+                          <strong>公司 / 期间歧义确认</strong>
+                          <span>
+                            {approvalStatusNames[latestApproval.status] ?? latestApproval.status} ·
+                            Checkpoint r{latestApproval.checkpoint_revision}
+                          </span>
+                        </div>
+                        {latestApproval.status === "pending" && canManage ? (
+                          <div className="research-approval-actions">
+                            <button
+                              disabled={deciding}
+                              onClick={() => void decideApproval(latestApproval, "allow")}
+                              type="button"
+                            >
+                              {deciding ? "正在提交…" : "允许并继续"}
+                            </button>
+                            <button
+                              className="danger-button"
+                              disabled={deciding}
+                              onClick={() => void decideApproval(latestApproval, "deny")}
+                              type="button"
+                            >
+                              拒绝并终止
+                            </button>
+                          </div>
+                        ) : latestApproval.status === "allowed" &&
+                          !latestApproval.resume_claimed &&
+                          latestApproval.resume_token !== null &&
+                          canManage ? (
+                          <button
+                            disabled={deciding}
+                            onClick={() => void resumeAllowedApproval(latestApproval)}
+                            type="button"
+                          >
+                            {deciding ? "正在恢复…" : "恢复执行"}
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </>
                 )}
               </section>
 

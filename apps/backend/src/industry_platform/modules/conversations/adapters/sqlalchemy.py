@@ -34,7 +34,11 @@ from industry_platform.modules.conversations.service import (
     ConversationPersistenceError,
     DirectAnswerTurnWriter,
 )
-from industry_platform.modules.files.domain import AttachmentKind, FileObjectStatus
+from industry_platform.modules.files.domain import (
+    AttachmentKind,
+    FileObjectPurpose,
+    FileObjectStatus,
+)
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyJobWriter
 from industry_platform.modules.jobs.models import OutboxEvent
@@ -68,6 +72,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                     .where(
                         FileObject.id.in_(prepared.attachment_ids),
                         FileObject.workspace_id == prepared.run.workspace_id,
+                        FileObject.purpose == FileObjectPurpose.CHAT_ATTACHMENT,
                     )
                     .order_by(FileObject.id)
                     .with_for_update()
@@ -250,6 +255,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                         research_run_id=research_run_id,
                         agent_run_id=run.run_id,
                         workspace_id=run.workspace_id,
+                        approval_reason=prepared.research_brief.approval_reason,
                     ),
                     error_summary=None,
                     created_at=run.created_at,
@@ -267,6 +273,12 @@ class SqlAlchemyDirectAnswerTurnWriter:
                     confirmed_scope=list(prepared.research_brief.confirmed_scope),
                     exclusions=list(prepared.research_brief.exclusions),
                     completion_criteria=list(prepared.research_brief.completion_criteria),
+                    financial_scope=(
+                        None
+                        if prepared.research_brief.financial_scope is None
+                        else dict(prepared.research_brief.financial_scope.to_mapping())
+                    ),
+                    approval_reason=prepared.research_brief.approval_reason,
                     budget={
                         "schema_version": run.budget.schema_version,
                         "max_steps": run.budget.max_steps,
