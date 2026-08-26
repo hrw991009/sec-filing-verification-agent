@@ -26,6 +26,11 @@ EXPECTED_BUSINESS_TABLES = {
     "sec_filers",
     "sec_filer_aliases",
     "sec_catalog_syncs",
+    "sec_submission_sources",
+    "sec_filing_observations",
+    "sec_filings",
+    "sec_filing_coverage_manifests",
+    "sec_filing_coverage_sources",
 }
 
 pytestmark = pytest.mark.migration_smoke

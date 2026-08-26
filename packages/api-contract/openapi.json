@@ -2859,6 +2859,56 @@
         "title": "FileUploadResponse",
         "type": "object"
       },
+      "FilingSelectionScopeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_forms": {
+            "items": {
+              "$ref": "#/components/schemas/SecFilingForm"
+            },
+            "title": "Allowed Forms",
+            "type": "array"
+          },
+          "amendment_policy": {
+            "$ref": "#/components/schemas/SecAmendmentPolicy"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "cik": {
+            "pattern": "^[0-9]{10}$",
+            "title": "Cik",
+            "type": "string"
+          },
+          "report_period_end": {
+            "format": "date",
+            "title": "Report Period End",
+            "type": "string"
+          },
+          "report_period_start": {
+            "format": "date",
+            "title": "Report Period Start",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cik",
+          "allowed_forms",
+          "report_period_start",
+          "report_period_end",
+          "as_of",
+          "amendment_policy"
+        ],
+        "title": "FilingSelectionScopeResponse",
+        "type": "object"
+      },
       "FinancialCalculationLocatorResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5622,6 +5672,16 @@
         "title": "ScheduleMisfirePolicy",
         "type": "string"
       },
+      "SecAmendmentPolicy": {
+        "enum": ["as_filed", "latest_amendment_known_by_as_of"],
+        "title": "SecAmendmentPolicy",
+        "type": "string"
+      },
+      "SecAmendmentRelationStatus": {
+        "enum": ["not_amendment", "resolved", "unresolved"],
+        "title": "SecAmendmentRelationStatus",
+        "type": "string"
+      },
       "SecFilerCandidateResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5772,6 +5832,98 @@
         "title": "SecFilerResolutionStatus",
         "type": "string"
       },
+      "SecFilingCandidateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "accession": {
+            "pattern": "^[0-9]{10}-[0-9]{2}-[0-9]{6}$",
+            "title": "Accession",
+            "type": "string"
+          },
+          "amendment_relation_status": {
+            "$ref": "#/components/schemas/SecAmendmentRelationStatus"
+          },
+          "base_accession": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Accession"
+          },
+          "cik": {
+            "pattern": "^[0-9]{10}$",
+            "title": "Cik",
+            "type": "string"
+          },
+          "content_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "filed_date": {
+            "format": "date",
+            "title": "Filed Date",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/SecFilingForm"
+          },
+          "primary_document": {
+            "title": "Primary Document",
+            "type": "string"
+          },
+          "public_available_at": {
+            "format": "date-time",
+            "title": "Public Available At",
+            "type": "string"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          },
+          "source_available_at": {
+            "format": "date-time",
+            "title": "Source Available At",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cik",
+          "accession",
+          "form",
+          "report_date",
+          "filed_date",
+          "accepted_at",
+          "public_available_at",
+          "primary_document",
+          "amendment_relation_status",
+          "base_accession",
+          "source_version",
+          "source_url",
+          "content_sha256",
+          "source_available_at"
+        ],
+        "title": "SecFilingCandidateResponse",
+        "type": "object"
+      },
       "SecFilingChunkLocatorResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5895,6 +6047,105 @@
           "index_version"
         ],
         "title": "SecFilingChunkLocatorResponse",
+        "type": "object"
+      },
+      "SecFilingForm": {
+        "enum": ["10-K", "10-K/A", "10-Q", "10-Q/A"],
+        "title": "SecFilingForm",
+        "type": "string"
+      },
+      "SecFilingSelectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "coverage_version": {
+            "title": "Coverage Version",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "filings": {
+            "items": {
+              "$ref": "#/components/schemas/SecFilingCandidateResponse"
+            },
+            "title": "Filings",
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/FilingSelectionScopeResponse"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SecSubmissionSourceResponse"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SecFilingSelectionStatus"
+          }
+        },
+        "required": ["status", "scope", "filings", "coverage_version", "sources", "error_code"],
+        "title": "SecFilingSelectionResponse",
+        "type": "object"
+      },
+      "SecFilingSelectionStatus": {
+        "enum": ["ok", "no_result", "incomplete"],
+        "title": "SecFilingSelectionStatus",
+        "type": "string"
+      },
+      "SecSubmissionSourceKind": {
+        "enum": ["submissions_current", "submissions_supplemental"],
+        "title": "SecSubmissionSourceKind",
+        "type": "string"
+      },
+      "SecSubmissionSourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "content_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "source_available_at": {
+            "format": "date-time",
+            "title": "Source Available At",
+            "type": "string"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SecSubmissionSourceKind"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_kind",
+          "source_version",
+          "source_url",
+          "content_sha256",
+          "source_available_at",
+          "retrieved_at"
+        ],
+        "title": "SecSubmissionSourceResponse",
         "type": "object"
       },
       "SetIndustryPreferenceRequest": {
@@ -12892,6 +13143,307 @@
           }
         ],
         "summary": "Resolve Filer",
+        "tags": ["disclosures"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/disclosures/filings": {
+      "get": {
+        "operationId": "list_filings_api_v1_workspaces__workspace_id__disclosures_filings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cik",
+            "required": true,
+            "schema": {
+              "maxLength": 10,
+              "minLength": 1,
+              "pattern": "^[0-9]{1,10}$",
+              "title": "Cik",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "forms",
+            "required": true,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/SecFilingForm"
+              },
+              "maxItems": 4,
+              "minItems": 1,
+              "title": "Forms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "report_period_start",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Report Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "report_period_end",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Report Period End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "As Of",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "amendment_policy",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SecAmendmentPolicy",
+              "default": "as_filed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecFilingSelectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "SEC source response rejected"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "SEC filer discovery temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "List Filings",
         "tags": ["disclosures"]
       }
     },

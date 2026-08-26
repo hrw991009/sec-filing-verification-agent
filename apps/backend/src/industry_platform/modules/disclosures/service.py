@@ -1,19 +1,34 @@
-"""Application service for deterministic SEC filer resolution."""
+"""Application services for deterministic SEC identity and filing selection."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from industry_platform.modules.disclosures.domain import (
     SEC_MAX_FILER_CANDIDATES,
+    SEC_MAX_FILING_CANDIDATES,
+    FilingSelectionScope,
     SecAliasKind,
+    SecAmendmentPolicy,
+    SecAmendmentRelationStatus,
     SecFiler,
     SecFilerAlias,
     SecFilerCandidate,
     SecFilerMatchKind,
     SecFilerResolution,
     SecFilerResolutionStatus,
+    SecFilingCandidate,
+    SecFilingSelection,
+    SecFilingSelectionStatus,
     normalize_filer_query,
 )
-from industry_platform.modules.disclosures.ports import SecEdgarPort, SecFilerCatalogRepository
+from industry_platform.modules.disclosures.ports import (
+    SecEdgarPort,
+    SecFilerCatalogRepository,
+    SecFilingRepository,
+    SecSubmissionSnapshotStore,
+    SecSubmissionsPort,
+)
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -87,6 +102,125 @@ class SecFilerResolutionService:
             catalog_content_sha256=snapshot.content_sha256,
             catalog_retrieved_at=snapshot.retrieved_at,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingSelectionService:
+    repository: SecFilingRepository = field(repr=False)
+    source: SecSubmissionsPort = field(repr=False)
+    snapshot_store: SecSubmissionSnapshotStore = field(repr=False)
+    clock: Callable[[], datetime] = field(
+        default=lambda: datetime.now(UTC),
+        repr=False,
+    )
+
+    async def select(
+        self,
+        workspace_scope: WorkspaceScope,
+        *,
+        selection_scope: FilingSelectionScope,
+    ) -> SecFilingSelection:
+        if not scope_allows(workspace_scope, WorkspaceAction.VIEW):
+            raise WorkspaceAccessDeniedError
+        now = self.clock()
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("SEC filing selection clock is invalid")
+        if selection_scope.as_of > now.astimezone(UTC):
+            raise ValueError("SEC filing selection as_of cannot be in the future")
+
+        submission_set = await self.source.fetch_submission_set(selection_scope)
+        object_keys = {
+            source.source_version: await self.snapshot_store.persist(source)
+            for source in submission_set.sources
+        }
+        coverage_version = await self.repository.replace_submission_set(
+            submission_set,
+            object_keys=object_keys,
+            scope=selection_scope,
+        )
+        dataset = await self.repository.load_dataset(
+            coverage_version=coverage_version,
+            scope=selection_scope,
+        )
+        invisible_sources = tuple(
+            source
+            for source in dataset.sources
+            if source.source_available_at > selection_scope.as_of
+        )
+        if invisible_sources:
+            return SecFilingSelection(
+                status=SecFilingSelectionStatus.INCOMPLETE,
+                scope=selection_scope,
+                filings=(),
+                coverage_version=coverage_version,
+                sources=dataset.sources,
+                error_code="source_version_not_visible_at_as_of",
+            )
+
+        visible = tuple(
+            filing
+            for filing in dataset.filings
+            if filing.form in selection_scope.allowed_forms
+            and selection_scope.report_period_start
+            <= filing.report_date
+            <= selection_scope.report_period_end
+            and filing.accepted_at <= selection_scope.as_of
+            and filing.public_available_at <= selection_scope.as_of
+            and filing.source_available_at <= selection_scope.as_of
+        )
+        if any(
+            filing.amendment_relation_status is SecAmendmentRelationStatus.UNRESOLVED
+            for filing in visible
+        ):
+            return SecFilingSelection(
+                status=SecFilingSelectionStatus.INCOMPLETE,
+                scope=selection_scope,
+                filings=(),
+                coverage_version=coverage_version,
+                sources=dataset.sources,
+                error_code="amendment_relation_unresolved",
+            )
+        selected = (
+            _latest_amendments(visible)
+            if selection_scope.amendment_policy is SecAmendmentPolicy.LATEST_KNOWN_BY_AS_OF
+            else visible
+        )
+        selected = tuple(
+            sorted(selected, key=lambda item: (item.report_date, item.accepted_at, item.accession))
+        )
+        if len(selected) > SEC_MAX_FILING_CANDIDATES:
+            return SecFilingSelection(
+                status=SecFilingSelectionStatus.INCOMPLETE,
+                scope=selection_scope,
+                filings=(),
+                coverage_version=coverage_version,
+                sources=dataset.sources,
+                error_code="candidate_limit_exceeded",
+            )
+        return SecFilingSelection(
+            status=(
+                SecFilingSelectionStatus.OK if selected else SecFilingSelectionStatus.NO_RESULT
+            ),
+            scope=selection_scope,
+            filings=selected,
+            coverage_version=coverage_version,
+            sources=dataset.sources,
+        )
+
+
+def _latest_amendments(
+    filings: tuple[SecFilingCandidate, ...],
+) -> tuple[SecFilingCandidate, ...]:
+    latest: dict[str, SecFilingCandidate] = {}
+    for filing in filings:
+        identity = filing.base_accession or filing.accession
+        current = latest.get(identity)
+        if current is None or (filing.accepted_at, filing.accession) > (
+            current.accepted_at,
+            current.accession,
+        ):
+            latest[identity] = filing
+    return tuple(latest.values())
 
 
 def _candidate(

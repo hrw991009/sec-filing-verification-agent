@@ -10,7 +10,11 @@ from industry_platform.modules.disclosures.resources import (
     DisclosureResources,
     get_disclosure_resources,
 )
-from industry_platform.modules.disclosures.schemas import SecFilerResolutionResponse
+from industry_platform.modules.disclosures.schemas import (
+    FilingSelectionQuery,
+    SecFilerResolutionResponse,
+    SecFilingSelectionResponse,
+)
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
@@ -49,6 +53,26 @@ async def resolve_filer(
     )
     set_no_store_headers(response)
     return SecFilerResolutionResponse.from_domain(result)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/disclosures/filings",
+    response_model=SecFilingSelectionResponse,
+    responses=_RESPONSES,
+)
+async def list_filings(
+    workspace_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+    query: Annotated[FilingSelectionQuery, Query()],
+) -> SecFilingSelectionResponse:
+    result = await resources.filing_selection_service.select(
+        _workspace_scope(principal, workspace_id),
+        selection_scope=query.to_domain(),
+    )
+    set_no_store_headers(response)
+    return SecFilingSelectionResponse.from_domain(result)
 
 
 def _workspace_scope(

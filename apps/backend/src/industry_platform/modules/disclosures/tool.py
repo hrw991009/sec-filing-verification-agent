@@ -16,8 +16,13 @@ from industry_platform.modules.disclosures.domain import (
     SecFilerResolutionStatus,
     SecSourceError,
 )
-from industry_platform.modules.disclosures.service import SecFilerResolutionService
+from industry_platform.modules.disclosures.schemas import SecFilingSelectionResponse
+from industry_platform.modules.disclosures.service import (
+    SecFilerResolutionService,
+    SecFilingSelectionService,
+)
 from industry_platform.modules.tools.domain import (
+    MAX_TOOL_SOURCES,
     TOOL_OBSERVATION_NORMALIZER_VERSION,
     ToolApprovalPolicy,
     ToolCostClass,
@@ -226,6 +231,144 @@ class SecResolveFilerTool(PydanticToolAdapter[SecResolveFilerInput, SecResolveFi
                     observed_at=value.catalog_retrieved_at,
                     content_sha256=value.catalog_content_sha256,
                 ),
+            ),
+            observed_at=observed_at,
+            content_sha256=content_sha256,
+        )
+
+
+SEC_LIST_FILINGS_TOOL_NAME = "sec.list_filings"
+SEC_LIST_FILINGS_TOOL_VERSION = "v1"
+
+
+class SecListFilingsInput(BaseModel):
+    """The model supplies no trust boundary; scope comes from Runtime Context."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class SecListFilingsOutput(SecFilingSelectionResponse):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+def sec_list_filings_definition() -> ToolDefinition:
+    return ToolDefinition(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        name=SEC_LIST_FILINGS_TOOL_NAME,
+        version=SEC_LIST_FILINGS_TOOL_VERSION,
+        description=(
+            "List official SEC filings within the server-verified point-in-time filing scope."
+        ),
+        input_schema_version="sec-list-filings-input-v1",
+        output_schema_version="sec-list-filings-output-v1",
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": [],
+            "properties": {},
+        },
+        output_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "status",
+                "scope",
+                "filings",
+                "coverage_version",
+                "sources",
+                "error_code",
+            ],
+            "properties": {
+                "status": {"type": "string"},
+                "scope": {"type": "object"},
+                "filings": {"type": "array"},
+                "coverage_version": {"type": "string"},
+                "sources": {"type": "array"},
+                "error_code": {"type": ["string", "null"]},
+            },
+        },
+        capability=WorkspaceAction.RUN_TOOL,
+        timeout_ms=60_000,
+        max_result_bytes=250_000,
+        max_cost_micro_usd=1,
+        cost_class=ToolCostClass.LOW,
+        side_effect_class=ToolSideEffectClass.READ_ONLY,
+        retry_classification=ToolRetryClassification.SAFE_READ_ONLY,
+        approval_policy=ToolApprovalPolicy.AUTO_ALLOW,
+        policy_version="sec-point-in-time-read-v1",
+    )
+
+
+class SecListFilingsTool(PydanticToolAdapter[SecListFilingsInput, SecListFilingsOutput]):
+    def __init__(self, service: SecFilingSelectionService) -> None:
+        super().__init__(
+            definition=sec_list_filings_definition(),
+            input_model=SecListFilingsInput,
+            output_model=SecListFilingsOutput,
+        )
+        self._service = service
+
+    async def invoke(
+        self,
+        value: SecListFilingsInput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        idempotency_key: str | None,
+    ) -> tuple[SecListFilingsOutput, int]:
+        del value
+        if idempotency_key is not None:
+            raise ToolExecutionError("tool_idempotency_key_unexpected")
+        selection_scope = runtime_context.filing_selection_scope
+        if selection_scope is None:
+            raise ToolExecutionError("filing_selection_scope_not_configured")
+        try:
+            selection = await self._service.select(
+                runtime_context.workspace_scope,
+                selection_scope=selection_scope,
+            )
+        except SecSourceError as error:
+            raise ToolExecutionError(error.code.value) from None
+        except SecDisclosurePersistenceError:
+            raise ToolExecutionError("sec_filing_catalog_unavailable") from None
+        if len(selection.sources) > MAX_TOOL_SOURCES:
+            raise ToolExecutionError("sec_source_manifest_limit_exceeded")
+        return SecListFilingsOutput.from_domain(selection), 0
+
+    def normalize(
+        self,
+        value: SecListFilingsOutput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        call_id: UUID,
+        run_id: UUID,
+        observed_at: datetime,
+    ) -> ToolObservation:
+        model_text = json.dumps(
+            value.model_dump(mode="json"),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        content_sha256 = hashlib.sha256(model_text.encode("utf-8")).hexdigest()
+        return ToolObservation(
+            schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+            observation_id=uuid5(NAMESPACE_URL, f"{call_id}:sec-list-filings:v1"),
+            call_id=call_id,
+            run_id=run_id,
+            workspace_id=runtime_context.workspace_scope.workspace_id,
+            tool=ToolReference(self.definition.name, self.definition.version),
+            normalizer_version=TOOL_OBSERVATION_NORMALIZER_VERSION,
+            model_text=model_text,
+            sources=tuple(
+                ToolSource(
+                    source_type="sec_submissions",
+                    source_version=source.source_version,
+                    locator=source.source_url,
+                    observed_at=source.retrieved_at,
+                    content_sha256=source.content_sha256,
+                )
+                for source in value.sources
             ),
             observed_at=observed_at,
             content_sha256=content_sha256,

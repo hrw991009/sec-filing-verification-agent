@@ -14,7 +14,10 @@ from industry_platform.modules.disclosures.adapters.sec_edgar import (
     FrozenSecEdgarAdapter,
     UnavailableSecEdgarAdapter,
 )
-from industry_platform.modules.disclosures.domain import SecFilerResolution
+from industry_platform.modules.disclosures.domain import (
+    SecAmendmentPolicy,
+    SecFilerResolution,
+)
 from industry_platform.modules.disclosures.resources import (
     DisclosureResources,
     get_disclosure_resources,
@@ -64,7 +67,8 @@ class TrackingResolutionService:
 
 @dataclass(frozen=True, slots=True)
 class StubResources:
-    resolution_service: object
+    resolution_service: object | None = None
+    filing_selection_service: object | None = None
 
 
 def principal() -> AuthenticatedPrincipal:
@@ -140,3 +144,59 @@ def test_unconfigured_source_is_explicit_and_not_no_result(test_settings: Settin
     assert response.status_code == 503
     assert response.json()["code"] == "SEC_SOURCE_NOT_CONFIGURED"
     assert "no_result" not in response.text
+
+
+def test_authenticated_workspace_lists_point_in_time_filings(test_settings: Settings) -> None:
+    from .test_filing_selection_service import NOW, selection_scope, service
+
+    scope = selection_scope(policy=SecAmendmentPolicy.LATEST_KNOWN_BY_AS_OF)
+    filing_service, _, _ = service(scope)
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources,
+        StubResources(filing_selection_service=filing_service),
+    )
+    with TestClient(application, base_url="https://localhost") as client:
+        response = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings",
+            headers=headers(),
+            params={
+                "cik": "320193",
+                "forms": ["10-K", "10-K/A"],
+                "report_period_start": "2024-01-01",
+                "report_period_end": "2024-12-31",
+                "as_of": NOW.isoformat(),
+                "amendment_policy": "latest_amendment_known_by_as_of",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["scope"]["cik"] == "0000320193"
+    assert response.json()["filings"][0]["accession"] == "0000320193-24-000002"
+
+
+def test_invalid_filing_scope_is_a_sanitized_validation_failure(test_settings: Settings) -> None:
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    with TestClient(application, base_url="https://localhost") as client:
+        response = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings",
+            headers=headers(),
+            params={
+                "cik": "0",
+                "forms": ["10-K"],
+                "report_period_start": "2024-01-01",
+                "report_period_end": "2024-12-31",
+                "as_of": "2026-08-26T03:00:00Z",
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "REQUEST_VALIDATION_FAILED"
+    assert "CIK is invalid" not in response.text

@@ -1,14 +1,18 @@
 """Domain and resolver tests for SEC filer discovery."""
 
+from datetime import date, timedelta
 from uuid import UUID
 
 import pytest
 
 from industry_platform.modules.disclosures.adapters.sec_edgar import FrozenSecEdgarAdapter
 from industry_platform.modules.disclosures.domain import (
+    FilingSelectionScope,
+    SecAmendmentPolicy,
     SecFetchMode,
     SecFilerMatchKind,
     SecFilerResolutionStatus,
+    SecFilingForm,
     normalize_cik,
     normalize_filer_query,
     plan_sec_cik_fetch,
@@ -16,7 +20,7 @@ from industry_platform.modules.disclosures.domain import (
 from industry_platform.modules.disclosures.service import SecFilerResolutionService
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
-from .support import InMemoryFilerCatalogRepository, catalog_snapshot, filer
+from .support import NOW, InMemoryFilerCatalogRepository, catalog_snapshot, filer
 
 WORKSPACE_ID = UUID("11111111-1111-4111-8111-111111111111")
 USER_ID = UUID("22222222-2222-4222-8222-222222222222")
@@ -99,3 +103,40 @@ async def test_exact_identity_is_not_diluted_but_duplicate_ticker_remains_ambigu
         "0000320193",
         "0001652044",
     }
+
+
+def test_filing_selection_scope_round_trips_canonical_mapping() -> None:
+    filing_scope = FilingSelectionScope(
+        cik="0000320193",
+        allowed_forms=(SecFilingForm.TEN_K, SecFilingForm.TEN_Q),
+        report_period_start=date(2023, 1, 1),
+        report_period_end=date(2025, 12, 31),
+        as_of=NOW,
+        amendment_policy=SecAmendmentPolicy.AS_FILED,
+    )
+
+    restored = FilingSelectionScope.from_mapping(dict(filing_scope.to_mapping()))
+
+    assert restored == filing_scope
+
+
+def test_filing_selection_scope_rejects_unsorted_forms_and_naive_cutoff() -> None:
+    with pytest.raises(ValueError, match="forms"):
+        FilingSelectionScope(
+            cik="0000320193",
+            allowed_forms=(SecFilingForm.TEN_Q, SecFilingForm.TEN_K),
+            report_period_start=date(2024, 1, 1),
+            report_period_end=date(2024, 12, 31),
+            as_of=NOW,
+            amendment_policy=SecAmendmentPolicy.AS_FILED,
+        )
+
+    with pytest.raises(ValueError, match="timezone-aware UTC"):
+        FilingSelectionScope(
+            cik="0000320193",
+            allowed_forms=(SecFilingForm.TEN_K,),
+            report_period_start=date(2024, 1, 1),
+            report_period_end=date(2024, 12, 31),
+            as_of=(NOW + timedelta(days=1)).replace(tzinfo=None),
+            amendment_policy=SecAmendmentPolicy.AS_FILED,
+        )

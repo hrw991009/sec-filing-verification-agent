@@ -298,6 +298,7 @@ def create_app(
                 database_session_factory,
                 external_http_client,
                 redis_client,
+                file_resources.object_store,
             )
 
             application.state.resources = ApplicationResources(

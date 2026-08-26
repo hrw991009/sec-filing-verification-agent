@@ -10,7 +10,9 @@ import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Final, Protocol
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx2
@@ -21,12 +23,16 @@ from industry_platform.modules.disclosures.domain import (
     SEC_COMPANY_TICKERS_URL,
     SEC_DEFAULT_REQUESTS_PER_SECOND,
     SEC_MAX_CATALOG_RESPONSE_BYTES,
+    SEC_MAX_SUBMISSIONS_RESPONSE_BYTES,
+    SEC_SUBMISSIONS_URL_PREFIX,
+    FilingSelectionScope,
     SecAliasKind,
     SecFiler,
     SecFilerAlias,
     SecFilerCatalogSnapshot,
     SecSourceError,
     SecSourceErrorCode,
+    SecSubmissionSet,
     catalog_source_version,
     normalize_cik,
     normalize_filer_name,
@@ -38,6 +44,10 @@ _CACHE_KEY: Final = "iip:sec:company-tickers:v1"
 _RATE_KEY: Final = "iip:sec:request-budget:v1"
 _CACHE_RETENTION_SECONDS: Final = 7 * 24 * 60 * 60
 _RATE_ACQUIRE_TIMEOUT_SECONDS: Final = 5.0
+_CACHE_KEY_PATTERN: Final = re.compile(r"^[a-z0-9:._-]{1,240}$")
+_SUBMISSIONS_PATH_PATTERN: Final = re.compile(
+    r"^/submissions/CIK[0-9]{10}(?:-submissions-[0-9]{3})?\.json$"
+)
 _RATE_LIMIT_SCRIPT: Final = """
 local now_parts = redis.call('TIME')
 local now_us = tonumber(now_parts[1]) * 1000000 + tonumber(now_parts[2])
@@ -83,17 +93,26 @@ class CachedSecResponse:
     body: bytes
     retrieved_at: datetime
     fresh_until: datetime
+    source_available_at: datetime | None = None
     etag: str | None = None
     last_modified: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.body or len(self.body) > SEC_MAX_CATALOG_RESPONSE_BYTES:
+        if not self.body or len(self.body) > SEC_MAX_SUBMISSIONS_RESPONSE_BYTES:
             raise ValueError("Cached SEC response body is invalid")
         for value in (self.retrieved_at, self.fresh_until):
             if value.tzinfo is None or value.utcoffset() is None:
                 raise ValueError("Cached SEC response timestamp is invalid")
         if self.fresh_until <= self.retrieved_at:
             raise ValueError("Cached SEC response freshness is invalid")
+        source_available_at = self.source_available_at or self.retrieved_at
+        if (
+            source_available_at.tzinfo is None
+            or source_available_at.utcoffset() is None
+            or source_available_at > self.retrieved_at
+        ):
+            raise ValueError("Cached SEC response availability is invalid")
+        object.__setattr__(self, "source_available_at", source_available_at)
 
 
 class RedisSecRequestBudget:
@@ -154,12 +173,15 @@ class RedisSecRequestBudget:
 class RedisSecResponseCache:
     """Retain one bounded raw response and validators for conditional requests."""
 
-    def __init__(self, redis: SecRedisClient) -> None:
+    def __init__(self, redis: SecRedisClient, *, cache_key: str = _CACHE_KEY) -> None:
+        if _CACHE_KEY_PATTERN.fullmatch(cache_key) is None:
+            raise ValueError("SEC response cache key is invalid")
         self._redis = redis
+        self._cache_key = cache_key
 
     async def get(self) -> CachedSecResponse | None:
         try:
-            raw = await self._redis.get(_CACHE_KEY)
+            raw = await self._redis.get(self._cache_key)
             if raw is None:
                 return None
             document = json.loads(raw)
@@ -184,6 +206,11 @@ class RedisSecResponseCache:
                 body=base64.b64decode(body_text, validate=True),
                 retrieved_at=_parse_cached_datetime(retrieved_at),
                 fresh_until=_parse_cached_datetime(fresh_until),
+                source_available_at=(
+                    _parse_cached_datetime(document["source_available_at"])
+                    if isinstance(document.get("source_available_at"), str)
+                    else None
+                ),
                 etag=etag,
                 last_modified=last_modified,
             )
@@ -199,6 +226,9 @@ class RedisSecResponseCache:
                 "body_b64": base64.b64encode(value.body).decode("ascii"),
                 "retrieved_at": value.retrieved_at.isoformat(),
                 "fresh_until": value.fresh_until.isoformat(),
+                "source_available_at": value.source_available_at.isoformat()
+                if value.source_available_at is not None
+                else None,
                 "etag": value.etag,
                 "last_modified": value.last_modified,
             },
@@ -208,7 +238,7 @@ class RedisSecResponseCache:
         )
         try:
             stored = await self._redis.set(
-                _CACHE_KEY,
+                self._cache_key,
                 document,
                 ex=_CACHE_RETENTION_SECONDS,
             )
@@ -226,36 +256,17 @@ class RedisSecResponseCache:
             ) from None
 
 
-class FrozenSecEdgarAdapter:
-    """Return one already-validated source snapshot for deterministic replay."""
-
-    def __init__(self, snapshot: SecFilerCatalogSnapshot) -> None:
-        self._snapshot = snapshot
-
-    async def fetch_filer_catalog(self) -> SecFilerCatalogSnapshot:
-        return self._snapshot
-
-
-class UnavailableSecEdgarAdapter:
-    """Keep missing User-Agent configuration explicit and fail closed."""
-
-    async def fetch_filer_catalog(self) -> SecFilerCatalogSnapshot:
-        raise SecSourceError(SecSourceErrorCode.NOT_CONFIGURED, retryable=False)
-
-
-class LiveSecEdgarAdapter:
-    """Bounded official company-ticker reader with shared budget and cache."""
+class OfficialSecJsonClient:
+    """One allowlisted, bounded JSON client shared by official SEC adapters."""
 
     def __init__(
         self,
         client: httpx2.AsyncClient,
         budget: SecRequestBudget,
-        cache: SecResponseCache,
         *,
         user_agent: str,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         sleep: Sleep = asyncio.sleep,
-        cache_ttl_seconds: int = 3_600,
         timeout_seconds: float = 20.0,
         maximum_attempts: int = 3,
     ) -> None:
@@ -265,32 +276,47 @@ class LiveSecEdgarAdapter:
             or any(character in user_agent for character in "\r\n")
         ):
             raise ValueError("SEC User-Agent must identify the application and contact email")
-        if not 60 <= cache_ttl_seconds <= 86_400:
-            raise ValueError("SEC cache TTL is invalid")
         if not 0 < timeout_seconds <= 60 or not 1 <= maximum_attempts <= 5:
             raise ValueError("SEC request policy is invalid")
         self._client = client
         self._budget = budget
-        self._cache = cache
         self._user_agent = user_agent
         self._clock = clock
         self._sleep = sleep
-        self._cache_ttl_seconds = cache_ttl_seconds
         self._timeout_seconds = timeout_seconds
         self._maximum_attempts = maximum_attempts
 
-    async def fetch_filer_catalog(self) -> SecFilerCatalogSnapshot:
+    async def fetch(
+        self,
+        url: str,
+        cache: SecResponseCache,
+        *,
+        cache_ttl_seconds: int,
+        maximum_bytes: int,
+    ) -> CachedSecResponse:
+        _validate_official_json_url(url)
+        if not 60 <= cache_ttl_seconds <= 86_400:
+            raise ValueError("SEC cache TTL is invalid")
+        if not 1 <= maximum_bytes <= SEC_MAX_SUBMISSIONS_RESPONSE_BYTES:
+            raise ValueError("SEC response budget is invalid")
         now = _utc_now(self._clock)
-        cached = await self._cache.get()
+        cached = await cache.get()
+        if cached is not None and len(cached.body) > maximum_bytes:
+            raise SecSourceError(SecSourceErrorCode.RESPONSE_TOO_LARGE, retryable=False)
         if cached is not None and cached.fresh_until > now:
-            return _parse_catalog(cached.body, retrieved_at=cached.retrieved_at)
+            return cached
 
         last_error: SecSourceError | None = None
         for attempt in range(self._maximum_attempts):
             try:
-                response = await self._request(cached)
-                await self._cache.put(response)
-                return _parse_catalog(response.body, retrieved_at=response.retrieved_at)
+                response = await self._request(
+                    url,
+                    cached,
+                    cache_ttl_seconds=cache_ttl_seconds,
+                    maximum_bytes=maximum_bytes,
+                )
+                await cache.put(response)
+                return response
             except SecSourceError as error:
                 last_error = error
                 if not error.retryable or attempt + 1 >= self._maximum_attempts:
@@ -303,7 +329,14 @@ class LiveSecEdgarAdapter:
             raise AssertionError("SEC retry loop terminated without an outcome")
         raise last_error
 
-    async def _request(self, cached: CachedSecResponse | None) -> CachedSecResponse:
+    async def _request(
+        self,
+        url: str,
+        cached: CachedSecResponse | None,
+        *,
+        cache_ttl_seconds: int,
+        maximum_bytes: int,
+    ) -> CachedSecResponse:
         await self._budget.acquire()
         headers = {
             "Accept": "application/json",
@@ -319,7 +352,7 @@ class LiveSecEdgarAdapter:
             async with asyncio.timeout(self._timeout_seconds):
                 async with self._client.stream(
                     "GET",
-                    SEC_COMPANY_TICKERS_URL,
+                    url,
                     headers=headers,
                     follow_redirects=False,
                     timeout=self._timeout_seconds,
@@ -334,7 +367,8 @@ class LiveSecEdgarAdapter:
                         return CachedSecResponse(
                             body=cached.body,
                             retrieved_at=now,
-                            fresh_until=now + timedelta(seconds=self._cache_ttl_seconds),
+                            fresh_until=now + timedelta(seconds=cache_ttl_seconds),
+                            source_available_at=cached.source_available_at,
                             etag=response.headers.get("etag") or cached.etag,
                             last_modified=(
                                 response.headers.get("last-modified") or cached.last_modified
@@ -376,7 +410,7 @@ class LiveSecEdgarAdapter:
                                 SecSourceErrorCode.RESPONSE_INVALID,
                                 retryable=False,
                             ) from None
-                        if not 0 <= declared_length <= SEC_MAX_CATALOG_RESPONSE_BYTES:
+                        if not 0 <= declared_length <= maximum_bytes:
                             raise SecSourceError(
                                 SecSourceErrorCode.RESPONSE_TOO_LARGE,
                                 retryable=False,
@@ -385,7 +419,7 @@ class LiveSecEdgarAdapter:
                     observed_bytes = 0
                     async for chunk in response.aiter_bytes():
                         observed_bytes += len(chunk)
-                        if observed_bytes > SEC_MAX_CATALOG_RESPONSE_BYTES:
+                        if observed_bytes > maximum_bytes:
                             raise SecSourceError(
                                 SecSourceErrorCode.RESPONSE_TOO_LARGE,
                                 retryable=False,
@@ -397,12 +431,14 @@ class LiveSecEdgarAdapter:
                             SecSourceErrorCode.RESPONSE_INVALID,
                             retryable=False,
                         )
+                    last_modified = response.headers.get("last-modified")
                     return CachedSecResponse(
                         body=body,
                         retrieved_at=now,
-                        fresh_until=now + timedelta(seconds=self._cache_ttl_seconds),
+                        fresh_until=now + timedelta(seconds=cache_ttl_seconds),
+                        source_available_at=_source_available_at(last_modified, retrieved_at=now),
                         etag=response.headers.get("etag"),
-                        last_modified=response.headers.get("last-modified"),
+                        last_modified=last_modified,
                     )
         except SecSourceError:
             raise
@@ -410,6 +446,65 @@ class LiveSecEdgarAdapter:
             raise SecSourceError(SecSourceErrorCode.TIMEOUT, retryable=True) from None
         except (httpx2.RequestError, httpx2.InvalidURL):
             raise SecSourceError(SecSourceErrorCode.UPSTREAM_ERROR, retryable=True) from None
+
+
+class FrozenSecEdgarAdapter:
+    """Return one already-validated source snapshot for deterministic replay."""
+
+    def __init__(self, snapshot: SecFilerCatalogSnapshot) -> None:
+        self._snapshot = snapshot
+
+    async def fetch_filer_catalog(self) -> SecFilerCatalogSnapshot:
+        return self._snapshot
+
+
+class UnavailableSecEdgarAdapter:
+    """Keep missing User-Agent configuration explicit and fail closed."""
+
+    async def fetch_filer_catalog(self) -> SecFilerCatalogSnapshot:
+        raise SecSourceError(SecSourceErrorCode.NOT_CONFIGURED, retryable=False)
+
+    async def fetch_submission_set(self, scope: FilingSelectionScope) -> SecSubmissionSet:
+        del scope
+        raise SecSourceError(SecSourceErrorCode.NOT_CONFIGURED, retryable=False)
+
+
+class LiveSecEdgarAdapter:
+    """Bounded official company-ticker reader with shared budget and cache."""
+
+    def __init__(
+        self,
+        client: httpx2.AsyncClient,
+        budget: SecRequestBudget,
+        cache: SecResponseCache,
+        *,
+        user_agent: str,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        sleep: Sleep = asyncio.sleep,
+        cache_ttl_seconds: int = 3_600,
+        timeout_seconds: float = 20.0,
+        maximum_attempts: int = 3,
+    ) -> None:
+        self._json_client = OfficialSecJsonClient(
+            client,
+            budget,
+            user_agent=user_agent,
+            clock=clock,
+            sleep=sleep,
+            timeout_seconds=timeout_seconds,
+            maximum_attempts=maximum_attempts,
+        )
+        self._cache = cache
+        self._cache_ttl_seconds = cache_ttl_seconds
+
+    async def fetch_filer_catalog(self) -> SecFilerCatalogSnapshot:
+        response = await self._json_client.fetch(
+            SEC_COMPANY_TICKERS_URL,
+            self._cache,
+            cache_ttl_seconds=self._cache_ttl_seconds,
+            maximum_bytes=SEC_MAX_CATALOG_RESPONSE_BYTES,
+        )
+        return _parse_catalog(response.body, retrieved_at=response.retrieved_at)
 
 
 def _parse_catalog(body: bytes, *, retrieved_at: datetime) -> SecFilerCatalogSnapshot:
@@ -557,3 +652,40 @@ def _parse_cached_datetime(value: str) -> datetime:
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError("Cached SEC response timestamp is invalid")
     return parsed.astimezone(UTC)
+
+
+def _validate_official_json_url(url: str) -> None:
+    parsed = urlsplit(url)
+    allowed = (
+        parsed.scheme == "https"
+        and parsed.username is None
+        and parsed.password is None
+        and parsed.port is None
+        and not parsed.query
+        and not parsed.fragment
+        and (
+            (parsed.hostname == "www.sec.gov" and url == SEC_COMPANY_TICKERS_URL)
+            or (
+                parsed.hostname == "data.sec.gov"
+                and url.startswith(SEC_SUBMISSIONS_URL_PREFIX)
+                and _SUBMISSIONS_PATH_PATTERN.fullmatch(parsed.path) is not None
+            )
+        )
+    )
+    if not allowed:
+        raise SecSourceError(SecSourceErrorCode.REDIRECT_REJECTED, retryable=False)
+
+
+def _source_available_at(value: str | None, *, retrieved_at: datetime) -> datetime:
+    if value is None:
+        return retrieved_at
+    try:
+        parsed = parsedate_to_datetime(value)
+    except (TypeError, ValueError, OverflowError):
+        raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False) from None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False)
+    normalized = parsed.astimezone(UTC)
+    if normalized > retrieved_at:
+        raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False)
+    return normalized
