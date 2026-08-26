@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.0.4`
+> 版本：`2.0.5`
 >
 > 制定日期：`2026-07-23`
 >
@@ -54,7 +54,7 @@
 | Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
 | Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
 | Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
-| Day 6～Day 10 | 尚未完成 | Day 6 五步文档计划已冻结，D6-01～D6-08 仍为 `planned`；D5-08/D5-09 浏览器 DoD 关闭前不开始 Day 6 代码实现 |
+| Day 6～Day 10 | 尚未完成 | Day 6 Step 1 当前工作树已实现：D6-01 为 `implemented_pending_verification`，D6-05/D6-06 为 `thin_slice`，其余 Day 6 目标仍为 `planned`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -866,7 +866,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 12. Day 5：Agent Knowledge 与 Durable Research L4
 
-> 执行状态（2026-08-26）：Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`；分支 push CI `32920879147`、PR CI `32924323618` 与合并提交 `a38d0ae` 的 CI `32924732755` 均通过 7 个适用 Job，D5-01～D5-07 已关闭为 `complete`。但既有记录明确没有 ready SEC fixture 的 Dense/calculation Evidence 浏览器全链，也没有同一 fixture 暂停/审批/resume/刷新旅程，故 D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`。项目所有者授权进入 Day 6 文档规划不等于放弃该 DoD；在补齐旅程并取得分支/main CI 前不开始 Day 6 代码实现。live SEC、L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门仍未实现。详细事实见 [Day 5 学习日志](learning-log/day-5.md)。
+> 执行状态（2026-08-26）：Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`；分支 push CI `32920879147`、PR CI `32924323618` 与合并提交 `a38d0ae` 的 CI `32924732755` 均通过 7 个适用 Job，D5-01～D5-07 已关闭为 `complete`。但既有记录明确没有 ready SEC fixture 的 Dense/calculation Evidence 浏览器全链，也没有同一 fixture 暂停/审批/resume/刷新旅程，故 D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`。项目所有者随后明确要求开始 Day 6 Step 1，只调整该步骤的执行顺序，不关闭或豁免 Day 5 DoD。live SEC、L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门仍未实现。详细事实见 [Day 5 学习日志](learning-log/day-5.md)。
 
 ### 学习主题
 
@@ -921,7 +921,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 13. Day 6：SEC 官方披露数据底座与 Point-in-Time 合同
 
-> 执行状态（2026-08-26）：五步文档规划已冻结，D6-01～D6-08 均为 `planned`，尚未开始 Day 6 代码实现。D5-08/D5-09 的 SEC fixture 浏览器 DoD 是第一行 Day 6 代码前的入口阻断项，不计为第六个 Day 6 步骤。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
+> 执行状态（2026-08-26）：Step 1 当前工作树已实现 `disclosures` 身份目录、Frozen/Live EDGAR Adapter、canonical filer/alias migration、解析 API 与 `sec.resolve_filer@v1`，并通过适用本地、真实 PostgreSQL/Redis 与生成契约门禁。D6-01 为 `implemented_pending_verification`；D6-05 只有 1/5 Tool，D6-06 还缺 bulk snapshot/watermark 和 live smoke，因此两项为 `thin_slice`。D6-02～D6-04、D6-07～D6-08 仍为 `planned`，且尚无分支/main CI 或所有者收口。D5-08/D5-09 浏览器 DoD 保持未关闭。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ### 学习主题
 
@@ -933,7 +933,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ### 实现任务
 
-1. **官方 Adapter 与 CIK 解析**：建立最小 `disclosures` bounded context、`SecEdgarPort`、Frozen/Live Adapter、canonical filer/alias 和 `sec.resolve_filer@v1`；落实官方 host allowlist、身份化 User-Agent、跨进程速率预算、缓存/条件请求、响应预算、429/5xx 有界退避和来源使用记录。交互/小批量走 API；同批次达到 100 个 CIK 或全量刷新强制走官方 bulk，保存 `bulk_published_at`/`coverage_through`，晚于水位的 `as_of` 必须由版本化官方增量快照补齐，否则返回 typed incomplete/partial；失败不静默退化为高扇出请求。ticker/name 只返回带依据的候选，歧义不猜。
+1. **官方 Adapter 与 CIK 解析**：建立最小 `disclosures` bounded context、`SecEdgarPort`、Frozen/Live Adapter、canonical filer/alias 和 `sec.resolve_filer@v1`；落实官方 host allowlist、身份化 User-Agent、跨进程速率预算、缓存/条件请求、响应预算、429/5xx 有界退避和来源使用记录。交互/小批量走 API；本步冻结并测试同批次达到 100 个 CIK 或全量刷新必须走官方 bulk 的选路合同，失败不得静默退化为高扇出请求。实际 bulk bytes、`bulk_published_at`/`coverage_through` 与 post-watermark 增量补齐跟随 Step 2 submissions 和 Step 4 XBRL 的正式批量读取落地，在此之前 D6-06 只能是 `thin_slice`。ticker/name 只返回带依据的候选，歧义不猜。
 2. **Point-in-Time filing 选择**：建立 canonical filing、base/amendment 关系、版本化 `FilingSelectionScope v1`、`public_available_at`/可见性依据/策略和 `sec.list_filings@v1`；`latest` 必须在 `as_of` 与 amendment policy 下解析成明确 accession 并进入 Trace。按查询区间跟随并快照 submissions `filings.files` supplemental JSON，保存包含 bulk/incremental watermark 的 coverage manifest、按 accession 去重；只有 current、所需 supplemental 文件和截至 `as_of` 的时间覆盖均完整后才能返回 `no_result`。每个 source version 另存可见时间/依据/有效区间；`retrieved_at` 既不能代替版本可见时间，也不能把更正后字节追溯到更正前。
 3. **不可变快照、Dense read 与 Workbench**：分离 official document identity/current projection 与 append-only `sec_source_snapshots`，通过 `workspace_sec_imports` 复用既有 File/Knowledge/Ingestion、Job/Outbox 和双索引；discovery Tool 可读公共 catalog，facts/search/read 强制 import。交付锁定 accession 的 `sec.search_filing@v1`/`sec.read_filing_section@v1`、`dense-v1` 和 CIK→accession→snapshot→DocumentVersion/Chunk 导航。
 4. **XBRL context/fact 与 typed read**：保存聚合响应/raw iXBRL/instance XML snapshot、source kind、concept/unit/period/accession 和 source-specific nullable context/dimensions/decimals/scale，交付 `sec.get_xbrl_facts@v1`；aggregate 与 raw locator 分型，精确 raw/custom fact 回到锁定原始 XBRL。Workbench 增加 context/fact 面板与 standard/raw 浏览器反查；`frames` 只作候选发现。
@@ -1329,3 +1329,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.0.2 | 2026-08-25 | 同步 Day 5 Step 5 本地实现：成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval；明确尚无提交/远端 CI、后台超时扫描和 Day 8 跨刷新/Worker 重启组合证据 | 用户授权的 Day 5 本地收尾 |
 | 2.0.3 | 2026-08-25 | 记录 Day 5 Step 5 统一本地门禁结果：真实依赖下 Python 1018、Vitest 83、Playwright 7、构建、OpenAPI 确定性、依赖审计与 Gitleaks 通过；状态仍等待提交、远端 CI、合并和 owner 收口 | 用户授权的 Day 5 本地门禁收尾 |
 | 2.0.4 | 2026-08-26 | 记录 PR #9 与分支/PR/main CI，关闭 D5-01～D5-07；保留 D5-08/D5-09 缺失 SEC fixture 浏览器全链的 DoD，不把进入 Day 6 规划授权解释为豁免。Day 6 收敛为五个纵向步骤，并冻结 canonical source version + Workspace import、双层可见性、Dense/Hybrid 演进和 `sec-source-v1` 硬门 | 用户授权进入 Day 6 文档规划 |
+| 2.0.5 | 2026-08-26 | 同步 Day 6 Step 1 当前工作树：新增官方 filer catalog Adapter、canonical identity migration、解析 API/Tool、Fair Access 与本地/真实依赖证据；D6-01 为 `implemented_pending_verification`，D6-05/D6-06 为 `thin_slice`。将实际 bulk snapshot/watermark 归入消费其数据的 Step 2/4，并保留 live SEC、分支/main CI、所有者复核与 D5 浏览器 DoD 的未完成边界 | 用户授权开始 Day 6 Step 1 |

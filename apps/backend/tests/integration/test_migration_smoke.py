@@ -23,6 +23,9 @@ EXPECTED_BUSINESS_TABLES = {
     "audit_logs",
     "tool_calls",
     "tool_runs",
+    "sec_filers",
+    "sec_filer_aliases",
+    "sec_catalog_syncs",
 }
 
 pytestmark = pytest.mark.migration_smoke

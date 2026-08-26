@@ -2,21 +2,21 @@
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.4 Day 6
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.5 Day 6
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：文档规划已冻结，五个步骤均为 `planned`；尚未创建 `disclosures` 模块、migration、SEC Adapter、Tool 或 `sec-source-v1` 实现。D5-08/D5-09 的 SEC fixture 浏览器 DoD 是第一行 Day 6 代码前的入口阻断项，不计为第六个 Day 6 步骤。
+> 当前状态：Step 1 已在当前工作树完成本地实现与适用本地门禁，D6-01 为 `implemented_pending_verification`；D6-06 已实现 Fair Access client 与 99/100 CIK 选路合同，但 bulk snapshot/watermark 仍待后续正式来源同步，因此为 `thin_slice`。Step 2～5 仍为 `planned`。尚无 live SEC、分支/main CI 或项目所有者收口证据。
 
 ## 1. 进入条件与今日边界
 
 Day 5 已完成合并验证：[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，合并提交为 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)。分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和合并提交 CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过 7 个适用 Job，D5-01～D5-07 已关闭为 `complete`。
 
-Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 授权进入 Day 6 文档规划，但没有明确放弃该硬门，因此 D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`。本计划可以先冻结；Day 6 Step 1 代码必须等该旅程进入分支/main CI 后开始。
+Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 先授权 Day 6 文档规划，随后明确要求开始 Day 6 Step 1；按主计划的“用户最新明确指令优先”执行 Step 1 代码。该指令只调整 Step 1 的开始顺序，不构成 D5-08/D5-09 豁免，两项及 Day 5 总门禁继续保持 `implemented_pending_verification`。
 
-本轮只完成 Day 6 文档规划，不写 Day 6 业务代码。D6-01～D6-08 继续保持 `planned`，后续每次只推进一个纵向步骤，并在该步骤证据通过后再进入下一步。
+本轮只实现 Day 6 Step 1，不进入 filing/accession、原始快照、XBRL、Workbench 或 `sec-source-v1`。D6-02～D6-05、D6-07～D6-08 继续保持 `planned`；D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐必须在出现正式批量 filing/XBRL 来源读取的后续步骤落地，不能用当前 99/100 选路函数冒充完整 bulk 能力。
 
 ### 1.1 官方来源合同复核
 
@@ -58,13 +58,13 @@ Point-in-time 必须区分：
 
 ## 3. 五步执行切片
 
-| 步骤 | 能力映射 | 可验收用户结果 |
-|---|---|---|
-| 1. 官方 Adapter 与 CIK 解析 | D6-01、D6-06 | 公司名/ticker 产生可解释候选，用户锁定明确 CIK；歧义不猜 |
-| 2. Point-in-Time filing 选择 | D6-02、D6-05 部分 | 在 `as_of` 与 amendment policy 下锁定正确 form/accession |
-| 3. 不可变快照、Dense read 与 Workbench | D6-03、D6-05 部分、D6-07 | 锁定 filing 可入库、检索、读取并沿来源链反查 |
-| 4. XBRL context/fact 与 typed read | D6-04、D6-05 部分 | 结构化事实保留 unit/period/context/source 并可定位 |
-| 5. 五 Tool 同 Runtime 与 `sec-source-v1` 收口 | D6-05、D6-08 | 数据、时点、权限、故障和 live/replay 链路可系统评测 |
+| 步骤 | 能力映射 | 可验收用户结果 | 当前状态 |
+|---|---|---|---|
+| 1. 官方 Adapter 与 CIK 解析 | D6-01、D6-06 | 公司名/ticker 产生可解释候选，用户锁定明确 CIK；歧义不猜 | 本地已实现，待外部验证 |
+| 2. Point-in-Time filing 选择 | D6-02、D6-05 部分 | 在 `as_of` 与 amendment policy 下锁定正确 form/accession | `planned` |
+| 3. 不可变快照、Dense read 与 Workbench | D6-03、D6-05 部分、D6-07 | 锁定 filing 可入库、检索、读取并沿来源链反查 | `planned` |
+| 4. XBRL context/fact 与 typed read | D6-04、D6-05 部分 | 结构化事实保留 unit/period/context/source 并可定位 | `planned` |
+| 5. 五 Tool 同 Runtime 与 `sec-source-v1` 收口 | D6-05、D6-08 | 数据、时点、权限、故障和 live/replay 链路可系统评测 | `planned` |
 
 ### 步骤 1：官方 Adapter 与 CIK 解析
 
@@ -73,11 +73,21 @@ Point-in-time 必须区分：
 实现边界：
 
 - 服务端声明应用与联系邮箱；API 和 Worker 共用跨进程速率预算，低于官方每秒 10 次上限并保留余量。
-- 交互式/小批量读取走 API；同批次达到 100 个 CIK 或计划执行全量刷新时，版本化策略强制使用官方 `submissions.zip`/`companyfacts.zip` bulk 路径。每个 bulk snapshot 保存 `bulk_published_at` 与 `coverage_through`；当请求 `as_of` 晚于该水位时，必须用版本化官方增量快照证明并补齐 `(coverage_through, as_of]`，否则返回 typed incomplete/partial，不能返回 `no_result`。bulk 不可用时重试或明确失败，不静默退化为高扇出逐主体请求。
+- 交互式/小批量读取走 API；本步先冻结并测试 99/100 CIK 与 full-refresh 的 API/bulk 选路合同，不允许 bulk 失败时静默退化为高扇出逐主体请求。实际 `submissions.zip`/`companyfacts.zip` bytes、`bulk_published_at`、`coverage_through` 和 `(coverage_through, as_of]` 增量补齐分别随 Step 2 submissions 与 Step 4 XBRL 的正式批量读取落地；在此之前不得把选路函数写成完整 bulk 能力。
 - 实现缓存、条件请求、响应大小/类型限制、超时、非官方跳转拒绝、429/5xx 有界退避和稳定错误分类。
 - CIK 规范化为 10 位；ticker、现名和历史 alias 保存来源版本/有效期，只返回候选和匹配依据。
 
-验收证据：identity fixture、历史 alias、同 ticker 多候选、低置信、错误公司、非官方 URL、429/timeout/依赖失败；覆盖 99/100 CIK 的 bulk threshold、bulk hash/partial/fallback 失败。`ambiguous` 不自动选择第一项，依赖失败不伪装 `no_result`；Frozen contract 进入 PR CI，live smoke 独立留来源记录。
+验收证据：identity fixture、历史 alias、同 ticker 多候选、低置信、错误公司、非官方 URL、429/timeout/依赖失败，以及 99/100 CIK 的 bulk threshold。bulk hash/partial/fallback、published/coverage watermark 与 post-watermark gap 是 Step 2/4 完成 D6-06 时的追加硬门。`ambiguous` 不自动选择第一项，依赖失败不伪装 `no_result`；Frozen contract 进入 PR CI，live smoke 独立留来源记录。
+
+#### Step 1 实施记录（2026-08-26）
+
+- 新增 `disclosures` bounded context、`SecEdgarPort`、Frozen/Live/Unavailable Adapter、canonical `sec_filers`/`sec_filer_aliases`/`sec_catalog_syncs` migration 与 PostgreSQL repository。来源版本按官方响应 hash 幂等，旧 alias 保留有效区间，较旧 catalog 不能回退 current projection。
+- Live Adapter 固定访问 `https://www.sec.gov/files/company_tickers.json`，服务端 User-Agent 必须同时配置应用标识和联系邮箱；API/Worker 共用 Redis server-time 滑动窗口，默认 8 req/s、最大 9 req/s。缓存保留 ETag/Last-Modified，拒绝跳转、错误类型、超大/空/重复键响应，并对 429/5xx/timeout 返回稳定 typed error。
+- 新增认证 Workspace API `GET /api/v1/workspaces/{workspace_id}/disclosures/filers/resolve` 与 `sec.resolve_filer@v1`。输入只允许 `query`/`limit`；CIK 规范化为 10 位，精确 CIK/ticker/name 优先，同一最高置信层多候选才返回 `ambiguous`，低置信名称候选不稀释精确身份命中。
+- Tool 复用现有 `PydanticToolAdapter`、Registry/Executor、Workspace capability、Trace Observation 和 attributed `ToolSource`；它尚未加入普通 Conversation 的生产 profile，Day 6 五 Tool 专用 profile 仍按 Step 5 交付。
+- 本地证据：`disclosures` 模块 17 条测试通过；真实 PostgreSQL catalog/历史 alias/精确 ticker 优先与 migration smoke 3 条通过；真实 Redis 跨进程预算 1 条通过；普通全量回归为 977 passed/79 skipped。强制 PostgreSQL/Redis/MinIO 后为 1054 passed/2 个显式索引依赖场景 skipped；补齐健康 Milvus/Elasticsearch endpoint 后这 2 条分别通过，当前树累计覆盖率为 81%。OpenAPI 生成前后 hash 一致。
+
+未关闭项：当前环境未配置真实 SEC 联系身份，因此没有运行 live SEC smoke；bulk snapshot bytes、`bulk_published_at`/`coverage_through`、post-watermark 增量补齐、分支/main CI、D5 浏览器 DoD 和项目所有者最终复核均未完成。D6-01 因此只能是 `implemented_pending_verification`，D6-06 只能是 `thin_slice`。
 
 ### 步骤 2：Point-in-Time filing 选择
 

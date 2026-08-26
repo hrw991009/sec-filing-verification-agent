@@ -85,6 +85,13 @@ from industry_platform.modules.data_explorer.resources import (
     create_data_explorer_resources,
 )
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
+from industry_platform.modules.disclosures.domain import (
+    SecDisclosurePersistenceError,
+    SecSourceError,
+    SecSourceErrorCode,
+)
+from industry_platform.modules.disclosures.resources import create_disclosure_resources
+from industry_platform.modules.disclosures.router import router as disclosure_router
 from industry_platform.modules.evidence.domain import (
     ClaimNotFoundError,
     EvidenceConflictError,
@@ -286,6 +293,12 @@ def create_app(
                 active_settings,
                 database_session_factory,
             )
+            disclosure_resources = create_disclosure_resources(
+                active_settings,
+                database_session_factory,
+                external_http_client,
+                redis_client,
+            )
 
             application.state.resources = ApplicationResources(
                 settings=active_settings,
@@ -305,6 +318,7 @@ def create_app(
             application.state.job_resources = job_resources
             application.state.industry_resources = industry_resources
             application.state.data_explorer_resources = data_explorer_resources
+            application.state.disclosure_resources = disclosure_resources
 
             yield
         finally:
@@ -353,6 +367,7 @@ def create_app(
     application.include_router(knowledge_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
     application.include_router(data_explorer_router, prefix="/api/v1")
+    application.include_router(disclosure_router, prefix="/api/v1")
     application.include_router(evidence_router, prefix="/api/v1")
     application.include_router(research_router, prefix="/api/v1")
 
@@ -616,6 +631,51 @@ def create_app(
             code="DATA_EXPLORER_REQUEST_REJECTED",
             detail=f"The database request was rejected ({error.code}).",
             problem_type="urn:iip:problem:data-explorer-request-rejected",
+        )
+
+    @application.exception_handler(SecDisclosurePersistenceError)
+    async def handle_disclosure_persistence_unavailable(
+        request: Request,
+        error: SecDisclosurePersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "SEC disclosure persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="SEC filer catalog unavailable",
+            code="SEC_CATALOG_UNAVAILABLE",
+            detail="SEC filer discovery is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:sec-catalog-unavailable",
+        )
+
+    @application.exception_handler(SecSourceError)
+    async def handle_sec_source_error(
+        request: Request,
+        error: SecSourceError,
+    ) -> JSONResponse:
+        rejected_response_codes = {
+            SecSourceErrorCode.REDIRECT_REJECTED,
+            SecSourceErrorCode.CONTENT_TYPE_INVALID,
+            SecSourceErrorCode.RESPONSE_TOO_LARGE,
+            SecSourceErrorCode.RESPONSE_INVALID,
+        }
+        status_code = (
+            status.HTTP_502_BAD_GATEWAY
+            if error.code in rejected_response_codes
+            else status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status_code,
+            title="SEC source unavailable",
+            code=error.code.value.upper(),
+            detail="The official SEC source could not be used safely. Please try again later.",
+            problem_type=f"urn:iip:problem:{error.code.value.replace('_', '-')}",
         )
 
     @application.exception_handler(ScheduleDefinitionConflictError)

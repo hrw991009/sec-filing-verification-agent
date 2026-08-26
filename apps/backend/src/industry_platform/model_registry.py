@@ -25,6 +25,11 @@ from industry_platform.modules.data_explorer.models import (
     SampleCompanyMetricRecord,
     SchemaSnapshotRecord,
 )
+from industry_platform.modules.disclosures.models import (
+    SecCatalogSyncRecord,
+    SecFilerAliasRecord,
+    SecFilerRecord,
+)
 from industry_platform.modules.evidence.models import (
     ClaimEvidenceRecord,
     EvidenceNormalizationDecisionRecord,
@@ -145,6 +150,9 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     QueryRunRecord,
     QueryResultRecord,
     ChartSpecRecord,
+    SecFilerRecord,
+    SecFilerAliasRecord,
+    SecCatalogSyncRecord,
     ResearchRunRecord,
     ResearchBriefRecord,
     ResearchPlanRecord,

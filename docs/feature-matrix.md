@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-26
 >
-> 权威来源：`docs/master-plan.md` 2.0.4
+> 权威来源：`docs/master-plan.md` 2.0.5
 
 ## 1. 使用规则
 
@@ -199,22 +199,22 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D5-08 | Embedding/index-write、SEC Fixture Dense Tool 与 Calculator | NEW + SEC | 复用同一入库/Runtime 链完成固定 SEC accession fixture、Dense `knowledge_search`、KnowledgeContextSource、`finance.calculate@v1` 和 filing/calculation Evidence lineage | Embedding/index 合同；同一 Runtime 接入 filing fixture；公式/单位/期间/错误语义、F0～F2 对照与 ready fixture 浏览器 Evidence 反查 | `implemented_pending_verification` | `complete` |
 | D5-09 | SEC Fixture Durable Research L4、Checkpoint 与 HITL | R2 + NEW + SEC | 将带 FinancialScope 的 LangGraph state 映射统一 Run/Event/Checkpoint；interrupt/resume、持久审批、取消、幂等计算/Artifact | hard stop、重复 resume/decision、allow/deny/timeout、零重复副作用与 fixture 暂停/审批/resume/刷新浏览器旅程 | `implemented_pending_verification` | `complete` |
 
-2026-08-26 合并事实：Day 5 五步由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，功能 head `cff25c1` 的 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147) 与 PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 均成功；合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 再次通过 7 个适用 Job。D5-01～D5-07 的冻结验收因此关闭为 `complete`。但 Day 5 本地记录明确没有 ready SEC fixture 的 Dense/calculation Evidence 浏览器全链，也没有同一 fixture 暂停/审批/resume/刷新旅程；项目所有者授权进入 Day 6 文档规划不等于放弃该硬门。D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`，在该旅程进入分支/main CI 前不开始 Day 6 代码实现。F0/F1 仍非独立真实模型结果；live SEC、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门不属于 Day 5 范围。
+2026-08-26 合并事实：Day 5 五步由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，功能 head `cff25c1` 的 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147) 与 PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 均成功；合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 再次通过 7 个适用 Job。D5-01～D5-07 的冻结验收因此关闭为 `complete`。但 Day 5 本地记录明确没有 ready SEC fixture 的 Dense/calculation Evidence 浏览器全链，也没有同一 fixture 暂停/审批/resume/刷新旅程；项目所有者随后明确要求开始 Day 6 Step 1，只调整该步骤的开始顺序，不关闭或豁免 D5-08/D5-09。两项与 Day 5 总门禁继续保持 `implemented_pending_verification`。F0/F1 仍非独立真实模型结果；live SEC、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门不属于 Day 5 范围。
 
 ## 8. Day 6：SEC 官方披露数据与 Point-in-Time
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
-| D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `planned` | `complete` |
+| D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `implemented_pending_verification` | `complete` |
 | D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `planned` | `complete` |
 | D6-03 | 不可变原始 Filing 快照 | SEC + R1 | canonical identity/current projection、append-only source version 与 Workspace import 分层；官方 HTML/iXBRL/XML/response/必要附件、URL、source-version visibility、retrieved_at、hash、MinIO ref | correction/deletion、重复同步、引用/删除、内容变化异常、损坏/partial 与授权测试 | `planned` | `complete` |
 | D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/instant-duration/accession；聚合 response 与 raw iXBRL/instance XML 来源分离，context/dimensions/decimals/scale 按 source capability 可空 | standard/custom tag、aggregate/raw locator、单位/期间/context、provenance 与 locator 测试 | `planned` | `complete` |
-| D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `planned` | `complete` |
-| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `planned` | `complete` |
+| D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `thin_slice` | `complete` |
+| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `thin_slice` | `complete` |
 | D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `planned` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `planned` | `complete` |
 
-2026-08-26 规划映射：Day 6 只按五个纵向步骤执行，依次为“官方 Adapter 与 CIK 解析”（D6-01/D6-06）、“Point-in-Time filing 选择”（D6-02/D6-05）、“不可变快照、Dense read 与 Workbench”（D6-03/D6-05/D6-07）、“XBRL context/fact 与 typed read”（D6-04/D6-05）和“五 Tool + `sec-source-v1` 收口”（D6-05/D6-08）。当前仅完成文档规划，D6-01～D6-08 均保持 `planned`；BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
+2026-08-26 实施映射：Day 6 继续只按五个纵向步骤执行。Step 1 当前工作树已交付 `disclosures` 身份目录、Frozen/Live Adapter、canonical filer/alias migration、解析 API 与 `sec.resolve_filer@v1`，并通过 Frozen、本地全量、真实 PostgreSQL/Redis 和 OpenAPI 确定性门禁；D6-01 为 `implemented_pending_verification`。D6-05 只有 1/5 Tool，D6-06 也只完成 Fair Access client 与 99/100 选路合同，bulk snapshot/watermark、live SEC、分支/main CI 和所有者复核均未完成，因此两项为 `thin_slice`。D6-02～D6-04、D6-07～D6-08 仍为 `planned`；D5-08/D5-09 浏览器 DoD 不因 Step 1 开始而关闭。BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 
