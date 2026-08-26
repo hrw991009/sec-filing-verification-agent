@@ -106,6 +106,8 @@ from industry_platform.modules.research.domain import (
     RESEARCH_HARNESS_VERSION,
     RESEARCH_NODE_ORDER,
     RESEARCH_RUNTIME_VERSION,
+    ResearchApprovalReason,
+    ResearchApprovalStatus,
     ResearchBrief,
     ResearchBriefInput,
     ResearchDraft,
@@ -114,6 +116,7 @@ from industry_platform.modules.research.domain import (
     ResearchPlan,
 )
 from industry_platform.modules.research.durability import (
+    ResearchApprovalRequest,
     ResearchDurabilityRepository,
     ResearchDurabilityService,
     ResumeTokenCodec,
@@ -230,6 +233,7 @@ class RecordingCheckpointStore:
 class RecordingDurabilityRepository:
     effects: set[tuple[str, str]] = field(default_factory=set)
     duplicate_attempt_count: int = 0
+    approvals: list[ResearchApprovalRequest] = field(default_factory=list)
 
     async def record_completed_effects(
         self,
@@ -247,6 +251,33 @@ class RecordingDurabilityRepository:
             if key in self.effects:
                 self.duplicate_attempt_count += 1
             self.effects.add(key)
+
+    async def create_approval(
+        self,
+        scope: WorkspaceScope,
+        *,
+        checkpoint: CheckpointEnvelope,
+        reason: ResearchApprovalReason,
+        approval_request_id: UUID,
+        resume_token_hash: bytes,
+        requested_at: datetime,
+        expires_at: datetime,
+    ) -> ResearchApprovalRequest:
+        assert scope.workspace_id == WORKSPACE_ID
+        assert resume_token_hash
+        request = ResearchApprovalRequest(
+            approval_request_id=approval_request_id,
+            run_id=checkpoint.run_id,
+            checkpoint_id=checkpoint.checkpoint_id,
+            checkpoint_revision=checkpoint.revision,
+            reason=reason,
+            status=ResearchApprovalStatus.PENDING,
+            requested_by_user_id=scope.user_id,
+            created_at=requested_at,
+            expires_at=expires_at,
+        )
+        self.approvals.append(request)
+        return request
 
 
 class NeverCancelled:
@@ -1087,6 +1118,67 @@ async def test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime(
         filing_evidence_id,
         SEC_CALCULATION_EVIDENCE_ID,
     )
+
+
+@pytest.mark.asyncio
+async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint() -> None:
+    budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    command = sec_research_command(budget)
+    command = replace(
+        command,
+        brief=replace(
+            command.brief,
+            input=replace(
+                command.brief.input,
+                approval_reason=ResearchApprovalReason.COMPANY_OR_PERIOD_AMBIGUITY,
+            ),
+        ),
+    )
+    checkpoints = RecordingCheckpointStore()
+    durability_repository = RecordingDurabilityRepository()
+    durability = ResearchDurabilityService(
+        repository=cast(ResearchDurabilityRepository, durability_repository),
+        token_codec=ResumeTokenCodec(b"r" * 32),
+        clock=IncrementingClock(),
+    )
+    committer = RecordingCommitter()
+    runtime, knowledge, calculator = build_sec_runtime(
+        QueueModelProvider(()),
+        RecordingWorkflowStore(),
+        SecEvidenceService(),
+        committer=committer,
+        checkpoint_store=checkpoints,
+        durability_service=durability,
+    )
+
+    events = [
+        event
+        async for event in runtime.run(
+            command,
+            sec_runtime_context(budget),
+        )
+    ]
+
+    assert events[-1].event_type is AgentEventType.RUN_PAUSED
+    assert checkpoints.checkpoints[-1].payload["node"] == ResearchNode.PLAN.value
+    assert checkpoints.checkpoints[-1].payload["next_node"] == ResearchNode.RESEARCH_LOOP.value
+    assert len(durability_repository.approvals) == 1
+    approval = durability_repository.approvals[0]
+    assert approval.checkpoint_revision == checkpoints.checkpoints[-1].revision
+    assert approval.reason is ResearchApprovalReason.COMPANY_OR_PERIOD_AMBIGUITY
+    assert approval.status is ResearchApprovalStatus.PENDING
+    assert knowledge.queries == []
+    assert calculator.values == []
+    assert [event.event_type for event in committer.events[-2:]] == [
+        AgentEventType.APPROVAL_REQUESTED,
+        AgentEventType.RUN_PAUSED,
+    ]
 
 
 @pytest.mark.asyncio
