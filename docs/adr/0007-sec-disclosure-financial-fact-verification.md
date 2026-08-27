@@ -10,11 +10,11 @@
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-08-27 修订同步基线：`docs/master-plan.md` v2.0.9
+> 2026-08-27 修订同步基线：`docs/master-plan.md` v2.1.0
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-27，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树实现严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验和 24-case `sec-source-v1`。确定性报告 contract 18/18、closeout 4/6；bulk watermark/post-gap、live SEC、分支/main CI 与所有者收口仍缺失。这些实现不构成 Day 5 DoD 豁免，也不改变本 ADR 的产品决策。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-27，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，功能 head、PR 与合并提交 CI 均成功；严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验和 24-case `sec-source-v1` 已进入主分支。确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺；因此分支结束不等于 D6-01～D6-08 全部完成。Day 7 已先冻结五步文档基线，代码入口继续受两条 closeout case 阻塞。这些实现不构成 Day 5 DoD 豁免，也不改变本 ADR 的产品决策。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 
@@ -128,7 +128,7 @@ source result
 
 前七个是只读 Tool；`monitor.subscribe@v1` 是写 Tool，必须持久审批。Tool capability、WorkspaceScope、`as_of`、allowed forms、Budget、SEC client policy 和审批结果来自可信 Runtime Context，模型不能提交或扩大这些字段。
 
-交付按日分层：Day 6 只验收前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Day 5 fixture 实现保留，正式 SEC 计算/核对与 `sec.diff_filings@v1` 在 Day 7 验收，`monitor.subscribe@v1` 在 Day 8 验收。`sec.search_filing@v1` 输出必须携带 `retrieval_profile_version`：Day 6 仅为 `dense-v1`，Day 7 才能声明 `hybrid-v1`；不能用同一 Tool 名静默把 Dense 结果描述为 Hybrid。
+交付按日分层：Day 6 只验收前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Day 5 fixture 实现保留，正式 SEC 计算/核对与 `sec.diff_filings@v1` 在 Day 7 验收，`monitor.subscribe@v1` 在 Day 8 验收。`sec.search_filing@v1` 输出必须携带 `retrieval_profile_version`：Day 6 仅为 `dense-v1`，Day 7 才能声明 `hybrid-v1`；不能用同一 Tool 名静默把 Dense 结果描述为 Hybrid。Day 7 的五步顺序和具体合同见 [Day 7 执行计划](../learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](../sec-retrieval-design.md)。
 
 `finance.calculate@v1` 只允许受控 Decimal operator、unit/scale、rounding policy 和 Evidence refs。它不能执行 Python、JavaScript、Shell、SQL 或任意表达式。
 

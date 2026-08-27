@@ -2,13 +2,13 @@
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.9 Day 6
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.0 Day 6
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：Step 1～4 已在当前分支基线中实现；Step 5 当前工作树已实现严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验和 24-case `sec-source-v1` manifest/scorer/report。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 bulk published/coverage watermark 与 post-watermark gap 保持 `thin_slice`。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 未通过；live SEC、分支/main CI 和项目所有者收口仍缺失。
+> 当前状态：Day 6 已由 PR #10 合入 `main`，功能 head、PR 和合并提交 CI 均通过，项目所有者已要求核对 Day 6 并准备 Day 7 文档。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 保持 `implemented_pending_verification`；D6-02/D6-06 因 bulk published/coverage watermark 与 post-watermark gap 保持 `thin_slice`。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 仍未通过；分支结束不等于冻结范围全部完成。
 
 ## 1. 进入条件与今日边界
 
@@ -184,9 +184,15 @@ Point-in-time 必须区分：
 - 当前确定性结果：contract `18/18`、closeout `4/6`、总计 `22/24`；Tool surface `15/15`、import presence `24/24`，future/scope/Workspace leakage、duplicate commit 与 dependency-as-no-result 均为 0。source locator 为 `20/22`、snapshot presence 为 `22/24`、bulk readiness 为 `0/2`，失败均来自 `submissions-bulk-watermark` 与 `companyfacts-bulk-watermark`。
 - 当前直接证据：profile/materializer/Adapter composition、manifest/scorer/report 10 条测试通过；`disclosures` 模块及真实 PostgreSQL/MinIO/Milvus/Elasticsearch 关联证据 70 条通过。强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量测试为 `1112 passed`，总分支覆盖率 `80.83%`、核心合集 `86%`，mypy 检查 `466 source files` 通过；Web Prettier/ESLint/typecheck、Vitest `85 passed`、critical state coverage 100%、production build 与 Playwright `8 passed` 均通过。上述均为当前工作树本地证据，不替代分支/main CI。
 
-未关闭项：`submissions.zip`/`companyfacts.zip` 不可变 bytes、`bulk_published_at`/`coverage_through` 与 post-watermark 官方增量补齐尚未实现，因此两条黄金 closeout case 记录 `capability_missing`，Day 6 release gate 必须失败。当前环境也没有合法 SEC 联系身份，未运行 live SEC smoke；分支/main CI、所有者复核及 D5-08/D5-09 浏览器 DoD 仍未完成。D6-05/D6-08 只能是 `implemented_pending_verification`，D6-02/D6-06 保持 `thin_slice`，D6-01～D6-08 不能统一标为 `complete`。
+未关闭项：`submissions.zip`/`companyfacts.zip` 不可变 bytes、`bulk_published_at`/`coverage_through` 与 post-watermark 官方增量补齐尚未实现，因此两条黄金 closeout case 记录 `capability_missing`，Day 6 release gate 必须失败。当前环境也没有合法 SEC 联系身份，未运行 live SEC smoke；D5-08/D5-09 浏览器 DoD 仍未完成。D6-05/D6-08 只能是 `implemented_pending_verification`，D6-02/D6-06 保持 `thin_slice`，D6-01～D6-08 不能统一标为 `complete`。
 
-完成 migration 往返、OpenAPI、Python/Web/浏览器、真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch、依赖与 Secret 扫描、分支 CI、`main` CI、DoD 和项目所有者复核后，D6-01～D6-08 才能统一改为 `complete`。
+#### 远端合并复核（2026-08-27）
+
+- [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 已合入 `main`；功能 head [`7a4766b`](https://github.com/hrw991009/industry-intelligence-platform/commit/7a4766b6d4c4ad764b9e095b2d0f03d8ec96c143)，合并提交 [`84a7945`](https://github.com/hrw991009/industry-intelligence-platform/commit/84a7945ed769d63974602b5c20984e2f4ebf0e93)。
+- push CI [`33053621106`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053621106)、PR CI [`33053623731`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053623731) 和 main CI [`33054136204`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33054136204) 均通过 7 个适用 Job。
+- 本地 `main` 与 `origin/main` 一致且工作树干净；项目所有者已明确要求核对 Day 6 并先编写 Day 7 文档。这些证据关闭提交、合并、CI 和本轮复核条件，但不会把两个缺失能力改写成成功。
+
+完成两条 bulk snapshot/watermark/post-gap 能力、把 `sec-source-v1` closeout 提升到 `6/6`、总计 `24/24`，并补齐合法 live SEC smoke 与适用 DoD 后，D6-01～D6-08 才能统一改为 `complete`。Day 7 文档可先冻结，代码入口按主计划继续受该门禁约束。
 
 ## 4. 明确不进入 Day 6
 

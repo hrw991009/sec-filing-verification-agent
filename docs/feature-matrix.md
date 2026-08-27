@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-27
 >
-> 权威来源：`docs/master-plan.md` 2.0.9
+> 权威来源：`docs/master-plan.md` 2.1.0
 
 ## 1. 使用规则
 
@@ -214,7 +214,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `implemented_pending_verification` | `complete` |
 
-2026-08-27 实施映射：Day 6 继续只按五个纵向步骤执行。Step 1～4 已在当前分支基线中交付；Step 5 当前工作树新增严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验，以及 24-case `sec-source-v1` manifest/scorer/report。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Tool surface `15/15`，future/scope/Workspace/duplicate/dependency 误分类均为 0；两条 bulk watermark case 保持 `capability_missing`，没有从分母删除。D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。live SEC、分支/main CI、所有者复核和 D5-08/D5-09 浏览器 DoD 均未完成。BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
+2026-08-27 收口映射：Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head `7a4766b` 的 push/PR CI `33053621106`、`33053623731` 和合并提交 `84a7945` 的 main CI `33054136204` 均通过 7 个适用 Job，项目所有者已要求核对 Day 6 并准备 Day 7 文档。提交、合并和 CI 条件已关闭，但确定性报告仍为 contract `18/18`、closeout `4/6`、总计 `22/24`，两条 bulk watermark case 保持 `capability_missing` 且没有从分母删除；当前也没有合法 SEC 联系身份对应的 live smoke。因此 D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 继续为 `implemented_pending_verification`，D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。Day 6 分支结束不等于 D6-01～D6-08 全部 `complete`。详见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 
@@ -228,6 +228,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D7-06 | Filing/amendment diff | SEC + NEW | 同公司可比期间、base/amendment、相邻 filing 的 fact/section diff | 不可比拒绝、Evidence 双向定位和幂等测试 | `planned` | `complete` |
 | D7-07 | 中文 SEC L4 Agent profile | NEW | scope→resolve→select→decompose→structured+narrative→calculate→reconcile→draft | 同一 Runtime/Checkpoint、中文/英文事实链一致与停止语义 | `planned` | `complete` |
 | D7-08 | `sec-tool-v1` 与 A0/A1/A2 | BENCH + NEW | oracle、纯 Hybrid RAG、RAG+SEC/XBRL+calculator；简单/计算/修订/无答案 | 分层质量、简单题退化≤2pp、成本/延迟和回退决定 | `planned` | `complete` |
+
+2026-08-27 计划映射：Day 7 文档已冻结为五个纵向步骤：1）Hybrid Retrieval + SEC locator（D7-01/D7-02）；2）Financial Context Compiler（D7-03）；3）typed calculator + reconciliation（D7-04/D7-05）；4）filing diff + 中文 SEC L4 profile + Workbench（D7-06/D7-07）；5）`sec-tool-v1` + A0/A1/A2 + 收口（D7-08）。D7-01～D7-08 均保持 `planned`，尚无代码实现；按主计划门禁，Day 7 代码入口受 Day 6 两条 bulk closeout case 阻塞。详见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与计算设计](sec-retrieval-design.md)。
 
 ## 10. Day 8：Verified Agent L5、Monitor 与 HITL
 

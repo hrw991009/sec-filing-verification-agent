@@ -2,13 +2,15 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.1.0`
+> 版本：`1.2.0`
 >
 > 日期：2026-08-26
 >
-> 权威范围：`docs/master-plan.md` v2.0.4 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.1.0 Day 5 Step 4～Day 10
 >
-> 状态：后续实现基线；本文定义计划和门禁，不代表任何 SEC benchmark 已接入或通过
+> 状态：Day 6 `sec-source-v1` 已实现并由 PR #10 合入 `main`，当前报告 22/24；Day 7 `sec-tool-v1` 与 A0/A1/A2 仍为计划合同，不代表任何公开 SEC benchmark 已接入或通过
+
+Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
 ## 1. 目标与不能证明的能力
 

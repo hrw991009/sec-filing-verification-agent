@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -16,6 +17,7 @@ KNOWLEDGE_SEARCH_SCHEMA_VERSION: Final = 1
 KNOWLEDGE_SEARCH_TOOL_VERSION: Final = "v1"
 KNOWLEDGE_SEARCH_TOP_K: Final = 5
 KNOWLEDGE_EVIDENCE_NAMESPACE: Final = UUID("da98a83d-d350-471d-89ab-f83224fa01e5")
+HYBRID_RRF_K: Final = 60
 
 _SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _ACCESSION_PATTERN = re.compile(r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
@@ -30,6 +32,11 @@ class KnowledgeSearchStatus(StrEnum):
     PERMISSION_DENIED = "permission_denied"
     AMBIGUOUS_FILER = "ambiguous_filer"
     PERIOD_MISMATCH = "period_mismatch"
+
+
+class RetrievalChannel(StrEnum):
+    DENSE = "dense"
+    LEXICAL = "lexical"
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,16 +103,118 @@ class SecFilingFixture:
 
 
 @dataclass(frozen=True, slots=True)
-class DenseCandidate:
+class RetrievalCandidate:
     chunk_id: UUID
     document_version_id: UUID
     score: float
 
     def __post_init__(self) -> None:
         if self.chunk_id.int == 0 or self.document_version_id.int == 0:
-            raise ValueError("Dense candidate identity is invalid")
-        if not 0 <= self.score <= 1:
-            raise ValueError("Dense candidate score is invalid")
+            raise ValueError("Retrieval candidate identity is invalid")
+        if not math.isfinite(self.score) or not 0 <= self.score <= 1:
+            raise ValueError("Retrieval candidate score is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class DenseCandidate(RetrievalCandidate):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class LexicalCandidate:
+    chunk_id: UUID
+    document_version_id: UUID
+    score: float
+
+    def __post_init__(self) -> None:
+        if self.chunk_id.int == 0 or self.document_version_id.int == 0:
+            raise ValueError("Lexical candidate identity is invalid")
+        if not math.isfinite(self.score) or self.score < 0:
+            raise ValueError("Lexical candidate score is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class HybridCandidate(RetrievalCandidate):
+    dense_rank: int | None
+    lexical_rank: int | None
+    channels: tuple[RetrievalChannel, ...]
+
+    def __post_init__(self) -> None:
+        super(HybridCandidate, self).__post_init__()
+        channels = tuple(self.channels)
+        if (
+            not channels
+            or len(channels) != len(set(channels))
+            or (self.dense_rank is None) != (RetrievalChannel.DENSE not in channels)
+            or (self.lexical_rank is None) != (RetrievalChannel.LEXICAL not in channels)
+        ):
+            raise ValueError("Hybrid candidate channels are invalid")
+        for rank in (self.dense_rank, self.lexical_rank):
+            if rank is not None and (isinstance(rank, bool) or rank < 1):
+                raise ValueError("Hybrid candidate rank is invalid")
+        object.__setattr__(self, "channels", channels)
+
+
+def reciprocal_rank_fusion(
+    dense: tuple[DenseCandidate, ...],
+    lexical: tuple[LexicalCandidate, ...],
+    *,
+    limit: int,
+    rrf_k: int = HYBRID_RRF_K,
+) -> tuple[HybridCandidate, ...]:
+    """Fuse two already-ranked channels without mixing incomparable raw scores."""
+
+    if not 1 <= limit <= 100 or not 1 <= rrf_k <= 10_000:
+        raise ValueError("Hybrid retrieval configuration is invalid")
+    dense_ranks = _unique_candidate_ranks(dense)
+    lexical_ranks = _unique_candidate_ranks(lexical)
+    keys = set(dense_ranks) | set(lexical_ranks)
+    maximum_score = 2 / (rrf_k + 1)
+    fused: list[HybridCandidate] = []
+    for chunk_id, document_version_id in keys:
+        dense_rank = dense_ranks.get((chunk_id, document_version_id))
+        lexical_rank = lexical_ranks.get((chunk_id, document_version_id))
+        raw_score = sum(
+            1 / (rrf_k + rank)
+            for rank in (dense_rank, lexical_rank)
+            if rank is not None
+        )
+        channels = tuple(
+            channel
+            for channel, rank in (
+                (RetrievalChannel.DENSE, dense_rank),
+                (RetrievalChannel.LEXICAL, lexical_rank),
+            )
+            if rank is not None
+        )
+        fused.append(
+            HybridCandidate(
+                chunk_id=chunk_id,
+                document_version_id=document_version_id,
+                score=raw_score / maximum_score,
+                dense_rank=dense_rank,
+                lexical_rank=lexical_rank,
+                channels=channels,
+            )
+        )
+    fused.sort(
+        key=lambda item: (
+            -item.score,
+            item.dense_rank or 2**31,
+            item.lexical_rank or 2**31,
+            str(item.chunk_id),
+        )
+    )
+    return tuple(fused[:limit])
+
+
+def _unique_candidate_ranks(
+    candidates: tuple[RetrievalCandidate | LexicalCandidate, ...],
+) -> dict[tuple[UUID, UUID], int]:
+    ranks: dict[tuple[UUID, UUID], int] = {}
+    for rank, candidate in enumerate(candidates, start=1):
+        ranks.setdefault((candidate.chunk_id, candidate.document_version_id), rank)
+    return ranks
 
 
 @dataclass(frozen=True, slots=True)
