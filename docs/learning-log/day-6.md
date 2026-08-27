@@ -2,13 +2,13 @@
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.6 Day 6
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.7 Day 6
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：Step 1 已在当前分支提交中实现；Step 2 当前工作树已实现 current + supplemental point-in-time 核心链并通过完整本地统一门禁。D6-01 为 `implemented_pending_verification`；D6-02、D6-05、D6-06 为 `thin_slice`，其中五个 SEC Tool 已有 2/5，但 bulk published/coverage watermark、post-watermark gap 与 live SEC 仍缺失。Step 3～5 仍为 `planned`；尚无分支/main CI 或项目所有者收口证据。
+> 当前状态：Step 1 已在当前分支提交中实现；Step 2～3 当前工作树已实现 point-in-time filing 选择、不可变 filing archive、Workspace Knowledge import、Dense read 与文本 Workbench，并通过完整本地统一门禁。D6-01、D6-03 为 `implemented_pending_verification`；D6-02、D6-05、D6-06、D6-07 为 `thin_slice`，其中五个 SEC Tool 已有 4/5。Step 4～5 仍为 `planned`；bulk published/coverage watermark、post-watermark gap、XBRL typed facts、`sec-source-v1`、live SEC、分支/main CI 和项目所有者收口仍缺失。
 
 ## 1. 进入条件与今日边界
 
@@ -16,7 +16,7 @@ Day 5 已完成合并验证：[PR #9](https://github.com/hrw991009/industry-inte
 
 Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 先授权 Day 6 文档规划，随后明确要求开始 Day 6 Step 1；按主计划的“用户最新明确指令优先”执行 Step 1 代码。该指令只调整 Step 1 的开始顺序，不构成 D5-08/D5-09 豁免，两项及 Day 5 总门禁继续保持 `implemented_pending_verification`。
 
-本轮只实现 Day 6 Step 2：filing/accession point-in-time 选择、submissions response snapshot 与 `sec.list_filings@v1`。不进入 accession-bound 原始 HTML/iXBRL/XML、Workspace import/Dense Workbench、XBRL fact 或 `sec-source-v1`。D6-03～D6-04、D6-07～D6-08 继续保持 `planned`；D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地，不能用 current + supplemental API 覆盖冒充完整 bulk 能力。
+本轮只实现 Day 6 Step 3：锁定 accession 的 complete submission、primary HTML/iXBRL 和显式 `EX-101.*` XBRL 附件快照，Workspace Knowledge import、`dense-v1` 检索/section read 与文本 Workbench。不进入 XBRL context/fact 规范化、`sec.get_xbrl_facts@v1` 或 `sec-source-v1`。D6-04/D6-08 继续保持 `planned`；D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地，不能用 current + supplemental API 覆盖冒充完整 bulk 能力。
 
 ### 1.1 官方来源合同复核
 
@@ -62,7 +62,7 @@ Point-in-time 必须区分：
 |---|---|---|---|
 | 1. 官方 Adapter 与 CIK 解析 | D6-01、D6-06 | 公司名/ticker 产生可解释候选，用户锁定明确 CIK；歧义不猜 | 本地已实现，待外部验证 |
 | 2. Point-in-Time filing 选择 | D6-02、D6-05 部分 | 在 `as_of` 与 amendment policy 下锁定正确 form/accession | current + supplemental 核心链本地已实现；bulk coverage 尚缺 |
-| 3. 不可变快照、Dense read 与 Workbench | D6-03、D6-05 部分、D6-07 | 锁定 filing 可入库、检索、读取并沿来源链反查 | `planned` |
+| 3. 不可变快照、Dense read 与 Workbench | D6-03、D6-05 部分、D6-07 | 锁定 filing 可入库、检索、读取并沿来源链反查 | 当前工作树本地已实现，待外部验证；XBRL fact 面板尚缺 |
 | 4. XBRL context/fact 与 typed read | D6-04、D6-05 部分 | 结构化事实保留 unit/period/context/source 并可定位 | `planned` |
 | 5. 五 Tool 同 Runtime 与 `sec-source-v1` 收口 | D6-05、D6-08 | 数据、时点、权限、故障和 live/replay 链路可系统评测 | `planned` |
 
@@ -125,6 +125,17 @@ Point-in-time 必须区分：
 - Workbench 沿 CIK → accession → document/snapshot → DocumentVersion/Chunk/section 导航；浏览器不直连 SEC。
 
 验收证据：同 accession/document/hash 幂等；相同来源身份字节变化进入 anomaly/quarantine，不覆盖旧快照。损坏、partial、Worker hard stop 不进入 ready；重复 filing/snapshot/chunk/index 为 0；未锁 accession、hash 不匹配和跨 Workspace 均拒绝。真实 PostgreSQL/MinIO/Milvus/Elasticsearch 集成和浏览器旅程通过。
+
+#### Step 3 实施记录（2026-08-26）
+
+- 新增 accession-bound archive Adapter：先读取 SEC complete submission，再只解析并跟随 primary document 与 `EX-101.INS/SCH/CAL/DEF/LAB/PRE`；文件名/官方 URL、重复/多 instance、类型、跳转、单文件大小、附件数和 archive 总字节均 fail closed。总字节限制按剩余预算逐文件执行，不会先下载完整附件集合再校验。
+- PostgreSQL 新增 canonical `sec_filing_documents`、append-only `sec_source_snapshots` 与 `workspace_sec_imports`；MinIO 保存内容寻址私有字节并在提交前回读校验 hash。相同 document/source/hash 幂等，相同来源身份出现新字节进入 quarantine，禁止推进 import 或覆盖旧快照。
+- Workspace import 通过既有 File/Knowledge Application Service 创建 FileObject、DocumentVersion、Job 与 Outbox，再由正式 Worker 写 Chunk、Milvus 和 Elasticsearch；SEC 模块不直接写 ready、Chunk 或索引。重复 import 复用同一业务身份，删除继续走既有 Knowledge 派生数据清理链。
+- 新增 `sec.search_filing@v1` 与 `sec.read_filing_section@v1`、严格 DTO 和认证 API。内容读取先检查 Workspace import、ready DocumentVersion、锁定 accession 与 cutoff，再以 Milvus 取 `dense-v1` 候选并回 PostgreSQL 重载 Chunk、双索引记录和 snapshot/import lineage；section read 只按已授权精确 Chunk locator 返回。
+- Workbench 增加 CIK/form/report period/`as_of` → accession → Knowledge import/polling → Dense search → exact section 的真实应用旅程，浏览器不直连 SEC。API/Worker 的生产 Tool surface 已加入四个现有 SEC Tool，但 Step 5 的专用五 Tool Harness profile 与正式评测尚未完成。
+- 当前直接证据：archive/服务/Tool/API 模块测试、真实 PostgreSQL migration 往返、MinIO snapshot，以及 Frozen archive → Knowledge Job/Outbox → Worker → Milvus/Elasticsearch → PostgreSQL reload → section read/越权/cutoff/quarantine/delete 的完整依赖集成均通过。完整门禁为 Python `1093 passed`、mypy `456 source files`、wheel/sdist build，Web Prettier/ESLint/typecheck、Vitest `84 passed`、critical state coverage 100%、production build与 Playwright `8 passed`；OpenAPI/TypeScript contract 连续生成一致。
+
+未关闭项：当前环境未配置合法 SEC 联系身份，因此没有 live SEC 请求；浏览器 SEC 响应采用确定性 replay，真实依赖链由独立后端集成覆盖，二者不能合写为 live 浏览器成功。XBRL instance/附件已不可变归档，但 context/fact 解析、`sec.get_xbrl_facts@v1` 和 fact panel 属于 Step 4；`sec-source-v1`、bulk watermark/post-gap、分支/main CI、所有者复核及 D5-08/D5-09 浏览器 DoD 仍未完成。因此 D6-03 为 `implemented_pending_verification`，D6-05 与 D6-07 分别以 4/5 Tool 和缺 XBRL fact panel 保持 `thin_slice`。
 
 ### 步骤 4：XBRL context/fact 与 typed read
 

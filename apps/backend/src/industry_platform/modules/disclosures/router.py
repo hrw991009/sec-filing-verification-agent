@@ -3,9 +3,13 @@
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 
-from industry_platform.core.http import problem_openapi_response, set_no_store_headers
+from industry_platform.core.http import (
+    get_trace_id,
+    problem_openapi_response,
+    set_no_store_headers,
+)
 from industry_platform.modules.disclosures.resources import (
     DisclosureResources,
     get_disclosure_resources,
@@ -13,9 +17,16 @@ from industry_platform.modules.disclosures.resources import (
 from industry_platform.modules.disclosures.schemas import (
     FilingSelectionQuery,
     SecFilerResolutionResponse,
+    SecFilingImportCollectionResponse,
+    SecFilingImportRequest,
+    SecFilingSearchQuery,
+    SecFilingSearchResponse,
+    SecFilingSectionQuery,
+    SecFilingSectionResponse,
     SecFilingSelectionResponse,
+    SecWorkspaceFilingImportResponse,
 )
-from industry_platform.modules.identity.domain import AuthenticatedPrincipal
+from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
@@ -73,6 +84,124 @@ async def list_filings(
     )
     set_no_store_headers(response)
     return SecFilingSelectionResponse.from_domain(result)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/disclosures/filings/{accession}/imports",
+    response_model=SecWorkspaceFilingImportResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=_RESPONSES,
+)
+async def import_filing(
+    workspace_id: UUID,
+    payload: SecFilingImportRequest,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+    accession: Annotated[str, Path(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")],
+) -> SecWorkspaceFilingImportResponse:
+    imported = await resources.filing_import_service.import_filing(
+        _workspace_scope(principal, workspace_id),
+        accession=accession,
+        knowledge_base_id=payload.knowledge_base_id,
+        as_of=payload.as_of,
+        trace_id=TraceId(get_trace_id(request)),
+    )
+    set_no_store_headers(response)
+    return SecWorkspaceFilingImportResponse.from_domain(imported)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/disclosures/filing-imports",
+    response_model=SecFilingImportCollectionResponse,
+    responses=_RESPONSES,
+)
+async def list_filing_imports(
+    workspace_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+) -> SecFilingImportCollectionResponse:
+    imports = await resources.filing_import_service.list_imports(
+        _workspace_scope(principal, workspace_id),
+        limit=limit,
+    )
+    set_no_store_headers(response)
+    return SecFilingImportCollectionResponse(
+        imports=[SecWorkspaceFilingImportResponse.from_domain(item) for item in imports]
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/disclosures/filing-imports/{import_id}",
+    response_model=SecWorkspaceFilingImportResponse,
+    responses=_RESPONSES,
+)
+async def get_filing_import(
+    workspace_id: UUID,
+    import_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+) -> SecWorkspaceFilingImportResponse:
+    imported = await resources.filing_import_service.get_import(
+        _workspace_scope(principal, workspace_id),
+        import_id,
+    )
+    set_no_store_headers(response)
+    return SecWorkspaceFilingImportResponse.from_domain(imported)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/disclosures/filings/{accession}/search",
+    response_model=SecFilingSearchResponse,
+    responses=_RESPONSES,
+)
+async def search_filing(
+    workspace_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+    accession: Annotated[str, Path(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")],
+    query: Annotated[SecFilingSearchQuery, Query()],
+) -> SecFilingSearchResponse:
+    result = await resources.filing_content_service.search_imported(
+        _workspace_scope(principal, workspace_id),
+        knowledge_base_ids=(query.knowledge_base_id,),
+        accession=accession,
+        as_of=query.as_of,
+        query=query.query,
+    )
+    set_no_store_headers(response)
+    return SecFilingSearchResponse.from_domain(result)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/disclosures/filings/{accession}/sections/{chunk_id}",
+    response_model=SecFilingSectionResponse,
+    responses=_RESPONSES,
+)
+async def read_filing_section(
+    workspace_id: UUID,
+    chunk_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+    accession: Annotated[str, Path(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")],
+    query: Annotated[SecFilingSectionQuery, Query()],
+) -> SecFilingSectionResponse:
+    section = await resources.filing_content_service.read_imported_section(
+        _workspace_scope(principal, workspace_id),
+        knowledge_base_ids=(query.knowledge_base_id,),
+        accession=accession,
+        as_of=query.as_of,
+        document_version_id=query.document_version_id,
+        chunk_id=chunk_id,
+    )
+    set_no_store_headers(response)
+    return SecFilingSectionResponse.from_domain(section)
 
 
 def _workspace_scope(

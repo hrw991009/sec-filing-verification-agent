@@ -7,7 +7,7 @@ import { roleNames } from "./chat-workbench-model";
 import { Icon } from "./icons";
 
 export type WorkbenchView =
-  "chat" | "data" | "evidence" | "industry" | "knowledge" | "memory" | "research";
+  "chat" | "data" | "evidence" | "industry" | "knowledge" | "memory" | "research" | "sec";
 
 interface ChatTopbarProps {
   readonly currentUser: CurrentUser;
@@ -64,6 +64,7 @@ export function ChatTopbar({
             ["industry", "行业情报"],
             ["data", "数据库"],
             ["knowledge", "知识库"],
+            ["sec", "SEC"],
             ["research", "Research"],
             ["evidence", "Evidence"],
             ["memory", "Memory"],

@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
+import httpx2
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,6 +88,7 @@ from industry_platform.modules.data_explorer.resources import (
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
 from industry_platform.modules.disclosures.domain import (
     SecDisclosurePersistenceError,
+    SecFilingContentError,
     SecSourceError,
     SecSourceErrorCode,
 )
@@ -242,6 +244,7 @@ def create_app(
         redis_client: Redis | None = None
         data_explorer_resources: DataExplorerResources | None = None
         external_http_client = create_public_egress_http_client()
+        internal_http_client = httpx2.AsyncClient(trust_env=False)
 
         try:
             database_session_factory = create_database_session_factory(database_engine)
@@ -298,6 +301,8 @@ def create_app(
                 database_session_factory,
                 external_http_client,
                 redis_client,
+                internal_http_client,
+                knowledge_resources.service,
                 file_resources.object_store,
             )
 
@@ -332,9 +337,12 @@ def create_app(
                         await data_explorer_resources.close()
                 finally:
                     try:
-                        await external_http_client.aclose()
+                        await internal_http_client.aclose()
                     finally:
-                        await database_engine.dispose()
+                        try:
+                            await external_http_client.aclose()
+                        finally:
+                            await database_engine.dispose()
 
     application = FastAPI(
         title="Industry Intelligence Platform API",
@@ -676,6 +684,26 @@ def create_app(
             title="SEC source unavailable",
             code=error.code.value.upper(),
             detail="The official SEC source could not be used safely. Please try again later.",
+            problem_type=f"urn:iip:problem:{error.code.value.replace('_', '-')}",
+        )
+
+    @application.exception_handler(SecFilingContentError)
+    async def handle_sec_filing_content_error(
+        request: Request,
+        error: SecFilingContentError,
+    ) -> JSONResponse:
+        status_code = {
+            SecSourceErrorCode.FILING_NOT_FOUND: status.HTTP_404_NOT_FOUND,
+            SecSourceErrorCode.SNAPSHOT_ANOMALY: status.HTTP_409_CONFLICT,
+            SecSourceErrorCode.IMPORT_NOT_READY: status.HTTP_409_CONFLICT,
+            SecSourceErrorCode.SNAPSHOT_NOT_VISIBLE: status.HTTP_422_UNPROCESSABLE_CONTENT,
+        }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status_code,
+            title="SEC filing content request rejected",
+            code=error.code.value.upper(),
+            detail="The locked filing content request could not be completed.",
             problem_type=f"urn:iip:problem:{error.code.value.replace('_', '-')}",
         )
 

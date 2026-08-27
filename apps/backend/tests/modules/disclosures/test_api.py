@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
@@ -17,6 +18,8 @@ from industry_platform.modules.disclosures.adapters.sec_edgar import (
 from industry_platform.modules.disclosures.domain import (
     SecAmendmentPolicy,
     SecFilerResolution,
+    SecFilingImportStatus,
+    SecWorkspaceFilingImport,
 )
 from industry_platform.modules.disclosures.resources import (
     DisclosureResources,
@@ -69,6 +72,43 @@ class TrackingResolutionService:
 class StubResources:
     resolution_service: object | None = None
     filing_selection_service: object | None = None
+    filing_import_service: object | None = None
+    filing_content_service: object | None = None
+
+
+@dataclass(slots=True)
+class TrackingImportService:
+    calls: list[tuple[WorkspaceScope, str, UUID]] = field(default_factory=list)
+
+    async def import_filing(
+        self,
+        scope: WorkspaceScope,
+        *,
+        accession: str,
+        knowledge_base_id: UUID,
+        as_of: datetime,
+        trace_id: object,
+    ) -> SecWorkspaceFilingImport:
+        assert as_of == datetime(2026, 8, 26, 4, 0, tzinfo=UTC)
+        assert str(trace_id)
+        self.calls.append((scope, accession, knowledge_base_id))
+        now = datetime(2026, 8, 26, 4, 0, tzinfo=UTC)
+        return SecWorkspaceFilingImport(
+            id=UUID("55555555-5555-4555-8555-555555555555"),
+            workspace_id=scope.workspace_id,
+            filing_id=UUID("66666666-6666-4666-8666-666666666666"),
+            accession=accession,
+            knowledge_base_id=knowledge_base_id,
+            primary_snapshot_id=UUID("77777777-7777-4777-8777-777777777777"),
+            complete_submission_snapshot_id=UUID("88888888-8888-4888-8888-888888888888"),
+            file_id=UUID("99999999-9999-4999-8999-999999999999"),
+            document_id=UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            document_version_id=UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            ingestion_job_id=UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+            status=SecFilingImportStatus.QUEUED,
+            created_at=now,
+            updated_at=now,
+        )
 
 
 def principal() -> AuthenticatedPrincipal:
@@ -200,3 +240,45 @@ def test_invalid_filing_scope_is_a_sanitized_validation_failure(test_settings: S
     assert response.status_code == 422
     assert response.json()["code"] == "REQUEST_VALIDATION_FAILED"
     assert "CIK is invalid" not in response.text
+
+
+def test_authenticated_workspace_can_queue_locked_filing_import_and_cross_workspace_cannot(
+    test_settings: Settings,
+) -> None:
+    knowledge_base_id = UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+    accession = "0000320193-23-000106"
+    service = TrackingImportService()
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources,
+        StubResources(filing_import_service=service),
+    )
+    with TestClient(application, base_url="https://localhost") as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings/{accession}/imports",
+            headers=headers(),
+            json={
+                "knowledge_base_id": str(knowledge_base_id),
+                "as_of": "2026-08-26T04:00:00Z",
+            },
+        )
+        denied = client.post(
+            f"/api/v1/workspaces/{OTHER_WORKSPACE_ID}/disclosures/filings/{accession}/imports",
+            headers=headers(),
+            json={
+                "knowledge_base_id": str(knowledge_base_id),
+                "as_of": "2026-08-26T04:00:00Z",
+            },
+        )
+
+    assert response.status_code == 202
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["status"] == "queued"
+    assert service.calls == [
+        (WorkspaceScope(WORKSPACE_ID, USER_ID, "member"), accession, knowledge_base_id)
+    ]
+    assert denied.status_code == 403
+    assert denied.json()["code"] == "WORKSPACE_ACCESS_DENIED"

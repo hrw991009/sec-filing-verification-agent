@@ -6,11 +6,12 @@ import hashlib
 import re
 import unicodedata
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
+from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import require_utc
 
@@ -31,6 +32,12 @@ SEC_VISIBILITY_POLICY_VERSION: Final = "sec-acceptance-source-v1"
 SEC_SUBMISSIONS_CURRENT_SOURCE_KIND: Final = "submissions_current"
 SEC_SUBMISSIONS_SUPPLEMENTAL_SOURCE_KIND: Final = "submissions_supplemental"
 SEC_SUBMISSIONS_URL_PREFIX: Final = "https://data.sec.gov/submissions/"
+SEC_ARCHIVE_URL_PREFIX: Final = "https://www.sec.gov/Archives/edgar/data/"
+SEC_MAX_ARCHIVE_DOCUMENT_BYTES: Final = 50 * 1_024 * 1_024
+SEC_MAX_ARCHIVE_ATTACHMENTS: Final = 12
+SEC_MAX_ARCHIVE_TOTAL_BYTES: Final = 128 * 1_024 * 1_024
+SEC_FILING_CONTENT_ADAPTER_VERSION: Final = "sec-archive-v1"
+SEC_DENSE_RETRIEVAL_PROFILE_VERSION: Final = "dense-v1"
 
 _CIK_PATTERN = re.compile(r"^[0-9]{10}$")
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9.-]{0,19}$")
@@ -96,6 +103,33 @@ class SecAmendmentRelationStatus(StrEnum):
     UNRESOLVED = "unresolved"
 
 
+class SecFilingDocumentKind(StrEnum):
+    COMPLETE_SUBMISSION = "complete_submission"
+    PRIMARY_DOCUMENT = "primary_document"
+    XBRL_INSTANCE = "xbrl_instance"
+    XBRL_ATTACHMENT = "xbrl_attachment"
+
+
+class SecFilingSnapshotStatus(StrEnum):
+    ACTIVE = "active"
+    QUARANTINED = "quarantined"
+
+
+class SecFilingImportStatus(StrEnum):
+    QUEUED = "queued"
+    READY = "ready"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class SecFilingContentStatus(StrEnum):
+    OK = "ok"
+    NOT_READY = "not_ready"
+    NO_RESULT = "no_result"
+    DEPENDENCY_FAILED = "dependency_failed"
+    PERMISSION_DENIED = "permission_denied"
+
+
 class SecSourceErrorCode(StrEnum):
     NOT_CONFIGURED = "sec_source_not_configured"
     RATE_LIMIT_UNAVAILABLE = "sec_rate_limit_unavailable"
@@ -109,6 +143,10 @@ class SecSourceErrorCode(StrEnum):
     RESPONSE_INVALID = "sec_response_invalid"
     COVERAGE_INCOMPLETE = "sec_coverage_incomplete"
     SNAPSHOT_STORE_UNAVAILABLE = "sec_snapshot_store_unavailable"
+    FILING_NOT_FOUND = "sec_filing_not_found"
+    SNAPSHOT_ANOMALY = "sec_snapshot_anomaly"
+    SNAPSHOT_NOT_VISIBLE = "sec_snapshot_not_visible"
+    IMPORT_NOT_READY = "sec_import_not_ready"
 
 
 class SecSourceError(RuntimeError):
@@ -135,6 +173,14 @@ class SecDisclosurePersistenceError(RuntimeError):
     def __init__(self, *, sqlstate: str | None = None) -> None:
         super().__init__("SEC disclosure persistence failed")
         self.sqlstate = sqlstate
+
+
+class SecFilingContentError(RuntimeError):
+    """Stable business failure while synchronizing or reading locked filing content."""
+
+    def __init__(self, code: SecSourceErrorCode) -> None:
+        super().__init__("SEC filing content operation failed")
+        self.code = code
 
 
 @dataclass(frozen=True, slots=True)
@@ -678,6 +724,333 @@ class SecFilingDataset:
         object.__setattr__(self, "sources", sources)
 
 
+@dataclass(frozen=True, slots=True)
+class SecCanonicalFiling:
+    id: UUID
+    cik: str
+    accession: str
+    form: SecFilingForm
+    report_date: date
+    filed_date: date
+    accepted_at: datetime
+    public_available_at: datetime
+    primary_document: str
+    source_available_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.id.int == 0:
+            raise ValueError("SEC canonical filing ID is invalid")
+        SecFilingObservation(
+            cik=self.cik,
+            accession=self.accession,
+            form=self.form,
+            report_date=self.report_date,
+            filed_date=self.filed_date,
+            accepted_at=self.accepted_at,
+            primary_document=self.primary_document,
+        )
+        require_utc(self.public_available_at, field_name="SEC filing public_available_at")
+        require_utc(self.source_available_at, field_name="SEC filing source_available_at")
+        if (
+            self.public_available_at != self.accepted_at
+            or self.source_available_at < self.accepted_at
+        ):
+            raise ValueError("SEC canonical filing visibility is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingDocumentSnapshot:
+    kind: SecFilingDocumentKind
+    cik: str
+    accession: str
+    filename: str
+    source_url: str
+    source_version: str
+    content_type: str
+    content_sha256: str
+    byte_size: int
+    retrieved_at: datetime
+    source_available_at: datetime
+    body: bytes = field(repr=False)
+    adapter_version: str = SEC_FILING_CONTENT_ADAPTER_VERSION
+
+    def __post_init__(self) -> None:
+        if not _CIK_PATTERN.fullmatch(self.cik) or not _ACCESSION_PATTERN.fullmatch(self.accession):
+            raise ValueError("SEC filing document identity is invalid")
+        if _PRIMARY_DOCUMENT_PATTERN.fullmatch(self.filename) is None:
+            raise ValueError("SEC filing document filename is invalid")
+        expected_url = (
+            sec_complete_submission_url(self.cik, self.accession)
+            if self.kind is SecFilingDocumentKind.COMPLETE_SUBMISSION
+            else sec_filing_document_url(self.cik, self.accession, self.filename)
+        )
+        if self.source_url != expected_url:
+            raise ValueError("SEC filing document URL is invalid")
+        if not _SOURCE_VERSION_PATTERN.fullmatch(self.source_version):
+            raise ValueError("SEC filing document version is invalid")
+        if self.content_type not in {
+            "text/plain",
+            "text/html",
+            "application/xhtml+xml",
+            "application/xml",
+            "text/xml",
+        }:
+            raise ValueError("SEC filing document content type is invalid")
+        snapshot = bytes(self.body)
+        if (
+            isinstance(self.byte_size, bool)
+            or self.byte_size != len(snapshot)
+            or not 1 <= self.byte_size <= SEC_MAX_ARCHIVE_DOCUMENT_BYTES
+            or not _SHA256_PATTERN.fullmatch(self.content_sha256)
+            or sha256_hex(snapshot) != self.content_sha256
+        ):
+            raise ValueError("SEC filing document bytes are invalid")
+        require_utc(self.retrieved_at, field_name="SEC filing document retrieved_at")
+        require_utc(self.source_available_at, field_name="SEC filing document available_at")
+        if self.source_available_at > self.retrieved_at or not _SOURCE_VERSION_PATTERN.fullmatch(
+            self.adapter_version
+        ):
+            raise ValueError("SEC filing document provenance is invalid")
+        object.__setattr__(self, "body", snapshot)
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingArchive:
+    filing: SecCanonicalFiling
+    documents: tuple[SecFilingDocumentSnapshot, ...]
+
+    def __post_init__(self) -> None:
+        documents = tuple(self.documents)
+        required = {
+            SecFilingDocumentKind.COMPLETE_SUBMISSION,
+            SecFilingDocumentKind.PRIMARY_DOCUMENT,
+        }
+        identities = {(document.kind, document.filename) for document in documents}
+        attachment_count = sum(
+            document.kind
+            in {SecFilingDocumentKind.XBRL_INSTANCE, SecFilingDocumentKind.XBRL_ATTACHMENT}
+            for document in documents
+        )
+        if (
+            not required.issubset(document.kind for document in documents)
+            or len(identities) != len(documents)
+            or sum(
+                document.kind is SecFilingDocumentKind.COMPLETE_SUBMISSION for document in documents
+            )
+            != 1
+            or sum(
+                document.kind is SecFilingDocumentKind.PRIMARY_DOCUMENT for document in documents
+            )
+            != 1
+            or sum(document.kind is SecFilingDocumentKind.XBRL_INSTANCE for document in documents)
+            > 1
+            or attachment_count > SEC_MAX_ARCHIVE_ATTACHMENTS
+            or sum(document.byte_size for document in documents) > SEC_MAX_ARCHIVE_TOTAL_BYTES
+            or any(
+                document.cik != self.filing.cik
+                or document.accession != self.filing.accession
+                or document.source_available_at < self.filing.accepted_at
+                for document in documents
+            )
+        ):
+            raise ValueError("SEC filing archive is incomplete")
+        object.__setattr__(
+            self,
+            "documents",
+            tuple(sorted(documents, key=lambda item: (item.kind.value, item.filename))),
+        )
+
+    def document(self, kind: SecFilingDocumentKind) -> SecFilingDocumentSnapshot:
+        return next(document for document in self.documents if document.kind is kind)
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingSnapshotReference:
+    document_id: UUID
+    snapshot_id: UUID
+    filing_id: UUID
+    kind: SecFilingDocumentKind
+    filename: str
+    source_url: str
+    source_version: str
+    content_type: str
+    content_sha256: str
+    byte_size: int
+    retrieved_at: datetime
+    source_available_at: datetime
+    status: SecFilingSnapshotStatus
+    object_bucket: str = field(repr=False)
+    object_key: str = field(repr=False)
+    anomaly_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if any(
+            identifier.int == 0
+            for identifier in (self.document_id, self.snapshot_id, self.filing_id)
+        ):
+            raise ValueError("SEC filing snapshot reference identity is invalid")
+        if not _SOURCE_VERSION_PATTERN.fullmatch(
+            self.source_version
+        ) or not _SHA256_PATTERN.fullmatch(self.content_sha256):
+            raise ValueError("SEC filing snapshot reference provenance is invalid")
+        if not self.object_bucket.strip() or not self.object_key.strip():
+            raise ValueError("SEC filing snapshot object reference is invalid")
+        if (self.status is SecFilingSnapshotStatus.QUARANTINED) != (self.anomaly_code is not None):
+            raise ValueError("SEC filing snapshot anomaly state is invalid")
+        require_utc(self.retrieved_at, field_name="SEC filing snapshot retrieved_at")
+        require_utc(self.source_available_at, field_name="SEC filing snapshot available_at")
+
+
+@dataclass(frozen=True, slots=True)
+class SecWorkspaceFilingImport:
+    id: UUID
+    workspace_id: UUID
+    filing_id: UUID
+    accession: str
+    knowledge_base_id: UUID
+    primary_snapshot_id: UUID
+    complete_submission_snapshot_id: UUID
+    file_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    ingestion_job_id: UUID
+    status: SecFilingImportStatus
+    created_at: datetime
+    updated_at: datetime
+    error_code: str | None = None
+
+    def __post_init__(self) -> None:
+        identifiers = (
+            self.id,
+            self.workspace_id,
+            self.filing_id,
+            self.knowledge_base_id,
+            self.primary_snapshot_id,
+            self.complete_submission_snapshot_id,
+            self.file_id,
+            self.document_id,
+            self.document_version_id,
+            self.ingestion_job_id,
+        )
+        if any(
+            identifier.int == 0 for identifier in identifiers
+        ) or not _ACCESSION_PATTERN.fullmatch(self.accession):
+            raise ValueError("SEC Workspace import identity is invalid")
+        require_utc(self.created_at, field_name="SEC Workspace import created_at")
+        require_utc(self.updated_at, field_name="SEC Workspace import updated_at")
+        if (self.status is SecFilingImportStatus.FAILED) != (self.error_code is not None):
+            raise ValueError("SEC Workspace import failure state is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingSearchHit:
+    chunk_id: UUID
+    document_version_id: UUID
+    snapshot_id: UUID
+    accession: str
+    title: str
+    excerpt: str = field(repr=False)
+    score: float
+    section: str
+    page_number: int
+    content_sha256: str
+    source_content_sha256: str
+    source_url: str
+    source_version: str
+
+    def __post_init__(self) -> None:
+        if any(
+            identifier.int == 0
+            for identifier in (self.chunk_id, self.document_version_id, self.snapshot_id)
+        ):
+            raise ValueError("SEC filing search identity is invalid")
+        if not _ACCESSION_PATTERN.fullmatch(self.accession) or not 0 <= self.score <= 1:
+            raise ValueError("SEC filing search hit is invalid")
+        if not self.excerpt.strip() or not self.title.strip() or not self.section.strip():
+            raise ValueError("SEC filing search text is invalid")
+        if (
+            self.page_number < 1
+            or not _SHA256_PATTERN.fullmatch(self.content_sha256)
+            or not _SHA256_PATTERN.fullmatch(self.source_content_sha256)
+        ):
+            raise ValueError("SEC filing search provenance is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingSearchResult:
+    status: SecFilingContentStatus
+    accession: str
+    retrieval_profile_version: str = SEC_DENSE_RETRIEVAL_PROFILE_VERSION
+    hits: tuple[SecFilingSearchHit, ...] = ()
+    error_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if not _ACCESSION_PATTERN.fullmatch(self.accession):
+            raise ValueError("SEC filing search accession is invalid")
+        hits = tuple(self.hits)
+        if (self.status is SecFilingContentStatus.OK) != bool(hits):
+            raise ValueError("SEC filing search status is inconsistent")
+        if len(hits) > 5 or len({hit.chunk_id for hit in hits}) != len(hits):
+            raise ValueError("SEC filing search hits are invalid")
+        if (self.status is SecFilingContentStatus.DEPENDENCY_FAILED) != (
+            self.error_code is not None
+        ):
+            raise ValueError("SEC filing search error state is invalid")
+        object.__setattr__(self, "hits", hits)
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingContentPreparation:
+    status: SecFilingContentStatus
+    accession: str
+    import_record: SecWorkspaceFilingImport | None = None
+
+    def __post_init__(self) -> None:
+        if not _ACCESSION_PATTERN.fullmatch(self.accession):
+            raise ValueError("SEC filing preparation accession is invalid")
+        if (self.status is SecFilingContentStatus.OK) != (self.import_record is not None):
+            raise ValueError("SEC filing preparation status is inconsistent")
+        if self.import_record is not None and self.import_record.accession != self.accession:
+            raise ValueError("SEC filing preparation import is inconsistent")
+
+
+@dataclass(frozen=True, slots=True)
+class SecFilingSection:
+    import_id: UUID
+    snapshot_id: UUID
+    accession: str
+    document_version_id: UUID
+    chunk_id: UUID
+    title: str
+    section: str
+    text: str = field(repr=False)
+    page_number: int
+    content_sha256: str
+    source_content_sha256: str
+    source_url: str
+    source_version: str
+
+    def __post_init__(self) -> None:
+        if any(
+            identifier.int == 0
+            for identifier in (
+                self.import_id,
+                self.snapshot_id,
+                self.document_version_id,
+                self.chunk_id,
+            )
+        ):
+            raise ValueError("SEC filing section identity is invalid")
+        if not _ACCESSION_PATTERN.fullmatch(self.accession) or not self.text.strip():
+            raise ValueError("SEC filing section is invalid")
+        if (
+            self.page_number < 1
+            or not _SHA256_PATTERN.fullmatch(self.content_sha256)
+            or not _SHA256_PATTERN.fullmatch(self.source_content_sha256)
+        ):
+            raise ValueError("SEC filing section provenance is invalid")
+
+
 def normalize_cik(value: str | int) -> str:
     if isinstance(value, bool):
         raise ValueError("CIK is invalid")
@@ -747,6 +1120,27 @@ def sec_submissions_current_url(cik: str) -> str:
     return f"{SEC_SUBMISSIONS_URL_PREFIX}CIK{cik}.json"
 
 
+def sec_archive_folder_url(cik: str, accession: str) -> str:
+    normalized = normalize_cik(cik)
+    if _ACCESSION_PATTERN.fullmatch(accession) is None:
+        raise ValueError("SEC filing accession is invalid")
+    return f"{SEC_ARCHIVE_URL_PREFIX}{int(normalized)}/{accession.replace('-', '')}/"
+
+
+def sec_complete_submission_url(cik: str, accession: str) -> str:
+    return f"{sec_archive_folder_url(cik, accession)}{accession}.txt"
+
+
+def sec_primary_document_url(cik: str, accession: str, filename: str) -> str:
+    return sec_filing_document_url(cik, accession, filename)
+
+
+def sec_filing_document_url(cik: str, accession: str, filename: str) -> str:
+    if _PRIMARY_DOCUMENT_PATTERN.fullmatch(filename) is None:
+        raise ValueError("SEC filing document is invalid")
+    return f"{sec_archive_folder_url(cik, accession)}{filename}"
+
+
 def sec_submissions_source_version(
     source_kind: SecSubmissionSourceKind,
     content_sha256: str,
@@ -762,6 +1156,14 @@ def sec_submission_object_key(source: SecSubmissionSourceSnapshot) -> str:
     return (
         f"sec/submissions/{source.cik}/{kind}/"
         f"{source.content_sha256[:2]}/{source.content_sha256}.json"
+    )
+
+
+def sec_filing_snapshot_object_key(source: SecFilingDocumentSnapshot) -> str:
+    suffix = source.filename.rpartition(".")[2].lower() or "bin"
+    return (
+        f"sec/filings/{source.cik}/{source.accession.replace('-', '')}/"
+        f"{source.kind.value}/{source.content_sha256[:2]}/{source.content_sha256}.{suffix}"
     )
 
 

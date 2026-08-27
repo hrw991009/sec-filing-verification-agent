@@ -289,6 +289,70 @@ class SqlAlchemyKnowledgeRepository:
         except SQLAlchemyError as error:
             raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
 
+    async def ensure_internal_staging_upload(self, upload: StagingKnowledgeUpload) -> None:
+        """Idempotently reserve the deterministic server-import staging identity."""
+
+        try:
+            async with self.session_factory.begin() as session:
+                await _require_knowledge_base(
+                    session,
+                    upload.workspace_id,
+                    upload.knowledge_base_id,
+                )
+                record = await session.scalar(
+                    select(FileObject)
+                    .where(
+                        FileObject.id == upload.file_id,
+                        FileObject.workspace_id == upload.workspace_id,
+                    )
+                    .with_for_update()
+                )
+                if record is None:
+                    session.add(
+                        FileObject(
+                            id=upload.file_id,
+                            workspace_id=upload.workspace_id,
+                            created_by_user_id=upload.created_by_user_id,
+                            purpose=FileObjectPurpose.KNOWLEDGE_SOURCE,
+                            knowledge_base_id=upload.knowledge_base_id,
+                            original_name=upload.original_name,
+                            declared_media_type=upload.declared_media_type.value,
+                            bucket=upload.bucket,
+                            staging_object_key=upload.staging_key,
+                            expected_size=upload.expected_size,
+                            expected_sha256=upload.expected_sha256,
+                            status=FileObjectStatus.STAGING,
+                            revision=0,
+                            upload_expires_at=upload.expires_at,
+                            created_at=upload.created_at,
+                            updated_at=upload.created_at,
+                        )
+                    )
+                    await session.flush()
+                    return
+                if (
+                    record.purpose is not FileObjectPurpose.KNOWLEDGE_SOURCE
+                    or record.knowledge_base_id != upload.knowledge_base_id
+                    or record.created_by_user_id != upload.created_by_user_id
+                    or record.original_name != upload.original_name
+                    or record.declared_media_type != upload.declared_media_type.value
+                    or record.bucket != upload.bucket
+                    or record.staging_object_key != upload.staging_key
+                    or record.expected_size != upload.expected_size
+                    or record.expected_sha256 != upload.expected_sha256
+                    or record.status
+                    not in {
+                        FileObjectStatus.STAGING,
+                        FileObjectStatus.PROCESSING,
+                        FileObjectStatus.FAILED,
+                    }
+                ):
+                    raise KnowledgeConflictError
+        except (KnowledgeConflictError, KnowledgeNotFoundError):
+            raise
+        except SQLAlchemyError as error:
+            raise KnowledgePersistenceError(sqlstate=safe_sqlstate(error)) from None
+
     async def existing_receipt(
         self,
         *,

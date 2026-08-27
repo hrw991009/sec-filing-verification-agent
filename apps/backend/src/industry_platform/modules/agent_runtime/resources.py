@@ -223,8 +223,10 @@ def create_direct_answer_runtime_resources(
                 max_tool_calls=CONVERSATION_WEB_TOOL_CALL_LIMIT,
                 system_instructions=(
                     (
-                        "Answer only within the pinned SEC filing scope. First use "
-                        "knowledge_search for filing Evidence. Use finance.calculate when "
+                        "Answer only within the pinned SEC filing scope. For an imported "
+                        "filing, first use sec.search_filing and use sec.read_filing_section "
+                        "for the exact passage. Use knowledge_search only for the pinned "
+                        "evaluation fixture. Use finance.calculate when "
                         "deriving a number, preserve Evidence refs, cite [S#] markers, and "
                         "state when the typed Observation is not ready or has no result. "
                     )
