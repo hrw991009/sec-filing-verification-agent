@@ -1,0 +1,618 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "sec-source-v1",
+  "dataset_version": "v1",
+  "scorer_version": "sec-source-scorer-v1",
+  "execution_boundary": {
+    "deterministic_replay": true,
+    "live_sec_executed": false,
+    "real_dependency_evidence": [
+      "PostgreSQL",
+      "MinIO",
+      "Milvus",
+      "Elasticsearch"
+    ],
+    "ordinary_pr_ci_network_access": false,
+    "observation_date": "2026-08-27",
+    "limitation": "Bulk submissions/companyfacts snapshots and post-watermark gap closure are not implemented."
+  },
+  "observations": [
+    {
+      "case_id": "identity-exact-cik",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.resolve_filer@v1"
+      ],
+      "observed_milestones": [
+        "resolve_filer",
+        "attributed_candidate"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_domain.py::test_exact_ticker_or_cik_resolves_to_one_attributed_candidate"
+    },
+    {
+      "case_id": "identity-ambiguous-ticker",
+      "observed_outcome": "ambiguous",
+      "observed_error_code": "filer_ambiguous",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.resolve_filer@v1"
+      ],
+      "observed_milestones": [
+        "resolve_filer",
+        "request_clarification"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_tool.py::test_tool_returns_attributed_ambiguous_candidates_through_shared_executor"
+    },
+    {
+      "case_id": "identity-rate-limited",
+      "observed_outcome": "dependency_error",
+      "observed_error_code": "sec_rate_limited",
+      "observed_snapshot_presence": false,
+      "observed_import_presence": false,
+      "observed_source_locator": false,
+      "observed_tools": [
+        "sec.resolve_filer@v1"
+      ],
+      "observed_milestones": [
+        "resolve_filer",
+        "typed_dependency_error"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_edgar_adapter.py::test_429_retries_with_bounded_delay_and_never_becomes_no_result"
+    },
+    {
+      "case_id": "filings-current-supplemental",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.list_filings@v1"
+      ],
+      "observed_milestones": [
+        "list_filings",
+        "deduplicate_accession",
+        "select_accession"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_submissions_adapter.py::test_live_adapter_loads_required_supplemental_and_deduplicates_supported_forms"
+    },
+    {
+      "case_id": "filings-amendment-as-of",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.list_filings@v1"
+      ],
+      "observed_milestones": [
+        "list_filings",
+        "apply_visibility_policy",
+        "select_amendment"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_latest_policy_selects_amendment_after_persisting_source_coverage"
+    },
+    {
+      "case_id": "filings-incomplete-coverage",
+      "observed_outcome": "dependency_error",
+      "observed_error_code": "coverage_incomplete",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.list_filings@v1"
+      ],
+      "observed_milestones": [
+        "list_filings",
+        "typed_incomplete"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_source_version_after_cutoff_never_becomes_no_result"
+    },
+    {
+      "case_id": "archive-workspace-import",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [],
+      "observed_milestones": [
+        "archive_snapshot",
+        "workspace_import",
+        "knowledge_job"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_import_persists_both_snapshots_then_uses_canonical_knowledge_acceptance"
+    },
+    {
+      "case_id": "archive-source-quarantine",
+      "observed_outcome": "partial",
+      "observed_error_code": "source_identity_changed",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [],
+      "observed_milestones": [
+        "archive_snapshot",
+        "quarantine",
+        "stop_before_import"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_quarantined_source_identity_change_hard_stops_before_knowledge_import"
+    },
+    {
+      "case_id": "archive-corrupt-response",
+      "observed_outcome": "dependency_error",
+      "observed_error_code": "response_invalid",
+      "observed_snapshot_presence": false,
+      "observed_import_presence": false,
+      "observed_source_locator": false,
+      "observed_tools": [],
+      "observed_milestones": [
+        "archive_fetch",
+        "typed_dependency_error"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_archive_adapter.py::test_untrusted_archive_responses_fail_closed"
+    },
+    {
+      "case_id": "xbrl-aggregate-standard",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.get_xbrl_facts@v1"
+      ],
+      "observed_milestones": [
+        "get_xbrl_facts",
+        "aggregate_locator",
+        "return_fact"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_companyfacts_keeps_only_locked_accession_and_has_aggregate_locator"
+    },
+    {
+      "case_id": "xbrl-raw-custom-context",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.get_xbrl_facts@v1"
+      ],
+      "observed_milestones": [
+        "get_xbrl_facts",
+        "raw_context",
+        "return_custom_fact"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_raw_instance_preserves_context_dimensions_unit_and_custom_tag"
+    },
+    {
+      "case_id": "xbrl-doctype-rejected",
+      "observed_outcome": "partial",
+      "observed_error_code": "response_invalid",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [],
+      "observed_milestones": [
+        "raw_xbrl_parse",
+        "reject_doctype"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_raw_xbrl_rejects_doctype_before_fact_extraction"
+    },
+    {
+      "case_id": "filing-dense-search",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.search_filing@v1"
+      ],
+      "observed_milestones": [
+        "search_filing",
+        "reload_postgres_truth",
+        "return_chunk_locator"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_tool.py::test_search_tool_uses_trusted_scope_and_emits_snapshot_lineage"
+    },
+    {
+      "case_id": "filing-exact-section-read",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.read_filing_section@v1"
+      ],
+      "observed_milestones": [
+        "read_filing_section",
+        "authorize_chunk",
+        "return_exact_text"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_tool.py::test_read_tool_returns_only_the_authorized_chunk"
+    },
+    {
+      "case_id": "facts-cross-workspace-denied",
+      "observed_outcome": "permission_denied",
+      "observed_error_code": "workspace_forbidden",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.get_xbrl_facts@v1"
+      ],
+      "observed_milestones": [
+        "get_xbrl_facts",
+        "deny_cross_workspace"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_api.py::test_authenticated_workspace_can_sync_and_query_typed_xbrl_facts"
+    },
+    {
+      "case_id": "search-scope-override-denied",
+      "observed_outcome": "permission_denied",
+      "observed_error_code": "financial_scope_mismatch",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.search_filing@v1"
+      ],
+      "observed_milestones": [
+        "search_filing",
+        "reject_scope_mismatch"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_search_rejects_financial_scope_identity_mismatch_before_dense_search"
+    },
+    {
+      "case_id": "filing-sync-idempotent",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [],
+      "observed_milestones": [
+        "persist_source_version",
+        "persist_coverage",
+        "idempotent_replay"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/integration/test_sec_filing_point_in_time_postgres.py::test_submission_versions_and_coverage_are_idempotent_and_reconstructable"
+    },
+    {
+      "case_id": "xbrl-sync-idempotent",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [],
+      "observed_milestones": [
+        "persist_xbrl_source",
+        "persist_context_fact",
+        "idempotent_replay"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_service_tool.py::test_sync_combines_immutable_aggregate_and_raw_sources"
+    },
+    {
+      "case_id": "five-tool-profile-only",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.resolve_filer@v1"
+      ],
+      "observed_milestones": [
+        "materialize_tool_l2_profile",
+        "enforce_five_tool_surface",
+        "resolve_filer"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_profile.py::test_sec_source_profile_projects_exactly_five_tools_to_shared_runtime"
+    },
+    {
+      "case_id": "api-workspace-authorization",
+      "observed_outcome": "permission_denied",
+      "observed_error_code": "workspace_forbidden",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.resolve_filer@v1"
+      ],
+      "observed_milestones": [
+        "authenticate_workspace",
+        "resolve_filer",
+        "deny_cross_workspace"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_api.py::test_authenticated_workspace_resolves_ticker_and_rejects_cross_workspace"
+    },
+    {
+      "case_id": "real-pg-minio-xbrl-chain",
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
+      "observed_import_presence": true,
+      "observed_source_locator": true,
+      "observed_tools": [],
+      "observed_milestones": [
+        "minio_snapshot",
+        "postgres_context_fact",
+        "authorized_reload"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/integration/test_sec_xbrl_postgres_minio.py::test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed"
+    },
+    {
+      "case_id": "complete-coverage-no-result",
+      "observed_outcome": "no_result",
+      "observed_error_code": "no_result",
+      "observed_snapshot_presence": true,
+      "observed_import_presence": false,
+      "observed_source_locator": true,
+      "observed_tools": [
+        "sec.list_filings@v1"
+      ],
+      "observed_milestones": [
+        "list_filings",
+        "prove_complete_coverage",
+        "return_no_result"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_complete_coverage_with_no_matching_form_is_no_result"
+    },
+    {
+      "case_id": "submissions-bulk-watermark",
+      "observed_outcome": "capability_missing",
+      "observed_error_code": "submissions_bulk_not_implemented",
+      "observed_snapshot_presence": false,
+      "observed_import_presence": false,
+      "observed_source_locator": false,
+      "observed_tools": [],
+      "observed_milestones": [
+        "closeout_audit",
+        "record_capability_missing"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_submissions_bulk_closeout_is_reported_as_blocker"
+    },
+    {
+      "case_id": "companyfacts-bulk-watermark",
+      "observed_outcome": "capability_missing",
+      "observed_error_code": "companyfacts_bulk_not_implemented",
+      "observed_snapshot_presence": false,
+      "observed_import_presence": false,
+      "observed_source_locator": false,
+      "observed_tools": [],
+      "observed_milestones": [
+        "closeout_audit",
+        "record_capability_missing"
+      ],
+      "observed_bulk_coverage_complete": false,
+      "future_leakage_count": 0,
+      "scope_violation_count": 0,
+      "workspace_leakage_count": 0,
+      "duplicate_commit_count": 0,
+      "dependency_as_no_result_count": 0,
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_companyfacts_bulk_closeout_is_reported_as_blocker"
+    }
+  ],
+  "metrics": {
+    "case_pass_rate": {
+      "numerator": 22,
+      "denominator": 24,
+      "value": 0.916667
+    },
+    "contract_pass_rate": {
+      "numerator": 18,
+      "denominator": 18,
+      "value": 1
+    },
+    "closeout_pass_rate": {
+      "numerator": 4,
+      "denominator": 6,
+      "value": 0.666667
+    },
+    "source_locator_resolvability": {
+      "numerator": 20,
+      "denominator": 22,
+      "value": 0.909091
+    },
+    "snapshot_presence_accuracy": {
+      "numerator": 22,
+      "denominator": 24,
+      "value": 0.916667
+    },
+    "import_presence_accuracy": {
+      "numerator": 24,
+      "denominator": 24,
+      "value": 1
+    },
+    "tool_surface_adherence": {
+      "numerator": 15,
+      "denominator": 15,
+      "value": 1
+    },
+    "bulk_coverage_readiness": {
+      "numerator": 0,
+      "denominator": 2,
+      "value": 0
+    },
+    "future_leakage": {
+      "numerator": 0,
+      "denominator": 7,
+      "value": 0
+    },
+    "scope_violation": {
+      "numerator": 0,
+      "denominator": 11,
+      "value": 0
+    },
+    "workspace_leakage": {
+      "numerator": 0,
+      "denominator": 9,
+      "value": 0
+    },
+    "duplicate_commit": {
+      "numerator": 0,
+      "denominator": 7,
+      "value": 0
+    },
+    "dependency_as_no_result": {
+      "numerator": 0,
+      "denominator": 7,
+      "value": 0
+    }
+  },
+  "gate_passed": false,
+  "blockers": [
+    "submissions-bulk-watermark",
+    "companyfacts-bulk-watermark"
+  ]
+}

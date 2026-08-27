@@ -4,11 +4,11 @@
 
 当前状态：Day 1～Day 4 已完成；Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)，分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。
 
-Day 6 Step 1 已在当前分支提交中实现；Step 2～4 当前工作树进一步交付 point-in-time filing 选择、不可变 filing/aggregate XBRL snapshot、Workspace Knowledge import、Dense text read、canonical XBRL context/fact、`sec.get_xbrl_facts@v1` 和文本/事实 Workbench。D6-01、D6-03、D6-04、D6-07 为 `implemented_pending_verification`；D6-02、D6-05、D6-06 为 `thin_slice`，D6-08 为 `planned`。五个 SEC Tool 定义与本地 Worker surface 已齐全，但 Step 5 的专用五 Tool Runtime/Harness profile、`sec-source-v1`、bulk published/coverage watermark、post-watermark gap、live SEC、分支/main CI 和所有者验收仍未完成。本地 replay、真实 PostgreSQL/MinIO 与统一门禁不能代替这些证据；D5-08/D5-09 浏览器 DoD 也没有因此关闭。Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
+Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树进一步交付只暴露五个 SEC read Tool 的共享 `ToolL2Runtime`/Harness profile，以及 18 contract + 6 closeout regression 的 `sec-source-v1` manifest、scorer 和确定性报告。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 `submissions.zip`/`companyfacts.zip` snapshot、published/coverage watermark 与 post-watermark gap 尚缺而保持 `thin_slice`。报告如实为 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 未通过；live SEC、分支/main CI 和所有者验收也未完成。本地 replay 与真实依赖门禁不能代替这些证据；D5-08/D5-09 浏览器 DoD 同样没有关闭。Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.0.8（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.0.9（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)

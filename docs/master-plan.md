@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.0.8`
+> 版本：`2.0.9`
 >
 > 制定日期：`2026-07-23`
 >
@@ -54,7 +54,7 @@
 | Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
 | Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
 | Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
-| Day 6～Day 10 | 尚未完成 | Day 6 Step 1 已在当前分支提交中实现；Step 2～4 当前工作树已实现 point-in-time filing、不可变 filing/XBRL snapshot、Workspace Knowledge import、Dense text read、XBRL typed fact 与文本/事实 Workbench。D6-01/D6-03/D6-04/D6-07 为 `implemented_pending_verification`，D6-02/D6-05/D6-06 为 `thin_slice`，D6-08 为 `planned`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
+| Day 6～Day 10 | 尚未完成 | Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树已实现专用五 SEC Tool 的共享 ToolL2/Harness profile 与 24-case `sec-source-v1`。D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 为 `implemented_pending_verification`，D6-02/D6-06 因两条 bulk closeout blocker 保持 `thin_slice`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -921,7 +921,7 @@ Tool、Skill、Application Service 和 Harness 各自负责什么？Observation 
 
 ## 13. Day 6：SEC 官方披露数据底座与 Point-in-Time 合同
 
-> 执行状态（2026-08-27）：Step 1 已在当前分支提交中实现；Step 2～4 当前工作树新增 point-in-time filing、不可变 filing/companyfacts snapshot、Workspace Knowledge import、`dense-v1` text read、aggregate/raw XBRL context/fact、`sec.get_xbrl_facts@v1` 与文本/事实 Workbench，并通过完整本地统一门禁。D6-01/D6-03/D6-04/D6-07 为 `implemented_pending_verification`；D6-02 因尚缺 bulk published/coverage watermark 和 post-watermark gap 为 `thin_slice`，D6-05 虽已有 5/5 Tool 定义与本地 Worker surface，但专用五 Tool Runtime/Harness profile 尚缺，仍为 `thin_slice`；D6-06 同样保持 `thin_slice`，D6-08 为 `planned`。尚无 live SEC、`companyfacts.zip`、`sec-source-v1`、分支/main CI 或所有者收口。D5-08/D5-09 浏览器 DoD 保持未关闭。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
+> 执行状态（2026-08-27）：Step 1～4 已在当前分支基线中实现；Step 5 当前工作树新增只暴露五个 SEC read Tool 的共享 `ToolL2Runtime`/Harness profile、真实 Adapter composition 校验，以及 18 contract + 6 closeout regression 的 `sec-source-v1` manifest/scorer/report。确定性报告为 contract `18/18`、closeout `4/6`、总计 `22/24`，Tool surface `15/15`，但 bulk coverage readiness `0/2`，因此 Day 6 gate 明确未通过。D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 `submissions.zip`/`companyfacts.zip` snapshot、published/coverage watermark 和 post-watermark gap 仍缺而保持 `thin_slice`。尚无 live SEC、分支/main CI 或所有者收口，D5-08/D5-09 浏览器 DoD 也保持未关闭。逐步范围与验收证据见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ### 学习主题
 
@@ -1333,3 +1333,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.0.6 | 2026-08-26 | 同步 Day 6 Step 2 当前工作树：新增 submissions current + supplemental point-in-time 选择、不可变 response snapshot、canonical filing/coverage migration、认证 API 与 `sec.list_filings@v1`；D6-02/D6-05/D6-06 保持 `thin_slice`，明确 bulk watermark/post-watermark gap、live SEC、后续三步、分支/main CI 与所有者收口仍未完成 | 用户授权继续 Day 6 下一步 |
 | 2.0.7 | 2026-08-26 | 同步 Day 6 Step 3 当前工作树：新增 bounded SEC filing archive、PostgreSQL/MinIO 不可变 snapshot 与 quarantine、复用 Knowledge/Job/Outbox 的 Workspace import、`dense-v1` search/section read 和文本 Workbench；D6-03 为 `implemented_pending_verification`，D6-05/D6-07 为 `thin_slice`，明确 live SEC、XBRL typed fact/panel、`sec-source-v1`、远端 CI 与所有者收口仍未完成 | 用户授权继续 Day 6 下一步 |
 | 2.0.8 | 2026-08-27 | 同步 Day 6 Step 4 当前工作树：新增 companyfacts aggregate 与 raw iXBRL/instance typed Adapter、不可变 XBRL snapshot、PostgreSQL context/fact、`sec.get_xbrl_facts@v1`、认证 API 和 standard/raw fact Workbench；D6-04/D6-07 为 `implemented_pending_verification`，D6-05 因缺专用五 Tool Runtime/Harness profile 仍为 `thin_slice`，明确 bulk watermark/post-gap、live SEC、`sec-source-v1`、远端 CI 与所有者收口仍未完成 | 用户授权继续 Day 6 下一步 |
+| 2.0.9 | 2026-08-27 | 同步 Day 6 Step 5 当前工作树：新增严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验与 24-case `sec-source-v1` manifest/scorer/report；D6-05/D6-08 为 `implemented_pending_verification`。报告 contract 18/18、closeout 4/6，并保留 submissions/companyfacts bulk watermark 两条 blocker，故 D6-02/D6-06 仍为 `thin_slice`，Day 6 gate 未关闭 | 用户授权继续 Day 6 下一步 |

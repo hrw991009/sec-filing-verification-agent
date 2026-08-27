@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-27
 >
-> 权威来源：`docs/master-plan.md` 2.0.8
+> 权威来源：`docs/master-plan.md` 2.0.9
 
 ## 1. 产品定位
 
@@ -16,7 +16,7 @@
 
 Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence、Research L3，以及 Day 5 已合并的 Knowledge/Research L4 实现继续复用；Day 5 的 SEC fixture 浏览器 DoD 仍须补齐。后续能力目标是以同一正式链路接入 SEC 披露和系统性评测，而不是复制一套“金融 Agent”旁路。
 
-“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.0.8 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
+“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.0.9 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
 
 ## 2. Day 1～Day 10 目标与诚实边界
 
@@ -333,8 +333,8 @@ Day 10 验收必须做一次双向能力审计：
 - Day 3 的同一 Runtime L0/L1/L2、受控 Tool Use、行业采集切片和 24 条累计 Scenario 已完成；PR #5 合并提交为 `6968c63f`，CI 为 `32112639811`。
 - Day 4 的 Memory、Evidence/Claim、Research L3、Workbench 与累计 50 条 Scenario 已完成；PR #7 合并提交为 `c0b854e`，CI 为 `32549438592`。核心 Domain/Application/Research workflow 合集覆盖率仍为 85%，必须在最终发布前补到 90%。
 - Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`：功能 head `cff25c1` 的 push CI `32920879147` 与 PR CI `32924323618` 成功，合并提交 `a38d0ae` 的 main CI `32924732755` 再次通过 7 个适用 Job。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器旅程，保持 `implemented_pending_verification`。
-- Day 6 Step 1 已在当前分支提交中实现；Step 2～4 当前工作树新增 current + supplemental point-in-time 选择、bounded filing archive、不可变 PostgreSQL/MinIO filing/companyfacts snapshot、Workspace Knowledge import、`dense-v1` text read、aggregate/raw XBRL context/fact、五个 SEC Tool 定义与文本/事实 Workbench。D6-01/D6-03/D6-04/D6-07 为 `implemented_pending_verification`；D6-02/D6-05/D6-06 为 `thin_slice`，D6-08 为 `planned`。专用五 Tool Runtime/Harness profile、bulk watermark/post-watermark gap、live smoke、远端 CI 与所有者收口尚缺。
+- Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树新增严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验和 24-case `sec-source-v1`。D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 bulk watermark/post-watermark gap 保持 `thin_slice`。确定性报告为 contract 18/18、closeout 4/6，Day 6 gate 未通过；live smoke、远端 CI 与所有者收口尚缺。
 
-项目所有者随后明确要求按五步继续 Day 6，只调整执行顺序，不等于放弃 Day 5 浏览器硬门。live SEC/bulk 与 Day 6 专用 profile/正式评测链仍未完成；Hybrid Retrieval 与正式计算/核对属于 Day 7，Verifier/Monitor、后台审批超时扫描和跨刷新/Worker 重启组合门属于 Day 8，公开 benchmark release suite 属于 Day 9。
+项目所有者随后明确要求按五步继续 Day 6，只调整执行顺序，不等于放弃 Day 5 浏览器硬门。Day 6 专用 profile 与确定性评测链已实现，但 live SEC/bulk 和评测 closeout 仍未完成；Hybrid Retrieval 与正式计算/核对属于 Day 7，Verifier/Monitor、后台审批超时扫描和跨刷新/Worker 重启组合门属于 Day 8，公开 benchmark release suite 属于 Day 9。
 
 本文定义的是后续 SEC 披露事实核验 Agent 的范围和验收合同，不是已经具备该金融能力的实现声明。只有在相应代码、migration、正式 Tool、固定/公开/live Eval、安全审计、恢复演练和合并门禁全部留下证据后，相关目标才能升级为 `complete`。

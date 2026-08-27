@@ -2,13 +2,13 @@
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.8 Day 6
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.9 Day 6
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：Step 1 已在当前分支提交中实现；Step 2～4 当前工作树已实现 point-in-time filing、不可变 filing/companyfacts snapshot、Workspace Knowledge import、Dense text read、aggregate/raw XBRL context/fact、`sec.get_xbrl_facts@v1` 与文本/事实 Workbench，并通过完整本地统一门禁。D6-01、D6-03、D6-04、D6-07 为 `implemented_pending_verification`；D6-02、D6-05、D6-06 为 `thin_slice`，D6-08 为 `planned`。五个 SEC Tool 定义及本地 Worker surface 已齐全，但专用五 Tool Runtime/Harness profile、bulk published/coverage watermark、post-watermark gap、`sec-source-v1`、live SEC、分支/main CI 和项目所有者收口仍缺失。
+> 当前状态：Step 1～4 已在当前分支基线中实现；Step 5 当前工作树已实现严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验和 24-case `sec-source-v1` manifest/scorer/report。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 bulk published/coverage watermark 与 post-watermark gap 保持 `thin_slice`。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 未通过；live SEC、分支/main CI 和项目所有者收口仍缺失。
 
 ## 1. 进入条件与今日边界
 
@@ -16,7 +16,7 @@ Day 5 已完成合并验证：[PR #9](https://github.com/hrw991009/industry-inte
 
 Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 先授权 Day 6 文档规划，随后明确要求开始 Day 6 Step 1；按主计划的“用户最新明确指令优先”执行 Step 1 代码。该指令只调整 Step 1 的开始顺序，不构成 D5-08/D5-09 豁免，两项及 Day 5 总门禁继续保持 `implemented_pending_verification`。
 
-本轮只实现 Day 6 Step 4：以 companyfacts aggregate response 和已锁 accession 的 raw iXBRL/instance XML 建立 source-typed context/fact、不可变 snapshot、`sec.get_xbrl_facts@v1`、认证 API 与 standard/raw fact Workbench。不进入 Step 5 的专用五 Tool Runtime/Harness profile 或 `sec-source-v1`，也不进入 Day 7 的计算、reconciliation、Hybrid Retrieval 与 filing diff。D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地，不能用 companyfacts API 或 current + supplemental API 覆盖冒充完整 bulk 能力。
+本轮只实现 Day 6 Step 5：复用现有 `ToolL2Runtime`/Harness 冻结五 SEC Tool profile，交付 `sec-source-v1` manifest、scorer、确定性 report 与 closeout blocker。不进入 Day 7 的计算、reconciliation、Hybrid Retrieval 与 filing diff，也不伪造 live SEC。D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地；对应两条 closeout case 保留成功黄金期望并记录当前 `capability_missing`，不能从分母删除。
 
 ### 1.1 官方来源合同复核
 
@@ -64,7 +64,7 @@ Point-in-time 必须区分：
 | 2. Point-in-Time filing 选择 | D6-02、D6-05 部分 | 在 `as_of` 与 amendment policy 下锁定正确 form/accession | current + supplemental 核心链本地已实现；bulk coverage 尚缺 |
 | 3. 不可变快照、Dense read 与 Workbench | D6-03、D6-05 部分、D6-07 | 锁定 filing 可入库、检索、读取并沿来源链反查 | 当前工作树本地已实现，待外部验证 |
 | 4. XBRL context/fact 与 typed read | D6-04、D6-05 部分、D6-07 | 结构化事实保留 unit/period/context/source 并可定位 | 当前工作树本地已实现，待外部验证 |
-| 5. 五 Tool 同 Runtime 与 `sec-source-v1` 收口 | D6-05、D6-08 | 数据、时点、权限、故障和 live/replay 链路可系统评测 | `planned` |
+| 5. 五 Tool 同 Runtime 与 `sec-source-v1` 收口 | D6-05、D6-08 | 数据、时点、权限、故障和 live/replay 链路可系统评测 | 当前工作树已实现；2 条 bulk closeout blocker 未关闭 |
 
 ### 步骤 1：官方 Adapter 与 CIK 解析
 
@@ -175,6 +175,16 @@ Point-in-time 必须区分：
 - deterministic replay、offline report 与 live smoke 分报，live 结果不进入普通 PR 硬门。
 
 成功且 `expected_snapshot_presence=true` 的 `execution_kind=tool` case 必须由 AgentRun/ToolCall/Trace 反查 source snapshot。`sync_kind=canonical_source` 由 Job/Outbox 反查 canonical sync/source snapshot，合法成功时可固定 `expected_import_presence=false`；`sync_kind=workspace_import` 才必须反查 `workspace_sec_imports`，并按 manifest 分别断言 snapshot/import presence。对 429、连接失败、bulk 下载前失败或快照提交前 hard stop，`expected_snapshot_presence=false`/`expected_import_presence=false`，证据链在 request attempt 或 Job/Event + typed error 收口，并断言零已提交 snapshot/import。每项指标在 manifest 中固定 eligible denominator，不能用不适用 case 稀释错误率。
+
+#### Step 5 实施记录（2026-08-27）
+
+- 新增 `sec-source-l2-v1` profile，复用既有 `ToolL2Profile`、`ToolL2RuntimePolicy` 与 `ToolL2ScenarioMaterializer`，不创建第二套 loop。profile 仅暴露 `sec.resolve_filer@v1`、`sec.list_filings@v1`、`sec.get_xbrl_facts@v1`、`sec.search_filing@v1`、`sec.read_filing_section@v1`；calculator、Knowledge、Web、Monitor 均在 forbidden surface。`DisclosureResources` composition root 同时校验五个真实 Adapter 的顺序和版本，漂移时启动即失败。
+- 新增 `sec-source-v1` 24-case manifest：18 contract + 6 closeout regression；每例固定 fixture checksum、split、`execution_kind`、可选 `sync_kind`、CIK/accession/form/report period/`as_of`、visibility policy、allowed/forbidden/expected Tools、里程碑、snapshot/import presence、bulk watermarks、eligible metrics 与唯一 pytest evidence ref。
+- 新增严格 JSON loader 与 `sec-source-scorer-v1`，拒绝重复 key、非有限数、profile/split/fixture/evidence/eligibility 漂移；报告从 24 条 observation 重算 case、locator、snapshot/import、Tool surface、bulk readiness、future/scope/Workspace leakage、duplicate 和 dependency-as-no-result 指标。
+- 当前确定性结果：contract `18/18`、closeout `4/6`、总计 `22/24`；Tool surface `15/15`、import presence `24/24`，future/scope/Workspace leakage、duplicate commit 与 dependency-as-no-result 均为 0。source locator 为 `20/22`、snapshot presence 为 `22/24`、bulk readiness 为 `0/2`，失败均来自 `submissions-bulk-watermark` 与 `companyfacts-bulk-watermark`。
+- 当前直接证据：profile/materializer/Adapter composition、manifest/scorer/report 10 条测试通过；`disclosures` 模块及真实 PostgreSQL/MinIO/Milvus/Elasticsearch 关联证据 70 条通过。强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量测试为 `1112 passed`，总分支覆盖率 `80.83%`、核心合集 `86%`，mypy 检查 `466 source files` 通过；Web Prettier/ESLint/typecheck、Vitest `85 passed`、critical state coverage 100%、production build 与 Playwright `8 passed` 均通过。上述均为当前工作树本地证据，不替代分支/main CI。
+
+未关闭项：`submissions.zip`/`companyfacts.zip` 不可变 bytes、`bulk_published_at`/`coverage_through` 与 post-watermark 官方增量补齐尚未实现，因此两条黄金 closeout case 记录 `capability_missing`，Day 6 release gate 必须失败。当前环境也没有合法 SEC 联系身份，未运行 live SEC smoke；分支/main CI、所有者复核及 D5-08/D5-09 浏览器 DoD 仍未完成。D6-05/D6-08 只能是 `implemented_pending_verification`，D6-02/D6-06 保持 `thin_slice`，D6-01～D6-08 不能统一标为 `complete`。
 
 完成 migration 往返、OpenAPI、Python/Web/浏览器、真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch、依赖与 Secret 扫描、分支 CI、`main` CI、DoD 和项目所有者复核后，D6-01～D6-08 才能统一改为 `complete`。
 

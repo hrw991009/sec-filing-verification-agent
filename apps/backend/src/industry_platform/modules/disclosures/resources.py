@@ -61,6 +61,7 @@ from industry_platform.modules.disclosures.ports import (
     SecSubmissionsPort,
     SecXbrlSnapshotStore,
 )
+from industry_platform.modules.disclosures.profile import require_sec_source_tool_adapters
 from industry_platform.modules.disclosures.service import (
     SecFilerResolutionService,
     SecFilingSelectionService,
@@ -77,6 +78,7 @@ from industry_platform.modules.files.ports import PrivateFileObjectStore
 from industry_platform.modules.ingestion.index_contract import MILVUS_COLLECTION
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
 from industry_platform.modules.retrieval.adapters.milvus import MilvusDenseIndex
+from industry_platform.modules.tools.registry import RegisteredToolAdapter
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +93,20 @@ class DisclosureResources:
     read_filing_section_tool: SecReadFilingSectionTool
     xbrl_service: SecXbrlService
     get_xbrl_facts_tool: SecGetXbrlFactsTool
+
+    @property
+    def sec_source_tool_adapters(self) -> tuple[RegisteredToolAdapter, ...]:
+        """Return the exact five concrete Adapters accepted by the Day 6 profile."""
+
+        return require_sec_source_tool_adapters(
+            (
+                self.resolve_filer_tool,
+                self.list_filings_tool,
+                self.get_xbrl_facts_tool,
+                self.search_filing_tool,
+                self.read_filing_section_tool,
+            )
+        )
 
 
 def create_disclosure_resources(
@@ -255,7 +271,7 @@ def create_disclosure_resources(
         companyfacts_source=selected_companyfacts_source,
         snapshot_store=selected_xbrl_snapshot_store,
     )
-    return DisclosureResources(
+    resources = DisclosureResources(
         resolution_service=resolution_service,
         resolve_filer_tool=SecResolveFilerTool(resolution_service),
         filing_selection_service=filing_selection_service,
@@ -267,6 +283,9 @@ def create_disclosure_resources(
         xbrl_service=xbrl_service,
         get_xbrl_facts_tool=SecGetXbrlFactsTool(xbrl_service),
     )
+    # Fail application composition if profile references drift from concrete Tool definitions.
+    _ = resources.sec_source_tool_adapters
+    return resources
 
 
 def create_sec_filing_tools(
