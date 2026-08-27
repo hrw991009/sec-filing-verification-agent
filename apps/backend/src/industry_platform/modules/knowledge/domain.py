@@ -366,6 +366,42 @@ class CompleteKnowledgeUpload:
 
 
 @dataclass(frozen=True, slots=True)
+class ImportKnowledgeTextSource:
+    """Server-owned text source entering the regular Knowledge acceptance path."""
+
+    file_id: UUID
+    knowledge_base_id: UUID
+    original_name: str
+    title: str
+    content: bytes = field(repr=False)
+    idempotency_key: str = field(repr=False)
+    trace_id: TraceId
+    declared_media_type: AttachmentMediaType = AttachmentMediaType.TEXT_PLAIN
+
+    def __post_init__(self) -> None:
+        _uuid(self.file_id, field_name="Knowledge file ID")
+        snapshot = bytes(self.content)
+        CreateKnowledgeUpload(
+            knowledge_base_id=self.knowledge_base_id,
+            original_name=self.original_name,
+            declared_media_type=self.declared_media_type,
+            expected_size=len(snapshot),
+            expected_sha256=hashlib.sha256(snapshot).hexdigest(),
+            trace_id=self.trace_id,
+        )
+        completed = CompleteKnowledgeUpload(
+            knowledge_base_id=self.knowledge_base_id,
+            file_id=self.file_id,
+            title=self.title,
+            idempotency_key=self.idempotency_key,
+            trace_id=self.trace_id,
+        )
+        object.__setattr__(self, "original_name", sanitize_display_filename(self.original_name))
+        object.__setattr__(self, "title", completed.title)
+        object.__setattr__(self, "content", snapshot)
+
+
+@dataclass(frozen=True, slots=True)
 class CreateDocumentVersion:
     knowledge_base_id: UUID
     document_id: UUID

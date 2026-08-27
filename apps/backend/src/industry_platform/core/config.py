@@ -351,6 +351,19 @@ class Settings(BaseSettings):
     alpha_vantage_api_key: SecretStr | None = None
     alpha_vantage_terms_approved: bool = False
 
+    sec_user_agent_app: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]{1,99}$",
+    )
+    sec_user_agent_email: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$",
+    )
+    sec_requests_per_second: Annotated[int, Field(ge=1, le=9)] = 8
+    sec_catalog_cache_ttl_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3_600
+    sec_request_timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 20.0
+    sec_request_max_attempts: Annotated[int, Field(ge=1, le=5)] = 3
+
     text2sql_database_url: SecretStr | None = None
     text2sql_statement_timeout_ms: Annotated[int, Field(ge=100, le=30_000)] = 2_000
     text2sql_max_rows: Annotated[int, Field(ge=1, le=200)] = 200
@@ -448,6 +461,17 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def validate_sec_user_agent_configuration(self) -> Self:
+        """Require application identity and contact email together for live EDGAR access."""
+
+        values = (self.sec_user_agent_app, self.sec_user_agent_email)
+        if any(value is not None for value in values) and not all(
+            value is not None for value in values
+        ):
+            raise ValueError("SEC User-Agent configuration must be complete")
+        return self
+
+    @model_validator(mode="after")
     def validate_minio_configuration(self) -> Self:
         """Allow an explicitly absent store or one complete private-store configuration."""
 
@@ -499,6 +523,16 @@ class Settings(BaseSettings):
     @property
     def agent_model_provider_configured(self) -> bool:
         return self.agent_model_route is not None
+
+    @property
+    def sec_source_configured(self) -> bool:
+        return self.sec_user_agent_app is not None
+
+    @property
+    def sec_user_agent(self) -> str:
+        if self.sec_user_agent_app is None or self.sec_user_agent_email is None:
+            raise RuntimeError("SEC User-Agent is not configured")
+        return f"{self.sec_user_agent_app} {self.sec_user_agent_email}"
 
     @property
     def minio_configured(self) -> bool:

@@ -1,0 +1,1158 @@
+{
+  "schema_version": 1,
+  "dataset_id": "sec-source-v1",
+  "dataset_version": "v1",
+  "scorer_version": "sec-source-scorer-v1",
+  "profile": {
+    "profile_name": "tool-l2",
+    "profile_version": "sec-source-l2-v1",
+    "prompt_version": "sec-source-l2-prompt-v1",
+    "harness_version": "sec-source-harness-v1",
+    "model_fixture_version": "sec-source-model-v1",
+    "toolset_version": "sec-source-toolset-v1",
+    "available_tools": [
+      "sec.resolve_filer@v1",
+      "sec.list_filings@v1",
+      "sec.get_xbrl_facts@v1",
+      "sec.search_filing@v1",
+      "sec.read_filing_section@v1"
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "catalog-v1",
+      "fixture_version": "v1",
+      "content_sha256": "8ca1021c45320463625b4afe10eba47281f771cd623f74229318a372b3b7d751",
+      "source_kind": "filer_catalog"
+    },
+    {
+      "fixture_id": "submissions-current-v1",
+      "fixture_version": "v1",
+      "content_sha256": "416d0a6ef95726b4f5f0d1f145038186fc798d810582f732386c204c45992191",
+      "source_kind": "submissions_current"
+    },
+    {
+      "fixture_id": "submissions-supplemental-v1",
+      "fixture_version": "v1",
+      "content_sha256": "0172f7f7dbae7012c82472c79a8d64d8bf9284ca914ae726cd794fd964b27b0e",
+      "source_kind": "submissions_supplemental"
+    },
+    {
+      "fixture_id": "filing-archive-v1",
+      "fixture_version": "v1",
+      "content_sha256": "12dcfa0f371ca34aaa259629a082429dd4110bdbbb2001fa15d7969ab5c3cf97",
+      "source_kind": "filing_archive"
+    },
+    {
+      "fixture_id": "companyfacts-v1",
+      "fixture_version": "v1",
+      "content_sha256": "ec6652636e959dbf4ae620b55b1f5f81e7b6f36022b67d90437543bb2e61a397",
+      "source_kind": "companyfacts"
+    },
+    {
+      "fixture_id": "raw-xbrl-v1",
+      "fixture_version": "v1",
+      "content_sha256": "92fb9651c4a05d9642e707eb86cc798a9c54c5cc44373ff649c7064606e027ac",
+      "source_kind": "raw_xbrl"
+    },
+    {
+      "fixture_id": "dependency-fault-v1",
+      "fixture_version": "v1",
+      "content_sha256": "e9ef538b0cbec2d1d6ae05983f7037937e677ceea251ecd1ce44064c8020b102",
+      "source_kind": "dependency_fault"
+    },
+    {
+      "fixture_id": "workspace-auth-v1",
+      "fixture_version": "v1",
+      "content_sha256": "37d3a74945b581ed4ac3a95ffc7664ba19eb975749fc25576e3ef487477cca4e",
+      "source_kind": "workspace_authorization"
+    },
+    {
+      "fixture_id": "submissions-bulk-v1",
+      "fixture_version": "v1",
+      "content_sha256": "f6f9e93308c6ee99feea51b5dbd63b61932e00c4ca1204d502cb489c7979ee9a",
+      "source_kind": "submissions_bulk"
+    },
+    {
+      "fixture_id": "companyfacts-bulk-v1",
+      "fixture_version": "v1",
+      "content_sha256": "bcbf67998f97e5307e40ad7236b71765468aca4d558ff3c074628a4bfc8d22e5",
+      "source_kind": "companyfacts_bulk"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "identity-exact-cik",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "catalog-v1",
+      "cik": "0000320193",
+      "accession": null,
+      "form": null,
+      "report_period": null,
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.resolve_filer@v1"],
+      "expected_milestones": ["resolve_filer", "attributed_candidate"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_domain.py::test_exact_ticker_or_cik_resolves_to_one_attributed_candidate"
+    },
+    {
+      "case_id": "identity-ambiguous-ticker",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "catalog-v1",
+      "cik": "0000320193",
+      "accession": null,
+      "form": null,
+      "report_period": null,
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.resolve_filer@v1"],
+      "expected_milestones": ["resolve_filer", "request_clarification"],
+      "expected_outcome": "ambiguous",
+      "expected_error_code": "filer_ambiguous",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_tool.py::test_tool_returns_attributed_ambiguous_candidates_through_shared_executor"
+    },
+    {
+      "case_id": "identity-rate-limited",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "dependency-fault-v1",
+      "cik": "0000320193",
+      "accession": null,
+      "form": null,
+      "report_period": null,
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.resolve_filer@v1"],
+      "expected_milestones": ["resolve_filer", "typed_dependency_error"],
+      "expected_outcome": "dependency_error",
+      "expected_error_code": "sec_rate_limited",
+      "expected_snapshot_presence": false,
+      "expected_import_presence": false,
+      "expected_source_locator": false,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "dependency_as_no_result"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_edgar_adapter.py::test_429_retries_with_bounded_delay_and_never_becomes_no_result"
+    },
+    {
+      "case_id": "filings-current-supplemental",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "submissions-supplemental-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.list_filings@v1"],
+      "expected_milestones": ["list_filings", "deduplicate_accession", "select_accession"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "future_leakage",
+        "scope_violation"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_submissions_adapter.py::test_live_adapter_loads_required_supplemental_and_deduplicates_supported_forms"
+    },
+    {
+      "case_id": "filings-amendment-as-of",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "submissions-current-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.list_filings@v1"],
+      "expected_milestones": ["list_filings", "apply_visibility_policy", "select_amendment"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "future_leakage",
+        "scope_violation"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_latest_policy_selects_amendment_after_persisting_source_coverage"
+    },
+    {
+      "case_id": "filings-incomplete-coverage",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "submissions-supplemental-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.list_filings@v1"],
+      "expected_milestones": ["list_filings", "typed_incomplete"],
+      "expected_outcome": "dependency_error",
+      "expected_error_code": "coverage_incomplete",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "dependency_as_no_result",
+        "future_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_source_version_after_cutoff_never_becomes_no_result"
+    },
+    {
+      "case_id": "archive-workspace-import",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "sync",
+      "sync_kind": "workspace_import",
+      "source_fixture_ref": "filing-archive-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["archive_snapshot", "workspace_import", "knowledge_job"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "duplicate_commit"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_import_persists_both_snapshots_then_uses_canonical_knowledge_acceptance"
+    },
+    {
+      "case_id": "archive-source-quarantine",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "sync",
+      "sync_kind": "workspace_import",
+      "source_fixture_ref": "filing-archive-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["archive_snapshot", "quarantine", "stop_before_import"],
+      "expected_outcome": "partial",
+      "expected_error_code": "source_identity_changed",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "duplicate_commit"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_quarantined_source_identity_change_hard_stops_before_knowledge_import"
+    },
+    {
+      "case_id": "archive-corrupt-response",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "sync",
+      "sync_kind": "workspace_import",
+      "source_fixture_ref": "dependency-fault-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["archive_fetch", "typed_dependency_error"],
+      "expected_outcome": "dependency_error",
+      "expected_error_code": "response_invalid",
+      "expected_snapshot_presence": false,
+      "expected_import_presence": false,
+      "expected_source_locator": false,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "dependency_as_no_result"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_archive_adapter.py::test_untrusted_archive_responses_fail_closed"
+    },
+    {
+      "case_id": "xbrl-aggregate-standard",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "companyfacts-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.get_xbrl_facts@v1"],
+      "expected_milestones": ["get_xbrl_facts", "aggregate_locator", "return_fact"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_companyfacts_keeps_only_locked_accession_and_has_aggregate_locator"
+    },
+    {
+      "case_id": "xbrl-raw-custom-context",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "raw-xbrl-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.get_xbrl_facts@v1"],
+      "expected_milestones": ["get_xbrl_facts", "raw_context", "return_custom_fact"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_raw_instance_preserves_context_dimensions_unit_and_custom_tag"
+    },
+    {
+      "case_id": "xbrl-doctype-rejected",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "sync",
+      "sync_kind": "workspace_import",
+      "source_fixture_ref": "raw-xbrl-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["raw_xbrl_parse", "reject_doctype"],
+      "expected_outcome": "partial",
+      "expected_error_code": "response_invalid",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "dependency_as_no_result"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_raw_xbrl_rejects_doctype_before_fact_extraction"
+    },
+    {
+      "case_id": "filing-dense-search",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "filing-archive-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.search_filing@v1"],
+      "expected_milestones": ["search_filing", "reload_postgres_truth", "return_chunk_locator"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_tool.py::test_search_tool_uses_trusted_scope_and_emits_snapshot_lineage"
+    },
+    {
+      "case_id": "filing-exact-section-read",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "filing-archive-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.read_filing_section@v1"],
+      "expected_milestones": ["read_filing_section", "authorize_chunk", "return_exact_text"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_tool.py::test_read_tool_returns_only_the_authorized_chunk"
+    },
+    {
+      "case_id": "facts-cross-workspace-denied",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "workspace-auth-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.get_xbrl_facts@v1"],
+      "expected_milestones": ["get_xbrl_facts", "deny_cross_workspace"],
+      "expected_outcome": "permission_denied",
+      "expected_error_code": "workspace_forbidden",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_api.py::test_authenticated_workspace_can_sync_and_query_typed_xbrl_facts"
+    },
+    {
+      "case_id": "search-scope-override-denied",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "workspace-auth-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.search_filing@v1"],
+      "expected_milestones": ["search_filing", "reject_scope_mismatch"],
+      "expected_outcome": "permission_denied",
+      "expected_error_code": "financial_scope_mismatch",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_search_rejects_financial_scope_identity_mismatch_before_dense_search"
+    },
+    {
+      "case_id": "filing-sync-idempotent",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "sync",
+      "sync_kind": "canonical_source",
+      "source_fixture_ref": "submissions-current-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["persist_source_version", "persist_coverage", "idempotent_replay"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "duplicate_commit",
+        "future_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/integration/test_sec_filing_point_in_time_postgres.py::test_submission_versions_and_coverage_are_idempotent_and_reconstructable"
+    },
+    {
+      "case_id": "xbrl-sync-idempotent",
+      "case_version": "v1",
+      "split": "contract",
+      "execution_kind": "sync",
+      "sync_kind": "workspace_import",
+      "source_fixture_ref": "companyfacts-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["persist_xbrl_source", "persist_context_fact", "idempotent_replay"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "duplicate_commit",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_xbrl_service_tool.py::test_sync_combines_immutable_aggregate_and_raw_sources"
+    },
+    {
+      "case_id": "five-tool-profile-only",
+      "case_version": "v1",
+      "split": "closeout_regression",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "catalog-v1",
+      "cik": "0000320193",
+      "accession": null,
+      "form": null,
+      "report_period": null,
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.resolve_filer@v1"],
+      "expected_milestones": [
+        "materialize_tool_l2_profile",
+        "enforce_five_tool_surface",
+        "resolve_filer"
+      ],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "scope_violation"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_profile.py::test_sec_source_profile_projects_exactly_five_tools_to_shared_runtime"
+    },
+    {
+      "case_id": "api-workspace-authorization",
+      "case_version": "v1",
+      "split": "closeout_regression",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "workspace-auth-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.resolve_filer@v1"],
+      "expected_milestones": ["authenticate_workspace", "resolve_filer", "deny_cross_workspace"],
+      "expected_outcome": "permission_denied",
+      "expected_error_code": "workspace_forbidden",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "workspace_leakage",
+        "scope_violation"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_api.py::test_authenticated_workspace_resolves_ticker_and_rejects_cross_workspace"
+    },
+    {
+      "case_id": "real-pg-minio-xbrl-chain",
+      "case_version": "v1",
+      "split": "closeout_regression",
+      "execution_kind": "sync",
+      "sync_kind": "workspace_import",
+      "source_fixture_ref": "companyfacts-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": ["minio_snapshot", "postgres_context_fact", "authorized_reload"],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": true,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "duplicate_commit",
+        "workspace_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/integration/test_sec_xbrl_postgres_minio.py::test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed"
+    },
+    {
+      "case_id": "complete-coverage-no-result",
+      "case_version": "v1",
+      "split": "closeout_regression",
+      "execution_kind": "tool",
+      "sync_kind": null,
+      "source_fixture_ref": "submissions-current-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [
+        "sec.resolve_filer@v1",
+        "sec.list_filings@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1"
+      ],
+      "forbidden_tools": [
+        "finance.calculate@v1",
+        "industry.web_search@v1",
+        "knowledge_search@v1",
+        "monitor.subscribe@v1"
+      ],
+      "expected_tools": ["sec.list_filings@v1"],
+      "expected_milestones": ["list_filings", "prove_complete_coverage", "return_no_result"],
+      "expected_outcome": "no_result",
+      "expected_error_code": "no_result",
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": false,
+        "bulk_published_at": null,
+        "coverage_through": null,
+        "incremental_source_refs": []
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "tool_surface_adherence",
+        "dependency_as_no_result",
+        "future_leakage"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_complete_coverage_with_no_matching_form_is_no_result"
+    },
+    {
+      "case_id": "submissions-bulk-watermark",
+      "case_version": "v1",
+      "split": "closeout_regression",
+      "execution_kind": "sync",
+      "sync_kind": "canonical_source",
+      "source_fixture_ref": "submissions-bulk-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": [
+        "download_submissions_bulk",
+        "persist_bulk_snapshot",
+        "close_post_watermark_gap"
+      ],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": true,
+        "bulk_published_at": "2023-11-01T08:00:00Z",
+        "coverage_through": "2023-11-01T07:59:59Z",
+        "incremental_source_refs": ["submissions-current-v1"]
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "bulk_coverage_readiness",
+        "duplicate_commit",
+        "future_leakage",
+        "dependency_as_no_result"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_submissions_bulk_closeout_is_reported_as_blocker"
+    },
+    {
+      "case_id": "companyfacts-bulk-watermark",
+      "case_version": "v1",
+      "split": "closeout_regression",
+      "execution_kind": "sync",
+      "sync_kind": "canonical_source",
+      "source_fixture_ref": "companyfacts-bulk-v1",
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_period": "2023-09-30",
+      "as_of": "2023-11-01T00:00:00Z",
+      "visibility_policy_version": "sec-acceptance-source-v1",
+      "allowed_tools": [],
+      "forbidden_tools": [],
+      "expected_tools": [],
+      "expected_milestones": [
+        "download_companyfacts_bulk",
+        "persist_bulk_snapshot",
+        "close_post_watermark_gap"
+      ],
+      "expected_outcome": "success",
+      "expected_error_code": null,
+      "expected_snapshot_presence": true,
+      "expected_import_presence": false,
+      "expected_source_locator": true,
+      "bulk_coverage": {
+        "required": true,
+        "bulk_published_at": "2023-11-01T08:00:00Z",
+        "coverage_through": "2023-11-01T07:59:59Z",
+        "incremental_source_refs": ["companyfacts-v1"]
+      },
+      "eligible_metrics": [
+        "source_locator_resolvability",
+        "snapshot_presence_accuracy",
+        "import_presence_accuracy",
+        "bulk_coverage_readiness",
+        "duplicate_commit",
+        "future_leakage",
+        "dependency_as_no_result"
+      ],
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_companyfacts_bulk_closeout_is_reported_as_blocker"
+    }
+  ]
+}

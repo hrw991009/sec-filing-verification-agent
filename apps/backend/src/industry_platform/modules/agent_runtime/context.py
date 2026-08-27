@@ -30,6 +30,7 @@ from industry_platform.modules.agent_runtime.model import (
     ModelRole,
 )
 from industry_platform.modules.agent_runtime.state import RunState, validate_run_state
+from industry_platform.modules.disclosures.domain import FilingSelectionScope
 from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import AuthenticatedWorkspace
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
@@ -185,6 +186,7 @@ class TrustedRuntimeContext:
     secret_references: tuple[str, ...] = field(default=(), repr=False)
     knowledge_base_ids: tuple[UUID, ...] = field(default=(), repr=False)
     financial_scope: FinancialScope | None = field(default=None, repr=False)
+    filing_selection_scope: FilingSelectionScope | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.principal.user_id != self.workspace_scope.user_id:

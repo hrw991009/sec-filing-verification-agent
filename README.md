@@ -2,13 +2,13 @@
 
 面向中文研究、企业战略、IR、财务和咨询团队的 SEC 公开披露监控与财务事实核验工作台。
 
-当前状态：Day 1～Day 4 已完成并合入 `main`；对应 D1、D2、D3、D4 状态和证据保持不变。Day 5 Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现，提交为 `bba63e6`、`ad57073`/CI 修复 `adec643`、`4daa028`，当前已提交基线的分支 CI `32796096690` 已通过。Step 4～5 当前工作树已实现 SEC fixture Knowledge/calculator/Evidence、成功节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval，并通过本地统一门禁；D5-01～D5-09 均为 `implemented_pending_verification`。该工作树尚未提交或取得 Step 4/5 远端 CI，分支也未合入 `main`，没有合并提交 CI、Day 5 全量 DoD 或项目所有者收口。
+当前状态：Day 1～Day 4 已完成；Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)，分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。
 
-后续路线已经从 Day 5 Step 4 收敛为 SEC `10-K/10-Q` 系列披露事实核验。Day 5 当前只证明冻结 filing fixture、Dense Tool、calculator 和成功节点边界 L4 恢复；官方 EDGAR/XBRL、Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
+Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树进一步交付只暴露五个 SEC read Tool 的共享 `ToolL2Runtime`/Harness profile，以及 18 contract + 6 closeout regression 的 `sec-source-v1` manifest、scorer 和确定性报告。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 `submissions.zip`/`companyfacts.zip` snapshot、published/coverage watermark 与 post-watermark gap 尚缺而保持 `thin_slice`。报告如实为 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 未通过；live SEC、分支/main CI 和所有者验收也未完成。本地 replay 与真实依赖门禁不能代替这些证据；D5-08/D5-09 浏览器 DoD 同样没有关闭。Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.0.3（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.0.9（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -32,6 +32,7 @@
 - [Day 4 安全与隐私复核](docs/security/day-4-memory-research-review.md)
 - [Day 4 运行与回滚手册](docs/runbooks/day-4-memory-research.md)
 - [Day 5 Knowledge 与 SEC Fixture L4 执行日志](docs/learning-log/day-5.md)
+- [Day 6 SEC 官方披露与 Point-in-Time 五步执行计划](docs/learning-log/day-6.md)
 - [Research L4 Checkpoint 与 HITL 合同](docs/research-checkpoint-contract.md)
 - [Day 5 Research L4 运行与回滚手册](docs/runbooks/day-5-research-l4.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
@@ -291,7 +292,7 @@ Day 3 已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright
 
 Day 4 的五个实现步骤和收口文档已通过功能分支 CI；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 随后合入 `main`。合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 对应的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 已通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。正式 Trace、50 条累计 Scenario、四套独立 Scorer、真实浏览器旅程、DoD 与项目所有者授权收口均已复核，D4-01～D4-07 已为 `complete`，可以进入 Day 5。
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2～Day 9 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 10 发布标签。后续开发以 [Day 1～Day 10 主计划 v2.0.0](docs/master-plan.md) 为权威执行基线。
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2～Day 9 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 10 发布标签。后续开发以 [Day 1～Day 10 主计划 v2.0.6](docs/master-plan.md) 为权威执行基线。
 
 ## 常见问题
 

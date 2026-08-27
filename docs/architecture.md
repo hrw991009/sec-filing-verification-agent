@@ -4,13 +4,13 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-25
+> 更新日期：2026-08-26
 >
-> 权威来源：`docs/master-plan.md` 2.0.0
+> 权威来源：`docs/master-plan.md` 2.0.6
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成通用 Agent 基础；Day 5 Step 1～3 已在功能分支实现通用 Knowledge 入库基础；从 Day 5 Step 4 起，目标产品收敛为 SEC 上市公司公开披露监控与财务事实核验 Agent。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5 实现已合入 `main`，形成通用 Agent、Knowledge、SEC fixture 与 Durable Research L4 基础，但 SEC fixture 浏览器 DoD 尚未关闭。Day 6 Step 1 已在当前分支提交中加入 SEC filer identity 与受控官方来源边界；Step 2 当前工作树加入 submissions current + supplemental point-in-time 选择、不可变 response snapshot、coverage persistence 和第二个 typed SEC Tool，目标产品继续收敛为 SEC 上市公司公开披露监控与财务事实核验 Agent。
 
 架构需要同时满足：
 
@@ -245,7 +245,7 @@ evaluation → agent_harness；只读观察 agent_runtime / conversation / retri
 - Harness 只组合 Runtime、Context、Tool、Memory、Knowledge/RAG、Approval 和 Eval hook，不实现第二套 loop；
 - `research` 不得导入具体 Milvus、Elasticsearch 或 MinIO SDK；
 - `research` 和 `conversation` 不得导入具体 Model Provider SDK，也不得直接调用 Provider Adapter；
-- `disclosures` 拥有 SEC issuer/filing/snapshot/XBRL 业务模型，`retrieval` 只返回候选，`financial_verification` 只通过正式 Port/Service 读取这些事实；
+- `disclosures` 拥有 SEC canonical filer/filing/document/source snapshot/XBRL 与 Workspace import 业务模型，`knowledge` 拥有导入后的 DocumentVersion，`retrieval` 只返回候选，`financial_verification` 只通过正式 Port/Service 读取这些事实；
 - SEC HTTP client 只能位于 Adapter，必须遵守身份化 User-Agent、全局限流、缓存、退避和可重放快照合同；
 - LangGraph 节点调用统一 Runtime 或 Domain Port，不复制 Application Service、ToolExecutor 或 model/tool loop；
 - `conversation` 不得导入 Router；
@@ -257,11 +257,13 @@ evaluation → agent_harness；只读观察 agent_runtime / conversation / retri
 
 ### 6.1 PostgreSQL
 
-PostgreSQL 是唯一系统业务事实源，保存用户和 Workspace、membership、Refresh Session、审计日志、文件和知识库元数据、文档版本、Chunk 和资产关系、会话和消息、Job 和 Outbox、Evidence 和 Citation、Memory、Research 状态、SEC filer/filing/snapshot/XBRL 元数据、核验 Case/Monitor 以及 Text2SQL Query Run。SEC 原始 filing 与官方结构化响应是外部事实权威；系统必须保留其来源身份、抓取时间、哈希和不可变快照，不能用模型输出覆盖。
+PostgreSQL 是唯一系统业务事实源，保存用户和 Workspace、membership、Refresh Session、审计日志、文件和知识库元数据、文档版本、Chunk 和资产关系、会话和消息、Job 和 Outbox、Evidence 和 Citation、Memory、Research 状态、SEC canonical filer/filing/document/source snapshot/XBRL 元数据、Workspace SEC import、核验 Case/Monitor 以及 Text2SQL Query Run。SEC 原始 filing 与官方结构化响应是外部事实权威；系统必须保留其来源身份、公众可见时间依据、抓取时间、哈希和不可变快照，不能用模型输出覆盖。
+
+SEC 数据采用“两层所有权”：canonical source catalog 是全局、按稳定来源身份去重的公共披露目录，current projection 由新的官方 source version 推进；snapshot blob 与历史 source version append-only、不可变。`workspace_sec_imports` 是 Workspace scoped 的内容使用、导入、Knowledge version 与授权关系。认证 Workspace 内的 `resolve_filer/list_filings` 可读公共 discovery catalog，但不能暴露其他 Workspace 的 import 状态；facts/search/read 只能通过当前 Workspace import 读取内容。删除一个 import 不得删除仍被其他 Workspace import、Run/Evidence 或固定评测引用的 canonical snapshot；清理前必须按显式引用计数和版本化来源保留策略对账。
 
 ### 6.2 MinIO
 
-MinIO 保存私有二进制资产，以及需要重放的 SEC filing/响应原始快照。数据库只保存 bucket、object key、内容哈希和来源身份，不保存长期公开 URL。
+MinIO 保存私有二进制资产，以及需要重放的 SEC filing/响应原始快照。数据库只保存 bucket、object key、内容哈希和来源身份，不保存长期签名 URL；canonical snapshot object 也保持私有，由服务端在 Workspace import 授权后读取。
 
 读取对象前必须重新校验 Workspace 权限，并生成 5～15 分钟有效的签名 URL。
 
@@ -290,7 +292,7 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 记忆 | `thread_memory_states`、`memories`、`memory_revisions` | Short-term 保存 Thread 消息引用、摘要、compaction revision 与 freshness；Long-term 当前投影和版本修订保存 provenance、scope、confidence、写入原因、策略/用户决定、停用、过期和删除 |
 | Research | `research_runs`、`research_plans`、`research_reports`、`research_claims`、`claim_evidence` | `research_runs.agent_run_id` 是统一执行事实的领域扩展；计划显式版本化；关键 Claim 关联 Evidence；不得再建立 research_steps/research_checkpoints 第二套执行历史 |
 | 证据图与图表 | `graph_nodes`、`graph_edges`、`chart_specs` | 图绑定 Research Run 并引用 Claim/Evidence/Entity；Chart 绑定 Query Run 或 Research Run，option 必须通过版本化 Schema |
-| SEC 披露 | `sec_filers`、`sec_filings`、`sec_filing_snapshots`、`sec_xbrl_facts`、`sec_xbrl_contexts` | CIK、accession、form、filed/accepted time、period、amendment 和 source URL 可追溯；快照不可变并带 `retrieved_at`/hash；修订不得静默覆盖旧 filing |
+| SEC 披露 | `sec_filers`、`sec_filer_aliases`、`sec_filings`、`sec_filing_documents`、`sec_source_snapshots`、`workspace_sec_imports`、`sec_xbrl_facts`、`sec_xbrl_contexts` | canonical identity/current projection 与 Workspace import 分层；CIK、accession、form、filed/accepted/public-available time、period、amendment、source URL/response 可追溯；snapshot/history append-only 且带 `source_version_available_at`/有效区间/依据、`retrieved_at`/hash/Adapter version；官方 correction/deletion 以新版本推进 projection，不覆盖旧字节 |
 | 财务核验与监控 | `financial_calculations`、`verification_cases`、`filing_monitors`、`monitor_occurrences` | 输入事实、单位/scale、公式 AST/版本、舍入和输出可重放；Case 保存 `verified/partial/conflict/insufficient_evidence`；同一监控到期或 filing 只产生一次副作用 |
 | 历史行业数据 | `industries`、`user_industry_preferences`、`data_sources`、`collection_runs`、`collection_cursors`、`source_items`、`collection_run_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots` | Day 3 已完成的通用行业切片保留用于回归，不再扩展为后续主产品或接入市场预测/交易链路 |
 | 数据库与 SQL | `data_connections`、`schema_snapshots`、`query_runs` | 凭据只存 Secret 引用；allowlisted schema/table/column；同时保存 generated 与 validated SQL、预算、状态、行数和错误 |
@@ -309,7 +311,7 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | Memory | 删除立即从在线检索中过滤并失效缓存，再清理向量和持久内容 | 下一次回答不再使用；重复删除幂等；其他 Workspace 不受影响 |
 | Agent Run / ToolCall / ToolRun / Research / Checkpoint / Report | 先取消 AgentRun；ToolCall/ToolRun 是 Run-owned operational audit projection，外键以 `RESTRICT` 阻止普通资源删除隐式级联清空。Day 3 的 Conversation 删除是逻辑删除并保留运行审计，真实 PostgreSQL 已验证；对外发布物理擦除前必须新增显式、授权、幂等的 Run purge，按依赖顺序删除运行事实，并按冻结策略提取最小 security audit 记录；共享 Evidence 按引用计数/所有权处理 | 普通删除 fail-closed；purge 后不能恢复该 Run；最小安全审计仍可追踪；共享来源不被误删；外部副作用不重复；备份恢复后关联与留存策略仍成立 |
 | Evidence / Citation | Evidence 失效时 Citation 保留最小关系和原因，但不得继续暴露 excerpt、私有对象或签名 URL | 历史回答显示“来源已失效”，而不是伪造仍可访问引用 |
-| SEC filing / snapshot / XBRL | 用户监控与 Case 可删除；合规允许的公共来源快照按版本化保留策略清理，派生索引和缓存随之失效；删除不能改写历史 accession 或把修订当原件 | 删除后不再在线召回；固定评测夹具仍由独立、许可明确的数据集合同管理；来源身份和审计关系可解释 |
+| SEC filing / snapshot / XBRL | 删除 Workspace import 时清理该 Workspace 的 Knowledge/索引/缓存和在线召回；canonical snapshot 仅在无其他 Workspace、Run/Evidence 或固定评测引用且满足版本化来源保留策略时清理；删除不能改写历史 accession 或把修订当原件 | 当前 Workspace 不再召回；其他合法 import 不受影响；固定评测夹具由独立、许可明确的数据集合同管理；来源身份、引用计数和审计关系可解释 |
 | 审计 | security audit 与 Run-owned operational projection 分层；前者只保存脱敏、最小化事件并按冻结期限留存，不能由普通资源删除接口级联清空。Day 3 已冻结逻辑删除/保留策略和备份恢复步骤；显式 Run purge、最小安全审计物理留存与隔离恢复演练在 Day 10 对外发布前关闭 | 安全事件仍可追踪，且不保留密码、Token、Cookie 或全文原文；删除、恢复和备份测试证明留存边界 |
 | Redis / Milvus / Elasticsearch | 它们是缓存或派生层；删除/版本变化必须主动失效，并由定时对账兜底 | 清空后可从 PostgreSQL/MinIO 重建，旧 Workspace 数据不再命中 |
 
@@ -349,7 +351,7 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 | 检索 | `/search/hybrid`、`/search/web`；调试响应区分 Dense、BM25、RRF 与 Rerank 排名和分数 |
 | 记忆 | `/memories`、`/memories/search`、`/memories/from-session`、`confirm`、`disable`；删除走正式资源接口 |
 | Research | `/research-runs`、`/research-runs/{id}/report`、`graph`、`charts`；其 events/cancel/resume/checkpoints 若保留，只能是对应 `/agent-runs/{agent_run_id}` 的授权兼容视图 |
-| SEC 发行人与申报 | `/sec/filers/resolve`、`/sec/filers/{cik}/filings`、`/sec/filings/{accession}`、`sections`、`facts`；查询必须显式携带截止时点并返回来源身份 |
+| SEC 发行人与申报 | `/workspaces/{workspace_id}/sec/filers/resolve`、`filers/{cik}/filings`、`filing-imports`、`filings/{accession}/documents|sections|facts`；导入使用 `Idempotency-Key` 返回 `202`，查询显式携带截止时点并经 Workspace import 授权后返回来源身份 |
 | 财务核验 | `/financial-verifications`、`/financial-verifications/{id}`、`trace`、`evidence`；创建接口原子写 Case、AgentRun、Job 与 Outbox |
 | 披露监控 | `/filing-monitors`、`/filing-monitors/{id}`、`occurrences`、`approve`、`cancel`；写操作必须授权、审批和幂等 |
 | 历史行业情报 | 当前 `/workspaces/{workspace_id}/industry-sources/items`、`industry-collections/runs`、`industry-collections/schedules` 及手动触发；作为 Day 3 已完成回归面保留，不继续扩展为主产品 |
@@ -542,7 +544,7 @@ uploaded → queued → validating → parsing → extracting_assets
                                       ↘ retrying / failed / cancelled
 ```
 
-文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Day 5 Step 3 已实现 Embedding 与双索引写入，但仍处于未合并的 `implemented_pending_verification`；Step 4 才在冻结 SEC filing 夹具上补齐 Dense 查询与正式 `knowledge_search`。Day 7 复用同一链路启用 filing BM25、RRF 和 rerank。
+文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Day 5 的 Embedding、双索引写入、冻结 SEC filing 夹具上的 Dense 查询与正式 `knowledge_search` 已随 PR #9 合入 `main`；ready fixture 的端到端浏览器 Evidence 反查仍待关闭。Day 6 复用同一链路导入锁定 accession 的官方快照并保持 `dense-v1`；Day 7 再启用 filing BM25、RRF 和 rerank 的 `hybrid-v1`。
 
 删除时先进入 deleting，由 Worker 清理索引和对象，最后进入 deleted。
 
@@ -562,7 +564,7 @@ uploaded → queued → validating → parsing → extracting_assets
 
 ## 12. SEC 双通道检索、Evidence 与 Citation
 
-财务核验不能只依赖向量 RAG。每个问题先冻结 `as_of`、CIK、accession/form、报告期和修订策略，再由同一 Harness 编排两条只读通道：
+财务核验不能只依赖向量 RAG。Day 6 先用版本化 `FilingSelectionScope v1` 冻结 `as_of`、CIK 候选、allowed forms、报告期和修订策略，解析成明确 accession 后再物化 accession-bound `FinancialScope`；现有 Day 5 `FinancialScope v1` 保持 replay 兼容。`sec.list_filings@v1` 必须计算查询区间的 coverage，并跟随 SEC submissions 响应中与该区间相交的 `filings.files` supplemental JSON，保存覆盖清单且按 accession 去重。bulk snapshot 另存 `bulk_published_at`/`coverage_through`；`as_of` 晚于水位时必须由版本化官方增量快照补齐。只有 current、所需 supplemental 文件和截至 `as_of` 的时间覆盖均完整后才能返回 `no_result`，缺失、损坏或时间缺口必须返回 typed dependency/incomplete/partial error。Day 7 才由同一 Harness 编排两条只读通道：
 
 ```text
 问题规范化与 scope freeze
@@ -576,11 +578,13 @@ uploaded → queued → validating → parsing → extracting_assets
 → verified / partial / conflict / insufficient_evidence
 ```
 
-XBRL 适合标准化数值筛选和确定性计算，但 Company Facts 等聚合接口不能替代具体 filing、custom tag、footnote 和修订上下文。原始 filing 是最终引用依据；结构化事实必须能够反查 accession、document、context、unit、period、dimensions 和原始元素。Frames 只用于候选对齐，不能单独作为精确财期判定权威。
+XBRL 适合标准化数值筛选和确定性计算，但 Company Facts 等聚合接口不能替代具体 filing、custom tag、footnote 和修订上下文。aggregate fact 使用 endpoint response snapshot + accession + concept + unit + period locator，原始 context ID、dimensions、decimals/scale 按来源能力可空；只有 raw iXBRL 或独立 XBRL instance XML 才承诺反查 document、原始 element/context/dimensions。Frames 只用于候选对齐，不能单独作为精确财期判定权威。
 
 Dense Top K、BM25 Top K、RRF 参数、Rerank 数量、concept fallback 和最终 Context 数量都只是版本化实验参数，不能成为未经评测的永久常量。Context Compiler 在 Day 7 才将 XBRL facts、filing chunks、Memory、Tool Observation、Evidence 和 Artifact refs 按来源、多样性、时点和 Token 预算合并。
 
-PDF、HTML/iXBRL、Chunk、表格、网页、SQL 结果和历史行业数据统一表示为 Evidence。SEC locator 额外固定 CIK、accession、form、filed/accepted time、document/section、period、unit、dimensions、concept、snapshot hash 和 `retrieved_at`。Message Citation 将 Message 与 Evidence 连接，并记录顺序、Claim 和核验状态。
+Point-in-time 先用 filing identity 的 `public_available_at`、`visibility_basis` 和 `visibility_policy_version` 过滤候选，再用每个 source snapshot/version 的 `source_version_available_at`、依据和有效区间过滤实际字节/响应；两层都必须在 `as_of` 前可证明存在。`report_date`、`filed_date`、`accepted_at` 保留各自业务语义，`retrieved_at` 只表示本地抓取时间：它不能自动排除事后取得的已存在版本，也不能把 correction 后首次抓取的字节追溯成更早版本。精确历史日内或 source version 可见性无法证明时 fail closed，不能用 UTC 零点或当前 submissions/companyfacts 猜测。amendment policy 必须显式记录，未来 canonical 行/版本即使已同步也不能进入 Tool output、Context 或 Calculation。
+
+PDF、HTML/iXBRL、Chunk、表格、网页、SQL 结果和历史行业数据统一表示为 Evidence。SEC locator 额外固定 CIK、accession、form、filed/accepted/public-available time、visibility policy、document/section、period、unit、dimensions、concept、snapshot hash 和 `retrieved_at`。Message Citation 将 Message 与 Evidence 连接，并记录顺序、Claim 和核验状态。
 
 ### 12.1 检索调试与评测门禁
 
@@ -664,14 +668,16 @@ SEC 主产品冻结以下类型化 Tool：
 
 | Tool | 副作用 | 职责 |
 |---|---|---|
-| `sec.resolve_filer@v1` | 无 | 将 ticker/name 解析为带证据的 CIK 候选，歧义时拒绝自动选择 |
-| `sec.list_filings@v1` | 无 | 按 CIK、form、filed/accepted time 和 `as_of` 返回 filing identity |
-| `sec.get_xbrl_facts@v1` | 无 | 返回可反查 filing/context/unit/period/dimensions 的结构化事实 |
-| `sec.search_filing@v1` | 无 | 对冻结 filing snapshot 执行 Hybrid Retrieval |
+| `sec.resolve_filer@v1` | 无 | 在认证 Workspace 预算下读取公共 discovery catalog，将 ticker/name 解析为带证据的 CIK 候选，歧义时拒绝自动选择 |
+| `sec.list_filings@v1` | 无 | 在认证 Workspace 预算下按 CIK、form、filing/source-version visibility 和 `as_of` 返回 public filing identity，不暴露其他 Workspace import 状态 |
+| `sec.get_xbrl_facts@v1` | 无 | 经当前 Workspace import 返回 source-typed fact；aggregate/raw locator 分型，raw 才承诺原始 context/dimensions |
+| `sec.search_filing@v1` | 无 | 对锁定 filing snapshot 返回带 `retrieval_profile_version` 的候选；Day 6 为 `dense-v1`，Day 7 为 `hybrid-v1` |
 | `sec.read_filing_section@v1` | 无 | 读取指定 filing/section 范围并生成 Evidence locator |
 | `finance.calculate@v1` | 无 | 对 typed Decimal 输入执行 allowlisted 公式、单位换算和舍入 |
 | `sec.diff_filings@v1` | 无 | 对两个明确 filing 版本执行事实与章节差异核对 |
 | `monitor.subscribe@v1` | 有 | 创建/更新披露监控；必须授权、Approval、幂等和可审计 |
+
+Day 6 的正式 profile 只暴露前五个 SEC 只读 Tool。`finance.calculate@v1` 虽已有 Day 5 fixture 合同，但正式 SEC 计算/核对在 Day 7 验收；`sec.diff_filings@v1` 与 `monitor.subscribe@v1` 分别留在 Day 7、Day 8。Tool schema 不因检索算法切换而静默改变，Dense/Hybrid 通过返回中的 `retrieval_profile_version` 和 Trace 区分。
 
 ### 15.3 历史行业上下文与 SEC 来源
 
@@ -715,7 +721,7 @@ L5：L4 + outline/draft → verify → bounded revise → finalize
     → verified / partial / conflict / insufficient_evidence Report
 ```
 
-执行顺序固定为：Day 4 已完成通用 L3；Day 5 Step 5 在冻结 SEC fixture 上完成 L4 durable Checkpoint/HITL；Day 7 完成 SEC 双通道 Research 图；Day 8 增加 L5 Verifier、最多一次 bounded revise 与 durable monitor/HITL。L6 specialist/handoff 不是硬指标，只有统一 Evaluation Harness 相对单图基线证明质量收益显著高于延迟、Token 和调试成本时才进入后续实验。
+执行顺序固定为：Day 4 已完成通用 L3；Day 5 Step 5 已合并冻结 SEC fixture 上的 L4 durable Checkpoint/HITL，待同一 fixture 浏览器 DoD 后关闭；Day 7 完成 SEC 双通道 Research 图；Day 8 增加 L5 Verifier、最多一次 bounded revise 与 durable monitor/HITL。L6 specialist/handoff 不是硬指标，只有统一 Evaluation Harness 相对单图基线证明质量收益显著高于延迟、Token 和调试成本时才进入后续实验。
 
 `ResearchBrief` 显式保存原始问题、确认范围、排除项、完成标准和预算，Planner 不能静默改题。L3 的每个 Claim 标注 support/refute/uncertain、coverage 与 conflict，并关联真实 Evidence locator；Observation 不经规范化不能冒充 Evidence。
 
@@ -867,7 +873,7 @@ Day 10 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 
 
 Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
-本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 17 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File/Knowledge/DocumentVersion/Chunk/IndexRecord 元数据、AgentRun/Step/Event/Checkpoint/manifest、Research Approval/Decision/side-effect ledger、ToolCall/ToolRun、行业偏好/来源/采集、DataConnection/SchemaSnapshot/QueryRun/QueryResult/ChartSpec、Job、Outbox、Schedule 和 occurrence 的唯一系统业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 只保存私有文件字节。
+本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 18 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File/Knowledge/DocumentVersion/Chunk/IndexRecord 元数据、AgentRun/Step/Event/Checkpoint/manifest、Research Approval/Decision/side-effect ledger、ToolCall/ToolRun、SEC filer/filing/source observation/coverage、行业偏好/来源/采集、DataConnection/SchemaSnapshot/QueryRun/QueryResult/ChartSpec、Job、Outbox、Schedule 和 occurrence 的唯一系统业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 保存私有文件与不可变 SEC source response 字节。
 
 Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-01～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
@@ -877,7 +883,7 @@ Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench�
 
 Day 4 步骤 1～5、Trace/Eval/DoD 与授权收口已经完成，D4-01～D4-07 为 `complete`。Memory、Evidence/Claim、唯一 Research L3 graph 与正式 Workbench 共用 PostgreSQL、OpenAPI、Event/Trace、Context manifest、`UnifiedAgentRuntime` 和既有 Tool loop；独立 Scorer 保留 24 条 Day 2/3 基线并把累计 Scenario 扩为 50 条。没有第二 Research/Tool/Provider 链，也没有前端事实缓存。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 通过全部 7 个适用 Job。具体证据和 85% 核心覆盖率债务见 [Day 4 五步执行计划](learning-log/day-4.md)；该债务须在 Day 10 前达到 90%。Day 4 只完成可治理 Memory、Observation→Evidence→Claim 与唯一 Research L3 graph，不提前把普通状态持久化写成 durable Checkpoint，也不提前实现 Day 5 L4 或 Day 8 Verifier/bounded revise。
 
-Day 5 Step 1～3 已在 `feat/day5-knowledge-ingestion-step1` 实现私有上传 acceptance、版本化解析资产、Embedding 与双索引写入，提交依次为 `bba63e6`、`ad57073`/CI 修复 `adec643`、`4daa028`，已提交基线的分支 CI `32796096690` 已通过。Step 4～5 当前工作树又实现冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。D5-01～D5-09 均为 `implemented_pending_verification`：工作树尚未提交或取得 Step 4/5 远端 CI，分支未合入 `main`，也没有 Day 5 全量 DoD/项目所有者收口；live SEC、L5、监控、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门仍是目标架构，不能视为当前能力。
+Day 5 已合并私有上传、版本化解析资产、Embedding/双索引、冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 已合入 `main`，功能 head `cff25c1` 的 push/PR CI `32920879147`、`32924323618` 和合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均成功。D5-01～D5-07 为 `complete`；因为缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，D5-08/D5-09 保持 `implemented_pending_verification`。Day 6 Step 1 已在当前分支提交中新增 filer catalog、认证解析 API 和 `sec.resolve_filer@v1`。Step 2 当前工作树新增 current + supplemental submissions Adapter、source response snapshot、canonical filing/observation/coverage migration、point-in-time API 和 `sec.list_filings@v1`，复用统一 HTTP egress、Redis、MinIO、Workspace policy 与 Tool Registry/Executor。D6-01 为 `implemented_pending_verification`，D6-02/D6-05/D6-06 为 `thin_slice`；live SEC、bulk watermark/post-gap、其余三 Tool、XBRL、Workbench 和 Eval 仍未实现。该开始顺序不关闭 D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门也不能视为当前能力。
 
 ## 21. 初学者术语表
 

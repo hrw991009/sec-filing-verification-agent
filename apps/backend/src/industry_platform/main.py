@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
+import httpx2
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,6 +86,14 @@ from industry_platform.modules.data_explorer.resources import (
     create_data_explorer_resources,
 )
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
+from industry_platform.modules.disclosures.domain import (
+    SecDisclosurePersistenceError,
+    SecFilingContentError,
+    SecSourceError,
+    SecSourceErrorCode,
+)
+from industry_platform.modules.disclosures.resources import create_disclosure_resources
+from industry_platform.modules.disclosures.router import router as disclosure_router
 from industry_platform.modules.evidence.domain import (
     ClaimNotFoundError,
     EvidenceConflictError,
@@ -235,6 +244,7 @@ def create_app(
         redis_client: Redis | None = None
         data_explorer_resources: DataExplorerResources | None = None
         external_http_client = create_public_egress_http_client()
+        internal_http_client = httpx2.AsyncClient(trust_env=False)
 
         try:
             database_session_factory = create_database_session_factory(database_engine)
@@ -286,6 +296,15 @@ def create_app(
                 active_settings,
                 database_session_factory,
             )
+            disclosure_resources = create_disclosure_resources(
+                active_settings,
+                database_session_factory,
+                external_http_client,
+                redis_client,
+                internal_http_client,
+                knowledge_resources.service,
+                file_resources.object_store,
+            )
 
             application.state.resources = ApplicationResources(
                 settings=active_settings,
@@ -305,6 +324,7 @@ def create_app(
             application.state.job_resources = job_resources
             application.state.industry_resources = industry_resources
             application.state.data_explorer_resources = data_explorer_resources
+            application.state.disclosure_resources = disclosure_resources
 
             yield
         finally:
@@ -317,9 +337,12 @@ def create_app(
                         await data_explorer_resources.close()
                 finally:
                     try:
-                        await external_http_client.aclose()
+                        await internal_http_client.aclose()
                     finally:
-                        await database_engine.dispose()
+                        try:
+                            await external_http_client.aclose()
+                        finally:
+                            await database_engine.dispose()
 
     application = FastAPI(
         title="Industry Intelligence Platform API",
@@ -353,6 +376,7 @@ def create_app(
     application.include_router(knowledge_router, prefix="/api/v1")
     application.include_router(industry_router, prefix="/api/v1")
     application.include_router(data_explorer_router, prefix="/api/v1")
+    application.include_router(disclosure_router, prefix="/api/v1")
     application.include_router(evidence_router, prefix="/api/v1")
     application.include_router(research_router, prefix="/api/v1")
 
@@ -616,6 +640,71 @@ def create_app(
             code="DATA_EXPLORER_REQUEST_REJECTED",
             detail=f"The database request was rejected ({error.code}).",
             problem_type="urn:iip:problem:data-explorer-request-rejected",
+        )
+
+    @application.exception_handler(SecDisclosurePersistenceError)
+    async def handle_disclosure_persistence_unavailable(
+        request: Request,
+        error: SecDisclosurePersistenceError,
+    ) -> JSONResponse:
+        trace_id = get_trace_id(request)
+        logger.error(
+            "SEC disclosure persistence unavailable trace_id=%s sqlstate=%s",
+            trace_id,
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=trace_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="SEC filer catalog unavailable",
+            code="SEC_CATALOG_UNAVAILABLE",
+            detail="SEC filer discovery is temporarily unavailable. Please try again.",
+            problem_type="urn:iip:problem:sec-catalog-unavailable",
+        )
+
+    @application.exception_handler(SecSourceError)
+    async def handle_sec_source_error(
+        request: Request,
+        error: SecSourceError,
+    ) -> JSONResponse:
+        rejected_response_codes = {
+            SecSourceErrorCode.REDIRECT_REJECTED,
+            SecSourceErrorCode.CONTENT_TYPE_INVALID,
+            SecSourceErrorCode.RESPONSE_TOO_LARGE,
+            SecSourceErrorCode.RESPONSE_INVALID,
+        }
+        status_code = (
+            status.HTTP_502_BAD_GATEWAY
+            if error.code in rejected_response_codes
+            else status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status_code,
+            title="SEC source unavailable",
+            code=error.code.value.upper(),
+            detail="The official SEC source could not be used safely. Please try again later.",
+            problem_type=f"urn:iip:problem:{error.code.value.replace('_', '-')}",
+        )
+
+    @application.exception_handler(SecFilingContentError)
+    async def handle_sec_filing_content_error(
+        request: Request,
+        error: SecFilingContentError,
+    ) -> JSONResponse:
+        status_code = {
+            SecSourceErrorCode.FILING_NOT_FOUND: status.HTTP_404_NOT_FOUND,
+            SecSourceErrorCode.SNAPSHOT_ANOMALY: status.HTTP_409_CONFLICT,
+            SecSourceErrorCode.IMPORT_NOT_READY: status.HTTP_409_CONFLICT,
+            SecSourceErrorCode.SNAPSHOT_NOT_VISIBLE: status.HTTP_422_UNPROCESSABLE_CONTENT,
+        }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status_code,
+            title="SEC filing content request rejected",
+            code=error.code.value.upper(),
+            detail="The locked filing content request could not be completed.",
+            problem_type=f"urn:iip:problem:{error.code.value.replace('_', '-')}",
         )
 
     @application.exception_handler(ScheduleDefinitionConflictError)

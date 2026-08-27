@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-25
+> 更新日期：2026-08-27
 >
-> 权威来源：`docs/master-plan.md` 2.0.0
+> 权威来源：`docs/master-plan.md` 2.0.9
 
 ## 1. 使用规则
 
@@ -189,30 +189,32 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
-| D5-01 | 多知识库管理 | R2 + NEW | 创建、列表、详情、编辑、删除、文档计数和 Workspace 隔离 | CRUD、计数、越权和真实删除测试 | `implemented_pending_verification` | `complete` |
-| D5-02 | 私有预签名上传 | R1 + R2 + NEW | MinIO 私有；有界文件校验、SHA-256、短签名 URL 与 Workspace 授权复用统一上传合同 | 代表性伪类型、损坏/加密/超限、重复和签名 URL 越权测试 | `implemented_pending_verification` | `complete` |
-| D5-03 | 文档格式真实能力 | R1 + R2 | PDF、TXT、Markdown；数字 PDF、扫描 PDF、含图片/复杂表格 PDF 使用独立 fixture；不把前端 accept 当成功 | 格式/解析/页码/bbox/OCR/图片/表格与故障合同 | `implemented_pending_verification` | `complete` |
-| D5-04 | 版本化解析资产 | R1 + NEW | Document/Version/Page/Chunk/Asset；页码、bbox、标题、parser/chunker 版本和关系 | 解析资产可追溯且重复 Worker 不重复写入 | `implemented_pending_verification` | `complete` |
-| D5-05 | 可观察异步入库 | R1 + R2 + NEW | 阶段、失败、重试、取消；vector/lexical 两类索引写入后才 ready | 阶段故障、Worker 重启、重复投递、超时、取消及双索引 readiness | `implemented_pending_verification` | `complete` |
-| D5-06 | 跨存储删除与对账 | R1 + NEW | deleting → PG/Milvus/ES/MinIO 清理 → deleted；孤儿检测和重放 | 外部删除点故障、对账和零活跃残留 | `implemented_pending_verification` | `complete` |
-| D5-07 | 文档/Chunk/资产详情 | R1 + R2 | 文档、状态、错误、版本、Chunk、页面、图片、表格、删除与刷新恢复 | 组件、权限、OpenAPI 和浏览器测试 | `implemented_pending_verification` | `complete` |
-| D5-08 | Embedding/index-write、SEC Fixture Dense Tool 与 Calculator | NEW + SEC | 复用同一入库/Runtime 链完成固定 SEC accession fixture、Dense `knowledge_search`、KnowledgeContextSource、`finance.calculate@v1` 和 filing/calculation Evidence lineage | Embedding/index 合同；同一 Runtime 接入 filing fixture；公式/单位/期间/错误语义和 F0～F2 对照 | `implemented_pending_verification` | `complete` |
-| D5-09 | SEC Fixture Durable Research L4、Checkpoint 与 HITL | R2 + NEW + SEC | 将带 FinancialScope 的 LangGraph state 映射统一 Run/Event/Checkpoint；interrupt/resume、持久审批、取消、幂等计算/Artifact | hard stop、重复 resume/decision、allow/deny/timeout、零重复副作用与 SEC fixture L3/L4 对照 | `implemented_pending_verification` | `complete` |
+| D5-01 | 多知识库管理 | R2 + NEW | 创建、列表、详情、编辑、删除、文档计数和 Workspace 隔离 | CRUD、计数、越权和真实删除测试 | `complete` | `complete` |
+| D5-02 | 私有预签名上传 | R1 + R2 + NEW | MinIO 私有；有界文件校验、SHA-256、短签名 URL 与 Workspace 授权复用统一上传合同 | 代表性伪类型、损坏/加密/超限、重复和签名 URL 越权测试 | `complete` | `complete` |
+| D5-03 | 文档格式真实能力 | R1 + R2 | PDF、TXT、Markdown；数字 PDF、扫描 PDF、含图片/复杂表格 PDF 使用独立 fixture；不把前端 accept 当成功 | 格式/解析/页码/bbox/OCR/图片/表格与故障合同 | `complete` | `complete` |
+| D5-04 | 版本化解析资产 | R1 + NEW | Document/Version/Page/Chunk/Asset；页码、bbox、标题、parser/chunker 版本和关系 | 解析资产可追溯且重复 Worker 不重复写入 | `complete` | `complete` |
+| D5-05 | 可观察异步入库 | R1 + R2 + NEW | 阶段、失败、重试、取消；vector/lexical 两类索引写入后才 ready | 阶段故障、Worker 重启、重复投递、超时、取消及双索引 readiness | `complete` | `complete` |
+| D5-06 | 跨存储删除与对账 | R1 + NEW | deleting → PG/Milvus/ES/MinIO 清理 → deleted；孤儿检测和重放 | 外部删除点故障、对账和零活跃残留 | `complete` | `complete` |
+| D5-07 | 文档/Chunk/资产详情 | R1 + R2 | 文档、状态、错误、版本、Chunk、页面、图片、表格、删除与刷新恢复 | 组件、权限、OpenAPI 和浏览器测试 | `complete` | `complete` |
+| D5-08 | Embedding/index-write、SEC Fixture Dense Tool 与 Calculator | NEW + SEC | 复用同一入库/Runtime 链完成固定 SEC accession fixture、Dense `knowledge_search`、KnowledgeContextSource、`finance.calculate@v1` 和 filing/calculation Evidence lineage | Embedding/index 合同；同一 Runtime 接入 filing fixture；公式/单位/期间/错误语义、F0～F2 对照与 ready fixture 浏览器 Evidence 反查 | `implemented_pending_verification` | `complete` |
+| D5-09 | SEC Fixture Durable Research L4、Checkpoint 与 HITL | R2 + NEW + SEC | 将带 FinancialScope 的 LangGraph state 映射统一 Run/Event/Checkpoint；interrupt/resume、持久审批、取消、幂等计算/Artifact | hard stop、重复 resume/decision、allow/deny/timeout、零重复副作用与 fixture 暂停/审批/resume/刷新浏览器旅程 | `implemented_pending_verification` | `complete` |
 
-2026-08-25 当前分支事实：Step 1 提交 `bba63e6`，Step 2 提交 `ad57073` 并由 `adec643` 修复 CI，Step 3 提交 `4daa028`；该已提交基线的分支 CI `32796096690` 全绿。Step 4～5 当前工作树已实现固定 SEC fixture、Dense Tool、typed calculator、Evidence lineage、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 时间线和 L4 recovery eval，并通过本地统一门禁，故 D5-08～D5-09 为 `implemented_pending_verification`。但工作树尚未提交或取得 Step 4/5 远端 CI，F0/F1 不是独立真实模型执行，SEC 浏览器全链、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门均未完成；分支尚未合入 `main`，没有合并提交 CI、正式 Day 5 DoD/Trace/Eval 复核与项目所有者收口，因此 D5-01～D5-09 均不得写成 `complete`。
+2026-08-26 合并事实：Day 5 五步由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，功能 head `cff25c1` 的 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147) 与 PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 均成功；合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 再次通过 7 个适用 Job。D5-01～D5-07 的冻结验收因此关闭为 `complete`。但 Day 5 本地记录明确没有 ready SEC fixture 的 Dense/calculation Evidence 浏览器全链，也没有同一 fixture 暂停/审批/resume/刷新旅程；项目所有者随后明确要求开始 Day 6 Step 1，只调整该步骤的开始顺序，不关闭或豁免 D5-08/D5-09。两项与 Day 5 总门禁继续保持 `implemented_pending_verification`。F0/F1 仍非独立真实模型结果；live SEC、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门不属于 Day 5 范围。
 
 ## 8. Day 6：SEC 官方披露数据与 Point-in-Time
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
-| D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `planned` | `complete` |
-| D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filing/accepted date、`as_of`、base/amendment | cutoff、form、期间、amendment 和 future leakage 测试 | `planned` | `complete` |
-| D6-03 | 不可变原始 Filing 快照 | SEC + R1 | 官方 HTML/iXBRL/XML/必要附件、URL、retrieved_at、hash、MinIO ref | 重复同步、内容变化异常、损坏/partial 与授权测试 | `planned` | `complete` |
-| D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/decimals/scale/instant-duration/dimensions/accession；聚合与 raw 来源分离 | standard/custom tag、单位/期间/context 与 locator 测试 | `planned` | `complete` |
-| D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `planned` | `complete` |
-| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避、bulk 优先、无浏览器直连 | client contract、rate-limit、timeout、license/source review | `planned` | `complete` |
-| D6-07 | Filing 入库与 Workbench | R1 + SEC | 原始 filing 复用 File/Knowledge/Ingestion/双索引；CIK→accession→snapshot/fact/文档导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、组件与浏览器旅程 | `planned` | `complete` |
-| D6-08 | `sec-source-v1` 数据合同评测 | BENCH + NEW | identity、amendment、cutoff、custom tag、unit/period、429、重复同步和跨 Workspace | deterministic report、live smoke 分报、source/future leakage 指标 | `planned` | `complete` |
+| D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `implemented_pending_verification` | `complete` |
+| D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `thin_slice` | `complete` |
+| D6-03 | 不可变原始 Filing 快照 | SEC + R1 | canonical identity/current projection、append-only source version 与 Workspace import 分层；官方 HTML/iXBRL/XML/response/必要附件、URL、source-version visibility、retrieved_at、hash、MinIO ref | correction/deletion、重复同步、引用/删除、内容变化异常、损坏/partial 与授权测试 | `implemented_pending_verification` | `complete` |
+| D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/instant-duration/accession；聚合 response 与 raw iXBRL/instance XML 来源分离，context/dimensions/decimals/scale 按 source capability 可空 | standard/custom tag、aggregate/raw locator、单位/期间/context、provenance 与 locator 测试 | `implemented_pending_verification` | `complete` |
+| D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `implemented_pending_verification` | `complete` |
+| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `thin_slice` | `complete` |
+| D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
+| D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `implemented_pending_verification` | `complete` |
+
+2026-08-27 实施映射：Day 6 继续只按五个纵向步骤执行。Step 1～4 已在当前分支基线中交付；Step 5 当前工作树新增严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验，以及 24-case `sec-source-v1` manifest/scorer/report。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Tool surface `15/15`，future/scope/Workspace/duplicate/dependency 误分类均为 0；两条 bulk watermark case 保持 `capability_missing`，没有从分母删除。D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。live SEC、分支/main CI、所有者复核和 D5-08/D5-09 浏览器 DoD 均未完成。BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 

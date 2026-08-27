@@ -49,6 +49,7 @@ from industry_platform.modules.knowledge.domain import (
     DocumentDetail,
     DocumentVersion,
     DocumentView,
+    ImportKnowledgeTextSource,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
     KnowledgeDeletionReceipt,
@@ -301,6 +302,69 @@ class KnowledgeApplicationService:
             raise FileValidationRejectedError(AttachmentValidationCode.EMPTY_FILE) from None
         except FileObjectStoreError:
             raise FileServiceUnavailableError from None
+
+    async def import_text_source(
+        self,
+        scope: WorkspaceScope,
+        command: ImportKnowledgeTextSource,
+    ) -> KnowledgeAcceptanceReceipt:
+        """Accept trusted server bytes through the same fenced Knowledge workflow."""
+
+        self._require(scope, WorkspaceAction.CREATE_RESOURCE)
+        store, bucket = self._store()
+        key_hash = hash_knowledge_idempotency_key(command.idempotency_key)
+        request_hash = fingerprint_knowledge_request(
+            knowledge_base_id=command.knowledge_base_id,
+            file_id=command.file_id,
+            title=command.title,
+        )
+        existing = await self.repository.existing_receipt(
+            workspace_id=scope.workspace_id,
+            knowledge_base_id=command.knowledge_base_id,
+            file_id=command.file_id,
+            idempotency_key_hash=key_hash,
+            request_fingerprint=request_hash,
+        )
+        if existing is not None:
+            return existing
+
+        now = self.clock()
+        source_sha256 = hashlib.sha256(command.content).hexdigest()
+        staging_key = f"staging/{scope.workspace_id}/knowledge/{command.file_id}/internal"
+        upload = StagingKnowledgeUpload(
+            file_id=command.file_id,
+            workspace_id=scope.workspace_id,
+            created_by_user_id=scope.user_id,
+            knowledge_base_id=command.knowledge_base_id,
+            original_name=command.original_name,
+            declared_media_type=command.declared_media_type,
+            bucket=bucket,
+            staging_key=staging_key,
+            expected_size=len(command.content),
+            expected_sha256=source_sha256,
+            expires_at=now + timedelta(minutes=30),
+            created_at=now,
+        )
+        await self.repository.ensure_internal_staging_upload(upload)
+        try:
+            await store.put_private(
+                bucket=bucket,
+                object_key=staging_key,
+                content_type=command.declared_media_type.value,
+                content=command.content,
+            )
+        except FileObjectStoreError:
+            raise FileServiceUnavailableError from None
+        return await self.complete_upload(
+            scope,
+            CompleteKnowledgeUpload(
+                knowledge_base_id=command.knowledge_base_id,
+                file_id=command.file_id,
+                title=command.title,
+                idempotency_key=command.idempotency_key,
+                trace_id=command.trace_id,
+            ),
+        )
 
     async def list_documents(
         self, scope: WorkspaceScope, *, knowledge_base_id: UUID, limit: int = 100

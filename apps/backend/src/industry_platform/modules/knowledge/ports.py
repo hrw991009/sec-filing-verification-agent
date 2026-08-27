@@ -19,6 +19,7 @@ from industry_platform.modules.knowledge.domain import (
     DocumentDetail,
     DocumentVersion,
     DocumentView,
+    ImportKnowledgeTextSource,
     KnowledgeAcceptanceReceipt,
     KnowledgeBase,
     KnowledgeDeletionReceipt,
@@ -55,6 +56,8 @@ class KnowledgeRepository(Protocol):
     ) -> None: ...
 
     async def create_staging_upload(self, upload: StagingKnowledgeUpload) -> None: ...
+
+    async def ensure_internal_staging_upload(self, upload: StagingKnowledgeUpload) -> None: ...
 
     async def existing_receipt(
         self,
@@ -162,6 +165,10 @@ class KnowledgeUseCase(Protocol):
 
     async def complete_upload(
         self, scope: WorkspaceScope, command: CompleteKnowledgeUpload
+    ) -> KnowledgeAcceptanceReceipt: ...
+
+    async def import_text_source(
+        self, scope: WorkspaceScope, command: ImportKnowledgeTextSource
     ) -> KnowledgeAcceptanceReceipt: ...
 
     async def create_document_version(

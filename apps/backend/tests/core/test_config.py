@@ -131,6 +131,11 @@ def test_settings_load_and_convert_environment_values(
     assert settings.outbox_claim_seconds == 60
     assert settings.outbox_dispatch_batch_size == 100
     assert settings.scheduler_scan_interval_seconds == 15
+    assert settings.sec_source_configured is False
+    assert settings.sec_requests_per_second == 8
+    assert settings.sec_catalog_cache_ttl_seconds == 3_600
+    assert settings.sec_request_timeout_seconds == 20.0
+    assert settings.sec_request_max_attempts == 3
 
 
 def test_settings_hide_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -195,6 +200,30 @@ def test_partial_agent_model_configuration_is_rejected(
     monkeypatch.setenv("AGENT_MODEL_PROVIDER_BASE_URL", "https://api.example.com/v1")
 
     with pytest.raises(ValidationError, match="must be complete"):
+        Settings(_env_file=None)
+
+
+def test_sec_user_agent_configuration_is_complete_and_below_official_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("SEC_USER_AGENT_APP", "IndustryIntelligencePlatform/0.1")
+    monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "edgar-ops@example.test")
+    monkeypatch.setenv("SEC_REQUESTS_PER_SECOND", "9")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.sec_source_configured is True
+    assert settings.sec_user_agent == ("IndustryIntelligencePlatform/0.1 edgar-ops@example.test")
+    assert settings.sec_requests_per_second == 9
+
+    monkeypatch.delenv("SEC_USER_AGENT_EMAIL")
+    with pytest.raises(ValidationError, match="SEC User-Agent configuration must be complete"):
+        Settings(_env_file=None)
+
+    monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "edgar-ops@example.test")
+    monkeypatch.setenv("SEC_REQUESTS_PER_SECOND", "10")
+    with pytest.raises(ValidationError):
         Settings(_env_file=None)
 
 

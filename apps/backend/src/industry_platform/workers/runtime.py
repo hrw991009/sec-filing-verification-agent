@@ -30,6 +30,7 @@ from industry_platform.modules.conversations.domain import (
     DIRECT_ANSWER_TASK_NAME,
     TurnSearchMode,
 )
+from industry_platform.modules.disclosures.resources import create_sec_filing_tools
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
@@ -276,7 +277,12 @@ class KnowledgeIngestionJobHandler:
             if error.retryable:
                 raise RetryableJobHandlerError(code) from None
             raise PermanentJobHandlerError(code) from None
-        except IngestionDependencyError:
+        except IngestionDependencyError as error:
+            logger.warning(
+                "knowledge_ingestion_dependency_failed job_id=%s code=%s",
+                job.job_id,
+                error.code,
+            )
             raise RetryableJobHandlerError(
                 JobExecutionErrorCode.INGESTION_DEPENDENCY_RETRYABLE
             ) from None
@@ -629,6 +635,11 @@ def create_job_delivery_runtime(
         session_factory,
         tool_http_client,
     )
+    search_filing_tool, read_filing_section_tool, get_xbrl_facts_tool = create_sec_filing_tools(
+        settings,
+        session_factory,
+        tool_http_client,
+    )
     direct_answer = create_direct_answer_runtime_resources(
         settings,
         session_factory,
@@ -637,12 +648,18 @@ def create_job_delivery_runtime(
             industry.web_search_tool,
             retrieval.knowledge_search_tool,
             retrieval.finance_calculate_tool,
+            search_filing_tool,
+            read_filing_section_tool,
+            get_xbrl_facts_tool,
         ),
         tool_surfaces={
             TurnSearchMode.WEB: (industry.web_search_tool.definition.reference,),
             TurnSearchMode.LOCAL: (
                 retrieval.knowledge_search_tool.definition.reference,
                 retrieval.finance_calculate_tool.definition.reference,
+                search_filing_tool.definition.reference,
+                read_filing_section_tool.definition.reference,
+                get_xbrl_facts_tool.definition.reference,
             ),
         },
         fixture_catalog=retrieval.catalog,

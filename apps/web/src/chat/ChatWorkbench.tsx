@@ -16,6 +16,7 @@ import { IndustryWorkspace } from "../industry/IndustryWorkspace";
 import { getIndustryPreference, listIndustries, type Industry } from "../industry/industry-api";
 import { KnowledgeWorkspace } from "../knowledge/KnowledgeWorkspace";
 import { ResearchWorkspace } from "../research/ResearchWorkspace";
+import { SecWorkbench } from "../disclosures/SecWorkbench";
 
 import {
   cancelRun,
@@ -1441,6 +1442,8 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
         />
       ) : view === "knowledge" ? (
         <KnowledgeWorkspace canManage={canCompose} key={workspaceId} workspaceId={workspaceId} />
+      ) : view === "sec" ? (
+        <SecWorkbench canManage={canCompose} key={workspaceId} workspaceId={workspaceId} />
       ) : view === "evidence" ? (
         <EvidenceWorkspace
           canManage={canCompose}
