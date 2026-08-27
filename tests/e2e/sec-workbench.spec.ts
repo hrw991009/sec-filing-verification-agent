@@ -127,10 +127,120 @@ async function installSecReplay(page: Page): Promise<void> {
       title: `10-K ${accession}`,
     }),
   );
+  await page.route(`**/disclosures/filings/${accession}/xbrl/sync`, (route) =>
+    response(route, {
+      accession,
+      context_count: 1,
+      fact_count: 2,
+      source_count: 2,
+      source_versions: ["sec-xbrl-companyfacts-replay-v1", "sec-xbrl-raw-instance-replay-v1"],
+    }),
+  );
+  await page.route(`**/disclosures/filings/${accession}/xbrl/facts?*`, (route) =>
+    response(route, {
+      accession,
+      error_code: null,
+      facts: [
+        {
+          accession,
+          cik: "0000320193",
+          concept: "Revenue",
+          context_id: null,
+          decimals: null,
+          dimensions: {},
+          filed_date: "2023-11-03",
+          filing_id: imported.filing_id,
+          form: "10-K",
+          format: null,
+          id: "10101010-1010-4010-8010-101010101010",
+          is_custom: false,
+          locator: {
+            accession,
+            concept: "Revenue",
+            endpoint_snapshot_id: "20202020-2020-4020-8020-202020202020",
+            ordinal: 0,
+            period: {
+              end_date: "2023-09-30",
+              instant: null,
+              kind: "duration",
+              start_date: "2022-09-25",
+            },
+            source_kind: "companyfacts_aggregate",
+            taxonomy: "us-gaap",
+            unit: "USD",
+          },
+          period: {
+            end_date: "2023-09-30",
+            instant: null,
+            kind: "duration",
+            start_date: "2022-09-25",
+          },
+          retrieved_at: "2026-08-26T08:00:00Z",
+          scale: null,
+          source_available_at: "2023-11-03T18:01:00Z",
+          source_content_sha256: "e".repeat(64),
+          source_id: "20202020-2020-4020-8020-202020202020",
+          source_kind: "companyfacts_aggregate",
+          source_snapshot_id: null,
+          source_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+          source_version: "sec-xbrl-companyfacts-replay-v1",
+          taxonomy: "us-gaap",
+          unavailable_fields: ["context_id", "decimals", "dimensions", "scale"],
+          unit: "USD",
+          value: "100",
+        },
+        {
+          accession,
+          cik: "0000320193",
+          concept: "CustomerContractAsset",
+          context_id: "D2023",
+          decimals: "-6",
+          dimensions: { "dei:LegalEntityAxis": "aapl:AppleIncMember" },
+          filed_date: "2023-11-03",
+          filing_id: imported.filing_id,
+          form: "10-K",
+          format: null,
+          id: "30303030-3030-4030-8030-303030303030",
+          is_custom: true,
+          locator: {
+            accession,
+            concept: "CustomerContractAsset",
+            context_id: "D2023",
+            filing_snapshot_id: "40404040-4040-4040-8040-404040404040",
+            ordinal: 1,
+            source_kind: "raw_instance",
+            taxonomy: "aapl",
+          },
+          period: {
+            end_date: "2023-09-30",
+            instant: null,
+            kind: "duration",
+            start_date: "2022-09-25",
+          },
+          retrieved_at: "2026-08-26T08:00:00Z",
+          scale: null,
+          source_available_at: "2023-11-03T18:01:00Z",
+          source_content_sha256: "f".repeat(64),
+          source_id: "50505050-5050-4050-8050-505050505050",
+          source_kind: "raw_instance",
+          source_snapshot_id: "40404040-4040-4040-8040-404040404040",
+          source_url: "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl.xml",
+          source_version: "sec-xbrl-raw-instance-replay-v1",
+          taxonomy: "aapl",
+          unavailable_fields: [],
+          unit: "iso4217:USD",
+          value: "25",
+        },
+      ],
+      status: "ok",
+    }),
+  );
 }
 
 test("navigates a locked SEC filing from accession to exact source chunk", async ({ page }) => {
   const uniquePart = [Date.now(), test.info().workerIndex].join("-");
+  const browserErrors: string[] = [];
+  const failedRequests: string[] = [];
   await installSecReplay(page);
   await page.goto("/");
   await page.getByRole("button", { exact: true, name: "创建账户" }).click();
@@ -138,6 +248,15 @@ test("navigates a locked SEC filing from accession to exact source chunk", async
   await page.getByLabel("密码").fill("Browser!Pass123");
   await page.getByRole("button", { name: "创建账户并进入" }).click();
   await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+  page.on("requestfailed", (request) => {
+    failedRequests.push(`${request.method()} ${request.url()}`);
+  });
 
   await page.getByRole("button", { exact: true, name: "SEC" }).click();
   await expect(page.getByRole("heading", { name: "SEC 申报审查" })).toBeVisible();
@@ -156,14 +275,24 @@ test("navigates a locked SEC filing from accession to exact source chunk", async
   await expect(page.getByText("Snapshot bbbbbbbb")).toBeVisible();
   await expect(page.getByText("Source dddddddddddd")).toBeVisible();
 
-  await page.screenshot({ fullPage: true, path: test.info().outputPath("sec-desktop.png") });
+  await page.getByRole("tab", { name: "XBRL" }).click();
+  await page.getByRole("button", { name: "同步 XBRL" }).click();
+  await expect(page.getByText("us-gaap:Revenue").first()).toBeVisible();
+  await page.getByRole("button", { name: /aapl:CustomerContractAsset/u }).click();
+  await expect(page.getByText("D2023", { exact: true })).toBeVisible();
+  await expect(page.getByText("dei:LegalEntityAxis")).toBeVisible();
+  await expect(page.getByText("aapl:AppleIncMember")).toBeVisible();
+  await expect(page.getByText("Locator 40404040")).toBeVisible();
+
+  await page.screenshot({ fullPage: true, path: test.info().outputPath("sec-xbrl-desktop.png") });
   await page.setViewportSize({ height: 844, width: 390 });
   await expect(page.getByRole("heading", { name: "SEC 申报审查" })).toBeVisible();
-  await expect(
-    page.getByText("Net sales increased by eight percent during the fiscal year."),
-  ).toBeVisible();
+  await expect(page.getByText("aapl:CustomerContractAsset").first()).toBeVisible();
+  await expect(page.getByText("aapl:AppleIncMember")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.screenshot({ fullPage: true, path: test.info().outputPath("sec-mobile.png") });
+  await page.screenshot({ fullPage: true, path: test.info().outputPath("sec-xbrl-mobile.png") });
+  expect(browserErrors).toEqual([]);
+  expect(failedRequests).toEqual([]);
 });

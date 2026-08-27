@@ -19,6 +19,12 @@ from industry_platform.modules.disclosures.domain import (
     SecSubmissionSet,
     SecSubmissionSourceSnapshot,
     SecWorkspaceFilingImport,
+    SecXbrlDataset,
+    SecXbrlFactQuery,
+    SecXbrlFactResult,
+    SecXbrlSourceSnapshot,
+    SecXbrlSyncPreparation,
+    SecXbrlSyncResult,
 )
 from industry_platform.modules.retrieval.domain import DenseCandidate
 from industry_platform.modules.workspaces.domain import WorkspaceScope
@@ -42,6 +48,21 @@ class SecFilingArchivePort(Protocol):
 
 class SecFilingDocumentSnapshotStore(Protocol):
     async def persist(self, source: SecFilingDocumentSnapshot) -> str: ...
+
+
+class SecCompanyFactsPort(Protocol):
+    async def fetch(self, filing: SecCanonicalFiling) -> SecXbrlSourceSnapshot: ...
+
+
+class SecXbrlSnapshotStore(Protocol):
+    async def persist_aggregate(self, source: SecXbrlSourceSnapshot) -> str: ...
+
+    async def read_raw(
+        self,
+        source: SecFilingSnapshotReference,
+        *,
+        cik: str,
+    ) -> SecXbrlSourceSnapshot: ...
 
 
 class SecFilerCatalogRepository(Protocol):
@@ -148,3 +169,30 @@ class SecFilingContentRepository(Protocol):
         document_version_id: UUID,
         chunk_id: UUID,
     ) -> SecFilingSection: ...
+
+
+class SecXbrlRepository(Protocol):
+    async def prepare_sync(
+        self,
+        scope: WorkspaceScope,
+        *,
+        accession: str,
+        knowledge_base_id: UUID,
+    ) -> SecXbrlSyncPreparation: ...
+
+    async def persist_dataset(
+        self,
+        dataset: SecXbrlDataset,
+        *,
+        aggregate_object_keys: dict[str, str],
+    ) -> SecXbrlSyncResult: ...
+
+    async def query_facts(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        accession: str,
+        as_of: datetime,
+        query: SecXbrlFactQuery,
+    ) -> SecXbrlFactResult: ...

@@ -30,7 +30,7 @@ from industry_platform.modules.conversations.domain import (
     DIRECT_ANSWER_TASK_NAME,
     TurnSearchMode,
 )
-from industry_platform.modules.disclosures.resources import create_sec_filing_read_tools
+from industry_platform.modules.disclosures.resources import create_sec_filing_tools
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
@@ -635,7 +635,7 @@ def create_job_delivery_runtime(
         session_factory,
         tool_http_client,
     )
-    search_filing_tool, read_filing_section_tool = create_sec_filing_read_tools(
+    search_filing_tool, read_filing_section_tool, get_xbrl_facts_tool = create_sec_filing_tools(
         settings,
         session_factory,
         tool_http_client,
@@ -650,6 +650,7 @@ def create_job_delivery_runtime(
             retrieval.finance_calculate_tool,
             search_filing_tool,
             read_filing_section_tool,
+            get_xbrl_facts_tool,
         ),
         tool_surfaces={
             TurnSearchMode.WEB: (industry.web_search_tool.definition.reference,),
@@ -658,6 +659,7 @@ def create_job_delivery_runtime(
                 retrieval.finance_calculate_tool.definition.reference,
                 search_filing_tool.definition.reference,
                 read_filing_section_tool.definition.reference,
+                get_xbrl_facts_tool.definition.reference,
             ),
         },
         fixture_catalog=retrieval.catalog,

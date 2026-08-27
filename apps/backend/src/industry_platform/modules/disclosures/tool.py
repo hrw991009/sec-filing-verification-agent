@@ -3,6 +3,7 @@
 import hashlib
 import json
 from datetime import datetime
+from typing import Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,13 +18,20 @@ from industry_platform.modules.disclosures.domain import (
     SecFilingContentError,
     SecFilingContentStatus,
     SecSourceError,
+    SecXbrlFactQuery,
+    SecXbrlPeriodKind,
+    SecXbrlSourceKind,
 )
 from industry_platform.modules.disclosures.filing_content_service import SecFilingContentService
-from industry_platform.modules.disclosures.schemas import SecFilingSelectionResponse
+from industry_platform.modules.disclosures.schemas import (
+    SecFilingSelectionResponse,
+    SecXbrlFactResponse,
+)
 from industry_platform.modules.disclosures.service import (
     SecFilerResolutionService,
     SecFilingSelectionService,
 )
+from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.tools.domain import (
     MAX_TOOL_SOURCES,
     TOOL_OBSERVATION_NORMALIZER_VERSION,
@@ -744,6 +752,191 @@ class SecReadFilingSectionTool(
                     observed_at=observed_at,
                     content_sha256=value.source_content_sha256,
                 ),
+            ),
+            observed_at=observed_at,
+            content_sha256=content_sha256,
+        )
+
+
+SEC_GET_XBRL_FACTS_TOOL_NAME = "sec.get_xbrl_facts"
+SEC_GET_XBRL_FACTS_TOOL_VERSION = "v1"
+
+
+class SecGetXbrlFactsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    taxonomy: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+    )
+    concept: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+    )
+    unit: str | None = Field(default=None, min_length=1, max_length=255)
+    period_kind: Literal["instant", "duration", "forever"] | None = None
+    source_kinds: list[Literal["companyfacts_aggregate", "raw_inline", "raw_instance"]] = Field(
+        default_factory=lambda: [kind.value for kind in SecXbrlSourceKind],
+        min_length=1,
+        max_length=3,
+    )
+    limit: int = Field(default=20, ge=1, le=20)
+
+    def to_domain(self) -> SecXbrlFactQuery:
+        return SecXbrlFactQuery(
+            taxonomy=self.taxonomy,
+            concept=self.concept,
+            unit=self.unit,
+            period_kind=(None if self.period_kind is None else SecXbrlPeriodKind(self.period_kind)),
+            source_kinds=tuple(SecXbrlSourceKind(kind) for kind in self.source_kinds),
+            limit=self.limit,
+        )
+
+
+class SecGetXbrlFactsOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: SecFilingContentStatus
+    accession: str
+    facts: list[SecXbrlFactResponse]
+    error_code: str | None
+
+
+def sec_get_xbrl_facts_definition() -> ToolDefinition:
+    return ToolDefinition(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        name=SEC_GET_XBRL_FACTS_TOOL_NAME,
+        version=SEC_GET_XBRL_FACTS_TOOL_VERSION,
+        description=(
+            "Read source-typed aggregate or raw XBRL facts from one imported, "
+            "server-locked SEC accession."
+        ),
+        input_schema_version="sec-get-xbrl-facts-input-v1",
+        output_schema_version="sec-get-xbrl-facts-output-v1",
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "taxonomy": {"type": ["string", "null"]},
+                "concept": {"type": ["string", "null"]},
+                "unit": {"type": ["string", "null"]},
+                "period_kind": {
+                    "type": ["string", "null"],
+                    "enum": ["instant", "duration", "forever", None],
+                },
+                "source_kinds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [kind.value for kind in SecXbrlSourceKind],
+                    },
+                },
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+        },
+        output_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["status", "accession", "facts", "error_code"],
+            "properties": {
+                "status": {"type": "string"},
+                "accession": {"type": "string"},
+                "facts": {"type": "array"},
+                "error_code": {"type": ["string", "null"]},
+            },
+        },
+        capability=WorkspaceAction.RUN_TOOL,
+        timeout_ms=10_000,
+        max_result_bytes=250_000,
+        max_cost_micro_usd=1,
+        cost_class=ToolCostClass.LOW,
+        side_effect_class=ToolSideEffectClass.READ_ONLY,
+        retry_classification=ToolRetryClassification.SAFE_READ_ONLY,
+        approval_policy=ToolApprovalPolicy.AUTO_ALLOW,
+        policy_version="sec-imported-xbrl-read-v1",
+    )
+
+
+class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFactsOutput]):
+    def __init__(self, service: SecXbrlService) -> None:
+        super().__init__(
+            definition=sec_get_xbrl_facts_definition(),
+            input_model=SecGetXbrlFactsInput,
+            output_model=SecGetXbrlFactsOutput,
+        )
+        self._service = service
+
+    async def invoke(
+        self,
+        value: SecGetXbrlFactsInput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        idempotency_key: str | None,
+    ) -> tuple[SecGetXbrlFactsOutput, int]:
+        if idempotency_key is not None:
+            raise ToolExecutionError("tool_idempotency_key_unexpected")
+        financial_scope = runtime_context.financial_scope
+        if financial_scope is None or not runtime_context.knowledge_base_ids:
+            raise ToolExecutionError("financial_scope_not_configured")
+        try:
+            result = await self._service.get_facts(
+                runtime_context.workspace_scope,
+                knowledge_base_ids=runtime_context.knowledge_base_ids,
+                financial_scope=financial_scope,
+                query=value.to_domain(),
+            )
+        except SecFilingContentError as error:
+            raise ToolExecutionError(error.code.value) from None
+        except SecDisclosurePersistenceError:
+            raise ToolExecutionError("sec_xbrl_facts_unavailable") from None
+        return (
+            SecGetXbrlFactsOutput(
+                status=result.status,
+                accession=result.accession,
+                facts=[SecXbrlFactResponse.from_domain(fact) for fact in result.facts],
+                error_code=result.error_code,
+            ),
+            0,
+        )
+
+    def normalize(
+        self,
+        value: SecGetXbrlFactsOutput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        call_id: UUID,
+        run_id: UUID,
+        observed_at: datetime,
+    ) -> ToolObservation:
+        model_text = json.dumps(
+            value.model_dump(mode="json"),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        content_sha256 = hashlib.sha256(model_text.encode("utf-8")).hexdigest()
+        unique_sources = {fact.source_id: fact for fact in value.facts}
+        if len(unique_sources) > MAX_TOOL_SOURCES:
+            raise ValueError("SEC XBRL Tool source count exceeds Observation contract")
+        return ToolObservation(
+            schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+            observation_id=uuid5(NAMESPACE_URL, f"{call_id}:sec-get-xbrl-facts:v1"),
+            call_id=call_id,
+            run_id=run_id,
+            workspace_id=runtime_context.workspace_scope.workspace_id,
+            tool=ToolReference(self.definition.name, self.definition.version),
+            normalizer_version=TOOL_OBSERVATION_NORMALIZER_VERSION,
+            model_text=model_text,
+            sources=tuple(
+                ToolSource(
+                    source_type=f"sec_xbrl_{fact.source_kind.value}",
+                    source_version=fact.source_version,
+                    locator=fact.source_url,
+                    observed_at=fact.retrieved_at,
+                    content_sha256=fact.source_content_sha256,
+                )
+                for fact in unique_sources.values()
             ),
             observed_at=observed_at,
             content_sha256=content_sha256,

@@ -21,9 +21,11 @@ from redis.exceptions import RedisError
 from industry_platform.modules.disclosures.domain import (
     SEC_COMPANY_TICKERS_SOURCE_KIND,
     SEC_COMPANY_TICKERS_URL,
+    SEC_COMPANYFACTS_URL_PREFIX,
     SEC_DEFAULT_REQUESTS_PER_SECOND,
     SEC_MAX_CATALOG_RESPONSE_BYTES,
     SEC_MAX_SUBMISSIONS_RESPONSE_BYTES,
+    SEC_MAX_XBRL_RESPONSE_BYTES,
     SEC_SUBMISSIONS_URL_PREFIX,
     FilingSelectionScope,
     SecAliasKind,
@@ -48,6 +50,7 @@ _CACHE_KEY_PATTERN: Final = re.compile(r"^[a-z0-9:._-]{1,240}$")
 _SUBMISSIONS_PATH_PATTERN: Final = re.compile(
     r"^/submissions/CIK[0-9]{10}(?:-submissions-[0-9]{3})?\.json$"
 )
+_COMPANYFACTS_PATH_PATTERN: Final = re.compile(r"^/api/xbrl/companyfacts/CIK[0-9]{10}\.json$")
 _RATE_LIMIT_SCRIPT: Final = """
 local now_parts = redis.call('TIME')
 local now_us = tonumber(now_parts[1]) * 1000000 + tonumber(now_parts[2])
@@ -297,7 +300,14 @@ class OfficialSecJsonClient:
         _validate_official_json_url(url)
         if not 60 <= cache_ttl_seconds <= 86_400:
             raise ValueError("SEC cache TTL is invalid")
-        if not 1 <= maximum_bytes <= SEC_MAX_SUBMISSIONS_RESPONSE_BYTES:
+        if (
+            not 1
+            <= maximum_bytes
+            <= max(
+                SEC_MAX_SUBMISSIONS_RESPONSE_BYTES,
+                SEC_MAX_XBRL_RESPONSE_BYTES,
+            )
+        ):
             raise ValueError("SEC response budget is invalid")
         now = _utc_now(self._clock)
         cached = await cache.get()
@@ -667,8 +677,16 @@ def _validate_official_json_url(url: str) -> None:
             (parsed.hostname == "www.sec.gov" and url == SEC_COMPANY_TICKERS_URL)
             or (
                 parsed.hostname == "data.sec.gov"
-                and url.startswith(SEC_SUBMISSIONS_URL_PREFIX)
-                and _SUBMISSIONS_PATH_PATTERN.fullmatch(parsed.path) is not None
+                and (
+                    (
+                        url.startswith(SEC_SUBMISSIONS_URL_PREFIX)
+                        and _SUBMISSIONS_PATH_PATTERN.fullmatch(parsed.path) is not None
+                    )
+                    or (
+                        url.startswith(SEC_COMPANYFACTS_URL_PREFIX)
+                        and _COMPANYFACTS_PATH_PATTERN.fullmatch(parsed.path) is not None
+                    )
+                )
             )
         )
     )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Self
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -28,6 +28,13 @@ from industry_platform.modules.disclosures.domain import (
     SecSubmissionSourceKind,
     SecSubmissionSourceReference,
     SecWorkspaceFilingImport,
+    SecXbrlFact,
+    SecXbrlFactQuery,
+    SecXbrlFactResult,
+    SecXbrlPeriod,
+    SecXbrlPeriodKind,
+    SecXbrlSourceKind,
+    SecXbrlSyncResult,
     normalize_cik,
 )
 
@@ -380,4 +387,208 @@ class SecFilingSectionResponse(BaseModel):
             source_content_sha256=value.source_content_sha256,
             source_url=value.source_url,
             source_version=value.source_version,
+        )
+
+
+class SecXbrlSyncRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    knowledge_base_id: UUID
+
+
+class SecXbrlSyncResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    accession: str = Field(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
+    source_count: int = Field(ge=1)
+    context_count: int = Field(ge=0)
+    fact_count: int = Field(ge=1)
+    source_versions: list[str]
+
+    @classmethod
+    def from_domain(cls, value: SecXbrlSyncResult) -> Self:
+        return cls(
+            accession=value.accession,
+            source_count=value.source_count,
+            context_count=value.context_count,
+            fact_count=value.fact_count,
+            source_versions=list(value.source_versions),
+        )
+
+
+class SecXbrlPeriodResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: SecXbrlPeriodKind
+    instant: date | None
+    start_date: date | None
+    end_date: date | None
+
+    @classmethod
+    def from_domain(cls, value: SecXbrlPeriod) -> Self:
+        return cls(
+            kind=value.kind,
+            instant=value.instant,
+            start_date=value.start_date,
+            end_date=value.end_date,
+        )
+
+
+class SecAggregateXbrlFactLocatorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    source_kind: Literal[SecXbrlSourceKind.COMPANYFACTS_AGGREGATE]
+    endpoint_snapshot_id: UUID
+    accession: str
+    taxonomy: str
+    concept: str
+    unit: str | None
+    period: SecXbrlPeriodResponse
+    ordinal: int
+
+
+class SecRawXbrlFactLocatorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    source_kind: Literal[SecXbrlSourceKind.RAW_INLINE, SecXbrlSourceKind.RAW_INSTANCE]
+    filing_snapshot_id: UUID
+    accession: str
+    taxonomy: str
+    concept: str
+    context_id: str
+    ordinal: int
+
+
+type SecXbrlFactLocatorResponse = Annotated[
+    SecAggregateXbrlFactLocatorResponse | SecRawXbrlFactLocatorResponse,
+    Field(discriminator="source_kind"),
+]
+
+
+class SecXbrlFactResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: UUID
+    filing_id: UUID
+    source_id: UUID
+    source_snapshot_id: UUID | None
+    source_kind: SecXbrlSourceKind
+    cik: str
+    accession: str
+    taxonomy: str
+    concept: str
+    value: str
+    unit: str | None
+    period: SecXbrlPeriodResponse
+    filed_date: date
+    form: SecFilingForm
+    context_id: str | None
+    dimensions: dict[str, str]
+    decimals: str | None
+    scale: int | None
+    format: str | None
+    is_custom: bool
+    locator: SecXbrlFactLocatorResponse
+    source_url: str
+    source_version: str
+    source_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_available_at: datetime
+    retrieved_at: datetime
+    unavailable_fields: list[str]
+
+    @classmethod
+    def from_domain(cls, value: SecXbrlFact) -> Self:
+        period = SecXbrlPeriodResponse.from_domain(value.period)
+        if value.source_kind is SecXbrlSourceKind.COMPANYFACTS_AGGREGATE:
+            locator: SecXbrlFactLocatorResponse = SecAggregateXbrlFactLocatorResponse(
+                source_kind=SecXbrlSourceKind.COMPANYFACTS_AGGREGATE,
+                endpoint_snapshot_id=value.source_id,
+                accession=value.accession,
+                taxonomy=value.taxonomy,
+                concept=value.concept,
+                unit=value.unit,
+                period=period,
+                ordinal=value.ordinal,
+            )
+        else:
+            if value.source_snapshot_id is None or value.context_id is None:
+                raise AssertionError("Validated raw XBRL fact lost its locator")
+            locator = SecRawXbrlFactLocatorResponse(
+                source_kind=value.source_kind,
+                filing_snapshot_id=value.source_snapshot_id,
+                accession=value.accession,
+                taxonomy=value.taxonomy,
+                concept=value.concept,
+                context_id=value.context_id,
+                ordinal=value.ordinal,
+            )
+        return cls(
+            id=value.id,
+            filing_id=value.filing_id,
+            source_id=value.source_id,
+            source_snapshot_id=value.source_snapshot_id,
+            source_kind=value.source_kind,
+            cik=value.cik,
+            accession=value.accession,
+            taxonomy=value.taxonomy,
+            concept=value.concept,
+            value=value.value,
+            unit=value.unit,
+            period=period,
+            filed_date=value.filed_date,
+            form=value.form,
+            context_id=value.context_id,
+            dimensions=dict(value.dimensions),
+            decimals=value.decimals,
+            scale=value.scale,
+            format=value.format,
+            is_custom=value.is_custom,
+            locator=locator,
+            source_url=value.source_url,
+            source_version=value.source_version,
+            source_content_sha256=value.source_content_sha256,
+            source_available_at=value.source_available_at,
+            retrieved_at=value.retrieved_at,
+            unavailable_fields=list(value.unavailable_fields),
+        )
+
+
+class SecXbrlFactQueryParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    knowledge_base_id: UUID
+    as_of: datetime
+    taxonomy: str | None = Field(default=None, pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$")
+    concept: str | None = Field(default=None, pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$")
+    unit: str | None = Field(default=None, min_length=1, max_length=255)
+    period_kind: SecXbrlPeriodKind | None = None
+    source_kinds: list[SecXbrlSourceKind] = Field(default_factory=lambda: list(SecXbrlSourceKind))
+    limit: int = Field(default=100, ge=1, le=100)
+
+    def to_domain(self) -> SecXbrlFactQuery:
+        return SecXbrlFactQuery(
+            taxonomy=self.taxonomy,
+            concept=self.concept,
+            unit=self.unit,
+            period_kind=self.period_kind,
+            source_kinds=tuple(self.source_kinds),
+            limit=self.limit,
+        )
+
+
+class SecXbrlFactCollectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: SecFilingContentStatus
+    accession: str
+    facts: list[SecXbrlFactResponse]
+    error_code: str | None
+
+    @classmethod
+    def from_domain(cls, value: SecXbrlFactResult) -> Self:
+        return cls(
+            status=value.status,
+            accession=value.accession,
+            facts=[SecXbrlFactResponse.from_domain(fact) for fact in value.facts],
+            error_code=value.error_code,
         )

@@ -38,6 +38,12 @@ SEC_MAX_ARCHIVE_ATTACHMENTS: Final = 12
 SEC_MAX_ARCHIVE_TOTAL_BYTES: Final = 128 * 1_024 * 1_024
 SEC_FILING_CONTENT_ADAPTER_VERSION: Final = "sec-archive-v1"
 SEC_DENSE_RETRIEVAL_PROFILE_VERSION: Final = "dense-v1"
+SEC_COMPANYFACTS_URL_PREFIX: Final = "https://data.sec.gov/api/xbrl/companyfacts/"
+SEC_MAX_XBRL_RESPONSE_BYTES: Final = 50 * 1_024 * 1_024
+SEC_MAX_XBRL_CONTEXTS: Final = 100_000
+SEC_MAX_XBRL_FACTS: Final = 200_000
+SEC_MAX_XBRL_FACT_VALUE_CHARACTERS: Final = 20_000
+SEC_XBRL_ADAPTER_VERSION: Final = "sec-xbrl-v1"
 
 _CIK_PATTERN = re.compile(r"^[0-9]{10}$")
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9.-]{0,19}$")
@@ -45,6 +51,8 @@ _SOURCE_VERSION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _ACCESSION_PATTERN = re.compile(r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
 _PRIMARY_DOCUMENT_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+_XBRL_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$")
+_XBRL_QNAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9._-]{0,127}:[A-Za-z_][A-Za-z0-9._-]{0,255}$")
 _SUPPLEMENTAL_NAME_PATTERN = re.compile(
     r"^CIK(?P<cik>[0-9]{10})-submissions-(?P<ordinal>[0-9]{3})\.json$"
 )
@@ -128,6 +136,18 @@ class SecFilingContentStatus(StrEnum):
     NO_RESULT = "no_result"
     DEPENDENCY_FAILED = "dependency_failed"
     PERMISSION_DENIED = "permission_denied"
+
+
+class SecXbrlSourceKind(StrEnum):
+    COMPANYFACTS_AGGREGATE = "companyfacts_aggregate"
+    RAW_INLINE = "raw_inline"
+    RAW_INSTANCE = "raw_instance"
+
+
+class SecXbrlPeriodKind(StrEnum):
+    INSTANT = "instant"
+    DURATION = "duration"
+    FOREVER = "forever"
 
 
 class SecSourceErrorCode(StrEnum):
@@ -1051,6 +1071,376 @@ class SecFilingSection:
             raise ValueError("SEC filing section provenance is invalid")
 
 
+@dataclass(frozen=True, slots=True)
+class SecXbrlPeriod:
+    kind: SecXbrlPeriodKind
+    instant: date | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind is SecXbrlPeriodKind.INSTANT:
+            valid = self.instant is not None and self.start_date is None and self.end_date is None
+        elif self.kind is SecXbrlPeriodKind.DURATION:
+            valid = (
+                self.instant is None
+                and self.start_date is not None
+                and self.end_date is not None
+                and self.end_date >= self.start_date
+            )
+        else:
+            valid = self.instant is None and self.start_date is None and self.end_date is None
+        if not valid:
+            raise ValueError("SEC XBRL period is invalid")
+
+    @property
+    def key(self) -> str:
+        if self.kind is SecXbrlPeriodKind.INSTANT:
+            if self.instant is None:
+                raise AssertionError("Validated instant period lost its date")
+            return f"instant:{self.instant.isoformat()}"
+        if self.kind is SecXbrlPeriodKind.DURATION:
+            if self.start_date is None or self.end_date is None:
+                raise AssertionError("Validated duration period lost its dates")
+            return f"duration:{self.start_date.isoformat()}:{self.end_date.isoformat()}"
+        return "forever"
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlSourceSnapshot:
+    source_kind: SecXbrlSourceKind
+    cik: str
+    source_url: str
+    source_version: str
+    content_type: str
+    content_sha256: str
+    byte_size: int
+    retrieved_at: datetime
+    source_available_at: datetime
+    body: bytes = field(repr=False)
+    filing_snapshot_id: UUID | None = None
+    adapter_version: str = SEC_XBRL_ADAPTER_VERSION
+
+    def __post_init__(self) -> None:
+        body = bytes(self.body)
+        if not _CIK_PATTERN.fullmatch(self.cik):
+            raise ValueError("SEC XBRL source CIK is invalid")
+        aggregate = self.source_kind is SecXbrlSourceKind.COMPANYFACTS_AGGREGATE
+        if aggregate:
+            expected_url = sec_companyfacts_url(self.cik)
+            valid_type = self.content_type == "application/json"
+        else:
+            expected_url = self.source_url
+            valid_type = self.source_url.startswith(
+                SEC_ARCHIVE_URL_PREFIX
+            ) and self.content_type in {
+                "text/html",
+                "application/xhtml+xml",
+                "application/xml",
+                "text/xml",
+            }
+        if self.source_url != expected_url or not valid_type:
+            raise ValueError("SEC XBRL source boundary is invalid")
+        if aggregate == (self.filing_snapshot_id is not None):
+            raise ValueError("SEC XBRL source snapshot link is invalid")
+        if (
+            not _SOURCE_VERSION_PATTERN.fullmatch(self.source_version)
+            or not _SOURCE_VERSION_PATTERN.fullmatch(self.adapter_version)
+            or not _SHA256_PATTERN.fullmatch(self.content_sha256)
+            or self.byte_size != len(body)
+            or not 1 <= self.byte_size <= SEC_MAX_XBRL_RESPONSE_BYTES
+            or sha256_hex(body) != self.content_sha256
+        ):
+            raise ValueError("SEC XBRL source bytes are invalid")
+        require_utc(self.retrieved_at, field_name="SEC XBRL source retrieved_at")
+        require_utc(self.source_available_at, field_name="SEC XBRL source available_at")
+        if self.source_available_at > self.retrieved_at:
+            raise ValueError("SEC XBRL source availability is invalid")
+        object.__setattr__(self, "body", body)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlContextData:
+    source_version: str
+    context_id: str
+    entity_identifier: str
+    period: SecXbrlPeriod
+    dimensions: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        _require_text(self.source_version, field_name="SEC XBRL context source", maximum=128)
+        _require_text(self.context_id, field_name="SEC XBRL context ID", maximum=255)
+        _require_text(self.entity_identifier, field_name="SEC XBRL entity", maximum=255)
+        dimensions = tuple(sorted(self.dimensions))
+        if len(dimensions) > 64 or len({name for name, _value in dimensions}) != len(dimensions):
+            raise ValueError("SEC XBRL context dimensions are invalid")
+        for name, value in dimensions:
+            _require_xbrl_qname(name, field_name="SEC XBRL dimension")
+            _require_text(value, field_name="SEC XBRL dimension value", maximum=2_000)
+        object.__setattr__(self, "dimensions", dimensions)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlFactData:
+    source_version: str
+    locator_key: str
+    taxonomy: str
+    concept: str
+    value: str = field(repr=False)
+    period: SecXbrlPeriod
+    filed_date: date
+    form: SecFilingForm
+    ordinal: int
+    unit: str | None = None
+    context_id: str | None = None
+    dimensions: tuple[tuple[str, str], ...] = ()
+    decimals: str | None = None
+    scale: int | None = None
+    format: str | None = None
+    is_custom: bool = False
+
+    def __post_init__(self) -> None:
+        _require_text(self.source_version, field_name="SEC XBRL fact source", maximum=128)
+        _require_text(self.locator_key, field_name="SEC XBRL fact locator", maximum=512)
+        _require_xbrl_name(self.taxonomy, field_name="SEC XBRL taxonomy")
+        _require_xbrl_name(self.concept, field_name="SEC XBRL concept")
+        _require_text(
+            self.value,
+            field_name="SEC XBRL fact value",
+            maximum=SEC_MAX_XBRL_FACT_VALUE_CHARACTERS,
+        )
+        if isinstance(self.ordinal, bool) or not 0 <= self.ordinal < SEC_MAX_XBRL_FACTS:
+            raise ValueError("SEC XBRL fact ordinal is invalid")
+        if self.unit is not None:
+            _require_text(self.unit, field_name="SEC XBRL unit", maximum=255)
+        if self.context_id is not None:
+            _require_text(self.context_id, field_name="SEC XBRL context ID", maximum=255)
+        if self.decimals is not None:
+            _require_text(self.decimals, field_name="SEC XBRL decimals", maximum=32)
+        if self.scale is not None and not -100 <= self.scale <= 100:
+            raise ValueError("SEC XBRL scale is invalid")
+        if self.format is not None:
+            _require_text(self.format, field_name="SEC XBRL format", maximum=255)
+        dimensions = tuple(sorted(self.dimensions))
+        if len(dimensions) > 64 or len({name for name, _value in dimensions}) != len(dimensions):
+            raise ValueError("SEC XBRL fact dimensions are invalid")
+        for name, value in dimensions:
+            _require_xbrl_qname(name, field_name="SEC XBRL dimension")
+            _require_text(value, field_name="SEC XBRL dimension value", maximum=2_000)
+        object.__setattr__(self, "dimensions", dimensions)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlSourceBatch:
+    source: SecXbrlSourceSnapshot
+    contexts: tuple[SecXbrlContextData, ...]
+    facts: tuple[SecXbrlFactData, ...]
+
+    def __post_init__(self) -> None:
+        contexts = tuple(self.contexts)
+        facts = tuple(self.facts)
+        if (
+            len(contexts) > SEC_MAX_XBRL_CONTEXTS
+            or len(facts) > SEC_MAX_XBRL_FACTS
+            or len({item.context_id for item in contexts}) != len(contexts)
+            or len({item.locator_key for item in facts}) != len(facts)
+            or any(item.source_version != self.source.source_version for item in contexts)
+            or any(item.source_version != self.source.source_version for item in facts)
+        ):
+            raise ValueError("SEC XBRL source batch is invalid")
+        context_ids = {item.context_id for item in contexts}
+        aggregate = self.source.source_kind is SecXbrlSourceKind.COMPANYFACTS_AGGREGATE
+        if any(
+            (aggregate and fact.context_id is not None)
+            or (not aggregate and fact.context_id not in context_ids)
+            for fact in facts
+        ):
+            raise ValueError("SEC XBRL fact context is invalid")
+        object.__setattr__(self, "contexts", contexts)
+        object.__setattr__(self, "facts", facts)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlDataset:
+    filing: SecCanonicalFiling
+    batches: tuple[SecXbrlSourceBatch, ...]
+
+    def __post_init__(self) -> None:
+        batches = tuple(self.batches)
+        if (
+            not batches
+            or not any(batch.facts for batch in batches)
+            or len({batch.source.source_version for batch in batches}) != len(batches)
+            or any(batch.source.cik != self.filing.cik for batch in batches)
+        ):
+            raise ValueError("SEC XBRL dataset is invalid")
+        object.__setattr__(self, "batches", batches)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlSyncPreparation:
+    filing: SecCanonicalFiling
+    import_record: SecWorkspaceFilingImport
+    raw_sources: tuple[SecFilingSnapshotReference, ...]
+
+    def __post_init__(self) -> None:
+        sources = tuple(self.raw_sources)
+        if (
+            self.import_record.filing_id != self.filing.id
+            or self.import_record.accession != self.filing.accession
+            or not sources
+            or any(
+                source.filing_id != self.filing.id
+                or source.status is not SecFilingSnapshotStatus.ACTIVE
+                or source.kind
+                not in {
+                    SecFilingDocumentKind.PRIMARY_DOCUMENT,
+                    SecFilingDocumentKind.XBRL_INSTANCE,
+                }
+                for source in sources
+            )
+        ):
+            raise ValueError("SEC XBRL sync preparation is invalid")
+        object.__setattr__(self, "raw_sources", sources)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlSyncResult:
+    accession: str
+    source_count: int
+    context_count: int
+    fact_count: int
+    source_versions: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        versions = tuple(self.source_versions)
+        if (
+            not _ACCESSION_PATTERN.fullmatch(self.accession)
+            or not 1 <= self.source_count == len(versions)
+            or self.context_count < 0
+            or self.fact_count < 1
+            or len(set(versions)) != len(versions)
+        ):
+            raise ValueError("SEC XBRL sync result is invalid")
+        object.__setattr__(self, "source_versions", versions)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlFactQuery:
+    taxonomy: str | None = None
+    concept: str | None = None
+    unit: str | None = None
+    period_kind: SecXbrlPeriodKind | None = None
+    source_kinds: tuple[SecXbrlSourceKind, ...] = tuple(SecXbrlSourceKind)
+    limit: int = 20
+
+    def __post_init__(self) -> None:
+        if self.taxonomy is not None:
+            _require_xbrl_name(self.taxonomy, field_name="SEC XBRL taxonomy")
+        if self.concept is not None:
+            _require_xbrl_name(self.concept, field_name="SEC XBRL concept")
+        if self.unit is not None:
+            _require_text(self.unit, field_name="SEC XBRL unit", maximum=255)
+        kinds = tuple(dict.fromkeys(self.source_kinds))
+        if not kinds or not 1 <= self.limit <= 100:
+            raise ValueError("SEC XBRL fact query is invalid")
+        object.__setattr__(self, "source_kinds", kinds)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlFact:
+    id: UUID
+    filing_id: UUID
+    source_id: UUID
+    source_snapshot_id: UUID | None
+    source_kind: SecXbrlSourceKind
+    cik: str
+    accession: str
+    taxonomy: str
+    concept: str
+    value: str = field(repr=False)
+    unit: str | None
+    period: SecXbrlPeriod
+    filed_date: date
+    form: SecFilingForm
+    context_id: str | None
+    dimensions: tuple[tuple[str, str], ...]
+    decimals: str | None
+    scale: int | None
+    format: str | None
+    is_custom: bool
+    ordinal: int
+    locator_key: str
+    source_url: str
+    source_version: str
+    source_content_sha256: str
+    source_available_at: datetime
+    retrieved_at: datetime
+    unavailable_fields: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if any(identifier.int == 0 for identifier in (self.id, self.filing_id, self.source_id)):
+            raise ValueError("SEC XBRL fact identity is invalid")
+        aggregate = self.source_kind is SecXbrlSourceKind.COMPANYFACTS_AGGREGATE
+        if aggregate == (self.source_snapshot_id is not None) or aggregate == (
+            self.context_id is not None
+        ):
+            raise ValueError("SEC XBRL fact source locator is invalid")
+        SecXbrlFactData(
+            source_version=self.source_version,
+            locator_key=self.locator_key,
+            taxonomy=self.taxonomy,
+            concept=self.concept,
+            value=self.value,
+            unit=self.unit,
+            period=self.period,
+            filed_date=self.filed_date,
+            form=self.form,
+            context_id=self.context_id,
+            dimensions=self.dimensions,
+            decimals=self.decimals,
+            scale=self.scale,
+            format=self.format,
+            is_custom=self.is_custom,
+            ordinal=self.ordinal,
+        )
+        if not _CIK_PATTERN.fullmatch(self.cik) or not _ACCESSION_PATTERN.fullmatch(self.accession):
+            raise ValueError("SEC XBRL fact filing identity is invalid")
+        if not _SHA256_PATTERN.fullmatch(self.source_content_sha256):
+            raise ValueError("SEC XBRL fact source hash is invalid")
+        require_utc(self.source_available_at, field_name="SEC XBRL fact available_at")
+        require_utc(self.retrieved_at, field_name="SEC XBRL fact retrieved_at")
+        unavailable = tuple(self.unavailable_fields)
+        if aggregate and unavailable != ("context_id", "decimals", "dimensions", "scale"):
+            raise ValueError("SEC aggregate XBRL unavailable fields are invalid")
+        if not aggregate and unavailable:
+            raise ValueError("SEC raw XBRL unavailable fields are invalid")
+        object.__setattr__(self, "dimensions", tuple(sorted(self.dimensions)))
+        object.__setattr__(self, "unavailable_fields", unavailable)
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlFactResult:
+    status: SecFilingContentStatus
+    accession: str
+    facts: tuple[SecXbrlFact, ...] = ()
+    error_code: str | None = None
+
+    def __post_init__(self) -> None:
+        facts = tuple(self.facts)
+        if not _ACCESSION_PATTERN.fullmatch(self.accession):
+            raise ValueError("SEC XBRL result accession is invalid")
+        if (self.status is SecFilingContentStatus.OK) != bool(facts):
+            raise ValueError("SEC XBRL result status is inconsistent")
+        if len(facts) > 100 or any(fact.accession != self.accession for fact in facts):
+            raise ValueError("SEC XBRL result facts are invalid")
+        if (self.status is SecFilingContentStatus.DEPENDENCY_FAILED) != (
+            self.error_code is not None
+        ):
+            raise ValueError("SEC XBRL result error state is invalid")
+        object.__setattr__(self, "facts", facts)
+
+
 def normalize_cik(value: str | int) -> str:
     if isinstance(value, bool):
         raise ValueError("CIK is invalid")
@@ -1120,6 +1510,12 @@ def sec_submissions_current_url(cik: str) -> str:
     return f"{SEC_SUBMISSIONS_URL_PREFIX}CIK{cik}.json"
 
 
+def sec_companyfacts_url(cik: str) -> str:
+    if not _CIK_PATTERN.fullmatch(cik):
+        raise ValueError("SEC companyfacts CIK is invalid")
+    return f"{SEC_COMPANYFACTS_URL_PREFIX}CIK{cik}.json"
+
+
 def sec_archive_folder_url(cik: str, accession: str) -> str:
     normalized = normalize_cik(cik)
     if _ACCESSION_PATTERN.fullmatch(accession) is None:
@@ -1165,6 +1561,29 @@ def sec_filing_snapshot_object_key(source: SecFilingDocumentSnapshot) -> str:
         f"sec/filings/{source.cik}/{source.accession.replace('-', '')}/"
         f"{source.kind.value}/{source.content_sha256[:2]}/{source.content_sha256}.{suffix}"
     )
+
+
+def sec_xbrl_object_key(source: SecXbrlSourceSnapshot) -> str:
+    if source.source_kind is not SecXbrlSourceKind.COMPANYFACTS_AGGREGATE:
+        raise ValueError("Only aggregate XBRL responses own a separate object")
+    return (
+        f"sec/xbrl/companyfacts/{source.cik}/"
+        f"{source.content_sha256[:2]}/{source.content_sha256}.json"
+    )
+
+
+def sec_xbrl_source_version(
+    source_kind: SecXbrlSourceKind,
+    content_sha256: str,
+) -> str:
+    if not _SHA256_PATTERN.fullmatch(content_sha256):
+        raise ValueError("SEC XBRL source hash is invalid")
+    kind = {
+        SecXbrlSourceKind.COMPANYFACTS_AGGREGATE: "companyfacts",
+        SecXbrlSourceKind.RAW_INLINE: "inline",
+        SecXbrlSourceKind.RAW_INSTANCE: "instance",
+    }[source_kind]
+    return f"sec-xbrl-{kind}-{content_sha256[:24]}"
 
 
 def required_supplemental_descriptors(
@@ -1218,6 +1637,16 @@ def _require_text(value: str, *, field_name: str, maximum: int) -> None:
         or len(value) > maximum
         or any(ord(character) < 32 for character in value)
     ):
+        raise ValueError(f"{field_name} is invalid")
+
+
+def _require_xbrl_name(value: str, *, field_name: str) -> None:
+    if not value.isascii() or _XBRL_NAME_PATTERN.fullmatch(value) is None:
+        raise ValueError(f"{field_name} is invalid")
+
+
+def _require_xbrl_qname(value: str, *, field_name: str) -> None:
+    if not value.isascii() or _XBRL_QNAME_PATTERN.fullmatch(value) is None:
         raise ValueError(f"{field_name} is invalid")
 
 

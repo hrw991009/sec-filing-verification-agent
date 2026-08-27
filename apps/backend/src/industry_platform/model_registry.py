@@ -36,6 +36,9 @@ from industry_platform.modules.disclosures.models import (
     SecFilingRecord,
     SecSourceSnapshotRecord,
     SecSubmissionSourceRecord,
+    SecXbrlContextRecord,
+    SecXbrlFactRecord,
+    SecXbrlSourceRecord,
     WorkspaceSecImportRecord,
 )
 from industry_platform.modules.evidence.models import (
@@ -169,6 +172,9 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     SecFilingDocumentRecord,
     SecSourceSnapshotRecord,
     WorkspaceSecImportRecord,
+    SecXbrlSourceRecord,
+    SecXbrlContextRecord,
+    SecXbrlFactRecord,
     ResearchRunRecord,
     ResearchBriefRecord,
     ResearchPlanRecord,

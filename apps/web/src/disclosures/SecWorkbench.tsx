@@ -3,15 +3,20 @@ import { useCallback, useEffect, useMemo, useState, type SubmitEvent } from "rea
 import { publicError } from "../chat/chat-workbench-model";
 import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-api";
 import {
+  getSecXbrlFacts,
   importSecFiling,
   listSecFilingImports,
   listSecFilings,
   readSecFilingSection,
   searchSecFiling,
+  syncSecXbrl,
   type SecFiling,
   type SecFilingImport,
   type SecFilingSearch,
   type SecFilingSection,
+  type SecXbrlFact,
+  type SecXbrlFactCollection,
+  type SecXbrlSourceKind,
 } from "./sec-api";
 import "./sec-workbench.css";
 
@@ -26,6 +31,29 @@ const importStatusNames: Readonly<Record<string, string>> = {
   queued: "正在处理",
   ready: "可检索",
 };
+
+const xbrlSourceNames: Readonly<Record<SecXbrlSourceKind, string>> = {
+  companyfacts_aggregate: "标准聚合",
+  raw_inline: "Raw Inline",
+  raw_instance: "Raw Instance",
+};
+
+type ContentMode = "text" | "xbrl";
+type XbrlSourceMode = "all" | "aggregate" | "raw";
+
+function xbrlSourceKinds(mode: XbrlSourceMode): readonly SecXbrlSourceKind[] {
+  if (mode === "aggregate") return ["companyfacts_aggregate"];
+  if (mode === "raw") return ["raw_inline", "raw_instance"];
+  return ["companyfacts_aggregate", "raw_inline", "raw_instance"];
+}
+
+function periodLabel(fact: SecXbrlFact): string {
+  if (fact.period.kind === "instant") return fact.period.instant ?? "-";
+  if (fact.period.kind === "duration") {
+    return `${fact.period.start_date ?? "-"} - ${fact.period.end_date ?? "-"}`;
+  }
+  return "Forever";
+}
 
 function localDateTime(value: Date): string {
   const offset = value.getTimezoneOffset() * 60_000;
@@ -51,9 +79,17 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<SecFilingSearch | null>(null);
   const [section, setSection] = useState<SecFilingSection | null>(null);
+  const [contentMode, setContentMode] = useState<ContentMode>("text");
+  const [xbrlSourceMode, setXbrlSourceMode] = useState<XbrlSourceMode>("all");
+  const [taxonomy, setTaxonomy] = useState("");
+  const [concept, setConcept] = useState("");
+  const [xbrlResult, setXbrlResult] = useState<SecXbrlFactCollection | null>(null);
+  const [selectedFactId, setSelectedFactId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [syncingXbrl, setSyncingXbrl] = useState(false);
+  const [loadingXbrl, setLoadingXbrl] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reloadImports = useCallback(async (): Promise<void> => {
@@ -95,6 +131,7 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
     imports.find(
       (item) => item.accession === selectedAccession && item.knowledge_base_id === knowledgeBaseId,
     ) ?? null;
+  const selectedFact = xbrlResult?.facts.find((item) => item.id === selectedFactId) ?? null;
 
   async function submitFilingSearch(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -103,6 +140,8 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
     setError(null);
     setSearchResult(null);
     setSection(null);
+    setXbrlResult(null);
+    setSelectedFactId(null);
     try {
       const values = await listSecFilings(workspaceId, {
         asOf: asIso(asOf),
@@ -173,6 +212,45 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
       );
     } catch (caught: unknown) {
       setError(publicError(caught));
+    }
+  }
+
+  async function loadXbrlFacts(): Promise<void> {
+    if (selectedImport?.status !== "ready") return;
+    setLoadingXbrl(true);
+    setError(null);
+    try {
+      const result = await getSecXbrlFacts(
+        workspaceId,
+        selectedImport.accession,
+        selectedImport.knowledge_base_id,
+        asIso(asOf),
+        {
+          concept: concept.trim() || null,
+          sourceKinds: xbrlSourceKinds(xbrlSourceMode),
+          taxonomy: taxonomy.trim() || null,
+        },
+      );
+      setXbrlResult(result);
+      setSelectedFactId(result.facts[0]?.id ?? null);
+    } catch (caught: unknown) {
+      setError(publicError(caught));
+    } finally {
+      setLoadingXbrl(false);
+    }
+  }
+
+  async function synchronizeXbrl(): Promise<void> {
+    if (selectedImport?.status !== "ready") return;
+    setSyncingXbrl(true);
+    setError(null);
+    try {
+      await syncSecXbrl(workspaceId, selectedImport.accession, selectedImport.knowledge_base_id);
+      await loadXbrlFacts();
+    } catch (caught: unknown) {
+      setError(publicError(caught));
+    } finally {
+      setSyncingXbrl(false);
     }
   }
 
@@ -290,6 +368,8 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                     setSelectedAccession(filing.accession);
                     setSearchResult(null);
                     setSection(null);
+                    setXbrlResult(null);
+                    setSelectedFactId(null);
                   }}
                   type="button"
                 >
@@ -354,77 +434,286 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
           </section>
 
           <section className="sec-workbench__content">
-            <form
-              className="sec-content-search"
-              onSubmit={(event) => void submitContentSearch(event)}
-            >
-              <label htmlFor="sec-content-query">申报内容检索</label>
-              <div>
-                <input
-                  id="sec-content-query"
-                  maxLength={2_000}
-                  onChange={(event) => {
-                    setQuery(event.currentTarget.value);
-                  }}
-                  placeholder="收入变化、风险因素、现金流…"
-                  value={query}
-                />
-                <button
-                  className="primary-button"
-                  disabled={selectedImport?.status !== "ready" || searching || !query.trim()}
-                  type="submit"
-                >
-                  {searching ? "检索中…" : "Dense 检索"}
-                </button>
-              </div>
-            </form>
+            <div className="sec-content-tabs" role="tablist" aria-label="申报数据视图">
+              <button
+                aria-selected={contentMode === "text"}
+                onClick={() => {
+                  setContentMode("text");
+                }}
+                role="tab"
+                type="button"
+              >
+                文本
+              </button>
+              <button
+                aria-selected={contentMode === "xbrl"}
+                onClick={() => {
+                  setContentMode("xbrl");
+                }}
+                role="tab"
+                type="button"
+              >
+                XBRL
+              </button>
+            </div>
 
-            <div className="sec-workbench__results">
-              <div className="sec-hit-list" aria-label="检索结果">
-                <div className="sec-workbench__pane-title">
-                  <h2>Chunks</h2>
-                  <span>{searchResult?.hits.length ?? 0}</span>
-                </div>
-                {searchResult?.status === "not_ready" ? (
-                  <p className="sec-workbench__empty">文档仍在建立索引</p>
-                ) : searchResult?.hits.length ? (
-                  searchResult.hits.map((hit) => (
+            {contentMode === "text" ? (
+              <>
+                <form
+                  className="sec-content-search"
+                  onSubmit={(event) => void submitContentSearch(event)}
+                >
+                  <label htmlFor="sec-content-query">申报内容检索</label>
+                  <div>
+                    <input
+                      id="sec-content-query"
+                      maxLength={2_000}
+                      onChange={(event) => {
+                        setQuery(event.currentTarget.value);
+                      }}
+                      placeholder="收入变化、风险因素、现金流…"
+                      value={query}
+                    />
                     <button
-                      className="sec-hit-row"
-                      key={hit.chunk_id}
-                      onClick={() => void openSection(hit.chunk_id, hit.document_version_id)}
+                      className="primary-button"
+                      disabled={selectedImport?.status !== "ready" || searching || !query.trim()}
+                      type="submit"
+                    >
+                      {searching ? "检索中…" : "Dense 检索"}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="sec-workbench__results">
+                  <div className="sec-hit-list" aria-label="检索结果">
+                    <div className="sec-workbench__pane-title">
+                      <h2>Chunks</h2>
+                      <span>{searchResult?.hits.length ?? 0}</span>
+                    </div>
+                    {searchResult?.status === "not_ready" ? (
+                      <p className="sec-workbench__empty">文档仍在建立索引</p>
+                    ) : searchResult?.hits.length ? (
+                      searchResult.hits.map((hit) => (
+                        <button
+                          className="sec-hit-row"
+                          key={hit.chunk_id}
+                          onClick={() => void openSection(hit.chunk_id, hit.document_version_id)}
+                          type="button"
+                        >
+                          <span>{hit.section}</span>
+                          <strong>{hit.excerpt}</strong>
+                          <small>
+                            相似度 {hit.score.toFixed(3)} · p.{hit.page_number}
+                          </small>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="sec-workbench__empty">暂无检索结果</p>
+                    )}
+                  </div>
+
+                  <article className="sec-section-reader" aria-live="polite">
+                    <div className="sec-workbench__pane-title">
+                      <h2>{section?.section ?? "原文定位"}</h2>
+                      <span>{section === null ? "" : `p.${String(section.page_number)}`}</span>
+                    </div>
+                    {section === null ? (
+                      <p className="sec-workbench__empty">选择一个 Chunk 查看锁定快照原文</p>
+                    ) : (
+                      <>
+                        <pre>{section.text}</pre>
+                        <footer>
+                          <span>Snapshot {section.snapshot_id.slice(0, 8)}</span>
+                          <span>Source {section.source_content_sha256.slice(0, 12)}</span>
+                        </footer>
+                      </>
+                    )}
+                  </article>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="sec-xbrl-toolbar">
+                  <div className="sec-xbrl-filters">
+                    <label>
+                      Taxonomy
+                      <input
+                        maxLength={128}
+                        onChange={(event) => {
+                          setTaxonomy(event.currentTarget.value);
+                        }}
+                        placeholder="us-gaap"
+                        value={taxonomy}
+                      />
+                    </label>
+                    <label>
+                      Concept
+                      <input
+                        maxLength={256}
+                        onChange={(event) => {
+                          setConcept(event.currentTarget.value);
+                        }}
+                        placeholder="Revenue"
+                        value={concept}
+                      />
+                    </label>
+                    <div className="sec-xbrl-source-tabs" role="group" aria-label="XBRL 来源">
+                      {(
+                        [
+                          ["all", "全部"],
+                          ["aggregate", "标准聚合"],
+                          ["raw", "Raw"],
+                        ] as const
+                      ).map(([mode, label]) => (
+                        <button
+                          aria-pressed={xbrlSourceMode === mode}
+                          key={mode}
+                          onClick={() => {
+                            setXbrlSourceMode(mode);
+                          }}
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="sec-xbrl-actions">
+                    <button
+                      disabled={selectedImport?.status !== "ready" || loadingXbrl}
+                      onClick={() => void loadXbrlFacts()}
                       type="button"
                     >
-                      <span>{hit.section}</span>
-                      <strong>{hit.excerpt}</strong>
-                      <small>
-                        相似度 {hit.score.toFixed(3)} · p.{hit.page_number}
-                      </small>
+                      {loadingXbrl ? "查询中…" : "查询事实"}
                     </button>
-                  ))
-                ) : (
-                  <p className="sec-workbench__empty">暂无检索结果</p>
-                )}
-              </div>
-
-              <article className="sec-section-reader" aria-live="polite">
-                <div className="sec-workbench__pane-title">
-                  <h2>{section?.section ?? "原文定位"}</h2>
-                  <span>{section === null ? "" : `p.${String(section.page_number)}`}</span>
+                    <button
+                      className="primary-button"
+                      disabled={!canManage || selectedImport?.status !== "ready" || syncingXbrl}
+                      onClick={() => void synchronizeXbrl()}
+                      type="button"
+                    >
+                      {syncingXbrl ? "同步中…" : "同步 XBRL"}
+                    </button>
+                  </div>
                 </div>
-                {section === null ? (
-                  <p className="sec-workbench__empty">选择一个 Chunk 查看锁定快照原文</p>
-                ) : (
-                  <>
-                    <pre>{section.text}</pre>
-                    <footer>
-                      <span>Snapshot {section.snapshot_id.slice(0, 8)}</span>
-                      <span>Source {section.source_content_sha256.slice(0, 12)}</span>
-                    </footer>
-                  </>
-                )}
-              </article>
-            </div>
+
+                <div className="sec-workbench__results sec-workbench__results--xbrl">
+                  <div className="sec-hit-list" aria-label="XBRL 事实">
+                    <div className="sec-workbench__pane-title">
+                      <h2>Facts</h2>
+                      <span>{xbrlResult?.facts.length ?? 0}</span>
+                    </div>
+                    {xbrlResult?.facts.length ? (
+                      xbrlResult.facts.map((fact) => (
+                        <button
+                          aria-pressed={selectedFactId === fact.id}
+                          className="sec-fact-row"
+                          key={fact.id}
+                          onClick={() => {
+                            setSelectedFactId(fact.id);
+                          }}
+                          type="button"
+                        >
+                          <span>{xbrlSourceNames[fact.source_kind]}</span>
+                          <strong>
+                            {fact.taxonomy}:{fact.concept}
+                          </strong>
+                          <b>
+                            {fact.value} {fact.unit ?? ""}
+                          </b>
+                          <small>{periodLabel(fact)}</small>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="sec-workbench__empty">
+                        {xbrlResult?.status === "not_ready" ? "导入尚未就绪" : "暂无 XBRL 事实"}
+                      </p>
+                    )}
+                  </div>
+
+                  <article className="sec-fact-reader" aria-live="polite">
+                    <div className="sec-workbench__pane-title">
+                      <h2>
+                        {selectedFact === null
+                          ? "事实定位"
+                          : `${selectedFact.taxonomy}:${selectedFact.concept}`}
+                      </h2>
+                      <span>
+                        {selectedFact === null ? "" : xbrlSourceNames[selectedFact.source_kind]}
+                      </span>
+                    </div>
+                    {selectedFact === null ? (
+                      <p className="sec-workbench__empty">选择一个 Fact 查看来源与 Context</p>
+                    ) : (
+                      <div className="sec-fact-detail">
+                        <dl>
+                          <div>
+                            <dt>Value</dt>
+                            <dd>{selectedFact.value}</dd>
+                          </div>
+                          <div>
+                            <dt>Unit</dt>
+                            <dd>{selectedFact.unit ?? "-"}</dd>
+                          </div>
+                          <div>
+                            <dt>Period</dt>
+                            <dd>{periodLabel(selectedFact)}</dd>
+                          </div>
+                          <div>
+                            <dt>Filed</dt>
+                            <dd>{selectedFact.filed_date}</dd>
+                          </div>
+                          <div>
+                            <dt>Context ID</dt>
+                            <dd>{selectedFact.context_id ?? "不可用"}</dd>
+                          </div>
+                          <div>
+                            <dt>Decimals / Scale</dt>
+                            <dd>
+                              {selectedFact.decimals ?? "不可用"} / {selectedFact.scale ?? "不可用"}
+                            </dd>
+                          </div>
+                        </dl>
+                        <section>
+                          <h3>Dimensions</h3>
+                          {Object.keys(selectedFact.dimensions).length === 0 ? (
+                            <p>无可用维度</p>
+                          ) : (
+                            <dl>
+                              {Object.entries(selectedFact.dimensions).map(([name, value]) => (
+                                <div key={name}>
+                                  <dt>{name}</dt>
+                                  <dd>{value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
+                        </section>
+                        {selectedFact.unavailable_fields.length === 0 ? null : (
+                          <section>
+                            <h3>Unavailable</h3>
+                            <p>{selectedFact.unavailable_fields.join(", ")}</p>
+                          </section>
+                        )}
+                        <footer>
+                          <a href={selectedFact.source_url} rel="noreferrer" target="_blank">
+                            SEC Source
+                          </a>
+                          <span>Version {selectedFact.source_version}</span>
+                          <span>SHA {selectedFact.source_content_sha256.slice(0, 12)}</span>
+                          <span>
+                            Locator{" "}
+                            {selectedFact.locator.source_kind === "companyfacts_aggregate"
+                              ? selectedFact.locator.endpoint_snapshot_id.slice(0, 8)
+                              : selectedFact.locator.filing_snapshot_id.slice(0, 8)}
+                          </span>
+                        </footer>
+                      </div>
+                    )}
+                  </article>
+                </div>
+              </>
+            )}
           </section>
         </div>
       </div>

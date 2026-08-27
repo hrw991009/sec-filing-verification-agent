@@ -4,17 +4,17 @@
 >
 > 日期：2026-08-25
 >
-> 修订日期：2026-08-26
+> 修订日期：2026-08-27
 >
 > 决策人：用户
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-08-26 修订同步基线：`docs/master-plan.md` v2.0.7
+> 2026-08-27 修订同步基线：`docs/master-plan.md` v2.0.8
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-26，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 Step 1 已在当前分支提交中实现 filer identity/API/Tool；Step 2～3 当前工作树实现 current + supplemental point-in-time 选择、不可变 filing archive、Workspace Knowledge import、Dense read 和文本 Workbench，SEC Tool 达到 4/5，但 bulk watermark/post-gap、XBRL typed fact/panel、`sec-source-v1`、live SEC、分支/main CI 与所有者收口仍缺失。这些实现不构成 Day 5 DoD 豁免，也不改变本 ADR 的产品决策。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-27，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 Step 1 已在当前分支提交中实现；Step 2～4 当前工作树实现 point-in-time filing、不可变 filing/XBRL snapshot、Workspace Knowledge import、Dense text read、aggregate/raw typed facts 和文本/事实 Workbench，五个 SEC Tool 定义及本地 Worker surface 已齐全，但专用五 Tool Runtime/Harness profile、bulk watermark/post-gap、`sec-source-v1`、live SEC、分支/main CI 与所有者收口仍缺失。这些实现不构成 Day 5 DoD 豁免，也不改变本 ADR 的产品决策。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 

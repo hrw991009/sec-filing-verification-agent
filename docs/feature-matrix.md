@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-26
+> 更新日期：2026-08-27
 >
-> 权威来源：`docs/master-plan.md` 2.0.7
+> 权威来源：`docs/master-plan.md` 2.0.8
 
 ## 1. 使用规则
 
@@ -208,13 +208,13 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `implemented_pending_verification` | `complete` |
 | D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `thin_slice` | `complete` |
 | D6-03 | 不可变原始 Filing 快照 | SEC + R1 | canonical identity/current projection、append-only source version 与 Workspace import 分层；官方 HTML/iXBRL/XML/response/必要附件、URL、source-version visibility、retrieved_at、hash、MinIO ref | correction/deletion、重复同步、引用/删除、内容变化异常、损坏/partial 与授权测试 | `implemented_pending_verification` | `complete` |
-| D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/instant-duration/accession；聚合 response 与 raw iXBRL/instance XML 来源分离，context/dimensions/decimals/scale 按 source capability 可空 | standard/custom tag、aggregate/raw locator、单位/期间/context、provenance 与 locator 测试 | `planned` | `complete` |
+| D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/instant-duration/accession；聚合 response 与 raw iXBRL/instance XML 来源分离，context/dimensions/decimals/scale 按 source capability 可空 | standard/custom tag、aggregate/raw locator、单位/期间/context、provenance 与 locator 测试 | `implemented_pending_verification` | `complete` |
 | D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `thin_slice` | `complete` |
 | D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `thin_slice` | `complete` |
-| D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `thin_slice` | `complete` |
+| D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `planned` | `complete` |
 
-2026-08-26 实施映射：Day 6 继续只按五个纵向步骤执行。Step 1 已在当前分支提交中交付 filer identity 与 `sec.resolve_filer@v1`。Step 2～3 当前工作树已交付 `FilingSelectionScope v1`、current + `filings.files` supplemental 选择、bounded filing archive、不可变 PostgreSQL/MinIO snapshot、Workspace Knowledge import、`dense-v1` search/section read、认证 API 和文本 Workbench，完整本地统一门禁通过。D6-01/D6-03 为 `implemented_pending_verification`；D6-02 因缺 `submissions.zip` published/coverage watermark 与 post-watermark gap 补齐保持 `thin_slice`，D6-05 为 4/5 Tool 的 `thin_slice`，D6-06 也保持 `thin_slice`；D6-07 因缺 XBRL fact panel 保持 `thin_slice`。D6-04/D6-08 仍为 `planned`；live SEC、`sec-source-v1`、分支/main CI、所有者复核和 D5-08/D5-09 浏览器 DoD 均未完成。BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
+2026-08-27 实施映射：Day 6 继续只按五个纵向步骤执行。Step 1 已在当前分支提交中交付；Step 2～4 当前工作树已交付 `FilingSelectionScope v1`、current + supplemental filing 选择、bounded filing archive、不可变 PostgreSQL/MinIO filing/companyfacts snapshot、Workspace Knowledge import、`dense-v1` text read、aggregate/raw XBRL context/fact、第五个 `sec.get_xbrl_facts@v1` 与文本/事实 Workbench，完整本地统一门禁通过。D6-01/D6-03/D6-04/D6-07 为 `implemented_pending_verification`；D6-02 因缺 bulk published/coverage watermark 与 post-watermark gap 保持 `thin_slice`，D6-05 因缺专用五 Tool Runtime/Harness profile 保持 `thin_slice`，D6-06 也保持 `thin_slice`。D6-08 为 `planned`；live SEC、`companyfacts.zip`、`sec-source-v1`、分支/main CI、所有者复核和 D5-08/D5-09 浏览器 DoD 均未完成。BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 

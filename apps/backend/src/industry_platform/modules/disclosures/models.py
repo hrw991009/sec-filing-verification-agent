@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -407,6 +408,168 @@ class SecSourceSnapshotRecord(UUIDPrimaryKeyMixin, Base):
     adapter_version: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     anomaly_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecXbrlSourceRecord(UUIDPrimaryKeyMixin, Base):
+    """Immutable aggregate response or raw filing snapshot used for XBRL facts."""
+
+    __tablename__ = "sec_xbrl_sources"
+    __table_args__ = (
+        UniqueConstraint("id", "source_kind"),
+        UniqueConstraint("source_url", "source_version"),
+        CheckConstraint("cik ~ '^[0-9]{10}$' AND cik <> '0000000000'", name="cik_valid"),
+        CheckConstraint(
+            "source_kind IN ('companyfacts_aggregate', 'raw_inline', 'raw_instance')",
+            name="source_kind_supported",
+        ),
+        CheckConstraint(
+            "(source_kind = 'companyfacts_aggregate' "
+            "AND source_url LIKE 'https://data.sec.gov/api/xbrl/companyfacts/CIK%.json' "
+            "AND content_type = 'application/json' AND filing_snapshot_id IS NULL "
+            "AND object_bucket IS NOT NULL AND object_key IS NOT NULL) OR "
+            "(source_kind IN ('raw_inline', 'raw_instance') "
+            "AND source_url LIKE 'https://www.sec.gov/Archives/edgar/data/%' "
+            "AND content_type IN ('text/html', 'application/xhtml+xml', "
+            "'application/xml', 'text/xml') AND filing_snapshot_id IS NOT NULL "
+            "AND object_bucket IS NULL AND object_key IS NULL)",
+            name="source_boundary_valid",
+        ),
+        CheckConstraint("octet_length(content_sha256) = 32", name="content_sha256_length"),
+        CheckConstraint("byte_size > 0", name="byte_size_positive"),
+        CheckConstraint("source_available_at <= retrieved_at", name="availability_order"),
+        Index(None, "cik", "source_kind", "source_available_at"),
+    )
+
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    filing_snapshot_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("sec_source_snapshots.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    content_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    object_bucket: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source_available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    adapter_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecXbrlContextRecord(UUIDPrimaryKeyMixin, Base):
+    """Raw XBRL context; aggregate API facts intentionally have no context row."""
+
+    __tablename__ = "sec_xbrl_contexts"
+    __table_args__ = (
+        UniqueConstraint("id", "source_id"),
+        UniqueConstraint("source_id", "raw_context_id"),
+        CheckConstraint("length(btrim(raw_context_id)) > 0", name="context_id_not_blank"),
+        CheckConstraint("length(btrim(entity_identifier)) > 0", name="entity_not_blank"),
+        CheckConstraint(
+            "period_kind IN ('instant', 'duration', 'forever')",
+            name="period_kind_supported",
+        ),
+        CheckConstraint(
+            "(period_kind = 'instant' AND instant IS NOT NULL "
+            "AND start_date IS NULL AND end_date IS NULL) OR "
+            "(period_kind = 'duration' AND instant IS NULL "
+            "AND start_date IS NOT NULL AND end_date IS NOT NULL AND end_date >= start_date) OR "
+            "(period_kind = 'forever' AND instant IS NULL "
+            "AND start_date IS NULL AND end_date IS NULL)",
+            name="period_valid",
+        ),
+        Index(None, "source_id", "period_kind"),
+    )
+
+    source_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sec_xbrl_sources.id", ondelete="RESTRICT"), nullable=False
+    )
+    raw_context_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    entity_identifier: Mapped[str] = mapped_column(String(255), nullable=False)
+    period_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    instant: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    dimensions: Mapped[dict[str, str]] = mapped_column(JSON(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecXbrlFactRecord(UUIDPrimaryKeyMixin, Base):
+    """One immutable source-typed fact from a locked accession."""
+
+    __tablename__ = "sec_xbrl_facts"
+    __table_args__ = (
+        UniqueConstraint("source_id", "locator_key"),
+        ForeignKeyConstraint(
+            ["context_id", "source_id"],
+            ["sec_xbrl_contexts.id", "sec_xbrl_contexts.source_id"],
+            name="fk_sec_xbrl_facts_context_source",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "accession ~ '^[0-9]{10}-[0-9]{2}-[0-9]{6}$'",
+            name="accession_valid",
+        ),
+        CheckConstraint("form IN ('10-K', '10-K/A', '10-Q', '10-Q/A')", name="form_supported"),
+        CheckConstraint("length(btrim(taxonomy)) > 0", name="taxonomy_not_blank"),
+        CheckConstraint("length(btrim(concept)) > 0", name="concept_not_blank"),
+        CheckConstraint("length(btrim(value)) > 0", name="value_not_blank"),
+        CheckConstraint("length(btrim(locator_key)) > 0", name="locator_not_blank"),
+        CheckConstraint(
+            "period_kind IN ('instant', 'duration', 'forever')",
+            name="period_kind_supported",
+        ),
+        CheckConstraint(
+            "(period_kind = 'instant' AND instant IS NOT NULL "
+            "AND start_date IS NULL AND end_date IS NULL) OR "
+            "(period_kind = 'duration' AND instant IS NULL "
+            "AND start_date IS NOT NULL AND end_date IS NOT NULL AND end_date >= start_date) OR "
+            "(period_kind = 'forever' AND instant IS NULL "
+            "AND start_date IS NULL AND end_date IS NULL)",
+            name="period_valid",
+        ),
+        CheckConstraint("ordinal >= 0", name="ordinal_nonnegative"),
+        Index(None, "filing_id", "taxonomy", "concept", "filed_date"),
+        Index(None, "source_id", "context_id"),
+    )
+
+    filing_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sec_filings.id", ondelete="RESTRICT"), nullable=False
+    )
+    source_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sec_xbrl_sources.id", ondelete="RESTRICT"), nullable=False
+    )
+    context_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    accession: Mapped[str] = mapped_column(String(20), nullable=False)
+    taxonomy: Mapped[str] = mapped_column(String(128), nullable=False)
+    concept: Mapped[str] = mapped_column(String(256), nullable=False)
+    value: Mapped[str] = mapped_column(String(20_000), nullable=False)
+    unit: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    period_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    instant: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    filed_date: Mapped[date] = mapped_column(Date(), nullable=False)
+    form: Mapped[str] = mapped_column(String(16), nullable=False)
+    raw_context_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dimensions: Mapped[dict[str, str]] = mapped_column(JSON(), nullable=False)
+    decimals: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    scale: Mapped[int | None] = mapped_column(nullable=True)
+    format: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_custom: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    ordinal: Mapped[int] = mapped_column(nullable=False)
+    locator_key: Mapped[str] = mapped_column(String(512), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

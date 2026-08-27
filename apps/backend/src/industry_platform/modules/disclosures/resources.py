@@ -33,33 +33,46 @@ from industry_platform.modules.disclosures.adapters.sec_submissions import (
 from industry_platform.modules.disclosures.adapters.snapshots import (
     MinioSecFilingDocumentSnapshotStore,
     MinioSecSubmissionSnapshotStore,
+    MinioSecXbrlSnapshotStore,
     UnavailableSecFilingDocumentSnapshotStore,
     UnavailableSecSubmissionSnapshotStore,
+    UnavailableSecXbrlSnapshotStore,
 )
 from industry_platform.modules.disclosures.adapters.sqlalchemy import (
     SqlAlchemySecFilerCatalogRepository,
+)
+from industry_platform.modules.disclosures.adapters.xbrl import (
+    LiveSecCompanyFactsAdapter,
+    UnavailableSecCompanyFactsAdapter,
+)
+from industry_platform.modules.disclosures.adapters.xbrl_sqlalchemy import (
+    SqlAlchemySecXbrlRepository,
 )
 from industry_platform.modules.disclosures.filing_content_service import (
     SecFilingContentService,
     SecFilingImportService,
 )
 from industry_platform.modules.disclosures.ports import (
+    SecCompanyFactsPort,
     SecEdgarPort,
     SecFilingArchivePort,
     SecFilingDocumentSnapshotStore,
     SecSubmissionSnapshotStore,
     SecSubmissionsPort,
+    SecXbrlSnapshotStore,
 )
 from industry_platform.modules.disclosures.service import (
     SecFilerResolutionService,
     SecFilingSelectionService,
 )
 from industry_platform.modules.disclosures.tool import (
+    SecGetXbrlFactsTool,
     SecListFilingsTool,
     SecReadFilingSectionTool,
     SecResolveFilerTool,
     SecSearchFilingTool,
 )
+from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.files.ports import PrivateFileObjectStore
 from industry_platform.modules.ingestion.index_contract import MILVUS_COLLECTION
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
@@ -76,6 +89,8 @@ class DisclosureResources:
     filing_content_service: SecFilingContentService
     search_filing_tool: SecSearchFilingTool
     read_filing_section_tool: SecReadFilingSectionTool
+    xbrl_service: SecXbrlService
+    get_xbrl_facts_tool: SecGetXbrlFactsTool
 
 
 def create_disclosure_resources(
@@ -92,11 +107,24 @@ def create_disclosure_resources(
     submission_snapshot_store: SecSubmissionSnapshotStore | None = None,
     archive_source: SecFilingArchivePort | None = None,
     filing_snapshot_store: SecFilingDocumentSnapshotStore | None = None,
+    companyfacts_source: SecCompanyFactsPort | None = None,
+    xbrl_snapshot_store: SecXbrlSnapshotStore | None = None,
 ) -> DisclosureResources:
     sec_redis = cast(SecRedisClient, redis_client)
     request_budget = RedisSecRequestBudget(
         sec_redis,
         requests_per_second=settings.sec_requests_per_second,
+    )
+    official_client = (
+        OfficialSecJsonClient(
+            http_client,
+            request_budget,
+            user_agent=settings.sec_user_agent,
+            timeout_seconds=settings.sec_request_timeout_seconds,
+            maximum_attempts=settings.sec_request_max_attempts,
+        )
+        if settings.sec_source_configured
+        else None
     )
     selected_source = source
     if selected_source is None:
@@ -115,13 +143,8 @@ def create_disclosure_resources(
     selected_submissions_source = submissions_source
     if selected_submissions_source is None:
         if settings.sec_source_configured:
-            official_client = OfficialSecJsonClient(
-                http_client,
-                request_budget,
-                user_agent=settings.sec_user_agent,
-                timeout_seconds=settings.sec_request_timeout_seconds,
-                maximum_attempts=settings.sec_request_max_attempts,
-            )
+            if official_client is None:
+                raise AssertionError("Configured SEC client disappeared")
             selected_submissions_source = LiveSecSubmissionsAdapter(
                 official_client,
                 lambda key: RedisSecResponseCache(sec_redis, cache_key=key),
@@ -129,6 +152,18 @@ def create_disclosure_resources(
             )
         else:
             selected_submissions_source = UnavailableSecEdgarAdapter()
+    selected_companyfacts_source = companyfacts_source
+    if selected_companyfacts_source is None:
+        if settings.sec_source_configured:
+            if official_client is None:
+                raise AssertionError("Configured SEC client disappeared")
+            selected_companyfacts_source = LiveSecCompanyFactsAdapter(
+                official_client,
+                lambda key: RedisSecResponseCache(sec_redis, cache_key=key),
+                cache_ttl_seconds=settings.sec_catalog_cache_ttl_seconds,
+            )
+        else:
+            selected_companyfacts_source = UnavailableSecCompanyFactsAdapter()
     selected_snapshot_store = submission_snapshot_store
     object_bucket = settings.minio_bucket
     if object_store is not None and object_bucket is None:
@@ -166,6 +201,17 @@ def create_disclosure_resources(
                 object_store,
                 bucket=object_bucket,
             )
+    selected_xbrl_snapshot_store = xbrl_snapshot_store
+    if selected_xbrl_snapshot_store is None:
+        if object_store is None:
+            selected_xbrl_snapshot_store = UnavailableSecXbrlSnapshotStore()
+        else:
+            if object_bucket is None:
+                raise RuntimeError("Validated MinIO settings are incomplete")
+            selected_xbrl_snapshot_store = MinioSecXbrlSnapshotStore(
+                object_store,
+                bucket=object_bucket,
+            )
     resolution_service = SecFilerResolutionService(
         repository=SqlAlchemySecFilerCatalogRepository(session_factory),
         source=selected_source,
@@ -200,6 +246,15 @@ def create_disclosure_resources(
             timeout_seconds=settings.knowledge_index_timeout_seconds,
         ),
     )
+    xbrl_service = SecXbrlService(
+        repository=SqlAlchemySecXbrlRepository(
+            session_factory,
+            object_bucket=object_bucket or "sec-snapshots-unconfigured",
+        ),
+        filing_repository=filing_content_repository,
+        companyfacts_source=selected_companyfacts_source,
+        snapshot_store=selected_xbrl_snapshot_store,
+    )
     return DisclosureResources(
         resolution_service=resolution_service,
         resolve_filer_tool=SecResolveFilerTool(resolution_service),
@@ -209,14 +264,16 @@ def create_disclosure_resources(
         filing_content_service=filing_content_service,
         search_filing_tool=SecSearchFilingTool(filing_content_service),
         read_filing_section_tool=SecReadFilingSectionTool(filing_content_service),
+        xbrl_service=xbrl_service,
+        get_xbrl_facts_tool=SecGetXbrlFactsTool(xbrl_service),
     )
 
 
-def create_sec_filing_read_tools(
+def create_sec_filing_tools(
     settings: Settings,
     session_factory: AsyncSessionFactory,
     internal_http_client: httpx2.AsyncClient,
-) -> tuple[SecSearchFilingTool, SecReadFilingSectionTool]:
+) -> tuple[SecSearchFilingTool, SecReadFilingSectionTool, SecGetXbrlFactsTool]:
     repository = SqlAlchemySecFilingContentRepository(
         session_factory,
         object_bucket=settings.minio_bucket or "sec-snapshots-unconfigured",
@@ -233,7 +290,20 @@ def create_sec_filing_read_tools(
             timeout_seconds=settings.knowledge_index_timeout_seconds,
         ),
     )
-    return SecSearchFilingTool(service), SecReadFilingSectionTool(service)
+    xbrl_service = SecXbrlService(
+        repository=SqlAlchemySecXbrlRepository(
+            session_factory,
+            object_bucket=settings.minio_bucket or "sec-snapshots-unconfigured",
+        ),
+        filing_repository=repository,
+        companyfacts_source=UnavailableSecCompanyFactsAdapter(),
+        snapshot_store=UnavailableSecXbrlSnapshotStore(),
+    )
+    return (
+        SecSearchFilingTool(service),
+        SecReadFilingSectionTool(service),
+        SecGetXbrlFactsTool(xbrl_service),
+    )
 
 
 def get_disclosure_resources(request: Request) -> DisclosureResources:

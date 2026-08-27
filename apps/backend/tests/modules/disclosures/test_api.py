@@ -18,8 +18,13 @@ from industry_platform.modules.disclosures.adapters.sec_edgar import (
 from industry_platform.modules.disclosures.domain import (
     SecAmendmentPolicy,
     SecFilerResolution,
+    SecFilingContentStatus,
     SecFilingImportStatus,
     SecWorkspaceFilingImport,
+    SecXbrlFactQuery,
+    SecXbrlFactResult,
+    SecXbrlSourceKind,
+    SecXbrlSyncResult,
 )
 from industry_platform.modules.disclosures.resources import (
     DisclosureResources,
@@ -74,6 +79,7 @@ class StubResources:
     filing_selection_service: object | None = None
     filing_import_service: object | None = None
     filing_content_service: object | None = None
+    xbrl_service: object | None = None
 
 
 @dataclass(slots=True)
@@ -109,6 +115,42 @@ class TrackingImportService:
             created_at=now,
             updated_at=now,
         )
+
+
+@dataclass(slots=True)
+class TrackingXbrlService:
+    sync_calls: list[tuple[WorkspaceScope, str, UUID]] = field(default_factory=list)
+    query_calls: list[tuple[WorkspaceScope, str, UUID, datetime, SecXbrlFactQuery]] = field(
+        default_factory=list
+    )
+
+    async def sync(
+        self,
+        scope: WorkspaceScope,
+        *,
+        accession: str,
+        knowledge_base_id: UUID,
+    ) -> SecXbrlSyncResult:
+        self.sync_calls.append((scope, accession, knowledge_base_id))
+        return SecXbrlSyncResult(
+            accession=accession,
+            source_count=1,
+            context_count=0,
+            fact_count=1,
+            source_versions=("sec-xbrl-companyfacts-v1",),
+        )
+
+    async def get_imported_facts(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        accession: str,
+        as_of: datetime,
+        query: SecXbrlFactQuery,
+    ) -> SecXbrlFactResult:
+        self.query_calls.append((scope, accession, knowledge_base_ids[0], as_of, query))
+        return SecXbrlFactResult(SecFilingContentStatus.NO_RESULT, accession)
 
 
 def principal() -> AuthenticatedPrincipal:
@@ -282,3 +324,55 @@ def test_authenticated_workspace_can_queue_locked_filing_import_and_cross_worksp
     ]
     assert denied.status_code == 403
     assert denied.json()["code"] == "WORKSPACE_ACCESS_DENIED"
+
+
+def test_authenticated_workspace_can_sync_and_query_typed_xbrl_facts(
+    test_settings: Settings,
+) -> None:
+    knowledge_base_id = UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+    accession = "0000320193-23-000106"
+    service = TrackingXbrlService()
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources,
+        StubResources(xbrl_service=service),
+    )
+    with TestClient(application, base_url="https://localhost") as client:
+        synced = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings/{accession}/xbrl/sync",
+            headers=headers(),
+            json={"knowledge_base_id": str(knowledge_base_id)},
+        )
+        queried = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings/{accession}/xbrl/facts",
+            headers=headers(),
+            params={
+                "knowledge_base_id": str(knowledge_base_id),
+                "as_of": "2026-08-26T04:00:00Z",
+                "taxonomy": "us-gaap",
+                "concept": "Revenue",
+                "source_kinds": "companyfacts_aggregate",
+                "limit": 20,
+            },
+        )
+        denied = client.post(
+            f"/api/v1/workspaces/{OTHER_WORKSPACE_ID}/disclosures/filings/{accession}/xbrl/sync",
+            headers=headers(),
+            json={"knowledge_base_id": str(knowledge_base_id)},
+        )
+
+    assert synced.status_code == 200
+    assert synced.headers["cache-control"] == "no-store"
+    assert synced.json()["fact_count"] == 1
+    assert queried.status_code == 200
+    assert queried.json() == {
+        "status": "no_result",
+        "accession": accession,
+        "facts": [],
+        "error_code": None,
+    }
+    assert service.query_calls[0][4].source_kinds == (SecXbrlSourceKind.COMPANYFACTS_AGGREGATE,)
+    assert denied.status_code == 403
