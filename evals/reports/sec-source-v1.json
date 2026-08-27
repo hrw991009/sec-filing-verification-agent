@@ -7,12 +7,7 @@
   "execution_boundary": {
     "deterministic_replay": true,
     "live_sec_executed": false,
-    "real_dependency_evidence": [
-      "PostgreSQL",
-      "MinIO",
-      "Milvus",
-      "Elasticsearch"
-    ],
+    "real_dependency_evidence": ["PostgreSQL", "MinIO", "Milvus", "Elasticsearch"],
     "ordinary_pr_ci_network_access": false,
     "observation_date": "2026-08-27",
     "limitation": "Bulk submissions/companyfacts snapshots and post-watermark gap closure are not implemented."
@@ -25,13 +20,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.resolve_filer@v1"
-      ],
-      "observed_milestones": [
-        "resolve_filer",
-        "attributed_candidate"
-      ],
+      "observed_tools": ["sec.resolve_filer@v1"],
+      "observed_milestones": ["resolve_filer", "attributed_candidate"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -47,13 +37,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.resolve_filer@v1"
-      ],
-      "observed_milestones": [
-        "resolve_filer",
-        "request_clarification"
-      ],
+      "observed_tools": ["sec.resolve_filer@v1"],
+      "observed_milestones": ["resolve_filer", "request_clarification"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -69,13 +54,8 @@
       "observed_snapshot_presence": false,
       "observed_import_presence": false,
       "observed_source_locator": false,
-      "observed_tools": [
-        "sec.resolve_filer@v1"
-      ],
-      "observed_milestones": [
-        "resolve_filer",
-        "typed_dependency_error"
-      ],
+      "observed_tools": ["sec.resolve_filer@v1"],
+      "observed_milestones": ["resolve_filer", "typed_dependency_error"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -91,14 +71,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.list_filings@v1"
-      ],
-      "observed_milestones": [
-        "list_filings",
-        "deduplicate_accession",
-        "select_accession"
-      ],
+      "observed_tools": ["sec.list_filings@v1"],
+      "observed_milestones": ["list_filings", "deduplicate_accession", "select_accession"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -114,14 +88,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.list_filings@v1"
-      ],
-      "observed_milestones": [
-        "list_filings",
-        "apply_visibility_policy",
-        "select_amendment"
-      ],
+      "observed_tools": ["sec.list_filings@v1"],
+      "observed_milestones": ["list_filings", "apply_visibility_policy", "select_amendment"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -137,13 +105,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.list_filings@v1"
-      ],
-      "observed_milestones": [
-        "list_filings",
-        "typed_incomplete"
-      ],
+      "observed_tools": ["sec.list_filings@v1"],
+      "observed_milestones": ["list_filings", "typed_incomplete"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -160,11 +123,7 @@
       "observed_import_presence": true,
       "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": [
-        "archive_snapshot",
-        "workspace_import",
-        "knowledge_job"
-      ],
+      "observed_milestones": ["archive_snapshot", "workspace_import", "knowledge_job"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -181,11 +140,7 @@
       "observed_import_presence": false,
       "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": [
-        "archive_snapshot",
-        "quarantine",
-        "stop_before_import"
-      ],
+      "observed_milestones": ["archive_snapshot", "quarantine", "stop_before_import"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -202,10 +157,7 @@
       "observed_import_presence": false,
       "observed_source_locator": false,
       "observed_tools": [],
-      "observed_milestones": [
-        "archive_fetch",
-        "typed_dependency_error"
-      ],
+      "observed_milestones": ["archive_fetch", "typed_dependency_error"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -221,14 +173,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": true,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.get_xbrl_facts@v1"
-      ],
-      "observed_milestones": [
-        "get_xbrl_facts",
-        "aggregate_locator",
-        "return_fact"
-      ],
+      "observed_tools": ["sec.get_xbrl_facts@v1"],
+      "observed_milestones": ["get_xbrl_facts", "aggregate_locator", "return_fact"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -244,14 +190,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": true,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.get_xbrl_facts@v1"
-      ],
-      "observed_milestones": [
-        "get_xbrl_facts",
-        "raw_context",
-        "return_custom_fact"
-      ],
+      "observed_tools": ["sec.get_xbrl_facts@v1"],
+      "observed_milestones": ["get_xbrl_facts", "raw_context", "return_custom_fact"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -268,10 +208,7 @@
       "observed_import_presence": true,
       "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": [
-        "raw_xbrl_parse",
-        "reject_doctype"
-      ],
+      "observed_milestones": ["raw_xbrl_parse", "reject_doctype"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -287,14 +224,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": true,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.search_filing@v1"
-      ],
-      "observed_milestones": [
-        "search_filing",
-        "reload_postgres_truth",
-        "return_chunk_locator"
-      ],
+      "observed_tools": ["sec.search_filing@v1"],
+      "observed_milestones": ["search_filing", "reload_postgres_truth", "return_chunk_locator"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -310,14 +241,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": true,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.read_filing_section@v1"
-      ],
-      "observed_milestones": [
-        "read_filing_section",
-        "authorize_chunk",
-        "return_exact_text"
-      ],
+      "observed_tools": ["sec.read_filing_section@v1"],
+      "observed_milestones": ["read_filing_section", "authorize_chunk", "return_exact_text"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -333,13 +258,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.get_xbrl_facts@v1"
-      ],
-      "observed_milestones": [
-        "get_xbrl_facts",
-        "deny_cross_workspace"
-      ],
+      "observed_tools": ["sec.get_xbrl_facts@v1"],
+      "observed_milestones": ["get_xbrl_facts", "deny_cross_workspace"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -355,13 +275,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": true,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.search_filing@v1"
-      ],
-      "observed_milestones": [
-        "search_filing",
-        "reject_scope_mismatch"
-      ],
+      "observed_tools": ["sec.search_filing@v1"],
+      "observed_milestones": ["search_filing", "reject_scope_mismatch"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -378,11 +293,7 @@
       "observed_import_presence": false,
       "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": [
-        "persist_source_version",
-        "persist_coverage",
-        "idempotent_replay"
-      ],
+      "observed_milestones": ["persist_source_version", "persist_coverage", "idempotent_replay"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -399,11 +310,7 @@
       "observed_import_presence": true,
       "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": [
-        "persist_xbrl_source",
-        "persist_context_fact",
-        "idempotent_replay"
-      ],
+      "observed_milestones": ["persist_xbrl_source", "persist_context_fact", "idempotent_replay"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -419,9 +326,7 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.resolve_filer@v1"
-      ],
+      "observed_tools": ["sec.resolve_filer@v1"],
       "observed_milestones": [
         "materialize_tool_l2_profile",
         "enforce_five_tool_surface",
@@ -442,14 +347,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.resolve_filer@v1"
-      ],
-      "observed_milestones": [
-        "authenticate_workspace",
-        "resolve_filer",
-        "deny_cross_workspace"
-      ],
+      "observed_tools": ["sec.resolve_filer@v1"],
+      "observed_milestones": ["authenticate_workspace", "resolve_filer", "deny_cross_workspace"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -466,11 +365,7 @@
       "observed_import_presence": true,
       "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": [
-        "minio_snapshot",
-        "postgres_context_fact",
-        "authorized_reload"
-      ],
+      "observed_milestones": ["minio_snapshot", "postgres_context_fact", "authorized_reload"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -486,14 +381,8 @@
       "observed_snapshot_presence": true,
       "observed_import_presence": false,
       "observed_source_locator": true,
-      "observed_tools": [
-        "sec.list_filings@v1"
-      ],
-      "observed_milestones": [
-        "list_filings",
-        "prove_complete_coverage",
-        "return_no_result"
-      ],
+      "observed_tools": ["sec.list_filings@v1"],
+      "observed_milestones": ["list_filings", "prove_complete_coverage", "return_no_result"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -510,10 +399,7 @@
       "observed_import_presence": false,
       "observed_source_locator": false,
       "observed_tools": [],
-      "observed_milestones": [
-        "closeout_audit",
-        "record_capability_missing"
-      ],
+      "observed_milestones": ["closeout_audit", "record_capability_missing"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -530,10 +416,7 @@
       "observed_import_presence": false,
       "observed_source_locator": false,
       "observed_tools": [],
-      "observed_milestones": [
-        "closeout_audit",
-        "record_capability_missing"
-      ],
+      "observed_milestones": ["closeout_audit", "record_capability_missing"],
       "observed_bulk_coverage_complete": false,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
@@ -611,8 +494,5 @@
     }
   },
   "gate_passed": false,
-  "blockers": [
-    "submissions-bulk-watermark",
-    "companyfacts-bulk-watermark"
-  ]
+  "blockers": ["submissions-bulk-watermark", "companyfacts-bulk-watermark"]
 }
