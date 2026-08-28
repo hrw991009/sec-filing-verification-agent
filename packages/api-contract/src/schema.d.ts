@@ -2665,7 +2665,7 @@ export interface components {
          * FinancialForm
          * @enum {string}
          */
-        FinancialForm: "10-K" | "10-Q";
+        FinancialForm: "10-K" | "10-K/A" | "10-Q" | "10-Q/A";
         /** FinancialScopePayload */
         FinancialScopePayload: {
             /** Accession */

@@ -3018,7 +3018,7 @@
         "type": "object"
       },
       "FinancialForm": {
-        "enum": ["10-K", "10-Q"],
+        "enum": ["10-K", "10-K/A", "10-Q", "10-Q/A"],
         "title": "FinancialForm",
         "type": "string"
       },

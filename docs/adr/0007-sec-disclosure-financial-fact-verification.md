@@ -10,11 +10,11 @@
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-08-28 修订同步基线：`docs/master-plan.md` v2.1.2
+> 2026-08-28 修订同步基线：`docs/master-plan.md` v2.1.3
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-28，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，但确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺；项目所有者将其改期为 Day 10 发布硬门并保留原评测分母。Day 7 Step 1 的 `hybrid-v1`、PostgreSQL 重载和 filing text/XBRL fact locator 已实现，D7-01/D7-02 分别保持 `implemented_pending_verification`/`thin_slice`，直到 ranking、table/Citation 与 PR/main 门禁关闭。项目所有者随后继续 Step 2；`financial-context-v1` 已在同一 Context Compiler/Tool L2 链进入当前工作树，D7-03 因真实 PostgreSQL、提交与远端 CI 尚缺保持 `implemented_pending_verification`。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-28，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，但确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺；项目所有者将其改期为 Day 10 发布硬门并保留原评测分母。Day 7 Step 1 的 `hybrid-v1`、PostgreSQL 重载和 filing text/XBRL fact locator 已实现，D7-01/D7-02 分别保持 `implemented_pending_verification`/`thin_slice`，直到 ranking、table/Citation 与 PR/main 门禁关闭。Step 2 的 `financial-context-v1` 已提交，但分支 CI `33140371558` 因 Context identity 序列化在 PostgreSQL Job 失败；当前工作树已按既有 JSON 投影模式修复，尚待新远端 CI，因此 D7-03 保持 `implemented_pending_verification`。项目所有者随后继续 Step 3；正式 XBRL operand 的 PostgreSQL 授权重载、既有 Decimal calculator 的 scale/percentage 扩展、`financial-reconciliation-v1` 与 Calculation Evidence 重算链已进入当前工作树，D7-04/D7-05 因真实 PostgreSQL、提交与远端 CI 尚缺保持 `implemented_pending_verification`。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 

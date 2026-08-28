@@ -106,10 +106,17 @@ from industry_platform.modules.evidence.normalizer import (
 )
 from industry_platform.modules.files.domain import FileObjectStatus
 from industry_platform.modules.files.models import FileObject
+from industry_platform.modules.financial_verification.adapters.sqlalchemy import (
+    financial_evidence_operand_from_records,
+)
 from industry_platform.modules.financial_verification.domain import (
     FinancialCalculation,
+    FinancialEvidenceOperand,
     FinancialOperand,
+    FinancialReconciliationStatus,
     calculate_financial_result,
+    reconcile_financial_operands,
+    sec_xbrl_evidence_ref,
 )
 from industry_platform.modules.financial_verification.tool import FinanceCalculateOutput
 from industry_platform.modules.identity.models import AuditLog, AuditOutcome
@@ -1056,6 +1063,14 @@ class SqlAlchemyEvidenceRepository:
             or source.source_version != fact.source_version
         ):
             return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        evidence_id = sec_xbrl_evidence_ref(
+            workspace_id=scope.workspace_id,
+            fact_id=fact.id,
+            as_of=financial_scope.as_of,
+            authorization_role=scope.role,
+        )
+        if fact.evidence_ref is not None and fact.evidence_ref != evidence_id:
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
         row = (
             await session.execute(
                 select(SecXbrlFactRecord, SecXbrlSourceRecord, SecFilingRecord)
@@ -1166,6 +1181,7 @@ class SqlAlchemyEvidenceRepository:
             document_version_id=None,
             chunk_id=None,
             source_resource_version=f"{source_record.source_version}:{fact_record.locator_key}",
+            evidence_id=evidence_id,
         )
 
     async def _persist_sec_evidence(
@@ -1187,6 +1203,7 @@ class SqlAlchemyEvidenceRepository:
         document_version_id: UUID | None,
         chunk_id: UUID | None,
         source_resource_version: str,
+        evidence_id: UUID | None = None,
     ) -> tuple[EvidenceRecord | None, EvidenceDecisionReason]:
         dedupe = canonical_fingerprint(
             {
@@ -1200,7 +1217,14 @@ class SqlAlchemyEvidenceRepository:
         if evidence is not None or reason is not None:
             return evidence, reason or EvidenceDecisionReason.ACCEPTED
         record = EvidenceRecord(
-            id=uuid5(NAMESPACE_URL, f"{scope.workspace_id}:{locator.locator_type.value}:{dedupe}"),
+            id=(
+                evidence_id
+                if evidence_id is not None
+                else uuid5(
+                    NAMESPACE_URL,
+                    f"{scope.workspace_id}:{locator.locator_type.value}:{dedupe}",
+                )
+            ),
             workspace_id=scope.workspace_id,
             schema_version=1,
             kind=EvidenceKind.FILING,
@@ -1475,27 +1499,122 @@ class SqlAlchemyEvidenceRepository:
             .scalars()
             .all()
         )
-        if {record.id for record in evidence_rows} != set(output.evidence_refs):
+        evidence_by_id = {record.id: record for record in evidence_rows}
+        if set(evidence_by_id) != set(output.evidence_refs):
             return None, EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
         financial_scope = output.financial_scope.to_domain()
-        for record in evidence_rows:
-            try:
-                filing_locator = parse_evidence_locator(record.locator)
-            except ValueError:
-                return None, EvidenceDecisionReason.OBSERVATION_INVALID
-            if not isinstance(filing_locator, SecFilingChunkLocatorV1) or (
-                filing_locator.cik != financial_scope.cik
-                or filing_locator.accession != financial_scope.accession
-                or filing_locator.form != financial_scope.form.value
-                or filing_locator.report_period != financial_scope.report_period.isoformat()
+        calculation_operands: tuple[FinancialOperand, ...]
+        if output.operand_source == "sec_xbrl_evidence":
+            if (
+                output.reconciliation is None
+                or not output.resolved_operands
+                or len(output.resolved_operands) != len(output.operands)
+                or any(item.source_fact_id is None for item in output.operands)
             ):
-                return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
-        calculation = FinancialCalculation(
-            operator=output.operator,
-            operands=tuple(
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            source_fact_ids = tuple(UUID(str(item.source_fact_id)) for item in output.operands)
+            fact_rows = (
+                (
+                    await session.execute(
+                        select(SecXbrlFactRecord, SecXbrlSourceRecord, SecFilingRecord)
+                        .join(
+                            SecXbrlSourceRecord,
+                            SecXbrlSourceRecord.id == SecXbrlFactRecord.source_id,
+                        )
+                        .join(SecFilingRecord, SecFilingRecord.id == SecXbrlFactRecord.filing_id)
+                        .where(SecXbrlFactRecord.id.in_(source_fact_ids))
+                    )
+                )
+                .unique()
+                .all()
+            )
+            fact_by_id = {
+                fact.id: (fact, source_row, filing) for fact, source_row, filing in fact_rows
+            }
+            resolved: list[FinancialEvidenceOperand] = []
+            for input_item in output.operands:
+                evidence_ref = UUID(input_item.evidence_ref)
+                source_fact_id = UUID(str(input_item.source_fact_id))
+                evidence_record = evidence_by_id[evidence_ref]
+                row = fact_by_id.get(source_fact_id)
+                if row is None or not await self._is_available(session, evidence_record):
+                    return None, EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
+                try:
+                    locator = parse_evidence_locator(evidence_record.locator)
+                    fact, source_row, filing = row
+                    operand = financial_evidence_operand_from_records(
+                        workspace_id=scope.workspace_id,
+                        as_of=financial_scope.as_of,
+                        authorization_role=scope.role,
+                        fact=fact,
+                        source=source_row,
+                        filing=filing,
+                    )
+                except ValueError:
+                    return None, EvidenceDecisionReason.OBSERVATION_INVALID
+                if (
+                    not isinstance(locator, SecXbrlFactLocatorV1)
+                    or locator.fact_id != source_fact_id
+                    or locator.source_id != fact.source_id
+                    or locator.cik != operand.cik
+                    or locator.accession != operand.accession
+                    or locator.form != operand.form.value
+                    or locator.report_period != operand.report_period.isoformat()
+                    or locator.source_version != operand.source_version
+                    or evidence_record.id != operand.evidence_ref
+                    or input_item.value != operand.value
+                ):
+                    return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+                resolved.append(operand)
+            resolved_operands = tuple(resolved)
+            if tuple(item.to_domain() for item in output.resolved_operands) != resolved_operands:
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            reconciliation = reconcile_financial_operands(
+                financial_scope,
+                output.operator,
+                resolved_operands,
+            )
+            if (
+                output.reconciliation.to_domain() != reconciliation
+                or reconciliation.status is not FinancialReconciliationStatus.CONSISTENT
+            ):
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            calculation_operands = tuple(
+                FinancialOperand(
+                    value=item.value,
+                    evidence_ref=item.evidence_ref,
+                    unit=item.unit,
+                    scale=item.scale,
+                )
+                for item in resolved_operands
+            )
+        else:
+            if (
+                output.operand_source not in {None, "legacy_fixture"}
+                or output.resolved_operands
+                or output.reconciliation is not None
+                or any(item.source_fact_id is not None for item in output.operands)
+            ):
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            for record in evidence_rows:
+                try:
+                    filing_locator = parse_evidence_locator(record.locator)
+                except ValueError:
+                    return None, EvidenceDecisionReason.OBSERVATION_INVALID
+                if not isinstance(filing_locator, SecFilingChunkLocatorV1) or (
+                    filing_locator.cik != financial_scope.cik
+                    or filing_locator.accession != financial_scope.accession
+                    or filing_locator.form != financial_scope.form.value
+                    or filing_locator.report_period != financial_scope.report_period.isoformat()
+                ):
+                    return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+            calculation_operands = tuple(
                 FinancialOperand(value=item.value, evidence_ref=UUID(item.evidence_ref))
                 for item in output.operands
-            ),
+            )
+        calculation = FinancialCalculation(
+            operator=output.operator,
+            operands=calculation_operands,
             decimal_places=output.decimal_places,
             rounding_mode=output.rounding_mode,
         )

@@ -33,6 +33,7 @@ from industry_platform.modules.disclosures.service import (
     SecFilingSelectionService,
 )
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
+from industry_platform.modules.financial_verification.domain import sec_xbrl_evidence_ref
 from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.tools.domain import (
     MAX_TOOL_SOURCES,
@@ -860,12 +861,16 @@ class SecGetXbrlFactsInput(BaseModel):
         )
 
 
+class SecXbrlFactToolResponse(SecXbrlFactResponse):
+    evidence_ref: UUID | None = None
+
+
 class SecGetXbrlFactsOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: SecFilingContentStatus
     accession: str
-    facts: list[SecXbrlFactResponse]
+    facts: list[SecXbrlFactToolResponse]
     error_code: str | None
     financial_scope: FinancialScopePayload | None = None
     knowledge_base_ids: list[UUID] = Field(default_factory=list)
@@ -971,7 +976,18 @@ class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFa
             SecGetXbrlFactsOutput(
                 status=result.status,
                 accession=result.accession,
-                facts=[SecXbrlFactResponse.from_domain(fact) for fact in result.facts],
+                facts=[
+                    SecXbrlFactToolResponse(
+                        **SecXbrlFactResponse.from_domain(fact).model_dump(),
+                        evidence_ref=sec_xbrl_evidence_ref(
+                            workspace_id=runtime_context.workspace_scope.workspace_id,
+                            fact_id=fact.id,
+                            as_of=financial_scope.as_of,
+                            authorization_role=runtime_context.workspace_scope.role,
+                        ),
+                    )
+                    for fact in result.facts
+                ],
                 error_code=result.error_code,
                 financial_scope=FinancialScopePayload.from_domain(financial_scope),
                 knowledge_base_ids=list(runtime_context.knowledge_base_ids),

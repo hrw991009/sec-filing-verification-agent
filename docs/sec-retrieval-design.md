@@ -1,8 +1,8 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 Step 2 `financial-context-v1` 已完成当前工作树实现；Step 1 ranking/table/Citation 与 Step 2 真实 PostgreSQL/远端 CI 待关闭
+> 状态：Day 7 Step 3 typed calculator/reconciliation 已完成当前工作树实现；Step 1 ranking/table/Citation、Step 2 修复后的远端 CI 与 Step 3 真实 PostgreSQL/远端 CI 待关闭
 >
-> 基线：`IIP-MASTER-001` 2.1.2，D7-01～D7-08
+> 基线：`IIP-MASTER-001` 2.1.3，D7-01～D7-08
 >
 > 决策来源：[ADR 0003](adr/0003-unified-evidence-model.md)、[ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)
 
@@ -60,9 +60,13 @@ Locator 只有在读取时重新通过 Workspace、source visibility、snapshot/
 
 ## 6. Calculation、reconciliation 与 diff
 
-`finance.calculate@v1` 只接受已授权 Evidence operand，使用 Decimal 和固定 operator。结果保存 program、operand Evidence IDs、unit/scale/rounding、执行状态和输出 Evidence lineage；零分母、单位冲突、缺输入或越权输入返回 typed error。
+`finance.calculate@v1` 的正式 SEC 路径只接受同时携带 `evidence_ref`、`source_fact_id` 和 canonical value 的 XBRL operand。Application port 必须从 PostgreSQL 重载当前 Workspace import、active Knowledge/DocumentVersion、filing/source/fact identity 与 cutoff；任何正式字段缺失、未授权或依赖失败都不得降级到 Day 5 fixture。fixture 路径只为无 `source_fact_id` 的历史调用保留。
+
+计算器继续使用同一 Decimal implementation 和固定 operator，当前支持 add、subtract、ratio、percentage 与 percent change。XBRL fact value 先按自身 scale 规范到锁定 `FinancialScope.scale`，再执行算术与 half-even rounding；结果保存 formula、operand Evidence IDs、unit/scale/rounding、执行状态和输出 Evidence lineage。零分母、单位冲突、缺输入或越权输入返回 typed error。
 
 `financial-reconciliation-v1` 按以下顺序核对：company/CIK -> accession/form -> fiscal period -> instant/duration -> unit/scale -> dimensions -> standard/custom concept -> amendment/source version。结果至少区分 `consistent`、`conflict`、`insufficient_evidence` 和 `not_comparable`，不得由模型把冲突改写为成功。
+
+正式 Calculation Evidence 必须重新加载 active 输入 Evidence 及其 XBRL fact/source/filing，校验 locator、value、scope 与版本，重跑 reconciliation 和 calculator 后才保存 `financial_calculation_v1` locator。Observation 中的 resolved operand 或计算结果只能作为待验证声明，不能替代重算。
 
 `sec.diff_filings@v1` 只比较同公司且满足明确关系的 base/amendment 或相邻可比 filing。Fact diff 与 section diff 分报，并各自保留左右 Evidence locator；不可比 period、unit、dimension 或来源覆盖返回理由，不生成误导性 delta。
 

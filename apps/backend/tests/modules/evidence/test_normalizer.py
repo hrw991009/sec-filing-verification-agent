@@ -8,6 +8,7 @@ import pytest
 
 from industry_platform.modules.evidence.normalizer import (
     license_allows_evidence,
+    parse_calculation_source_locator,
     parse_persisted_observation,
     parse_sec_resource_locator,
     parse_sql_source_locator,
@@ -98,3 +99,12 @@ def test_internal_sec_resource_locator_rejects_external_or_ambiguous_identity() 
     )
     with pytest.raises(ValueError, match="SEC Evidence"):
         parse_sec_resource_locator(f"https://www.sec.gov/{fact_id}", resource="xbrl-facts")
+
+
+def test_calculation_locator_preserves_legacy_and_formal_sec_lineage() -> None:
+    digest = "a" * 64
+
+    assert parse_calculation_source_locator(f"fixture://finance-calculations/{digest}") == digest
+    assert parse_calculation_source_locator(f"sec://financial-calculations/{digest}") == digest
+    with pytest.raises(ValueError, match="Calculation Evidence"):
+        parse_calculation_source_locator(f"https://example.test/{digest}")

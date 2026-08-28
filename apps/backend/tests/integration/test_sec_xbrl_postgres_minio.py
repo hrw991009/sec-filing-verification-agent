@@ -53,6 +53,18 @@ from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.files.models import FileObject
 from industry_platform.modules.files.ports import FileObjectStoreError
 from industry_platform.modules.files.resources import create_private_file_object_store
+from industry_platform.modules.financial_verification.adapters.sqlalchemy import (
+    SqlAlchemyFinancialOperandRepository,
+)
+from industry_platform.modules.financial_verification.domain import (
+    FinancialForm,
+    FinancialScope,
+    sec_xbrl_evidence_ref,
+)
+from industry_platform.modules.financial_verification.ports import (
+    FinancialOperandReference,
+    FinancialOperandResolutionStatus,
+)
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.identity.models import (
     User,
@@ -333,6 +345,60 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
             assert raw.facts[0].dimensions == (("dei:LegalEntityAxis", "aapl:AppleIncMember"),)
             assert raw.facts[0].decimals == "-6"
             assert raw.facts[0].is_custom is True
+
+            raw_facts = await service.get_imported_facts(
+                scope,
+                knowledge_base_ids=(knowledge_base.id,),
+                accession=ACCESSION,
+                as_of=now,
+                query=SecXbrlFactQuery(
+                    source_kinds=(SecXbrlSourceKind.RAW_INSTANCE,),
+                ),
+            )
+            assert len(raw_facts.facts) == 2
+            operand_repository = SqlAlchemyFinancialOperandRepository(session_factory)
+            financial_scope = FinancialScope(
+                cik=CIK,
+                accession=ACCESSION,
+                form=FinancialForm.TEN_K,
+                report_period=date(2023, 9, 30),
+                as_of=now,
+                unit="USD",
+                scale=0,
+            )
+            references = tuple(
+                FinancialOperandReference(
+                    evidence_ref=sec_xbrl_evidence_ref(
+                        workspace_id=WORKSPACE_ID,
+                        fact_id=fact.id,
+                        as_of=now,
+                        authorization_role=scope.role,
+                    ),
+                    source_fact_id=fact.id,
+                    value=fact.value,
+                )
+                for fact in raw_facts.facts
+            )
+            resolved = await operand_repository.resolve(
+                scope,
+                knowledge_base_ids=(knowledge_base.id,),
+                financial_scope=financial_scope,
+                references=references,
+            )
+            assert resolved.status is FinancialOperandResolutionStatus.OK
+            assert {item.concept for item in resolved.operands} == {
+                "Revenue",
+                "CustomerContractAsset",
+            }
+            assert all(item.context_id == "D2023" for item in resolved.operands)
+
+            unauthorized_operands = await operand_repository.resolve(
+                WorkspaceScope(uuid4(), USER_ID, "owner"),
+                knowledge_base_ids=(knowledge_base.id,),
+                financial_scope=financial_scope,
+                references=references,
+            )
+            assert unauthorized_operands.status is FinancialOperandResolutionStatus.NO_RESULT
 
             unauthorized = await service.get_imported_facts(
                 WorkspaceScope(uuid4(), USER_ID, "owner"),

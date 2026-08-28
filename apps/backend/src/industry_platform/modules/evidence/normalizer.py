@@ -80,8 +80,11 @@ def parse_calculation_source_locator(locator: str) -> str:
     parsed = urlsplit(locator)
     path = tuple(part for part in parsed.path.split("/") if part)
     if (
-        parsed.scheme != "fixture"
-        or parsed.hostname != "finance-calculations"
+        (parsed.scheme, parsed.hostname)
+        not in {
+            ("fixture", "finance-calculations"),
+            ("sec", "financial-calculations"),
+        }
         or parsed.username is not None
         or parsed.password is not None
         or parsed.query

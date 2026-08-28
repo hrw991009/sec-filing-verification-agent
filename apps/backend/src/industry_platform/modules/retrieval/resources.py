@@ -9,6 +9,9 @@ import httpx2
 
 from industry_platform.core.config import Settings
 from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.modules.financial_verification.adapters.sqlalchemy import (
+    SqlAlchemyFinancialOperandRepository,
+)
 from industry_platform.modules.financial_verification.tool import FinanceCalculateTool
 from industry_platform.modules.ingestion.index_contract import MILVUS_COLLECTION
 from industry_platform.modules.retrieval.adapters.milvus import MilvusDenseIndex
@@ -59,5 +62,9 @@ def create_retrieval_resources(
     return RetrievalResources(
         catalog=catalog,
         knowledge_search_tool=KnowledgeSearchTool(service),
-        finance_calculate_tool=FinanceCalculateTool(repository, catalog),
+        finance_calculate_tool=FinanceCalculateTool(
+            repository,
+            catalog,
+            SqlAlchemyFinancialOperandRepository(session_factory),
+        ),
     )

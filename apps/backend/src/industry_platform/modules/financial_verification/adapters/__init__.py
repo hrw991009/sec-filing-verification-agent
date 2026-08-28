@@ -1,0 +1,1 @@
+"""Financial verification infrastructure adapters."""

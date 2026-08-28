@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-27
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.2 Day 7
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.3 Day 7
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D7-01～D7-08
 >
@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Filing Retrieval 与计算设计](../sec-retrieval-design.md)
 >
-> 当前状态：Step 2 已完成当前工作树实现。D7-01/D7-03=`implemented_pending_verification`，D7-02=`thin_slice`，D7-04～D7-08=`planned`。项目所有者在保留 Step 1 缺口的前提下明确继续 Step 2；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
+> 当前状态：Step 3 已完成当前工作树实现。D7-01/D7-03～D7-05=`implemented_pending_verification`，D7-02=`thin_slice`，D7-06～D7-08=`planned`。项目所有者在保留 Step 1/2 缺口的前提下明确继续 Step 3；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
 
 ## 1. 进入条件与本日边界
 
@@ -64,8 +64,18 @@ Day 7 只交付可解释的 SEC L4 draft：锁定 filer/accession/`as_of` 后完
 - 已实现：`finance.calculate`、`knowledge_search` 与三个 accession-bound SEC Tool 的 Observation 先按 scope 分类；错误 CIK/accession/form/period/scale 记为 `excluded_financial_scope_mismatch`，cutoff 后 scope/XBRL fact 记为 `excluded_future_source`，unit 冲突记为 `excluded_unit_mismatch`，畸形 payload 记为 `excluded_unsupported_financial_source`。
 - 已实现：金融 Observation 按既有 Tool 顺序作为可选 Context source；预算不足时不使整个 Run 静默失败，而是在 manifest 中保留 locator identity、envelope hash、source version、零 Token 成本和 `excluded_token_budget`。同输入 request/manifest 确定一致。
 - 已实现：Trace API/OpenAPI/TypeScript 增加 `financial_scope` source kind、稳定排除枚举和 nullable `source_identity`；Web decoder 对枚举、identity object 及 source kind 一致性做运行时校验。
-- 本地证据：Financial Context 定向测试 `16 passed`，Agent Runtime `177 passed`，retrieval/financial verification/disclosures 关联测试 `97 passed`；不启用外部服务硬门的 Python 全量为 `1046 passed, 84 skipped`。全后端 Ruff、全仓 mypy `469` 个源文件、Web format/lint/typecheck、Vitest `85 passed`、production build 和 OpenAPI 连续生成一致。上述是当前工作树证据，不替代真实依赖、提交或远端 CI。
-- 尚未关闭：本机 Docker daemon/PostgreSQL 未运行，强制 PostgreSQL Trace identity 往返在连接阶段超时，未取得真实数据库执行证据；当前 Step 2 改动尚未提交，也没有分支、PR 或 main CI。Step 1 的 ranking/table/Citation 和 Day 6 `22/24` 缺口继续保留，因此 D7-03 只能标为 `implemented_pending_verification`。
+- 提交与远端证据：Step 2 已提交为 `d3c88d5`。分支 CI `33140371558` 的 Browser E2E、Python/Web quality、Python/Node audit 和 Secret scan 共 6 个 Job 通过；PostgreSQL integration 在 Context manifest 持久化处因 `asdict()` 深拷贝只读 `source_identity` 报 `cannot pickle 'mappingproxy' object`，因此该次 CI 整体失败，不能写成 Step 2 远端通过。
+- 当前工作树修复：Context manifest 持久化改为 dataclass 字段的浅层投影，再交给既有 JSON 规范化器递归转换；新增不依赖 Docker 的回归测试证明冻结 identity 会落为普通 JSON object。该修复尚未提交或取得新的分支 CI。
+- 尚未关闭：本机 Docker daemon/PostgreSQL 未运行，当前工作树未执行强制 PostgreSQL Trace identity 往返；Step 1 的 ranking/table/Citation 和 Day 6 `22/24` 缺口继续保留，因此 D7-03 只能标为 `implemented_pending_verification`。
+
+### Step 3 当前证据与缺口
+
+- 已实现：`sec.get_xbrl_facts@v1` 为每个正式 fact 返回受 Workspace、`as_of` 与授权快照约束的确定性 Evidence ref；`finance.calculate@v1` 通过新 `FinancialOperandRepository` 按 fact ID 从 PostgreSQL 重载 Workspace import、active Knowledge Base/Document/Version、filing/source identity 与 cutoff，不信任模型回传的 value/ref。
+- 已实现：正式 operand 使用现有 Decimal calculator，增加 `percentage`，并把 fact scale 规范到锁定 `FinancialScope.scale` 后再执行 add/subtract/ratio/percentage/percent change；formula、rounding、unit、scale 和输入 Evidence refs 一并进入 typed output。Day 5 fixture 输入继续兼容，但只要请求携带任一 `source_fact_id` 就必须完整走正式解析，未授权、缺字段或依赖失败不得降级到 fixture。
+- 已实现：`financial-reconciliation-v1` 在算术前返回 `consistent`、`conflict`、`insufficient_evidence` 或 `not_comparable`，并记录稳定 issue code 与关联 Evidence refs；当前核对 scope/cutoff、report period、instant/duration/forever、unit、dimensions、standard/custom concept 和 amendment relation。非 `consistent` 不执行计算。
+- 已实现：正式 Calculation Evidence 不只校验输出 hash，而是重新加载 active 输入 Evidence 与底层 XBRL fact/source/filing，复核 locator/value/identity，重跑 reconciliation 和 calculator 后才保存现有 `financial_calculation_v1` locator；历史 fixture calculation 保留原路径。
+- 本地证据：不启用外部服务硬门的 Python 全量为 `1060 passed, 84 skipped`；全后端 Ruff format/check、全仓 mypy `473` 个源文件、Web format/lint/typecheck、Vitest `85 passed` 与 production build 通过。测试覆盖 scale propagation、percentage/percent change、负数/零分母、unit、instant/duration、dimensions、concept、amendment、正式 Tool 成功/拒绝/禁止 fixture 降级、Evidence locator 和 Context manifest 回归。
+- 尚未关闭：本机 Docker daemon 未运行，新增 PostgreSQL operand 授权/跨 Workspace 负向测试未在本地执行；当前 Step 3 未提交，也没有新的分支、PR 或 main CI。尚未建立 `sec-tool-v1` 的错误 company/period/accession 指标和所有派生数字 lineage 100% 总门，因此 D7-04/D7-05 只能标为 `implemented_pending_verification`。
 
 ## 4. 版本化合同与评测口径
 
