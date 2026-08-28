@@ -80,6 +80,16 @@ def test_trace_reads_timeline_and_hides_raw_text_across_workspace_boundary(
             assert trace.run.usage.cached_input_tokens == 3
             assert trace.run.usage.cost_micro_usd == 25
             assert tuple(step.kind.value for step in trace.steps) == ("model", "final")
+            assert trace.context_manifests[0].sources[2].source_identity == {
+                "accession": "0000320193-25-000079",
+                "as_of": "2026-08-13T09:00:00+00:00",
+                "cik": "0000320193",
+                "form": "10-Q",
+                "report_period": "2025-06-28",
+                "scale": 0,
+                "schema_version": 1,
+                "unit": "USD",
+            }
             assert trace.context_manifests[0].sources[-1].source_id == "current-question"
             delta = next(
                 event for event in trace.events if event.event_type is AgentEventType.MODEL_DELTA
@@ -311,7 +321,7 @@ def _context_manifest(run_id: UUID, step_id: UUID, manifest_id: UUID) -> Context
         workspace_id=WORKSPACE_ID,
         run_id=run_id,
         step_id=step_id,
-        compiler_version="context-v0",
+        compiler_version="financial-context-v1",
         prompt_version="prompt-v0",
         runtime_projection_version="runtime-context-projection-v0",
         token_counter_version="test-counter-v1",  # noqa: S106 - version, not a credential
@@ -336,6 +346,26 @@ def _context_manifest(run_id: UUID, step_id: UUID, manifest_id: UUID) -> Context
             ),
             ContextSourceManifestEntry(
                 ordinal=3,
+                source_kind=ContextSourceKind.FINANCIAL_SCOPE,
+                source_id="financial-scope:0000320193-25-000079",
+                source_version="financial-scope-v1",
+                included=True,
+                decision_reason=ContextDecisionReason.INCLUDED,
+                estimated_token_count=10,
+                message_role=ModelRole.USER,
+                source_identity={
+                    "accession": "0000320193-25-000079",
+                    "as_of": "2026-08-13T09:00:00+00:00",
+                    "cik": "0000320193",
+                    "form": "10-Q",
+                    "report_period": "2025-06-28",
+                    "scale": 0,
+                    "schema_version": 1,
+                    "unit": "USD",
+                },
+            ),
+            ContextSourceManifestEntry(
+                ordinal=4,
                 source_kind=ContextSourceKind.CONVERSATION_SUMMARY,
                 source_id="conversation-summary",
                 source_version="none-v1",
@@ -344,7 +374,7 @@ def _context_manifest(run_id: UUID, step_id: UUID, manifest_id: UUID) -> Context
                 estimated_token_count=0,
                 message_role=None,
             ),
-            _source(4, ContextSourceKind.USER_QUESTION, "current-question", ModelRole.USER),
+            _source(5, ContextSourceKind.USER_QUESTION, "current-question", ModelRole.USER),
         ),
     )
 
@@ -362,7 +392,7 @@ def _source(
         source_version="v1",
         included=True,
         decision_reason=ContextDecisionReason.INCLUDED,
-        estimated_token_count={1: 40, 2: 20, 4: 40}[ordinal],
+        estimated_token_count={1: 40, 2: 20, 5: 30}[ordinal],
         message_role=role,
     )
 

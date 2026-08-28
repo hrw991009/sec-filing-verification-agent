@@ -9,6 +9,7 @@ from uuid import UUID
 
 from industry_platform.modules.agent_runtime.context import (
     CONTEXT_COMPILER_V1,
+    FINANCIAL_CONTEXT_COMPILER_V1,
     MAX_CONTEXT_QUESTION_LENGTH,
     MAX_CONTEXT_SUMMARY_LENGTH,
     MAX_CONTEXT_TOOL_OBSERVATIONS,
@@ -80,8 +81,11 @@ class ToolL1RuntimePolicy:
         ):
             if not _VERSION_PATTERN.fullmatch(value):
                 raise ValueError(f"{field_name} is invalid")
-        if self.context_compiler_version != CONTEXT_COMPILER_V1:
-            raise ValueError("Tool L1 requires Context Compiler v1")
+        if self.context_compiler_version not in {
+            CONTEXT_COMPILER_V1,
+            FINANCIAL_CONTEXT_COMPILER_V1,
+        }:
+            raise ValueError("Tool L1 requires a supported Context Compiler")
         if self.output_contract_version != FINAL_MARKDOWN_CONTRACT_VERSION:
             raise ValueError("Tool L1 final output contract is unsupported")
         if not _MODEL_PATTERN.fullmatch(self.model):
@@ -132,8 +136,11 @@ class ToolL2RuntimePolicy:
         ):
             if not _VERSION_PATTERN.fullmatch(value):
                 raise ValueError(f"{field_name} is invalid")
-        if self.context_compiler_version != CONTEXT_COMPILER_V1:
-            raise ValueError("Tool L2 requires Context Compiler v1")
+        if self.context_compiler_version not in {
+            CONTEXT_COMPILER_V1,
+            FINANCIAL_CONTEXT_COMPILER_V1,
+        }:
+            raise ValueError("Tool L2 requires a supported Context Compiler")
         if self.output_contract_version != FINAL_MARKDOWN_CONTRACT_VERSION:
             raise ValueError("Tool L2 final output contract is unsupported")
         if not _MODEL_PATTERN.fullmatch(self.model):

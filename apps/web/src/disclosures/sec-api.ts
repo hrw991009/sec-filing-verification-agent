@@ -3,6 +3,7 @@ import type { components } from "@industry-platform/api-contract";
 import { apiClient, unwrapData, withAccessToken } from "../api/api";
 
 export type SecFiling = components["schemas"]["SecFilingCandidateResponse"];
+export type SecFilingDiff = components["schemas"]["SecFilingDiffResponse"];
 export type SecFilingImport = components["schemas"]["SecWorkspaceFilingImportResponse"];
 export type SecFilingSearch = components["schemas"]["SecFilingSearchResponse"];
 export type SecFilingSection = components["schemas"]["SecFilingSectionResponse"];
@@ -176,6 +177,50 @@ export function getSecXbrlFacts(
               limit: 100,
               source_kinds: [...filters.sourceKinds],
               taxonomy: filters.taxonomy,
+            },
+          },
+        },
+      ),
+    ),
+  );
+}
+
+export function diffSecFilings(
+  workspaceId: string,
+  accession: string,
+  knowledgeBaseId: string,
+  scope: {
+    readonly asOf: string;
+    readonly cik: string;
+    readonly form: "10-K" | "10-K/A" | "10-Q" | "10-Q/A";
+    readonly reportPeriod: string;
+    readonly scale: number;
+    readonly unit: string;
+  },
+  comparisonAccession: string,
+  sectionQuery: string,
+): Promise<SecFilingDiff> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<SecFilingDiff>(
+      await apiClient.GET(
+        "/api/v1/workspaces/{workspace_id}/disclosures/filings/{accession}/diff",
+        {
+          headers: authorization(accessToken),
+          params: {
+            path: { accession, workspace_id: workspaceId },
+            query: {
+              as_of: scope.asOf,
+              cik: scope.cik,
+              comparison_accession: comparisonAccession,
+              concept: null,
+              fact_limit: 10,
+              form: scope.form,
+              knowledge_base_id: knowledgeBaseId,
+              report_period: scope.reportPeriod,
+              scale: scope.scale,
+              section_query: sectionQuery,
+              taxonomy: null,
+              unit: scope.unit,
             },
           },
         },

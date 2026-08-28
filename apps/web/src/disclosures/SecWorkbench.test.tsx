@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeBase } from "../knowledge/knowledge-api";
 import type {
   SecFiling,
+  SecFilingDiff,
   SecFilingImport,
   SecFilingSearch,
   SecFilingSection,
@@ -14,10 +15,12 @@ import type {
 const workspaceId = "11111111-1111-4111-8111-111111111111";
 const knowledgeBaseId = "22222222-2222-4222-8222-222222222222";
 const accession = "0000320193-23-000106";
+const comparisonAccession = "0000320193-22-000108";
 const versionId = "33333333-3333-4333-8333-333333333333";
 const chunkId = "44444444-4444-4444-8444-444444444444";
 
 const mocks = vi.hoisted(() => ({
+  diffSecFilings: vi.fn(),
   getSecXbrlFacts: vi.fn(),
   importSecFiling: vi.fn(),
   listKnowledgeBases: vi.fn(),
@@ -33,6 +36,7 @@ vi.mock("../knowledge/knowledge-api", () => ({
 }));
 
 vi.mock("./sec-api", () => ({
+  diffSecFilings: mocks.diffSecFilings,
   getSecXbrlFacts: mocks.getSecXbrlFacts,
   importSecFiling: mocks.importSecFiling,
   listSecFilingImports: mocks.listSecFilingImports,
@@ -98,9 +102,15 @@ const searchResult: SecFilingSearch = {
       accession,
       chunk_id: chunkId,
       content_sha256: "c".repeat(64),
+      dense_rank: 1,
       document_version_id: versionId,
       excerpt: "Net sales increased during the fiscal year.",
+      index_version: "knowledge-index-v1",
+      lexical_rank: null,
       page_number: 1,
+      rerank_score: null,
+      retrieval_channels: ["dense"],
+      rrf_score: null,
       score: 0.91,
       section: "Net Sales",
       snapshot_id: imported.primary_snapshot_id,
@@ -112,6 +122,7 @@ const searchResult: SecFilingSearch = {
     },
   ],
   retrieval_profile_version: "dense-v1",
+  retrieval_trace: null,
   status: "ok",
 };
 
@@ -139,6 +150,7 @@ const xbrlResult: SecXbrlFactCollection = {
       accession,
       cik: "0000320193",
       concept: "Revenue",
+      content_sha256: "1".repeat(64),
       context_id: null,
       decimals: null,
       dimensions: {},
@@ -187,6 +199,7 @@ const xbrlResult: SecXbrlFactCollection = {
       accession,
       cik: "0000320193",
       concept: "CustomerContractAsset",
+      content_sha256: "2".repeat(64),
       context_id: "D2023",
       decimals: "-6",
       dimensions: { "dei:LegalEntityAxis": "aapl:AppleIncMember" },
@@ -228,6 +241,77 @@ const xbrlResult: SecXbrlFactCollection = {
   ],
   status: "ok",
 };
+const revenueFact = xbrlResult.facts[0];
+const netSalesHit = searchResult.hits[0];
+if (revenueFact === undefined || netSalesHit === undefined) {
+  throw new Error("SEC Workbench fixtures are incomplete");
+}
+
+const diffResult: SecFilingDiff = {
+  baseline: {
+    accession: comparisonAccession,
+    amendment_relation_status: "not_amendment",
+    base_accession: null,
+    cik: "0000320193",
+    filed_date: "2022-10-28",
+    form: "10-K",
+    import_id: "12121212-1212-4212-8212-121212121212",
+    knowledge_base_id: knowledgeBaseId,
+    public_available_at: "2022-10-28T06:01:00Z",
+    report_date: "2022-10-01",
+  },
+  baseline_retrieval_trace: null,
+  comparison_accession: comparisonAccession,
+  error_code: null,
+  fact_changes: [
+    {
+      baseline: {
+        ...revenueFact,
+        accession: comparisonAccession,
+        value: "90",
+      },
+      change_kind: "changed",
+      concept: "Revenue",
+      dimensions: {},
+      is_custom: false,
+      period_bucket: "annual",
+      period_kind: "duration",
+      target: revenueFact,
+      taxonomy: "us-gaap",
+      unit: "USD",
+    },
+  ],
+  relationship: "adjacent_period",
+  requested_accession: accession,
+  section_change: {
+    baseline: {
+      ...netSalesHit,
+      accession: comparisonAccession,
+      chunk_id: "13131313-1313-4313-8313-131313131313",
+      content_sha256: "3".repeat(64),
+      excerpt: "Prior-year net sales disclosure.",
+    },
+    change_kind: "changed",
+    section: "Net Sales",
+    target: netSalesHit,
+  },
+  status: "ok",
+  target: {
+    accession,
+    amendment_relation_status: "not_amendment",
+    base_accession: null,
+    cik: "0000320193",
+    filed_date: "2023-11-03",
+    form: "10-K",
+    import_id: imported.id,
+    knowledge_base_id: knowledgeBaseId,
+    public_available_at: "2023-11-03T06:01:00Z",
+    report_date: "2023-09-30",
+  },
+  target_retrieval_trace: null,
+  unchanged_fact_count: 4,
+  version: "sec-filing-diff-v1",
+};
 
 describe("SecWorkbench", () => {
   beforeEach(() => {
@@ -246,6 +330,7 @@ describe("SecWorkbench", () => {
       source_versions: ["sec-xbrl-companyfacts-v1", "sec-xbrl-raw-instance-v1"],
     });
     mocks.getSecXbrlFacts.mockResolvedValue(xbrlResult);
+    mocks.diffSecFilings.mockResolvedValue(diffResult);
   });
 
   it("runs the CIK to locked snapshot to chunk reading journey", async () => {
@@ -268,7 +353,7 @@ describe("SecWorkbench", () => {
     expect(await screen.findByText("可检索")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("申报内容检索"), "net sales");
-    await user.click(screen.getByRole("button", { name: "Dense 检索" }));
+    await user.click(screen.getByRole("button", { name: "Hybrid 检索" }));
     await user.click(await screen.findByRole("button", { name: /Net Sales/ }));
 
     expect(
@@ -311,6 +396,44 @@ describe("SecWorkbench", () => {
         sourceKinds: ["companyfacts_aggregate", "raw_inline", "raw_instance"],
         taxonomy: null,
       },
+    );
+  });
+
+  it("runs a formal filing diff and exposes both source locators", async () => {
+    const user = userEvent.setup();
+    render(<SecWorkbench canManage workspaceId={workspaceId} />);
+
+    await screen.findByRole("option", { name: "SEC Research" });
+    await user.click(screen.getByRole("button", { name: "查询申报" }));
+    await user.click(screen.getByRole("button", { name: "锁定并导入" }));
+    await screen.findByText("可检索");
+    await user.click(screen.getByRole("tab", { name: "Filing Diff" }));
+    await user.type(screen.getByLabelText("对比 Accession"), comparisonAccession);
+    await user.clear(screen.getByLabelText("Unit"));
+    await user.type(screen.getByLabelText("Unit"), "EUR");
+    await user.clear(screen.getByLabelText("Scale"));
+    await user.type(screen.getByLabelText("Scale"), "6");
+    await user.click(screen.getByRole("button", { name: "运行正式 Diff" }));
+
+    expect(await screen.findByText("adjacent_period")).toBeInTheDocument();
+    expect(screen.getByText("Prior-year net sales disclosure.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Baseline citation" })).toHaveAttribute(
+      "href",
+      xbrlResult.facts[0]?.source_url,
+    );
+    expect(mocks.diffSecFilings).toHaveBeenCalledWith(
+      workspaceId,
+      accession,
+      knowledgeBaseId,
+      expect.objectContaining({
+        cik: "0000320193",
+        form: "10-K",
+        reportPeriod: "2023-09-30",
+        scale: 6,
+        unit: "EUR",
+      }),
+      comparisonAccession,
+      "risk factors",
     );
   });
 });

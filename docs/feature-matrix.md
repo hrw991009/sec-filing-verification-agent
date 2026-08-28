@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-27
+> 更新日期：2026-08-28
 >
-> 权威来源：`docs/master-plan.md` 2.0.9
+> 权威来源：`docs/master-plan.md` 2.1.3
 
 ## 1. 使用规则
 
@@ -214,20 +214,30 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `implemented_pending_verification` | `complete` |
 
-2026-08-27 实施映射：Day 6 继续只按五个纵向步骤执行。Step 1～4 已在当前分支基线中交付；Step 5 当前工作树新增严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验，以及 24-case `sec-source-v1` manifest/scorer/report。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Tool surface `15/15`，future/scope/Workspace/duplicate/dependency 误分类均为 0；两条 bulk watermark case 保持 `capability_missing`，没有从分母删除。D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。live SEC、分支/main CI、所有者复核和 D5-08/D5-09 浏览器 DoD 均未完成。BM25/RRF/rerank、正式计算/核对/diff、Verifier/Monitor 与 release benchmark 分别留在 Day 7～Day 9。详见 [Day 6 执行计划](learning-log/day-6.md)。
+2026-08-27 收口映射：Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head `7a4766b` 的 push/PR CI `33053621106`、`33053623731` 和合并提交 `84a7945` 的 main CI `33054136204` 均通过 7 个适用 Job，项目所有者已要求核对 Day 6 并准备 Day 7 文档。提交、合并和 CI 条件已关闭，但确定性报告仍为 contract `18/18`、closeout `4/6`、总计 `22/24`，两条 bulk watermark case 保持 `capability_missing` 且没有从分母删除；当前也没有合法 SEC 联系身份对应的 live smoke。因此 D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 继续为 `implemented_pending_verification`，D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。Day 6 分支结束不等于 D6-01～D6-08 全部 `complete`。详见 [Day 6 执行计划](learning-log/day-6.md)。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
-| D7-01 | XBRL + Filing Hybrid Retrieval | R1 + SEC + NEW | 锁定 accession；XBRL facts 与 Dense/BM25/RRF/rerank 双通道 | Recall@5/MRR、wrong-accession、filter 和分层 Retrieval Trace | `planned` | `complete` |
-| D7-02 | SEC Evidence locator/Citation | ADR 0003 + SEC | filing section/table/text 与 XBRL fact locator；官方 URL/hash/context/unit/period | source identity/Citation 可解析 100%、失效与权限测试 | `planned` | `complete` |
-| D7-03 | Financial Context Compiler | NEW | FinancialScope、Memory、facts、filing Evidence、Tool Observation、Token budget 与排除原因 | cutoff/错误 accession/unit 排除、manifest 与注入测试 | `planned` | `complete` |
-| D7-04 | Typed financial calculator | NEW | Decimal operator、百分比/变化率、unit/scale/rounding、Evidence inputs | program/execution、零分母、单位冲突和 lineage 测试 | `planned` | `complete` |
-| D7-05 | Period/unit/context reconciliation | SEC + NEW | company、form、fiscal period、instant/duration、dimension、custom/standard concept、amendment | 错误 company/period/accession 为 0，冲突 typed result | `planned` | `complete` |
-| D7-06 | Filing/amendment diff | SEC + NEW | 同公司可比期间、base/amendment、相邻 filing 的 fact/section diff | 不可比拒绝、Evidence 双向定位和幂等测试 | `planned` | `complete` |
-| D7-07 | 中文 SEC L4 Agent profile | NEW | scope→resolve→select→decompose→structured+narrative→calculate→reconcile→draft | 同一 Runtime/Checkpoint、中文/英文事实链一致与停止语义 | `planned` | `complete` |
-| D7-08 | `sec-tool-v1` 与 A0/A1/A2 | BENCH + NEW | oracle、纯 Hybrid RAG、RAG+SEC/XBRL+calculator；简单/计算/修订/无答案 | 分层质量、简单题退化≤2pp、成本/延迟和回退决定 | `planned` | `complete` |
+| D7-01 | XBRL + Filing Hybrid Retrieval | R1 + SEC + NEW | 锁定 accession；XBRL facts 与 Dense/BM25/RRF/rerank 双通道 | Recall@5/MRR、wrong-accession、filter 和分层 Retrieval Trace | `implemented_pending_verification` | `complete` |
+| D7-02 | SEC Evidence locator/Citation | ADR 0003 + SEC | filing section/table/text 与 XBRL fact locator；官方 URL/hash/context/unit/period | source identity/Citation 可解析 100%、失效与权限测试 | `thin_slice` | `complete` |
+| D7-03 | Financial Context Compiler | NEW | FinancialScope、Memory、facts、filing Evidence、Tool Observation、Token budget 与排除原因 | cutoff/错误 accession/unit 排除、manifest 与注入测试 | `implemented_pending_verification` | `complete` |
+| D7-04 | Typed financial calculator | NEW | Decimal operator、百分比/变化率、unit/scale/rounding、Evidence inputs | program/execution、零分母、单位冲突和 lineage 测试 | `implemented_pending_verification` | `complete` |
+| D7-05 | Period/unit/context reconciliation | SEC + NEW | company、form、fiscal period、instant/duration、dimension、custom/standard concept、amendment | 错误 company/period/accession 为 0，冲突 typed result | `implemented_pending_verification` | `complete` |
+| D7-06 | Filing/amendment diff | SEC + NEW | 同公司可比期间、base/amendment、相邻 filing 的 fact/section diff | 不可比拒绝、Evidence 双向定位和幂等测试 | `implemented_pending_verification` | `complete` |
+| D7-07 | 中文 SEC L4 Agent profile | NEW | scope→resolve→select→decompose→structured+narrative→calculate→reconcile→draft | 同一 Runtime/Checkpoint、中文/英文事实链一致与停止语义 | `implemented_pending_verification` | `complete` |
+| D7-08 | `sec-tool-v1` 与 A0/A1/A2 | BENCH + NEW | oracle、纯 Hybrid RAG、RAG+SEC/XBRL+calculator；简单/计算/修订/无答案 | 分层质量、简单题退化≤2pp、成本/延迟和回退决定 | `implemented_pending_verification` | `complete` |
+
+2026-08-27 Step 1 映射：项目所有者明确开始 Day 7 Step 1。生产组合根已把 `sec.search_filing@v1` 接到 Milvus Dense + Elasticsearch BM25、RRF60、可插拔 reranker、section cap 与版本化 Trace；候选经 PostgreSQL 重载 Workspace/import/snapshot/index 后才返回。Tool Observation 改用内部 `sec://` identity，Evidence normalizer 与迁移支持 filing text、XBRL fact 的 scope/source/hash/context 重载。确定性、依赖错误、权限、locator round-trip、migration 往返和真实 PostgreSQL/MinIO/Milvus/Elasticsearch 检索通过；本地 Python 全量为 `1121 passed`、总体分支覆盖率 `80.62%`、核心合集 `86%`，Web 质量与构建、OpenAPI 连续生成也通过。冻结 Recall@5/MRR、table/cell/character locator、正式 Citation 可解析率、分支/PR/main CI 尚缺，因此 D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`，D7-03～D7-08 保持 `planned`。Day 6 两条 bulk case 改为 Day 10 发布硬门，原 `22/24` 不变。
+
+2026-08-28 Step 2 映射：项目所有者在 Step 1 的 ranking/table/Citation 债务仍登记的前提下明确继续。现有 Context Compiler 扩展为兼容 `context-v1` 与 `financial-context-v1` 的同一实现；生产 LOCAL Tool L2 注入锁定的 `FinancialScope`，WEB 路径保持原合同。金融 Tool Observation 按 scope/cutoff/unit/Token budget 记录稳定排除原因，并在 manifest/Trace/OpenAPI 中保存 locator identity、版本与 hash；错误 accession、future XBRL、unit 冲突、畸形来源、超预算和 prompt injection 均有负向测试，同输入 manifest 保持确定一致。Step 2 已提交为 `d3c88d5`；分支 CI `33140371558` 有 6 个 Job 通过，PostgreSQL integration 因 `asdict()` 深拷贝冻结 `source_identity` 失败。当前工作树已改用浅层字段投影并增加回归测试，尚无新远端 CI，因此 D7-03 仍为 `implemented_pending_verification`。Step 1 分支提交 `2944591` 的 CI `33135122319` 已通过，但 Recall@5/MRR、table/cell/character locator、Citation 100%、PR/main CI 仍未关闭。Day 6 原 `22/24` 不变。
+
+2026-08-28 Step 3 映射：项目所有者明确继续下一步。正式 XBRL Tool 输出获得确定性 Evidence ref；新 PostgreSQL operand port 在计算前重载 Workspace import、active Knowledge/DocumentVersion、filing/source/fact identity 与 cutoff。既有 Decimal calculator 增加 percentage 和 fact-to-scope scale propagation；`financial-reconciliation-v1` 对 scope、period kind、unit、dimensions、concept 和 amendment 返回 typed result，非 `consistent` 不计算。Calculation Evidence 再次重载输入 Evidence/XBRL 来源并重跑 reconciliation/calculator，正式 operand 解析失败不得降级到 fixture。本地 Python `1060 passed, 84 skipped`、全后端 Ruff、全仓 mypy `473` 个源文件、Web format/lint/typecheck、Vitest `85 passed` 与 build 通过；本机 Docker 未运行，新增 PostgreSQL operand 测试未执行，当前 Step 3 未提交且无新远端 CI，因此 D7-04/D7-05 为 `implemented_pending_verification`，D7-06～D7-08 保持 `planned`。
+
+2026-08-28 Step 4 映射：项目所有者明确继续。当前工作树新增 fail-closed `sec-filing-diff-v1`/`sec.diff_filings@v1`，只接受已解析 base/amendment 或同主体同 form 的相邻期间，复用既有 XBRL/Hybrid service 并返回左右 fact Evidence 与 section locator；生产 exact LOCAL surface 启用中文 `sec-l4-v1`，不建立第二套 Runtime/graph。SEC 与 Research Workbench 展示 diff、Context 排除、Calculation/reconciliation 和 Citation 反查；Evidence API 补齐 SEC/XBRL/Calculation 判别联合序列化。Python `1069 passed, 84 skipped`、Ruff、mypy `475` 个源文件、Web 全门 `87 passed`、build 与 OpenAPI 确定性通过。提交 `3462b48` 的 CI `33149285431` 为 6/7 Job，通过项之外的 PostgreSQL Job 暴露 ready 版本未激活的测试夹具错误；当前已同步 `Document.active_version_id`，尚待真实依赖和新远端 CI。正式浏览器 API 全链、中英 paired run、提交/PR/main CI 未完成，故 D7-06/D7-07 为 `implemented_pending_verification`，D7-08 保持 `planned`。
+
+2026-08-28 Step 5 映射：项目所有者明确继续。当前工作树冻结 10-case `sec-tool-v1`、同一数据版本/预算和 30 个 A0/A1/A2 runs；独立 observation 经规则 scorer 重算 identity、答案/Evidence、calculation lineage、Citation、拒答、Tool/budget 与成本延迟，并可确定生成 JSON/Markdown。deterministic report 中 A2 复杂题相对 A1 提升 `0.833333`、简单题退化 `0`，A2 拒答/Citation/lineage 为 `1.0`，三策略错误 company/period/accession 为 `0`。报告明确不是 live/model/public benchmark，`day7_closeout_ready=false`。提交 `e5fb75c` 的 CI `33152912538` 暴露 raw XBRL QName unit、过期 E2E selector 和测试版本常量误报，当前已按正式边界修复；本地 Python `1081 passed, 84 skipped`、Ruff、mypy `478` 个源文件、Web `87 passed`、格式/lint/typecheck/build、OpenAPI/报告连续生成和 Gitleaks 通过，但尚无新远端 CI。真实依赖、正式浏览器、中英 paired、分支/PR/main CI、owner review、Step 1 ranking/Citation 与 Day 6 `22/24` 仍缺，故 D7-08 为 `implemented_pending_verification`，Day 7 未关闭。
 
 ## 10. Day 8：Verified Agent L5、Monitor 与 HITL
 

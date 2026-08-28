@@ -386,12 +386,44 @@ export function ResearchWorkspace({
     visibleDetail?.agent_status === "running" ||
     visibleDetail?.agent_status === "paused";
   const latestApproval = durability?.approvals.at(-1) ?? null;
+  const relatedEvidence = useMemo(() => {
+    const unique = new Map<string, ResearchClaim["relations"][number]["evidence"]>();
+    for (const claim of claims) {
+      for (const relation of claim.relations) {
+        unique.set(relation.evidence.id, relation.evidence);
+      }
+    }
+    return [...unique.values()];
+  }, [claims]);
+  const retrievalEvidence = relatedEvidence.filter((evidence) =>
+    ["sec_filing_chunk_v1", "sec_filing_text_v1", "sec_xbrl_fact_v1"].includes(
+      evidence.locator.locator_type,
+    ),
+  );
+  const calculationEvidence = relatedEvidence.filter(
+    (evidence) => evidence.locator.locator_type === "financial_calculation_v1",
+  );
+  const excludedContext =
+    trace?.context_manifests.flatMap((manifest) =>
+      manifest.sources.filter((source) => !source.included),
+    ) ?? [];
+  const diffRequests =
+    trace?.events.filter(
+      (event) =>
+        event.event_type === "agent.tool.requested" &&
+        event.details.requested_tool_name === "sec.diff_filings",
+    ) ?? [];
+  const completedToolCalls = new Set(
+    trace?.events
+      .filter((event) => event.event_type === "agent.tool.completed")
+      .map((event) => String(event.details.call_id ?? "")) ?? [],
+  );
 
   return (
     <section className="research-workspace" aria-label="Research L4 工作台">
       <header className="workspace-page-header">
         <div>
-          <span className="eyebrow">Day 5 · SEC Fixture Research L4</span>
+          <span className="eyebrow">Day 7 · sec-l4-v1</span>
           <h1>Research Workbench</h1>
           <p>
             显式确认 Brief，经唯一 Runtime/Tool loop 生成可解释草稿，并以持久 Checkpoint、HITL
@@ -436,7 +468,7 @@ export function ResearchWorkspace({
                 }}
                 type="button"
               >
-                SEC Fixture
+                SEC Filing
               </button>
             </div>
             {mode === "web" ? (
@@ -935,6 +967,128 @@ export function ResearchWorkspace({
                       ))}
                     </ol>
                   </details>
+                )}
+              </section>
+
+              <section className="research-card research-financial-audit">
+                <div className="research-section-heading">
+                  <h3>SEC 审查链</h3>
+                  <span>同一 Trace / FinancialScope</span>
+                </div>
+                <div className="research-audit-grid">
+                  <div>
+                    <span>Retrieval</span>
+                    <strong>{retrievalEvidence.length}</strong>
+                    <small>已进入 Claim 的 Filing / XBRL Evidence</small>
+                  </div>
+                  <div>
+                    <span>Context exclusions</span>
+                    <strong>{excludedContext.length}</strong>
+                    <small>由 financial-context-v1 manifest 记录</small>
+                  </div>
+                  <div>
+                    <span>Calculation</span>
+                    <strong>{calculationEvidence.length}</strong>
+                    <small>确定性 Decimal Evidence</small>
+                  </div>
+                  <div>
+                    <span>Filing diff</span>
+                    <strong>{diffRequests.length}</strong>
+                    <small>sec.diff_filings@v1 调用</small>
+                  </div>
+                </div>
+
+                {excludedContext.length === 0 ? null : (
+                  <details className="research-audit-details">
+                    <summary>Context 排除项（{excludedContext.length}）</summary>
+                    <ol>
+                      {excludedContext.map((source, index) => (
+                        <li key={`${source.source_id}-${String(index)}`}>
+                          <strong>{source.source_kind}</strong>
+                          <span>{source.decision_reason}</span>
+                          <small>{source.source_version}</small>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
+
+                {calculationEvidence.length === 0 ? null : (
+                  <div className="research-calculation-list">
+                    {calculationEvidence.map((evidence) => {
+                      if (evidence.locator.locator_type !== "financial_calculation_v1") {
+                        return null;
+                      }
+                      return (
+                        <article key={evidence.id}>
+                          <div>
+                            <strong>{evidence.locator.formula}</strong>
+                            <span>
+                              {evidence.locator.result} {evidence.locator.unit} ×10^
+                              {evidence.locator.scale}
+                            </span>
+                          </div>
+                          <dl>
+                            <div>
+                              <dt>Operator</dt>
+                              <dd>{evidence.locator.operator}</dd>
+                            </div>
+                            <div>
+                              <dt>Reconciliation</dt>
+                              <dd>
+                                {evidence.locator.reconciliation_status ?? "legacy_unrecorded"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Lineage</dt>
+                              <dd>{evidence.locator.input_evidence_refs.length} inputs</dd>
+                            </div>
+                          </dl>
+                          <button
+                            onClick={() => {
+                              onOpenEvidence(evidence.id);
+                            }}
+                            type="button"
+                          >
+                            反查 Calculation Citation
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {diffRequests.length === 0 ? null : (
+                  <ol className="research-diff-events">
+                    {diffRequests.map((event) => {
+                      const callId = String(event.details.call_id ?? "");
+                      return (
+                        <li key={`${String(event.sequence)}-${callId}`}>
+                          <strong>sec.diff_filings@v1</strong>
+                          <span>
+                            {completedToolCalls.has(callId) ? "completed" : "not_completed"}
+                          </span>
+                          <small>Call {callId.slice(0, 8)}</small>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+
+                {retrievalEvidence.length === 0 ? null : (
+                  <div className="research-citation-list">
+                    {retrievalEvidence.map((evidence) => (
+                      <button
+                        key={evidence.id}
+                        onClick={() => {
+                          onOpenEvidence(evidence.id);
+                        }}
+                        type="button"
+                      >
+                        {evidence.locator.locator_type} · {evidence.title}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </section>
 

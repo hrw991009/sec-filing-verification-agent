@@ -3,7 +3,7 @@
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, date, datetime
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from sqlalchemy import and_, select
@@ -23,6 +23,22 @@ from industry_platform.modules.data_explorer.models import (
     QueryResultRecord,
     QueryRunRecord,
     SchemaSnapshotRecord,
+)
+from industry_platform.modules.disclosures.models import (
+    SecFilingDocumentRecord,
+    SecFilingRecord,
+    SecSourceSnapshotRecord,
+    SecXbrlFactRecord,
+    SecXbrlSourceRecord,
+    WorkspaceSecImportRecord,
+)
+from industry_platform.modules.disclosures.schemas import SecXbrlFactResponse
+from industry_platform.modules.disclosures.tool import (
+    SEC_READ_FILING_SECTION_TOOL_NAME,
+    SEC_SEARCH_FILING_TOOL_NAME,
+    SecGetXbrlFactsOutput,
+    SecReadFilingSectionOutput,
+    SecSearchFilingOutput,
 )
 from industry_platform.modules.evidence.domain import (
     EVIDENCE_NORMALIZER_VERSION,
@@ -54,6 +70,8 @@ from industry_platform.modules.evidence.domain import (
     ResearchClaim,
     ResearchRunNotFoundError,
     SecFilingChunkLocatorV1,
+    SecFilingTextLocatorV1,
+    SecXbrlFactLocatorV1,
     SqlResultLocatorV1,
     canonical_fingerprint,
     claim_coverage,
@@ -73,22 +91,32 @@ from industry_platform.modules.evidence.normalizer import (
     FINANCE_CALCULATION_SOURCE_VERSION,
     INDUSTRY_SOURCE_TYPE,
     KNOWLEDGE_SEC_SOURCE_TYPE,
+    SEC_FILING_TEXT_SOURCE_TYPE,
+    SEC_XBRL_FACT_SOURCE_TYPE,
     SQL_SOURCE_TYPE,
     SQL_SOURCE_VERSION,
     license_allows_evidence,
     parse_calculation_source_locator,
     parse_knowledge_source_locator,
     parse_persisted_observation,
+    parse_sec_resource_locator,
     parse_sql_source_locator,
     referenced_sql_columns,
     schema_columns_for_table,
 )
 from industry_platform.modules.files.domain import FileObjectStatus
 from industry_platform.modules.files.models import FileObject
+from industry_platform.modules.financial_verification.adapters.sqlalchemy import (
+    financial_evidence_operand_from_records,
+)
 from industry_platform.modules.financial_verification.domain import (
     FinancialCalculation,
+    FinancialEvidenceOperand,
     FinancialOperand,
+    FinancialReconciliationStatus,
     calculate_financial_result,
+    reconcile_financial_operands,
+    sec_xbrl_evidence_ref,
 )
 from industry_platform.modules.financial_verification.tool import FinanceCalculateOutput
 from industry_platform.modules.identity.models import AuditLog, AuditOutcome
@@ -123,6 +151,44 @@ from industry_platform.modules.retrieval.fixtures import SecFixtureCatalog
 from industry_platform.modules.tools.domain import ToolObservation, ToolSource
 from industry_platform.modules.tools.models import ToolCallRecord
 from industry_platform.modules.workspaces.domain import WorkspaceScope
+
+
+def _sec_xbrl_fact_matches_records(
+    fact: SecXbrlFactResponse,
+    fact_record: SecXbrlFactRecord,
+    source_record: SecXbrlSourceRecord,
+    filing: SecFilingRecord,
+) -> bool:
+    return (
+        fact.id == fact_record.id
+        and fact.filing_id == fact_record.filing_id
+        and fact.source_id == fact_record.source_id
+        and fact.source_snapshot_id == source_record.filing_snapshot_id
+        and fact.source_kind.value == source_record.source_kind
+        and fact.cik == filing.cik
+        and fact.accession == fact_record.accession
+        and fact.taxonomy == fact_record.taxonomy
+        and fact.concept == fact_record.concept
+        and fact.value == fact_record.value
+        and fact.unit == fact_record.unit
+        and fact.period.kind.value == fact_record.period_kind
+        and fact.period.instant == fact_record.instant
+        and fact.period.start_date == fact_record.start_date
+        and fact.period.end_date == fact_record.end_date
+        and fact.filed_date == fact_record.filed_date
+        and fact.form.value == fact_record.form
+        and fact.context_id == fact_record.raw_context_id
+        and fact.dimensions == fact_record.dimensions
+        and fact.decimals == fact_record.decimals
+        and fact.scale == fact_record.scale
+        and fact.format == fact_record.format
+        and fact.is_custom == fact_record.is_custom
+        and fact.source_url == source_record.source_url
+        and fact.source_version == source_record.source_version
+        and fact.source_content_sha256 == source_record.content_sha256.hex()
+        and fact.source_available_at == source_record.source_available_at
+        and fact.retrieved_at == source_record.retrieved_at
+    )
 
 
 class SqlAlchemyEvidenceRepository:
@@ -743,6 +809,26 @@ class SqlAlchemyEvidenceRepository:
                 ordinal=ordinal,
                 authorization=authorization,
             )
+        if source.source_type == SEC_FILING_TEXT_SOURCE_TYPE:
+            return await self._normalize_sec_filing_text(
+                session,
+                scope,
+                call,
+                observation,
+                source,
+                ordinal=ordinal,
+                authorization=authorization,
+            )
+        if source.source_type == SEC_XBRL_FACT_SOURCE_TYPE:
+            return await self._normalize_sec_xbrl_fact(
+                session,
+                scope,
+                call,
+                observation,
+                source,
+                ordinal=ordinal,
+                authorization=authorization,
+            )
         if source.source_type == FINANCE_CALCULATION_SOURCE_TYPE:
             return await self._normalize_calculation_source(
                 session,
@@ -754,6 +840,426 @@ class SqlAlchemyEvidenceRepository:
                 authorization=authorization,
             )
         return None, EvidenceDecisionReason.UNSUPPORTED_SOURCE
+
+    async def _normalize_sec_filing_text(
+        self,
+        session: AsyncSession,
+        scope: WorkspaceScope,
+        call: ToolCallRecord,
+        observation: ToolObservation,
+        source: ToolSource,
+        *,
+        ordinal: int,
+        authorization: AuthorizationSnapshot,
+    ) -> tuple[EvidenceRecord | None, EvidenceDecisionReason]:
+        try:
+            chunk_id = parse_sec_resource_locator(source.locator, resource="filing-chunks")
+            if call.resolved_tool_name == SEC_SEARCH_FILING_TOOL_NAME:
+                search_output = SecSearchFilingOutput.model_validate_json(
+                    observation.model_text, strict=True
+                )
+                hit = next(item for item in search_output.hits if item.chunk_id == chunk_id)
+                financial_scope_payload = search_output.financial_scope
+                retrieval_profile_version = search_output.retrieval_profile_version
+                retrieval_channels = tuple(hit.retrieval_channels)
+                expected_content_hash = hit.content_sha256
+                expected_source_version = hit.source_version
+            elif call.resolved_tool_name == SEC_READ_FILING_SECTION_TOOL_NAME:
+                read_output = SecReadFilingSectionOutput.model_validate_json(
+                    observation.model_text, strict=True
+                )
+                if read_output.chunk_id != chunk_id:
+                    raise ValueError
+                financial_scope_payload = read_output.financial_scope
+                retrieval_profile_version = "direct-read-v1"
+                retrieval_channels = ()
+                expected_content_hash = read_output.content_sha256
+                expected_source_version = read_output.source_version
+            else:
+                raise ValueError
+            if financial_scope_payload is None:
+                raise ValueError
+            financial_scope = financial_scope_payload.to_domain()
+        except (StopIteration, ValueError):
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        if (
+            source.content_sha256 != expected_content_hash
+            or source.source_version != expected_source_version
+        ):
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        vector_record = aliased(DocumentIndexRecord)
+        lexical_record = aliased(DocumentIndexRecord)
+        row = (
+            await session.execute(
+                select(
+                    DocumentChunkRecord,
+                    DocumentVersionRecord,
+                    DocumentRecord,
+                    vector_record,
+                    WorkspaceSecImportRecord,
+                    SecFilingRecord,
+                    SecSourceSnapshotRecord,
+                )
+                .join(
+                    DocumentVersionRecord,
+                    and_(
+                        DocumentVersionRecord.id == DocumentChunkRecord.document_version_id,
+                        DocumentVersionRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    DocumentRecord,
+                    and_(
+                        DocumentRecord.id == DocumentChunkRecord.document_id,
+                        DocumentRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    KnowledgeBaseRecord,
+                    and_(
+                        KnowledgeBaseRecord.id == DocumentVersionRecord.knowledge_base_id,
+                        KnowledgeBaseRecord.workspace_id == DocumentVersionRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    WorkspaceSecImportRecord,
+                    and_(
+                        WorkspaceSecImportRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                        WorkspaceSecImportRecord.document_version_id
+                        == DocumentChunkRecord.document_version_id,
+                    ),
+                )
+                .join(SecFilingRecord, SecFilingRecord.id == WorkspaceSecImportRecord.filing_id)
+                .join(
+                    SecSourceSnapshotRecord,
+                    SecSourceSnapshotRecord.id == WorkspaceSecImportRecord.primary_snapshot_id,
+                )
+                .join(
+                    SecFilingDocumentRecord,
+                    and_(
+                        SecFilingDocumentRecord.id == SecSourceSnapshotRecord.filing_document_id,
+                        SecFilingDocumentRecord.current_snapshot_id == SecSourceSnapshotRecord.id,
+                    ),
+                )
+                .join(
+                    vector_record,
+                    and_(
+                        vector_record.chunk_id == DocumentChunkRecord.id,
+                        vector_record.document_version_id
+                        == DocumentChunkRecord.document_version_id,
+                        vector_record.workspace_id == DocumentChunkRecord.workspace_id,
+                        vector_record.kind == DocumentIndexKind.VECTOR,
+                        vector_record.status == DocumentIndexStatus.SUCCEEDED,
+                    ),
+                )
+                .join(
+                    lexical_record,
+                    and_(
+                        lexical_record.chunk_id == DocumentChunkRecord.id,
+                        lexical_record.document_version_id
+                        == DocumentChunkRecord.document_version_id,
+                        lexical_record.workspace_id == DocumentChunkRecord.workspace_id,
+                        lexical_record.kind == DocumentIndexKind.LEXICAL,
+                        lexical_record.status == DocumentIndexStatus.SUCCEEDED,
+                        lexical_record.index_version == vector_record.index_version,
+                    ),
+                )
+                .where(
+                    DocumentChunkRecord.id == chunk_id,
+                    DocumentChunkRecord.workspace_id == scope.workspace_id,
+                    DocumentChunkRecord.content_hash == bytes.fromhex(source.content_sha256),
+                    DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                    DocumentRecord.status == DocumentStatus.ACTIVE,
+                    DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                    KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+                    WorkspaceSecImportRecord.accession == financial_scope.accession,
+                    SecFilingRecord.cik == financial_scope.cik,
+                    SecFilingRecord.form == financial_scope.form.value,
+                    SecFilingRecord.report_date == financial_scope.report_period,
+                    SecFilingRecord.public_available_at <= financial_scope.as_of,
+                    SecSourceSnapshotRecord.status == "active",
+                    SecSourceSnapshotRecord.source_version == source.source_version,
+                    SecSourceSnapshotRecord.source_available_at <= financial_scope.as_of,
+                    (
+                        (SecSourceSnapshotRecord.valid_to.is_(None))
+                        | (SecSourceSnapshotRecord.valid_to >= financial_scope.as_of)
+                    ),
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+        chunk, version, document, vector, _imported, filing, snapshot = row
+        locator = SecFilingTextLocatorV1(
+            cik=filing.cik,
+            accession=filing.accession,
+            form=filing.form,
+            report_period=filing.report_date.isoformat(),
+            as_of=financial_scope.as_of.isoformat(),
+            filed_at=datetime.combine(
+                filing.filed_date, datetime.min.time(), tzinfo=UTC
+            ).isoformat(),
+            accepted_at=filing.accepted_at.isoformat(),
+            canonical_url=snapshot.source_url,
+            snapshot_id=snapshot.id,
+            source_version=snapshot.source_version,
+            source_content_sha256=snapshot.content_sha256.hex(),
+            knowledge_base_id=version.knowledge_base_id,
+            document_id=document.id,
+            document_version_id=version.id,
+            chunk_id=chunk.id,
+            section=chunk.title_path[-1] if chunk.title_path else "Filing excerpt",
+            page_number=chunk.page_number,
+            content_sha256=chunk.content_hash.hex(),
+            parser_version=version.parser_version,
+            chunker_version=chunk.chunker_version,
+            index_version=vector.index_version,
+            retrieval_profile_version=retrieval_profile_version,
+            retrieval_channels=retrieval_channels,
+        )
+        return await self._persist_sec_evidence(
+            session,
+            scope,
+            call,
+            observation,
+            source,
+            ordinal=ordinal,
+            authorization=authorization,
+            locator=locator,
+            title=f"{document.title}: {locator.section}",
+            canonical_url=snapshot.source_url,
+            excerpt=chunk.text_content,
+            source_published_at=filing.accepted_at,
+            retrieved_at=snapshot.retrieved_at,
+            document_version_id=version.id,
+            chunk_id=chunk.id,
+            source_resource_version=(
+                f"{snapshot.source_version}:{vector.index_version}:{retrieval_profile_version}"
+            ),
+        )
+
+    async def _normalize_sec_xbrl_fact(
+        self,
+        session: AsyncSession,
+        scope: WorkspaceScope,
+        call: ToolCallRecord,
+        observation: ToolObservation,
+        source: ToolSource,
+        *,
+        ordinal: int,
+        authorization: AuthorizationSnapshot,
+    ) -> tuple[EvidenceRecord | None, EvidenceDecisionReason]:
+        try:
+            fact_id = parse_sec_resource_locator(source.locator, resource="xbrl-facts")
+            output = SecGetXbrlFactsOutput.model_validate_json(observation.model_text, strict=True)
+            fact = next(item for item in output.facts if item.id == fact_id)
+            if output.financial_scope is None or not output.knowledge_base_ids:
+                raise ValueError
+            financial_scope = output.financial_scope.to_domain()
+        except (StopIteration, ValueError):
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        if (
+            source.content_sha256 != fact.content_sha256
+            or source.source_version != fact.source_version
+        ):
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        evidence_id = sec_xbrl_evidence_ref(
+            workspace_id=scope.workspace_id,
+            fact_id=fact.id,
+            as_of=financial_scope.as_of,
+            authorization_role=scope.role,
+        )
+        if fact.evidence_ref is not None and fact.evidence_ref != evidence_id:
+            return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        row = (
+            await session.execute(
+                select(SecXbrlFactRecord, SecXbrlSourceRecord, SecFilingRecord)
+                .join(SecXbrlSourceRecord, SecXbrlSourceRecord.id == SecXbrlFactRecord.source_id)
+                .join(SecFilingRecord, SecFilingRecord.id == SecXbrlFactRecord.filing_id)
+                .join(
+                    WorkspaceSecImportRecord,
+                    and_(
+                        WorkspaceSecImportRecord.workspace_id == scope.workspace_id,
+                        WorkspaceSecImportRecord.filing_id == SecFilingRecord.id,
+                    ),
+                )
+                .join(
+                    KnowledgeBaseRecord,
+                    and_(
+                        KnowledgeBaseRecord.id == WorkspaceSecImportRecord.knowledge_base_id,
+                        KnowledgeBaseRecord.workspace_id == WorkspaceSecImportRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    DocumentRecord,
+                    and_(
+                        DocumentRecord.id == WorkspaceSecImportRecord.document_id,
+                        DocumentRecord.workspace_id == WorkspaceSecImportRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    DocumentVersionRecord,
+                    and_(
+                        DocumentVersionRecord.id == WorkspaceSecImportRecord.document_version_id,
+                        DocumentVersionRecord.workspace_id == WorkspaceSecImportRecord.workspace_id,
+                    ),
+                )
+                .where(
+                    SecXbrlFactRecord.id == fact_id,
+                    SecXbrlFactRecord.accession == financial_scope.accession,
+                    SecXbrlFactRecord.form == financial_scope.form.value,
+                    SecXbrlSourceRecord.cik == financial_scope.cik,
+                    SecXbrlSourceRecord.source_version == source.source_version,
+                    SecXbrlSourceRecord.source_available_at <= financial_scope.as_of,
+                    SecFilingRecord.report_date == financial_scope.report_period,
+                    WorkspaceSecImportRecord.knowledge_base_id.in_(output.knowledge_base_ids),
+                    KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+                    DocumentRecord.status == DocumentStatus.ACTIVE,
+                    DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                    DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                )
+                .limit(1)
+            )
+        ).one_or_none()
+        if row is None:
+            return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+        fact_record, source_record, filing = row
+        if not _sec_xbrl_fact_matches_records(fact, fact_record, source_record, filing):
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        locator = SecXbrlFactLocatorV1(
+            cik=filing.cik,
+            accession=filing.accession,
+            form=filing.form,
+            report_period=filing.report_date.isoformat(),
+            as_of=financial_scope.as_of.isoformat(),
+            fact_id=fact_record.id,
+            filing_id=fact_record.filing_id,
+            source_id=fact_record.source_id,
+            source_snapshot_id=source_record.filing_snapshot_id,
+            source_kind=source_record.source_kind,
+            taxonomy=fact_record.taxonomy,
+            concept=fact_record.concept,
+            unit=fact_record.unit,
+            period_kind=fact_record.period_kind,
+            instant=None if fact_record.instant is None else fact_record.instant.isoformat(),
+            start_date=(
+                None if fact_record.start_date is None else fact_record.start_date.isoformat()
+            ),
+            end_date=None if fact_record.end_date is None else fact_record.end_date.isoformat(),
+            context_id=fact_record.raw_context_id,
+            dimensions=fact_record.dimensions,
+            decimals=fact_record.decimals,
+            scale=fact_record.scale,
+            source_url=source_record.source_url,
+            source_version=source_record.source_version,
+            source_content_sha256=source_record.content_sha256.hex(),
+            content_sha256=fact.content_sha256,
+            source_available_at=source_record.source_available_at.isoformat(),
+            retrieved_at=source_record.retrieved_at.isoformat(),
+        )
+        excerpt = json.dumps(
+            fact.model_dump(mode="json"),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        return await self._persist_sec_evidence(
+            session,
+            scope,
+            call,
+            observation,
+            source,
+            ordinal=ordinal,
+            authorization=authorization,
+            locator=locator,
+            title=f"{filing.form} {filing.accession}: {fact.taxonomy}:{fact.concept}",
+            canonical_url=source_record.source_url,
+            excerpt=excerpt,
+            source_published_at=filing.accepted_at,
+            retrieved_at=source_record.retrieved_at,
+            document_version_id=None,
+            chunk_id=None,
+            source_resource_version=f"{source_record.source_version}:{fact_record.locator_key}",
+            evidence_id=evidence_id,
+        )
+
+    async def _persist_sec_evidence(
+        self,
+        session: AsyncSession,
+        scope: WorkspaceScope,
+        call: ToolCallRecord,
+        observation: ToolObservation,
+        source: ToolSource,
+        *,
+        ordinal: int,
+        authorization: AuthorizationSnapshot,
+        locator: SecFilingTextLocatorV1 | SecXbrlFactLocatorV1,
+        title: str,
+        canonical_url: str,
+        excerpt: str,
+        source_published_at: datetime,
+        retrieved_at: datetime,
+        document_version_id: UUID | None,
+        chunk_id: UUID | None,
+        source_resource_version: str,
+        evidence_id: UUID | None = None,
+    ) -> tuple[EvidenceRecord | None, EvidenceDecisionReason]:
+        dedupe = canonical_fingerprint(
+            {
+                "authorization_role": authorization.role,
+                "content_sha256": source.content_sha256,
+                "locator": dict(locator.to_mapping()),
+                "workspace_id": str(scope.workspace_id),
+            }
+        )
+        evidence, reason = await self._existing_or_reason(session, scope, dedupe)
+        if evidence is not None or reason is not None:
+            return evidence, reason or EvidenceDecisionReason.ACCEPTED
+        record = EvidenceRecord(
+            id=(
+                evidence_id
+                if evidence_id is not None
+                else uuid5(
+                    NAMESPACE_URL,
+                    f"{scope.workspace_id}:{locator.locator_type.value}:{dedupe}",
+                )
+            ),
+            workspace_id=scope.workspace_id,
+            schema_version=1,
+            kind=EvidenceKind.FILING,
+            title=title,
+            canonical_url=canonical_url,
+            locator_type=locator.locator_type,
+            locator=dict(locator.to_mapping()),
+            excerpt=excerpt,
+            content_sha256=source.content_sha256,
+            source_published_at=source_published_at,
+            retrieved_at=retrieved_at,
+            license_or_terms="Official SEC public filing data subject to SEC.gov terms.",
+            status=EvidenceStatus.ACTIVE,
+            revision=1,
+            invalidated_at=None,
+            invalidation_reason=None,
+            origin_run_id=call.run_id,
+            origin_step_id=call.execution_step_id,
+            origin_tool_call_id=call.id,
+            origin_observation_id=observation.observation_id,
+            origin_source_ordinal=ordinal,
+            normalizer_version=EVIDENCE_NORMALIZER_VERSION,
+            authorization_snapshot=dict(authorization.to_mapping()),
+            source_resource_version=source_resource_version,
+            source_item_id=None,
+            query_run_id=None,
+            document_version_id=document_version_id,
+            chunk_id=chunk_id,
+            deduplication_key=dedupe,
+            created_at=authorization.captured_at,
+            updated_at=authorization.captured_at,
+        )
+        session.add(record)
+        await session.flush()
+        return record, EvidenceDecisionReason.ACCEPTED
 
     async def _normalize_knowledge_source(
         self,
@@ -993,27 +1499,122 @@ class SqlAlchemyEvidenceRepository:
             .scalars()
             .all()
         )
-        if {record.id for record in evidence_rows} != set(output.evidence_refs):
+        evidence_by_id = {record.id: record for record in evidence_rows}
+        if set(evidence_by_id) != set(output.evidence_refs):
             return None, EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
         financial_scope = output.financial_scope.to_domain()
-        for record in evidence_rows:
-            try:
-                filing_locator = parse_evidence_locator(record.locator)
-            except ValueError:
-                return None, EvidenceDecisionReason.OBSERVATION_INVALID
-            if not isinstance(filing_locator, SecFilingChunkLocatorV1) or (
-                filing_locator.cik != financial_scope.cik
-                or filing_locator.accession != financial_scope.accession
-                or filing_locator.form != financial_scope.form.value
-                or filing_locator.report_period != financial_scope.report_period.isoformat()
+        calculation_operands: tuple[FinancialOperand, ...]
+        if output.operand_source == "sec_xbrl_evidence":
+            if (
+                output.reconciliation is None
+                or not output.resolved_operands
+                or len(output.resolved_operands) != len(output.operands)
+                or any(item.source_fact_id is None for item in output.operands)
             ):
-                return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
-        calculation = FinancialCalculation(
-            operator=output.operator,
-            operands=tuple(
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            source_fact_ids = tuple(UUID(str(item.source_fact_id)) for item in output.operands)
+            fact_rows = (
+                (
+                    await session.execute(
+                        select(SecXbrlFactRecord, SecXbrlSourceRecord, SecFilingRecord)
+                        .join(
+                            SecXbrlSourceRecord,
+                            SecXbrlSourceRecord.id == SecXbrlFactRecord.source_id,
+                        )
+                        .join(SecFilingRecord, SecFilingRecord.id == SecXbrlFactRecord.filing_id)
+                        .where(SecXbrlFactRecord.id.in_(source_fact_ids))
+                    )
+                )
+                .unique()
+                .all()
+            )
+            fact_by_id = {
+                fact.id: (fact, source_row, filing) for fact, source_row, filing in fact_rows
+            }
+            resolved: list[FinancialEvidenceOperand] = []
+            for input_item in output.operands:
+                evidence_ref = UUID(input_item.evidence_ref)
+                source_fact_id = UUID(str(input_item.source_fact_id))
+                evidence_record = evidence_by_id[evidence_ref]
+                row = fact_by_id.get(source_fact_id)
+                if row is None or not await self._is_available(session, evidence_record):
+                    return None, EvidenceDecisionReason.SOURCE_SNAPSHOT_MISSING
+                try:
+                    locator = parse_evidence_locator(evidence_record.locator)
+                    fact, source_row, filing = row
+                    operand = financial_evidence_operand_from_records(
+                        workspace_id=scope.workspace_id,
+                        as_of=financial_scope.as_of,
+                        authorization_role=scope.role,
+                        fact=fact,
+                        source=source_row,
+                        filing=filing,
+                    )
+                except ValueError:
+                    return None, EvidenceDecisionReason.OBSERVATION_INVALID
+                if (
+                    not isinstance(locator, SecXbrlFactLocatorV1)
+                    or locator.fact_id != source_fact_id
+                    or locator.source_id != fact.source_id
+                    or locator.cik != operand.cik
+                    or locator.accession != operand.accession
+                    or locator.form != operand.form.value
+                    or locator.report_period != operand.report_period.isoformat()
+                    or locator.source_version != operand.source_version
+                    or evidence_record.id != operand.evidence_ref
+                    or input_item.value != operand.value
+                ):
+                    return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+                resolved.append(operand)
+            resolved_operands = tuple(resolved)
+            if tuple(item.to_domain() for item in output.resolved_operands) != resolved_operands:
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            reconciliation = reconcile_financial_operands(
+                financial_scope,
+                output.operator,
+                resolved_operands,
+            )
+            if (
+                output.reconciliation.to_domain() != reconciliation
+                or reconciliation.status is not FinancialReconciliationStatus.CONSISTENT
+            ):
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            calculation_operands = tuple(
+                FinancialOperand(
+                    value=item.value,
+                    evidence_ref=item.evidence_ref,
+                    unit=item.unit,
+                    scale=item.scale,
+                )
+                for item in resolved_operands
+            )
+        else:
+            if (
+                output.operand_source not in {None, "legacy_fixture"}
+                or output.resolved_operands
+                or output.reconciliation is not None
+                or any(item.source_fact_id is not None for item in output.operands)
+            ):
+                return None, EvidenceDecisionReason.OBSERVATION_INVALID
+            for record in evidence_rows:
+                try:
+                    filing_locator = parse_evidence_locator(record.locator)
+                except ValueError:
+                    return None, EvidenceDecisionReason.OBSERVATION_INVALID
+                if not isinstance(filing_locator, SecFilingChunkLocatorV1) or (
+                    filing_locator.cik != financial_scope.cik
+                    or filing_locator.accession != financial_scope.accession
+                    or filing_locator.form != financial_scope.form.value
+                    or filing_locator.report_period != financial_scope.report_period.isoformat()
+                ):
+                    return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
+            calculation_operands = tuple(
                 FinancialOperand(value=item.value, evidence_ref=UUID(item.evidence_ref))
                 for item in output.operands
-            ),
+            )
+        calculation = FinancialCalculation(
+            operator=output.operator,
+            operands=calculation_operands,
             decimal_places=output.decimal_places,
             rounding_mode=output.rounding_mode,
         )
@@ -1040,6 +1641,12 @@ class SqlAlchemyEvidenceRepository:
             unit=output.unit,
             scale=output.scale,
             observation_sha256=model_hash,
+            reconciliation_status=(
+                None if output.reconciliation is None else output.reconciliation.status.value
+            ),
+            reconciliation_version=(
+                None if output.reconciliation is None else output.reconciliation.version
+            ),
         )
         dedupe = canonical_fingerprint(
             {
@@ -1438,9 +2045,122 @@ class SqlAlchemyEvidenceRepository:
                 locator = parse_evidence_locator(record.locator)
             except ValueError:
                 raise EvidencePersistenceError from None
+            if isinstance(locator, SecFilingTextLocatorV1):
+                vector_record = aliased(DocumentIndexRecord)
+                lexical_record = aliased(DocumentIndexRecord)
+                as_of = datetime.fromisoformat(locator.as_of)
+                live_row = (
+                    await session.execute(
+                        select(DocumentChunkRecord.id)
+                        .join(
+                            DocumentVersionRecord,
+                            and_(
+                                DocumentVersionRecord.id == DocumentChunkRecord.document_version_id,
+                                DocumentVersionRecord.workspace_id
+                                == DocumentChunkRecord.workspace_id,
+                            ),
+                        )
+                        .join(
+                            DocumentRecord,
+                            and_(
+                                DocumentRecord.id == DocumentChunkRecord.document_id,
+                                DocumentRecord.workspace_id == DocumentChunkRecord.workspace_id,
+                            ),
+                        )
+                        .join(
+                            KnowledgeBaseRecord,
+                            and_(
+                                KnowledgeBaseRecord.id == DocumentVersionRecord.knowledge_base_id,
+                                KnowledgeBaseRecord.workspace_id
+                                == DocumentVersionRecord.workspace_id,
+                            ),
+                        )
+                        .join(
+                            WorkspaceSecImportRecord,
+                            and_(
+                                WorkspaceSecImportRecord.workspace_id
+                                == DocumentChunkRecord.workspace_id,
+                                WorkspaceSecImportRecord.document_version_id
+                                == DocumentChunkRecord.document_version_id,
+                            ),
+                        )
+                        .join(
+                            SecFilingRecord,
+                            SecFilingRecord.id == WorkspaceSecImportRecord.filing_id,
+                        )
+                        .join(
+                            SecSourceSnapshotRecord,
+                            SecSourceSnapshotRecord.id
+                            == WorkspaceSecImportRecord.primary_snapshot_id,
+                        )
+                        .join(
+                            SecFilingDocumentRecord,
+                            and_(
+                                SecFilingDocumentRecord.id
+                                == SecSourceSnapshotRecord.filing_document_id,
+                                SecFilingDocumentRecord.current_snapshot_id
+                                == SecSourceSnapshotRecord.id,
+                            ),
+                        )
+                        .join(
+                            vector_record,
+                            and_(
+                                vector_record.chunk_id == DocumentChunkRecord.id,
+                                vector_record.document_version_id
+                                == DocumentChunkRecord.document_version_id,
+                                vector_record.workspace_id == DocumentChunkRecord.workspace_id,
+                                vector_record.kind == DocumentIndexKind.VECTOR,
+                                vector_record.status == DocumentIndexStatus.SUCCEEDED,
+                                vector_record.index_version == locator.index_version,
+                            ),
+                        )
+                        .join(
+                            lexical_record,
+                            and_(
+                                lexical_record.chunk_id == DocumentChunkRecord.id,
+                                lexical_record.document_version_id
+                                == DocumentChunkRecord.document_version_id,
+                                lexical_record.workspace_id == DocumentChunkRecord.workspace_id,
+                                lexical_record.kind == DocumentIndexKind.LEXICAL,
+                                lexical_record.status == DocumentIndexStatus.SUCCEEDED,
+                                lexical_record.index_version == vector_record.index_version,
+                            ),
+                        )
+                        .where(
+                            DocumentChunkRecord.id == record.chunk_id,
+                            DocumentChunkRecord.document_version_id == record.document_version_id,
+                            DocumentChunkRecord.workspace_id == record.workspace_id,
+                            DocumentChunkRecord.content_hash
+                            == bytes.fromhex(record.content_sha256),
+                            DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                            DocumentRecord.status == DocumentStatus.ACTIVE,
+                            DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                            KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+                            WorkspaceSecImportRecord.knowledge_base_id == locator.knowledge_base_id,
+                            WorkspaceSecImportRecord.primary_snapshot_id == locator.snapshot_id,
+                            SecFilingRecord.cik == locator.cik,
+                            SecFilingRecord.accession == locator.accession,
+                            SecFilingRecord.form == locator.form,
+                            SecFilingRecord.report_date
+                            == date.fromisoformat(locator.report_period),
+                            SecFilingRecord.public_available_at <= as_of,
+                            SecSourceSnapshotRecord.status == "active",
+                            SecSourceSnapshotRecord.source_version == locator.source_version,
+                            SecSourceSnapshotRecord.content_sha256
+                            == bytes.fromhex(locator.source_content_sha256),
+                            SecSourceSnapshotRecord.source_available_at <= as_of,
+                            (
+                                SecSourceSnapshotRecord.valid_to.is_(None)
+                                | (SecSourceSnapshotRecord.valid_to >= as_of)
+                            ),
+                        )
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                return live_row is not None
             if not isinstance(locator, SecFilingChunkLocatorV1):
                 raise EvidencePersistenceError
-            row = (
+            fixture_row = (
                 await session.execute(
                     select(DocumentChunkRecord, DocumentVersionRecord, DocumentRecord, FileObject)
                     .join(
@@ -1477,7 +2197,7 @@ class SqlAlchemyEvidenceRepository:
                     )
                 )
             ).one_or_none()
-            return row is not None
+            return fixture_row is not None
         try:
             locator = parse_evidence_locator(record.locator)
         except ValueError:
@@ -1502,6 +2222,65 @@ class SqlAlchemyEvidenceRepository:
                 if not await self._is_available(session, input_record):
                     return False
             return True
+        if isinstance(locator, SecXbrlFactLocatorV1):
+            as_of = datetime.fromisoformat(locator.as_of)
+            fact_id = await session.scalar(
+                select(SecXbrlFactRecord.id)
+                .join(SecXbrlSourceRecord, SecXbrlSourceRecord.id == SecXbrlFactRecord.source_id)
+                .join(SecFilingRecord, SecFilingRecord.id == SecXbrlFactRecord.filing_id)
+                .join(
+                    WorkspaceSecImportRecord,
+                    and_(
+                        WorkspaceSecImportRecord.workspace_id == record.workspace_id,
+                        WorkspaceSecImportRecord.filing_id == SecFilingRecord.id,
+                    ),
+                )
+                .join(
+                    KnowledgeBaseRecord,
+                    and_(
+                        KnowledgeBaseRecord.id == WorkspaceSecImportRecord.knowledge_base_id,
+                        KnowledgeBaseRecord.workspace_id == WorkspaceSecImportRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    DocumentRecord,
+                    and_(
+                        DocumentRecord.id == WorkspaceSecImportRecord.document_id,
+                        DocumentRecord.workspace_id == WorkspaceSecImportRecord.workspace_id,
+                    ),
+                )
+                .join(
+                    DocumentVersionRecord,
+                    and_(
+                        DocumentVersionRecord.id == WorkspaceSecImportRecord.document_version_id,
+                        DocumentVersionRecord.workspace_id == WorkspaceSecImportRecord.workspace_id,
+                    ),
+                )
+                .where(
+                    SecXbrlFactRecord.id == locator.fact_id,
+                    SecXbrlFactRecord.filing_id == locator.filing_id,
+                    SecXbrlFactRecord.source_id == locator.source_id,
+                    SecXbrlFactRecord.accession == locator.accession,
+                    SecXbrlFactRecord.form == locator.form,
+                    SecXbrlFactRecord.taxonomy == locator.taxonomy,
+                    SecXbrlFactRecord.concept == locator.concept,
+                    SecXbrlFactRecord.period_kind == locator.period_kind,
+                    SecXbrlFactRecord.unit == locator.unit,
+                    SecXbrlSourceRecord.cik == locator.cik,
+                    SecXbrlSourceRecord.source_kind == locator.source_kind,
+                    SecXbrlSourceRecord.source_version == locator.source_version,
+                    SecXbrlSourceRecord.content_sha256
+                    == bytes.fromhex(locator.source_content_sha256),
+                    SecXbrlSourceRecord.source_available_at <= as_of,
+                    SecFilingRecord.report_date == date.fromisoformat(locator.report_period),
+                    KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+                    DocumentRecord.status == DocumentStatus.ACTIVE,
+                    DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                    DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                )
+                .limit(1)
+            )
+            return fact_id is not None
         return False
 
     @staticmethod

@@ -1,7 +1,9 @@
 """Ports for official SEC sources and the canonical filer catalog."""
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from industry_platform.modules.disclosures.domain import (
@@ -26,8 +28,11 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSyncPreparation,
     SecXbrlSyncResult,
 )
-from industry_platform.modules.retrieval.domain import DenseCandidate
+from industry_platform.modules.retrieval.domain import RetrievalCandidate
 from industry_platform.modules.workspaces.domain import WorkspaceScope
+
+if TYPE_CHECKING:
+    from industry_platform.modules.disclosures.diff import SecFilingComparisonPreparation
 
 
 class SecEdgarPort(Protocol):
@@ -151,12 +156,21 @@ class SecFilingContentRepository(Protocol):
         as_of: datetime,
     ) -> SecFilingContentPreparation: ...
 
+    async def prepare_comparison_identity(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        accession: str,
+        as_of: datetime,
+    ) -> SecFilingComparisonPreparation: ...
+
     async def resolve_candidates(
         self,
         scope: WorkspaceScope,
         *,
         preparation: SecFilingContentPreparation,
-        candidates: tuple[DenseCandidate, ...],
+        candidates: tuple[RetrievalCandidate, ...],
     ) -> tuple[SecFilingSearchHit, ...]: ...
 
     async def read_section(

@@ -442,6 +442,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/disclosures/filings/{accession}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Diff Filings */
+        get: operations["diff_filings_api_v1_workspaces__workspace_id__disclosures_filings__accession__diff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/disclosures/filings/{accession}/imports": {
         parameters: {
             query?: never;
@@ -1692,7 +1709,7 @@ export interface components {
          * @description Why one declared input was or was not sent to the model.
          * @enum {string}
          */
-        ContextDecisionReason: "included" | "not_available" | "excluded_token_budget" | "excluded_not_relevant" | "excluded_stale" | "excluded_conflicted" | "excluded_duplicate" | "excluded_sensitive" | "excluded_disabled" | "excluded_expired" | "excluded_deleted" | "excluded_negative_feedback";
+        ContextDecisionReason: "included" | "not_available" | "excluded_token_budget" | "excluded_not_relevant" | "excluded_stale" | "excluded_conflicted" | "excluded_duplicate" | "excluded_sensitive" | "excluded_disabled" | "excluded_expired" | "excluded_deleted" | "excluded_negative_feedback" | "excluded_financial_scope_mismatch" | "excluded_future_source" | "excluded_unit_mismatch" | "excluded_unsupported_financial_source";
         /** ContextManifestResponse */
         ContextManifestResponse: {
             budget: components["schemas"]["ContextBudgetResponse"];
@@ -1739,7 +1756,7 @@ export interface components {
          * @description The explicit, versioned sources considered for one model request.
          * @enum {string}
          */
-        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "conversation_summary" | "attachment" | "user_question" | "tool_observation" | "short_term_memory" | "long_term_memory";
+        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "financial_scope" | "conversation_summary" | "attachment" | "user_question" | "tool_observation" | "short_term_memory" | "long_term_memory";
         /** ContextSourceResponse */
         ContextSourceResponse: {
             decision_reason: components["schemas"]["ContextDecisionReason"];
@@ -1756,6 +1773,10 @@ export interface components {
             relevance_score: number | null;
             /** Source Id */
             source_id: string;
+            /** Source Identity */
+            source_identity: {
+                [key: string]: unknown;
+            } | null;
             source_kind: components["schemas"]["ContextSourceKind"];
             /** Source Revision Id */
             source_revision_id: string | null;
@@ -2460,7 +2481,7 @@ export interface components {
             /** License Or Terms */
             license_or_terms: string;
             /** Locator */
-            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"] | components["schemas"]["SecFilingChunkLocatorResponse"] | components["schemas"]["FinancialCalculationLocatorResponse"];
+            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"] | components["schemas"]["SecFilingChunkLocatorResponse"] | components["schemas"]["SecFilingTextLocatorResponse"] | components["schemas"]["industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse"] | components["schemas"]["FinancialCalculationLocatorResponse"];
             /** Normalizer Version */
             normalizer_version: string;
             /**
@@ -2643,6 +2664,10 @@ export interface components {
             operand_values: string[];
             /** Operator */
             operator: string;
+            /** Reconciliation Status */
+            reconciliation_status: "consistent" | null;
+            /** Reconciliation Version */
+            reconciliation_version: "financial-reconciliation-v1" | null;
             /** Result */
             result: string;
             /** Rounding Mode */
@@ -2661,7 +2686,7 @@ export interface components {
          * FinancialForm
          * @enum {string}
          */
-        FinancialForm: "10-K" | "10-Q";
+        FinancialForm: "10-K" | "10-K/A" | "10-Q" | "10-Q/A";
         /** FinancialScopePayload */
         FinancialScopePayload: {
             /** Accession */
@@ -4057,6 +4082,11 @@ export interface components {
             /** Source Version */
             source_version: string;
         };
+        /**
+         * SecFilingChangeKind
+         * @enum {string}
+         */
+        SecFilingChangeKind: "added" | "removed" | "changed" | "unchanged";
         /** SecFilingChunkLocatorResponse */
         SecFilingChunkLocatorResponse: {
             /** Accepted At */
@@ -4122,11 +4152,101 @@ export interface components {
             /** Section */
             section: string;
         };
+        /** SecFilingComparisonIdentityResponse */
+        SecFilingComparisonIdentityResponse: {
+            /** Accession */
+            accession: string;
+            amendment_relation_status: components["schemas"]["SecAmendmentRelationStatus"];
+            /** Base Accession */
+            base_accession: string | null;
+            /** Cik */
+            cik: string;
+            /**
+             * Filed Date
+             * Format: date
+             */
+            filed_date: string;
+            form: components["schemas"]["SecFilingForm"];
+            /**
+             * Import Id
+             * Format: uuid
+             */
+            import_id: string;
+            /**
+             * Knowledge Base Id
+             * Format: uuid
+             */
+            knowledge_base_id: string;
+            /**
+             * Public Available At
+             * Format: date-time
+             */
+            public_available_at: string;
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
+        };
         /**
          * SecFilingContentStatus
          * @enum {string}
          */
         SecFilingContentStatus: "ok" | "not_ready" | "no_result" | "dependency_failed" | "permission_denied";
+        /**
+         * SecFilingDiffRelationship
+         * @enum {string}
+         */
+        SecFilingDiffRelationship: "base_amendment" | "adjacent_period";
+        /** SecFilingDiffResponse */
+        SecFilingDiffResponse: {
+            baseline: components["schemas"]["SecFilingComparisonIdentityResponse"] | null;
+            baseline_retrieval_trace: components["schemas"]["SecFilingRetrievalTraceResponse"] | null;
+            /** Comparison Accession */
+            comparison_accession: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Fact Changes */
+            fact_changes: components["schemas"]["SecFilingFactChangeResponse"][];
+            relationship: components["schemas"]["SecFilingDiffRelationship"] | null;
+            /** Requested Accession */
+            requested_accession: string;
+            section_change: components["schemas"]["SecFilingSectionChangeResponse"] | null;
+            status: components["schemas"]["SecFilingDiffStatus"];
+            target: components["schemas"]["SecFilingComparisonIdentityResponse"] | null;
+            target_retrieval_trace: components["schemas"]["SecFilingRetrievalTraceResponse"] | null;
+            /** Unchanged Fact Count */
+            unchanged_fact_count: number;
+            /** Version */
+            version: string;
+        };
+        /**
+         * SecFilingDiffStatus
+         * @enum {string}
+         */
+        SecFilingDiffStatus: "ok" | "no_result" | "not_ready" | "not_comparable" | "permission_denied" | "dependency_failed";
+        /** SecFilingFactChangeResponse */
+        SecFilingFactChangeResponse: {
+            baseline: components["schemas"]["SecXbrlFactResponse"] | null;
+            change_kind: components["schemas"]["SecFilingChangeKind"];
+            /** Concept */
+            concept: string;
+            /** Dimensions */
+            dimensions: {
+                [key: string]: string;
+            };
+            /** Is Custom */
+            is_custom: boolean;
+            /** Period Bucket */
+            period_bucket: string;
+            /** Period Kind */
+            period_kind: string;
+            target: components["schemas"]["SecXbrlFactResponse"] | null;
+            /** Taxonomy */
+            taxonomy: string;
+            /** Unit */
+            unit: string | null;
+        };
         /**
          * SecFilingForm
          * @enum {string}
@@ -4155,6 +4275,37 @@ export interface components {
          * @enum {string}
          */
         SecFilingImportStatus: "queued" | "ready" | "failed" | "cancelled";
+        /** SecFilingRetrievalTraceResponse */
+        SecFilingRetrievalTraceResponse: {
+            /** Active Source Versions */
+            active_source_versions: string[];
+            /** As Of */
+            as_of: string | null;
+            /** Dense Candidate Count */
+            dense_candidate_count: number;
+            /** Dense Candidate Limit */
+            dense_candidate_limit: number | null;
+            /** Diversity Policy Version */
+            diversity_policy_version: string | null;
+            /** Final Limit */
+            final_limit: number | null;
+            /** Fused Candidate Count */
+            fused_candidate_count: number;
+            /** Index Versions */
+            index_versions: string[];
+            /** Lexical Candidate Count */
+            lexical_candidate_count: number;
+            /** Lexical Candidate Limit */
+            lexical_candidate_limit: number | null;
+            /** Profile Version */
+            profile_version: string;
+            /** Query Rewrite Version */
+            query_rewrite_version: string | null;
+            /** Reranker Version */
+            reranker_version: string | null;
+            /** Rrf K */
+            rrf_k: number | null;
+        };
         /** SecFilingSearchHitResponse */
         SecFilingSearchHitResponse: {
             /** Accession */
@@ -4166,6 +4317,8 @@ export interface components {
             chunk_id: string;
             /** Content Sha256 */
             content_sha256: string;
+            /** Dense Rank */
+            dense_rank: number | null;
             /**
              * Document Version Id
              * Format: uuid
@@ -4173,8 +4326,18 @@ export interface components {
             document_version_id: string;
             /** Excerpt */
             excerpt: string;
+            /** Index Version */
+            index_version: string;
+            /** Lexical Rank */
+            lexical_rank: number | null;
             /** Page Number */
             page_number: number;
+            /** Rerank Score */
+            rerank_score: number | null;
+            /** Retrieval Channels */
+            retrieval_channels: string[];
+            /** Rrf Score */
+            rrf_score: number | null;
             /** Score */
             score: number;
             /** Section */
@@ -4203,7 +4366,16 @@ export interface components {
             hits: components["schemas"]["SecFilingSearchHitResponse"][];
             /** Retrieval Profile Version */
             retrieval_profile_version: string;
+            retrieval_trace: components["schemas"]["SecFilingRetrievalTraceResponse"] | null;
             status: components["schemas"]["SecFilingContentStatus"];
+        };
+        /** SecFilingSectionChangeResponse */
+        SecFilingSectionChangeResponse: {
+            baseline: components["schemas"]["SecFilingSearchHitResponse"];
+            change_kind: components["schemas"]["SecFilingChangeKind"];
+            /** Section */
+            section: string;
+            target: components["schemas"]["SecFilingSearchHitResponse"];
         };
         /** SecFilingSectionResponse */
         SecFilingSectionResponse: {
@@ -4264,6 +4436,80 @@ export interface components {
          * @enum {string}
          */
         SecFilingSelectionStatus: "ok" | "no_result" | "incomplete";
+        /** SecFilingTextLocatorResponse */
+        SecFilingTextLocatorResponse: {
+            /** Accepted At */
+            accepted_at: string;
+            /** Accession */
+            accession: string;
+            /** As Of */
+            as_of: string;
+            /** Canonical Url */
+            canonical_url: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /** Chunker Version */
+            chunker_version: string;
+            /** Cik */
+            cik: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Filed At */
+            filed_at: string;
+            /** Form */
+            form: string;
+            /** Index Version */
+            index_version: string;
+            /**
+             * Knowledge Base Id
+             * Format: uuid
+             */
+            knowledge_base_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "sec_filing_text_v1";
+            /** Page Number */
+            page_number: number;
+            /** Parser Version */
+            parser_version: string;
+            /** Report Period */
+            report_period: string;
+            /** Retrieval Channels */
+            retrieval_channels: string[];
+            /** Retrieval Profile Version */
+            retrieval_profile_version: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Section */
+            section: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /** Source Content Sha256 */
+            source_content_sha256: string;
+            /** Source Version */
+            source_version: string;
+        };
         /** SecRawXbrlFactLocatorResponse */
         SecRawXbrlFactLocatorResponse: {
             /** Accession */
@@ -4390,7 +4636,6 @@ export interface components {
             facts: components["schemas"]["SecXbrlFactResponse"][];
             status: components["schemas"]["SecFilingContentStatus"];
         };
-        SecXbrlFactLocatorResponse: components["schemas"]["SecAggregateXbrlFactLocatorResponse"] | components["schemas"]["SecRawXbrlFactLocatorResponse"];
         /** SecXbrlFactResponse */
         SecXbrlFactResponse: {
             /** Accession */
@@ -4399,6 +4644,8 @@ export interface components {
             cik: string;
             /** Concept */
             concept: string;
+            /** Content Sha256 */
+            content_sha256: string;
             /** Context Id */
             context_id: string | null;
             /** Decimals */
@@ -4427,7 +4674,7 @@ export interface components {
             id: string;
             /** Is Custom */
             is_custom: boolean;
-            locator: components["schemas"]["SecXbrlFactLocatorResponse"];
+            locator: components["schemas"]["industry_platform__modules__disclosures__schemas__SecXbrlFactLocatorResponse"];
             period: components["schemas"]["SecXbrlPeriodResponse"];
             /**
              * Retrieved At
@@ -4988,6 +5235,85 @@ export interface components {
         };
         /** @enum {string} */
         WorkspaceRoleName: "owner" | "admin" | "member" | "viewer";
+        industry_platform__modules__disclosures__schemas__SecXbrlFactLocatorResponse: components["schemas"]["SecAggregateXbrlFactLocatorResponse"] | components["schemas"]["SecRawXbrlFactLocatorResponse"];
+        /** SecXbrlFactLocatorResponse */
+        industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse: {
+            /** Accession */
+            accession: string;
+            /** As Of */
+            as_of: string;
+            /** Cik */
+            cik: string;
+            /** Concept */
+            concept: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /** Context Id */
+            context_id: string | null;
+            /** Decimals */
+            decimals: string | null;
+            /** Dimensions */
+            dimensions: {
+                [key: string]: string;
+            };
+            /** End Date */
+            end_date: string | null;
+            /**
+             * Fact Id
+             * Format: uuid
+             */
+            fact_id: string;
+            /**
+             * Filing Id
+             * Format: uuid
+             */
+            filing_id: string;
+            /** Form */
+            form: string;
+            /** Instant */
+            instant: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "sec_xbrl_fact_v1";
+            /** Period Kind */
+            period_kind: string;
+            /** Report Period */
+            report_period: string;
+            /** Retrieved At */
+            retrieved_at: string;
+            /** Scale */
+            scale: number | null;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Source Available At */
+            source_available_at: string;
+            /** Source Content Sha256 */
+            source_content_sha256: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Snapshot Id */
+            source_snapshot_id: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Source Version */
+            source_version: string;
+            /** Start Date */
+            start_date: string | null;
+            /** Taxonomy */
+            taxonomy: string;
+            /** Unit */
+            unit: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -8530,6 +8856,152 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SecFilingSelectionResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description SEC source response rejected */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description SEC filer discovery temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    diff_filings_api_v1_workspaces__workspace_id__disclosures_filings__accession__diff_get: {
+        parameters: {
+            query: {
+                knowledge_base_id: string;
+                comparison_accession: string;
+                cik: string;
+                form: components["schemas"]["FinancialForm"];
+                report_period: string;
+                as_of: string;
+                unit?: string;
+                scale?: number;
+                section_query: string;
+                taxonomy?: string | null;
+                concept?: string | null;
+                fact_limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                accession: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecFilingDiffResponse"];
                 };
             };
             /** @description Invalid authenticated session */

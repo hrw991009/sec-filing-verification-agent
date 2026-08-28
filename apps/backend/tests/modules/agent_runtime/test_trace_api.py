@@ -288,6 +288,7 @@ def test_trace_returns_only_the_safe_workspace_scoped_projection(
         "source_scope": None,
         "relevance_score": None,
         "feedback_score": None,
+        "source_identity": None,
     }
     assert document["events"][-1]["details"] == {"stop_reason": "final"}
     assert "private user question" not in response.text.casefold()
@@ -302,6 +303,9 @@ def test_trace_returns_only_the_safe_workspace_scoped_projection(
     }
     assert set(operation["responses"]) >= {"200", "404", "500", "503"}
     assert openapi["components"]["schemas"]["AgentTraceResponse"]["additionalProperties"] is False
+    assert openapi["components"]["schemas"]["ContextSourceResponse"]["properties"][
+        "source_identity"
+    ]["anyOf"] == [{"additionalProperties": True, "type": "object"}, {"type": "null"}]
 
 
 def test_trace_rejects_authentication_and_workspace_mismatch_before_query(

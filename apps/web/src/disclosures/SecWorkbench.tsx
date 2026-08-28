@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type SubmitEvent } from "rea
 import { publicError } from "../chat/chat-workbench-model";
 import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-api";
 import {
+  diffSecFilings,
   getSecXbrlFacts,
   importSecFiling,
   listSecFilingImports,
@@ -11,6 +12,7 @@ import {
   searchSecFiling,
   syncSecXbrl,
   type SecFiling,
+  type SecFilingDiff,
   type SecFilingImport,
   type SecFilingSearch,
   type SecFilingSection,
@@ -38,7 +40,7 @@ const xbrlSourceNames: Readonly<Record<SecXbrlSourceKind, string>> = {
   raw_instance: "Raw Instance",
 };
 
-type ContentMode = "text" | "xbrl";
+type ContentMode = "text" | "xbrl" | "diff";
 type XbrlSourceMode = "all" | "aggregate" | "raw";
 
 function xbrlSourceKinds(mode: XbrlSourceMode): readonly SecXbrlSourceKind[] {
@@ -85,11 +87,17 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
   const [concept, setConcept] = useState("");
   const [xbrlResult, setXbrlResult] = useState<SecXbrlFactCollection | null>(null);
   const [selectedFactId, setSelectedFactId] = useState<string | null>(null);
+  const [comparisonAccession, setComparisonAccession] = useState("");
+  const [diffSectionQuery, setDiffSectionQuery] = useState("risk factors");
+  const [diffUnit, setDiffUnit] = useState("USD");
+  const [diffScale, setDiffScale] = useState(0);
+  const [diffResult, setDiffResult] = useState<SecFilingDiff | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searching, setSearching] = useState(false);
   const [syncingXbrl, setSyncingXbrl] = useState(false);
   const [loadingXbrl, setLoadingXbrl] = useState(false);
+  const [diffing, setDiffing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reloadImports = useCallback(async (): Promise<void> => {
@@ -142,6 +150,7 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
     setSection(null);
     setXbrlResult(null);
     setSelectedFactId(null);
+    setDiffResult(null);
     try {
       const values = await listSecFilings(workspaceId, {
         asOf: asIso(asOf),
@@ -254,6 +263,44 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
     }
   }
 
+  async function runFilingDiff(event: SubmitEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (
+      selectedFiling === null ||
+      selectedImport?.status !== "ready" ||
+      !comparisonAccession.trim() ||
+      !diffSectionQuery.trim()
+    ) {
+      return;
+    }
+    setDiffing(true);
+    setError(null);
+    setDiffResult(null);
+    try {
+      setDiffResult(
+        await diffSecFilings(
+          workspaceId,
+          selectedFiling.accession,
+          selectedImport.knowledge_base_id,
+          {
+            asOf: asIso(asOf),
+            cik: selectedFiling.cik,
+            form: selectedFiling.form,
+            reportPeriod: selectedFiling.report_date,
+            scale: diffScale,
+            unit: diffUnit.trim(),
+          },
+          comparisonAccession.trim(),
+          diffSectionQuery.trim(),
+        ),
+      );
+    } catch (caught: unknown) {
+      setError(publicError(caught));
+    } finally {
+      setDiffing(false);
+    }
+  }
+
   function toggleForm(form: "10-K" | "10-Q"): void {
     setForms((current) =>
       current.includes(form) ? current.filter((item) => item !== form) : [...current, form],
@@ -267,7 +314,7 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
           <p className="eyebrow">SEC Filing Pipeline</p>
           <h1 id="sec-workbench-title">SEC 申报审查</h1>
         </div>
-        <span className="sec-workbench__profile">Dense v1</span>
+        <span className="sec-workbench__profile">Hybrid v1 · sec-l4-v1</span>
       </header>
 
       {error === null ? null : (
@@ -370,6 +417,7 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                     setSection(null);
                     setXbrlResult(null);
                     setSelectedFactId(null);
+                    setDiffResult(null);
                   }}
                   type="button"
                 >
@@ -455,6 +503,16 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
               >
                 XBRL
               </button>
+              <button
+                aria-selected={contentMode === "diff"}
+                onClick={() => {
+                  setContentMode("diff");
+                }}
+                role="tab"
+                type="button"
+              >
+                Filing Diff
+              </button>
             </div>
 
             {contentMode === "text" ? (
@@ -479,10 +537,38 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                       disabled={selectedImport?.status !== "ready" || searching || !query.trim()}
                       type="submit"
                     >
-                      {searching ? "检索中…" : "Dense 检索"}
+                      {searching ? "检索中…" : "Hybrid 检索"}
                     </button>
                   </div>
                 </form>
+
+                {searchResult?.retrieval_trace === null ||
+                searchResult?.retrieval_trace === undefined ? null : (
+                  <dl className="sec-retrieval-audit" aria-label="Retrieval 审计">
+                    <div>
+                      <dt>Profile</dt>
+                      <dd>{searchResult.retrieval_trace.profile_version}</dd>
+                    </div>
+                    <div>
+                      <dt>Dense / BM25</dt>
+                      <dd>
+                        {searchResult.retrieval_trace.dense_candidate_count} /{" "}
+                        {searchResult.retrieval_trace.lexical_candidate_count}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>RRF / Final</dt>
+                      <dd>
+                        {searchResult.retrieval_trace.fused_candidate_count} /{" "}
+                        {searchResult.hits.length}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Index</dt>
+                      <dd>{searchResult.retrieval_trace.index_versions.join(", ") || "-"}</dd>
+                    </div>
+                  </dl>
+                )}
 
                 <div className="sec-workbench__results">
                   <div className="sec-hit-list" aria-label="检索结果">
@@ -531,7 +617,7 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                   </article>
                 </div>
               </>
-            ) : (
+            ) : contentMode === "xbrl" ? (
               <>
                 <div className="sec-xbrl-toolbar">
                   <div className="sec-xbrl-filters">
@@ -713,6 +799,204 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                   </article>
                 </div>
               </>
+            ) : (
+              <div className="sec-diff-workspace">
+                <form className="sec-diff-toolbar" onSubmit={(event) => void runFilingDiff(event)}>
+                  <label>
+                    对比 Accession
+                    <input
+                      maxLength={20}
+                      onChange={(event) => {
+                        setComparisonAccession(event.currentTarget.value);
+                      }}
+                      pattern="[0-9]{10}-[0-9]{2}-[0-9]{6}"
+                      placeholder="0000320193-22-000108"
+                      required
+                      value={comparisonAccession}
+                    />
+                  </label>
+                  <label>
+                    Section identity
+                    <input
+                      maxLength={500}
+                      onChange={(event) => {
+                        setDiffSectionQuery(event.currentTarget.value);
+                      }}
+                      required
+                      value={diffSectionQuery}
+                    />
+                  </label>
+                  <label>
+                    Unit
+                    <input
+                      maxLength={16}
+                      onChange={(event) => {
+                        setDiffUnit(event.currentTarget.value);
+                      }}
+                      pattern="[A-Z][A-Z0-9_/-]{0,15}"
+                      required
+                      value={diffUnit}
+                    />
+                  </label>
+                  <label>
+                    Scale
+                    <input
+                      max={12}
+                      min={-12}
+                      onChange={(event) => {
+                        setDiffScale(event.currentTarget.valueAsNumber);
+                      }}
+                      required
+                      type="number"
+                      value={diffScale}
+                    />
+                  </label>
+                  <button
+                    className="primary-button"
+                    disabled={
+                      selectedImport?.status !== "ready" ||
+                      diffing ||
+                      !comparisonAccession.trim() ||
+                      !diffSectionQuery.trim() ||
+                      !diffUnit.trim() ||
+                      !Number.isInteger(diffScale) ||
+                      diffScale < -12 ||
+                      diffScale > 12
+                    }
+                    type="submit"
+                  >
+                    {diffing ? "比较中…" : "运行正式 Diff"}
+                  </button>
+                </form>
+
+                {diffResult === null ? (
+                  <p className="sec-workbench__empty">
+                    输入已导入的 base/amendment 或相邻期间 Accession。
+                  </p>
+                ) : diffResult.status !== "ok" ? (
+                  <div className="sec-diff-failure" role="status">
+                    <strong>{diffResult.status}</strong>
+                    <span>{diffResult.error_code ?? "comparison_failed"}</span>
+                  </div>
+                ) : (
+                  <>
+                    <dl className="sec-diff-summary">
+                      <div>
+                        <dt>Relationship</dt>
+                        <dd>{diffResult.relationship}</dd>
+                      </div>
+                      <div>
+                        <dt>Baseline</dt>
+                        <dd>
+                          {diffResult.baseline?.form} · {diffResult.baseline?.report_date}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Target</dt>
+                        <dd>
+                          {diffResult.target?.form} · {diffResult.target?.report_date}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Unchanged facts</dt>
+                        <dd>{diffResult.unchanged_fact_count}</dd>
+                      </div>
+                    </dl>
+
+                    <section className="sec-diff-section">
+                      <div className="sec-workbench__pane-title">
+                        <h2>Section · {diffResult.section_change?.section}</h2>
+                        <span>{diffResult.section_change?.change_kind}</span>
+                      </div>
+                      <div className="sec-diff-columns">
+                        {diffResult.section_change === null
+                          ? null
+                          : (
+                              [
+                                ["Baseline", diffResult.section_change.baseline],
+                                ["Target", diffResult.section_change.target],
+                              ] as const
+                            ).map(([label, side]) => (
+                              <article key={label}>
+                                <strong>{label}</strong>
+                                <p>{side.excerpt}</p>
+                                <footer>
+                                  <a href={side.source_url} rel="noreferrer" target="_blank">
+                                    SEC Source
+                                  </a>
+                                  <span>Chunk {side.chunk_id.slice(0, 8)}</span>
+                                  <span>SHA {side.content_sha256.slice(0, 12)}</span>
+                                </footer>
+                              </article>
+                            ))}
+                      </div>
+                    </section>
+
+                    <section className="sec-diff-facts">
+                      <div className="sec-workbench__pane-title">
+                        <h2>Comparable XBRL facts</h2>
+                        <span>{diffResult.fact_changes.length}</span>
+                      </div>
+                      {diffResult.fact_changes.length === 0 ? (
+                        <p className="sec-workbench__empty">筛选范围内没有发生变化的事实。</p>
+                      ) : (
+                        <div>
+                          {diffResult.fact_changes.map((change) => (
+                            <article
+                              key={`${change.taxonomy}:${change.concept}:${change.period_bucket}:${JSON.stringify(change.dimensions)}`}
+                            >
+                              <header>
+                                <strong>
+                                  {change.taxonomy}:{change.concept}
+                                </strong>
+                                <span>{change.change_kind}</span>
+                              </header>
+                              <dl>
+                                <div>
+                                  <dt>Baseline</dt>
+                                  <dd>
+                                    {change.baseline?.value ?? "-"} {change.baseline?.unit ?? ""}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Target</dt>
+                                  <dd>
+                                    {change.target?.value ?? "-"} {change.target?.unit ?? ""}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Period</dt>
+                                  <dd>{change.period_bucket}</dd>
+                                </div>
+                              </dl>
+                              <footer>
+                                {change.baseline === null ? null : (
+                                  <a
+                                    href={change.baseline.source_url}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    Baseline citation
+                                  </a>
+                                )}
+                                {change.target === null ? null : (
+                                  <a
+                                    href={change.target.source_url}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    Target citation
+                                  </a>
+                                )}
+                              </footer>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </>
+                )}
+              </div>
             )}
           </section>
         </div>

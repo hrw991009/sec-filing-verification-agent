@@ -1,18 +1,26 @@
-"""Application services for locked filing import and Dense content reads."""
+"""Application services for locked filing import and authorized content reads."""
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
+from typing import Protocol
 from uuid import UUID, uuid5
 
 from industry_platform.modules.disclosures.domain import (
+    SEC_DENSE_RETRIEVAL_PROFILE_VERSION,
+    SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+    SEC_IDENTITY_RERANKER_VERSION,
     SecFilingContentError,
+    SecFilingContentPreparation,
     SecFilingContentStatus,
     SecFilingDocumentKind,
+    SecFilingRetrievalTrace,
+    SecFilingSearchHit,
     SecFilingSearchResult,
     SecFilingSection,
     SecFilingSnapshotStatus,
@@ -30,7 +38,13 @@ from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.ingestion.adapters.embedding import embed_query_text
 from industry_platform.modules.knowledge.domain import ImportKnowledgeTextSource
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
-from industry_platform.modules.retrieval.ports import DenseIndexPort, DenseSearchDependencyError
+from industry_platform.modules.retrieval.domain import HYBRID_RRF_K, reciprocal_rank_fusion
+from industry_platform.modules.retrieval.ports import (
+    DenseIndexPort,
+    DenseSearchDependencyError,
+    LexicalIndexPort,
+    LexicalSearchDependencyError,
+)
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 SEC_IMPORT_FILE_NAMESPACE = UUID("4e129542-97e1-4d72-9702-0ff1c21d37aa")
@@ -70,6 +84,11 @@ _BLOCK_TAGS = frozenset(
     }
 )
 _SKIPPED_TAGS = frozenset({"script", "style", "noscript", "template", "ix:hidden"})
+_HYBRID_CANDIDATE_LIMIT = 20
+_FINAL_RESULT_LIMIT = 5
+_MAX_RESULTS_PER_SECTION = 2
+_QUERY_REWRITE_VERSION = "identity-query-v1"
+_DIVERSITY_POLICY_VERSION = "section-cap-2-v1"
 
 
 def utc_now() -> datetime:
@@ -188,10 +207,40 @@ class SecFilingImportService:
         return await self.repository.get_import(scope, import_id)
 
 
+class SecFilingReranker(Protocol):
+    @property
+    def version(self) -> str: ...
+
+    async def rerank(
+        self,
+        query: str,
+        hits: tuple[SecFilingSearchHit, ...],
+        *,
+        limit: int,
+    ) -> tuple[SecFilingSearchHit, ...]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class IdentitySecFilingReranker:
+    version: str = SEC_IDENTITY_RERANKER_VERSION
+
+    async def rerank(
+        self,
+        query: str,
+        hits: tuple[SecFilingSearchHit, ...],
+        *,
+        limit: int,
+    ) -> tuple[SecFilingSearchHit, ...]:
+        del query
+        return hits[:limit]
+
+
 @dataclass(frozen=True, slots=True)
 class SecFilingContentService:
     repository: SecFilingContentRepository
     dense_index: DenseIndexPort
+    lexical_index: LexicalIndexPort | None = None
+    reranker: SecFilingReranker = field(default_factory=IdentitySecFilingReranker)
 
     async def search(
         self,
@@ -210,6 +259,8 @@ class SecFilingContentService:
             return SecFilingSearchResult(
                 status=SecFilingContentStatus.PERMISSION_DENIED,
                 accession=financial_scope.accession,
+                retrieval_profile_version=self.retrieval_profile_version,
+                retrieval_trace=self._empty_trace(financial_scope.as_of),
             )
         return await self.search_imported(
             scope,
@@ -238,12 +289,138 @@ class SecFilingContentService:
             return SecFilingSearchResult(
                 status=preparation.status,
                 accession=accession,
+                retrieval_profile_version=self.retrieval_profile_version,
                 error_code=(
                     "filing_content_reload_failed"
                     if preparation.status is SecFilingContentStatus.DEPENDENCY_FAILED
                     else None
                 ),
+                retrieval_trace=self._empty_trace(as_of),
             )
+        imported = preparation.import_record
+        if imported is None:
+            raise AssertionError("Ready SEC content preparation lost its import")
+        lexical_index = self.lexical_index
+        if lexical_index is None:
+            return await self._search_dense(
+                scope,
+                preparation=preparation,
+                query=query,
+                accession=accession,
+            )
+        try:
+            dense_candidates, lexical_candidates = await asyncio.gather(
+                self.dense_index.search(
+                    embed_query_text(query),
+                    workspace_id=scope.workspace_id,
+                    knowledge_base_ids=(imported.knowledge_base_id,),
+                    document_version_ids=(imported.document_version_id,),
+                    limit=_HYBRID_CANDIDATE_LIMIT,
+                ),
+                lexical_index.search(
+                    query,
+                    workspace_id=scope.workspace_id,
+                    knowledge_base_ids=(imported.knowledge_base_id,),
+                    document_version_ids=(imported.document_version_id,),
+                    limit=_HYBRID_CANDIDATE_LIMIT,
+                ),
+            )
+        except (DenseSearchDependencyError, LexicalSearchDependencyError) as error:
+            return SecFilingSearchResult(
+                status=SecFilingContentStatus.DEPENDENCY_FAILED,
+                accession=accession,
+                retrieval_profile_version=SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+                error_code=error.code,
+                retrieval_trace=self._empty_trace(as_of),
+            )
+        candidates = reciprocal_rank_fusion(
+            dense_candidates,
+            lexical_candidates,
+            limit=_HYBRID_CANDIDATE_LIMIT,
+        )
+        trace = SecFilingRetrievalTrace(
+            profile_version=SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+            dense_candidate_count=len(dense_candidates),
+            lexical_candidate_count=len(lexical_candidates),
+            fused_candidate_count=len(candidates),
+            rrf_k=HYBRID_RRF_K,
+            reranker_version=self.reranker.version,
+            query_rewrite_version=_QUERY_REWRITE_VERSION,
+            dense_candidate_limit=_HYBRID_CANDIDATE_LIMIT,
+            lexical_candidate_limit=_HYBRID_CANDIDATE_LIMIT,
+            final_limit=_FINAL_RESULT_LIMIT,
+            diversity_policy_version=_DIVERSITY_POLICY_VERSION,
+            as_of=as_of,
+        )
+        if not candidates:
+            return SecFilingSearchResult(
+                status=SecFilingContentStatus.NO_RESULT,
+                accession=accession,
+                retrieval_profile_version=SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+                retrieval_trace=trace,
+            )
+        hits = await self.repository.resolve_candidates(
+            scope,
+            preparation=preparation,
+            candidates=candidates,
+        )
+        if not hits:
+            return SecFilingSearchResult(
+                status=SecFilingContentStatus.NO_RESULT,
+                accession=accession,
+                retrieval_profile_version=SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+                retrieval_trace=trace,
+            )
+        reranked = await self.reranker.rerank(query, hits, limit=_HYBRID_CANDIDATE_LIMIT)
+        _validate_reranked_hits(hits, reranked)
+        selected = _select_diverse_sections(reranked, limit=_FINAL_RESULT_LIMIT)
+        trace = replace(
+            trace,
+            active_source_versions=tuple(dict.fromkeys(hit.source_version for hit in selected)),
+            index_versions=tuple(dict.fromkeys(hit.index_version for hit in selected)),
+        )
+        return SecFilingSearchResult(
+            status=SecFilingContentStatus.OK,
+            accession=accession,
+            retrieval_profile_version=SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+            hits=selected,
+            retrieval_trace=trace,
+        )
+
+    @property
+    def retrieval_profile_version(self) -> str:
+        return (
+            SEC_HYBRID_RETRIEVAL_PROFILE_VERSION
+            if self.lexical_index is not None
+            else SEC_DENSE_RETRIEVAL_PROFILE_VERSION
+        )
+
+    def _empty_trace(self, as_of: datetime) -> SecFilingRetrievalTrace | None:
+        if self.lexical_index is None:
+            return None
+        return SecFilingRetrievalTrace(
+            profile_version=SEC_HYBRID_RETRIEVAL_PROFILE_VERSION,
+            dense_candidate_count=0,
+            lexical_candidate_count=0,
+            fused_candidate_count=0,
+            rrf_k=HYBRID_RRF_K,
+            reranker_version=self.reranker.version,
+            query_rewrite_version=_QUERY_REWRITE_VERSION,
+            dense_candidate_limit=_HYBRID_CANDIDATE_LIMIT,
+            lexical_candidate_limit=_HYBRID_CANDIDATE_LIMIT,
+            final_limit=_FINAL_RESULT_LIMIT,
+            diversity_policy_version=_DIVERSITY_POLICY_VERSION,
+            as_of=as_of,
+        )
+
+    async def _search_dense(
+        self,
+        scope: WorkspaceScope,
+        *,
+        preparation: SecFilingContentPreparation,
+        query: str,
+        accession: str,
+    ) -> SecFilingSearchResult:
         imported = preparation.import_record
         if imported is None:
             raise AssertionError("Ready SEC content preparation lost its import")
@@ -253,7 +430,7 @@ class SecFilingContentService:
                 workspace_id=scope.workspace_id,
                 knowledge_base_ids=(imported.knowledge_base_id,),
                 document_version_ids=(imported.document_version_id,),
-                limit=5,
+                limit=_FINAL_RESULT_LIMIT,
             )
         except DenseSearchDependencyError as error:
             return SecFilingSearchResult(
@@ -325,6 +502,36 @@ class SecFilingContentService:
             document_version_id=document_version_id,
             chunk_id=chunk_id,
         )
+
+
+def _select_diverse_sections(
+    hits: tuple[SecFilingSearchHit, ...],
+    *,
+    limit: int,
+) -> tuple[SecFilingSearchHit, ...]:
+    selected: list[SecFilingSearchHit] = []
+    section_counts: dict[str, int] = {}
+    for hit in hits:
+        section_key = " ".join(hit.section.casefold().split())
+        if section_counts.get(section_key, 0) >= _MAX_RESULTS_PER_SECTION:
+            continue
+        selected.append(hit)
+        section_counts[section_key] = section_counts.get(section_key, 0) + 1
+        if len(selected) == limit:
+            break
+    return tuple(selected)
+
+
+def _validate_reranked_hits(
+    authorized: tuple[SecFilingSearchHit, ...],
+    reranked: tuple[SecFilingSearchHit, ...],
+) -> None:
+    authorized_ids = {(hit.document_version_id, hit.chunk_id) for hit in authorized}
+    reranked_ids = [(hit.document_version_id, hit.chunk_id) for hit in reranked]
+    if len(reranked_ids) != len(set(reranked_ids)) or not set(reranked_ids).issubset(
+        authorized_ids
+    ):
+        raise ValueError("SEC reranker introduced an unauthorized candidate")
 
 
 class _FilingHtmlTextExtractor(HTMLParser):

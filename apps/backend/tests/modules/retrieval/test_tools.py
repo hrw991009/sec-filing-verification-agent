@@ -13,8 +13,15 @@ from industry_platform.modules.agent_runtime.context import (
 )
 from industry_platform.modules.agent_runtime.domain import RunBudget
 from industry_platform.modules.financial_verification.domain import (
+    FinancialEvidenceOperand,
     FinancialForm,
+    FinancialPeriodKind,
     FinancialScope,
+    sec_xbrl_evidence_ref,
+)
+from industry_platform.modules.financial_verification.ports import (
+    FinancialOperandResolution,
+    FinancialOperandResolutionStatus,
 )
 from industry_platform.modules.financial_verification.tool import FinanceCalculateTool
 from industry_platform.modules.identity.domain import AuthenticatedWorkspace
@@ -49,6 +56,20 @@ RUN_ID = UUID("88888888-8888-4888-8888-888888888888")
 STEP_ID = UUID("99999999-9999-4999-8999-999999999999")
 NOW = datetime(2023, 11, 3, 12, tzinfo=UTC)
 CHUNK_HASH = "a" * 64
+FIRST_FACT_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+SECOND_FACT_ID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+FIRST_XBRL_EVIDENCE_ID = sec_xbrl_evidence_ref(
+    workspace_id=WORKSPACE_ID,
+    fact_id=FIRST_FACT_ID,
+    as_of=NOW,
+    authorization_role="member",
+)
+SECOND_XBRL_EVIDENCE_ID = sec_xbrl_evidence_ref(
+    workspace_id=WORKSPACE_ID,
+    fact_id=SECOND_FACT_ID,
+    as_of=NOW,
+    authorization_role="member",
+)
 
 
 def financial_scope() -> FinancialScope:
@@ -130,6 +151,55 @@ class OperandRepositoryStub:
         assert isinstance(values, tuple)
         self.received.append(values)
         return self.status
+
+
+@dataclass(slots=True)
+class FormalOperandRepositoryStub:
+    resolution: FinancialOperandResolution
+    call_count: int = 0
+
+    async def resolve(self, scope: WorkspaceScope, **kwargs: object) -> FinancialOperandResolution:
+        assert scope.workspace_id == WORKSPACE_ID
+        assert kwargs["knowledge_base_ids"] == (KNOWLEDGE_BASE_ID,)
+        assert kwargs["financial_scope"] == financial_scope()
+        self.call_count += 1
+        return self.resolution
+
+
+def xbrl_operand(
+    *,
+    evidence_ref: UUID,
+    fact_id: UUID,
+    value: str,
+    concept: str,
+    scale: int,
+    dimensions: tuple[tuple[str, str], ...] = (),
+) -> FinancialEvidenceOperand:
+    return FinancialEvidenceOperand(
+        evidence_ref=evidence_ref,
+        source_fact_id=fact_id,
+        value=value,
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form=FinancialForm.TEN_K,
+        report_period=date(2023, 9, 30),
+        unit="USD",
+        scale=scale,
+        period_kind=FinancialPeriodKind.DURATION,
+        instant=None,
+        start_date=date(2022, 10, 1),
+        end_date=date(2023, 9, 30),
+        context_id="D2023",
+        dimensions=dimensions,
+        taxonomy="us-gaap",
+        concept=concept,
+        is_custom=False,
+        source_kind="raw_instance",
+        source_version="sec-xbrl-raw-instance-v1",
+        source_available_at=NOW,
+        amendment_relation_status="not_amendment",
+        base_accession=None,
+    )
 
 
 @pytest.mark.asyncio
@@ -248,3 +318,172 @@ async def test_finance_tool_returns_stable_error_for_invalid_operator_arity() ->
         )
 
     assert caught.value.code == "calculation_invalid"
+
+
+@pytest.mark.asyncio
+async def test_finance_tool_calculates_from_authorized_xbrl_evidence_with_reconciliation() -> None:
+    catalog = load_sec_fixture_catalog(MANIFEST, repository_root=REPOSITORY_ROOT)
+    legacy = OperandRepositoryStub()
+    formal = FormalOperandRepositoryStub(
+        FinancialOperandResolution(
+            FinancialOperandResolutionStatus.OK,
+            operands=(
+                xbrl_operand(
+                    evidence_ref=FIRST_XBRL_EVIDENCE_ID,
+                    fact_id=FIRST_FACT_ID,
+                    value="100",
+                    concept="Revenue",
+                    scale=6,
+                ),
+                xbrl_operand(
+                    evidence_ref=SECOND_XBRL_EVIDENCE_ID,
+                    fact_id=SECOND_FACT_ID,
+                    value="50000000",
+                    concept="OtherIncome",
+                    scale=0,
+                ),
+            ),
+        )
+    )
+    tool = FinanceCalculateTool(legacy, catalog, formal)  # type: ignore[arg-type]
+    registry = ToolRegistry((tool,))
+    action = ToolAction(
+        1,
+        "finance.calculate",
+        "v1",
+        {
+            "operator": "add",
+            "operands": [
+                {
+                    "value": "100",
+                    "evidence_ref": str(FIRST_XBRL_EVIDENCE_ID),
+                    "source_fact_id": str(FIRST_FACT_ID),
+                },
+                {
+                    "value": "50000000",
+                    "evidence_ref": str(SECOND_XBRL_EVIDENCE_ID),
+                    "source_fact_id": str(SECOND_FACT_ID),
+                },
+            ],
+            "decimal_places": 2,
+            "rounding_mode": "half_even",
+        },
+    )
+
+    result = await RegistryToolExecutor(registry, clock=lambda: NOW).execute(
+        prepare(registry, action), runtime_context()
+    )
+
+    assert formal.call_count == 1
+    assert legacy.received == []
+    assert '"operand_source":"sec_xbrl_evidence"' in result.observation.model_text
+    assert '"status":"consistent"' in result.observation.model_text
+    assert '"result":"150.00"' in result.observation.model_text
+    assert '"formula":"100 + 50.000000"' in result.observation.model_text
+    assert result.observation.sources[0].locator.startswith("sec://financial-calculations/")
+
+
+@pytest.mark.asyncio
+async def test_finance_tool_returns_typed_not_comparable_without_calculating() -> None:
+    catalog = load_sec_fixture_catalog(MANIFEST, repository_root=REPOSITORY_ROOT)
+    legacy = OperandRepositoryStub()
+    formal = FormalOperandRepositoryStub(
+        FinancialOperandResolution(
+            FinancialOperandResolutionStatus.OK,
+            operands=(
+                xbrl_operand(
+                    evidence_ref=FIRST_XBRL_EVIDENCE_ID,
+                    fact_id=FIRST_FACT_ID,
+                    value="100",
+                    concept="Revenue",
+                    scale=6,
+                ),
+                xbrl_operand(
+                    evidence_ref=SECOND_XBRL_EVIDENCE_ID,
+                    fact_id=SECOND_FACT_ID,
+                    value="90",
+                    concept="Revenue",
+                    scale=6,
+                    dimensions=(("dei:LegalEntityAxis", "aapl:AppleIncMember"),),
+                ),
+            ),
+        )
+    )
+    tool = FinanceCalculateTool(legacy, catalog, formal)  # type: ignore[arg-type]
+    registry = ToolRegistry((tool,))
+    action = ToolAction(
+        1,
+        "finance.calculate",
+        "v1",
+        {
+            "operator": "ratio",
+            "operands": [
+                {
+                    "value": "100",
+                    "evidence_ref": str(FIRST_XBRL_EVIDENCE_ID),
+                    "source_fact_id": str(FIRST_FACT_ID),
+                },
+                {
+                    "value": "90",
+                    "evidence_ref": str(SECOND_XBRL_EVIDENCE_ID),
+                    "source_fact_id": str(SECOND_FACT_ID),
+                },
+            ],
+            "decimal_places": 2,
+            "rounding_mode": "half_even",
+        },
+    )
+
+    result = await RegistryToolExecutor(registry, clock=lambda: NOW).execute(
+        prepare(registry, action), runtime_context()
+    )
+
+    assert legacy.received == []
+    assert '"status":"no_result"' in result.observation.model_text
+    assert '"error_code":"financial_reconciliation_not_comparable"' in (
+        result.observation.model_text
+    )
+    assert result.observation.sources == ()
+
+
+@pytest.mark.asyncio
+async def test_finance_tool_does_not_downgrade_unresolved_formal_operands_to_fixture() -> None:
+    catalog = load_sec_fixture_catalog(MANIFEST, repository_root=REPOSITORY_ROOT)
+    legacy = OperandRepositoryStub()
+    formal = FormalOperandRepositoryStub(
+        FinancialOperandResolution(FinancialOperandResolutionStatus.NO_RESULT)
+    )
+    tool = FinanceCalculateTool(legacy, catalog, formal)  # type: ignore[arg-type]
+    registry = ToolRegistry((tool,))
+    action = ToolAction(
+        1,
+        "finance.calculate",
+        "v1",
+        {
+            "operator": "add",
+            "operands": [
+                {
+                    "value": "100",
+                    "evidence_ref": str(FIRST_XBRL_EVIDENCE_ID),
+                    "source_fact_id": str(FIRST_FACT_ID),
+                },
+                {
+                    "value": "50",
+                    "evidence_ref": str(SECOND_XBRL_EVIDENCE_ID),
+                    "source_fact_id": str(SECOND_FACT_ID),
+                },
+            ],
+            "decimal_places": 2,
+            "rounding_mode": "half_even",
+        },
+    )
+
+    result = await RegistryToolExecutor(registry, clock=lambda: NOW).execute(
+        prepare(registry, action), runtime_context()
+    )
+
+    assert formal.call_count == 1
+    assert legacy.received == []
+    assert '"status":"no_result"' in result.observation.model_text
+    assert '"error_code":"financial_operand_not_authorized"' in result.observation.model_text
+    assert result.observation.sources == ()

@@ -267,7 +267,7 @@ test("navigates a locked SEC filing from accession to exact source chunk", async
   await expect(page.getByText("可检索", { exact: true })).toBeVisible();
 
   await page.getByLabel("申报内容检索").fill("net sales");
-  await page.getByRole("button", { name: "Dense 检索" }).click();
+  await page.getByRole("button", { name: "Hybrid 检索" }).click();
   await page.getByRole("button", { name: /Net Sales/u }).click();
   await expect(
     page.getByText("Net sales increased by eight percent during the fiscal year."),

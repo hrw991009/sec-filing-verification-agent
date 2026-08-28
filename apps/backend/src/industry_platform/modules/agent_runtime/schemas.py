@@ -94,6 +94,7 @@ class ContextSourceResponse(StrictAgentTraceModel):
     source_scope: str | None
     relevance_score: float | None
     feedback_score: int | None
+    source_identity: dict[str, object] | None
 
 
 class ContextBudgetResponse(StrictAgentTraceModel):
@@ -216,6 +217,9 @@ def agent_trace_response(trace: AgentTrace) -> AgentTraceResponse:
                         source_scope=source.source_scope,
                         relevance_score=source.relevance_score,
                         feedback_score=source.feedback_score,
+                        source_identity=(
+                            None if source.source_identity is None else dict(source.source_identity)
+                        ),
                     )
                     for source in manifest.sources
                 ],

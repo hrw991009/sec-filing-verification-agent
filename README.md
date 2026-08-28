@@ -4,16 +4,17 @@
 
 当前状态：Day 1～Day 4 已完成；Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)，分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。
 
-Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树进一步交付只暴露五个 SEC read Tool 的共享 `ToolL2Runtime`/Harness profile，以及 18 contract + 6 closeout regression 的 `sec-source-v1` manifest、scorer 和确定性报告。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 为 `implemented_pending_verification`；D6-02/D6-06 因 `submissions.zip`/`companyfacts.zip` snapshot、published/coverage watermark 与 post-watermark gap 尚缺而保持 `thin_slice`。报告如实为 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 未通过；live SEC、分支/main CI 和所有者验收也未完成。本地 replay 与真实依赖门禁不能代替这些证据；D5-08/D5-09 浏览器 DoD 同样没有关闭。Hybrid Retrieval、Verifier/Monitor、后台审批超时扫描以及跨刷新/Worker 重启组合门仍未实现。D1-09 的 6 组参考仓凭据候选仍为 `open`，Day 4 核心合集 85% 覆盖率仍须补到 90%；两项都阻断 Day 10 发布标签。
+Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`，功能 head [`7a4766b`](https://github.com/hrw991009/industry-intelligence-platform/commit/7a4766b6d4c4ad764b9e095b2d0f03d8ec96c143) 的 push CI [`33053621106`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053621106)、PR CI [`33053623731`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053623731) 和合并提交 [`84a7945`](https://github.com/hrw991009/industry-intelligence-platform/commit/84a7945ed769d63974602b5c20984e2f4ebf0e93) 的 main CI [`33054136204`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33054136204) 均通过。`sec-source-v1` 仍为 `22/24`，D6-02/D6-06 的 bulk snapshot/watermark/post-gap 与 live SEC 债务没有关闭；这些未完成项已改为 Day 10 发布前硬门，不从原评测分母删除。Day 7 Step 1 已实现 `hybrid-v1` 与 filing text/XBRL fact Evidence locator，提交 `2944591` 的分支 CI `33135122319` 通过；D7-01 为 `implemented_pending_verification`，D7-02 因 ranking、table/cell locator 与 Citation 100% 评测未关闭保持 `thin_slice`。Step 2 的 `financial-context-v1` 已提交为 `d3c88d5`，其分支 CI `33140371558` 的 7 个 Job 中 6 个通过，PostgreSQL Job 因冻结 `source_identity` 被 `asdict()` 深拷贝而失败；当前工作树已用浅层投影正面修复并补回归测试，尚无新的远端 CI。项目所有者已继续 Step 3；当前工作树把正式 XBRL fact 通过 PostgreSQL 授权重载接入既有 `finance.calculate@v1`，实现 Decimal scale propagation、percentage/percent change、`financial-reconciliation-v1` typed result 和可重算 Calculation Evidence，因此 D7-03～D7-05 为 `implemented_pending_verification`。本机 Docker 未运行，新增真实 PostgreSQL operand 测试未执行，当前 Step 3 也未提交；D5-08/D5-09 浏览器 DoD、D1-09 的 6 组参考仓凭据候选和 Day 4 核心合集 90% 覆盖率债务继续保留。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.0.9（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.1.3（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
 - [ADR 0007：SEC 披露财务事实核验边界](docs/adr/0007-sec-disclosure-financial-fact-verification.md)
 - [SEC Agent 评测计划](docs/sec-agent-evaluation.md)
+- [SEC Filing Retrieval 与财务计算设计](docs/sec-retrieval-design.md)
 - [Day 1 学习日志](docs/learning-log/day-1.md)
 - [Day 2 Agent Runtime v0](docs/agent-runtime.md)
 - [Day 2 学习日志](docs/learning-log/day-2.md)
@@ -33,6 +34,7 @@ Day 6 Step 1～4 已在当前分支基线中实现；Step 5 当前工作树进�
 - [Day 4 运行与回滚手册](docs/runbooks/day-4-memory-research.md)
 - [Day 5 Knowledge 与 SEC Fixture L4 执行日志](docs/learning-log/day-5.md)
 - [Day 6 SEC 官方披露与 Point-in-Time 五步执行计划](docs/learning-log/day-6.md)
+- [Day 7 Filing Hybrid Retrieval、财务计算与核对五步计划](docs/learning-log/day-7.md)
 - [Research L4 Checkpoint 与 HITL 合同](docs/research-checkpoint-contract.md)
 - [Day 5 Research L4 运行与回滚手册](docs/runbooks/day-5-research-l4.md)
 - [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
@@ -210,6 +212,14 @@ pnpm run dev:web
 ```
 
 浏览器打开 `https://localhost:5173`。本地证书由 Vite 生成，浏览器首次访问会提示确认自签名证书。Web 将 `/api` 代理到 `http://127.0.0.1:8000`。
+
+如果关闭终端后 Vite 进程仍在占用 `5173` 端口，可在 PowerShell 中按监听端口查找并停止残留进程：
+
+```powershell
+Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  ForEach-Object { Stop-Process -Id $_ }
+```
 
 API 基本检查：
 

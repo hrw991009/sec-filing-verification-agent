@@ -1,0 +1,242 @@
+{
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "sec-tool-v1",
+  "dataset_version": "v1",
+  "scorer_version": "sec-tool-scorer-v1",
+  "manifest_sha256": "64b55978b122bf043858f884a360b4c72c142ddfb7c56e26ad8d4b80f4068107",
+  "case_count": 10,
+  "run_count": 30,
+  "execution_boundary": {
+    "evidence_layer": "deterministic_contract",
+    "deterministic_contract_executed": true,
+    "real_dependencies_executed": false,
+    "live_sec_executed": false,
+    "live_model_executed": false,
+    "browser_e2e_executed": false,
+    "paired_bilingual_executed": false,
+    "branch_ci_passed": false,
+    "pr_ci_passed": false,
+    "main_ci_passed": false,
+    "owner_reviewed": false,
+    "limitations": [
+      "Frozen observations validate scorer and production contracts, not current model quality.",
+      "No live SEC, public benchmark, paired bilingual, or browser end-to-end run is included.",
+      "Remote branch, PR, main CI and owner review remain external closeout evidence."
+    ]
+  },
+  "strategy_scores": {
+    "a0": {
+      "strategy": "a0",
+      "metrics": {
+        "case_accuracy": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "simple_accuracy": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "complex_accuracy": {
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1.0
+        },
+        "no_answer_abstention": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "citation_resolvability": {
+          "numerator": 8,
+          "denominator": 8,
+          "value": 1.0
+        },
+        "calculation_lineage": {
+          "numerator": 0,
+          "denominator": 2,
+          "value": 0.0
+        },
+        "tool_surface_adherence": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "budget_adherence": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "wrong_company_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        },
+        "wrong_period_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        },
+        "wrong_accession_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        }
+      },
+      "total_steps": 10,
+      "total_tokens": 2200,
+      "total_cost_micro_usd": 252,
+      "total_latency_ms": 342
+    },
+    "a1": {
+      "strategy": "a1",
+      "metrics": {
+        "case_accuracy": {
+          "numerator": 5,
+          "denominator": 10,
+          "value": 0.5
+        },
+        "simple_accuracy": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "complex_accuracy": {
+          "numerator": 1,
+          "denominator": 6,
+          "value": 0.166667
+        },
+        "no_answer_abstention": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "citation_resolvability": {
+          "numerator": 5,
+          "denominator": 8,
+          "value": 0.625
+        },
+        "calculation_lineage": {
+          "numerator": 0,
+          "denominator": 2,
+          "value": 0.0
+        },
+        "tool_surface_adherence": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "budget_adherence": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "wrong_company_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        },
+        "wrong_period_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        },
+        "wrong_accession_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        }
+      },
+      "total_steps": 39,
+      "total_tokens": 5725,
+      "total_cost_micro_usd": 1047,
+      "total_latency_ms": 1171
+    },
+    "a2": {
+      "strategy": "a2",
+      "metrics": {
+        "case_accuracy": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "simple_accuracy": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "complex_accuracy": {
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1.0
+        },
+        "no_answer_abstention": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "citation_resolvability": {
+          "numerator": 8,
+          "denominator": 8,
+          "value": 1.0
+        },
+        "calculation_lineage": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "tool_surface_adherence": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "budget_adherence": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1.0
+        },
+        "wrong_company_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        },
+        "wrong_period_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        },
+        "wrong_accession_rate": {
+          "numerator": 0,
+          "denominator": 10,
+          "value": 0.0
+        }
+      },
+      "total_steps": 37,
+      "total_tokens": 5935,
+      "total_cost_micro_usd": 1120,
+      "total_latency_ms": 1214
+    }
+  },
+  "comparison": {
+    "a2_complex_gain_over_a1": 0.833333,
+    "a2_simple_degradation_from_a1": 0.0,
+    "a2_cost_increase_micro_usd": 73,
+    "a2_latency_increase_ms": 43
+  },
+  "deterministic_gate_passed": true,
+  "deterministic_blockers": [],
+  "day7_closeout_ready": false,
+  "closeout_blockers": [
+    "real_dependencies_not_executed",
+    "live_sec_not_executed",
+    "live_model_not_executed",
+    "browser_e2e_not_executed",
+    "paired_bilingual_not_executed",
+    "branch_ci_not_passed",
+    "pr_ci_not_passed",
+    "main_ci_not_passed",
+    "owner_review_missing"
+  ]
+}

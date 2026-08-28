@@ -15,6 +15,7 @@ from industry_platform.modules.disclosures.adapters.sec_edgar import (
     FrozenSecEdgarAdapter,
     UnavailableSecEdgarAdapter,
 )
+from industry_platform.modules.disclosures.diff import SecFilingDiffResult, SecFilingDiffStatus
 from industry_platform.modules.disclosures.domain import (
     SecAmendmentPolicy,
     SecFilerResolution,
@@ -31,6 +32,7 @@ from industry_platform.modules.disclosures.resources import (
     get_disclosure_resources,
 )
 from industry_platform.modules.disclosures.service import SecFilerResolutionService
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import (
     AccessToken,
     AuthenticatedPrincipal,
@@ -80,6 +82,7 @@ class StubResources:
     filing_import_service: object | None = None
     filing_content_service: object | None = None
     xbrl_service: object | None = None
+    filing_diff_service: object | None = None
 
 
 @dataclass(slots=True)
@@ -151,6 +154,28 @@ class TrackingXbrlService:
     ) -> SecXbrlFactResult:
         self.query_calls.append((scope, accession, knowledge_base_ids[0], as_of, query))
         return SecXbrlFactResult(SecFilingContentStatus.NO_RESULT, accession)
+
+
+@dataclass(slots=True)
+class TrackingDiffService:
+    calls: list[tuple[WorkspaceScope, FinancialScope, str, str]] = field(default_factory=list)
+
+    async def compare(
+        self,
+        scope: WorkspaceScope,
+        *,
+        financial_scope: FinancialScope,
+        comparison_accession: str,
+        section_query: str,
+        **_values: object,
+    ) -> SecFilingDiffResult:
+        self.calls.append((scope, financial_scope, comparison_accession, section_query))
+        return SecFilingDiffResult(
+            status=SecFilingDiffStatus.NOT_COMPARABLE,
+            requested_accession=financial_scope.accession,
+            comparison_accession=comparison_accession,
+            error_code="filing_scope_not_comparable",
+        )
 
 
 def principal() -> AuthenticatedPrincipal:
@@ -376,3 +401,43 @@ def test_authenticated_workspace_can_sync_and_query_typed_xbrl_facts(
     }
     assert service.query_calls[0][4].source_kinds == (SecXbrlSourceKind.COMPANYFACTS_AGGREGATE,)
     assert denied.status_code == 403
+
+
+def test_authenticated_workspace_diff_uses_explicit_financial_scope(
+    test_settings: Settings,
+) -> None:
+    service = TrackingDiffService()
+    accession = "0000320193-23-000106"
+    comparison_accession = "0000320193-20-000096"
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources,
+        StubResources(filing_diff_service=service),
+    )
+    with TestClient(application, base_url="https://localhost") as client:
+        response = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings/{accession}/diff",
+            headers=headers(),
+            params={
+                "knowledge_base_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+                "comparison_accession": comparison_accession,
+                "cik": "0000320193",
+                "form": "10-K",
+                "report_period": "2023-09-30",
+                "as_of": "2026-08-26T04:00:00Z",
+                "unit": "USD",
+                "scale": 0,
+                "section_query": "risk factors",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["status"] == "not_comparable"
+    assert response.json()["fact_changes"] == []
+    assert service.calls[0][0] == WorkspaceScope(WORKSPACE_ID, USER_ID, "member")
+    assert service.calls[0][1].accession == accession
+    assert service.calls[0][2:] == (comparison_accession, "risk factors")

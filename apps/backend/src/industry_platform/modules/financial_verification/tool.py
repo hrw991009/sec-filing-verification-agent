@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
+from typing import Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,12 +14,24 @@ from industry_platform.modules.agent_runtime.context import TrustedRuntimeContex
 from industry_platform.modules.agent_runtime.domain import AGENT_RUNTIME_SCHEMA_VERSION
 from industry_platform.modules.financial_verification.domain import (
     FinancialCalculation,
+    FinancialEvidenceOperand,
     FinancialOperand,
     FinancialOperator,
+    FinancialReconciliationStatus,
     FinancialRoundingMode,
     calculate_financial_result,
+    reconcile_financial_operands,
 )
-from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
+from industry_platform.modules.financial_verification.ports import (
+    FinancialOperandReference,
+    FinancialOperandRepository,
+    FinancialOperandResolutionStatus,
+)
+from industry_platform.modules.financial_verification.schemas import (
+    FinancialEvidenceOperandPayload,
+    FinancialReconciliationPayload,
+    FinancialScopePayload,
+)
 from industry_platform.modules.retrieval.domain import KnowledgeSearchStatus
 from industry_platform.modules.retrieval.fixtures import SecFixtureCatalog
 from industry_platform.modules.retrieval.ports import KnowledgeCandidateRepository
@@ -49,12 +62,16 @@ class FinanceOperandPayload(BaseModel):
     evidence_ref: str = Field(
         pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     )
+    source_fact_id: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    )
 
 
 class FinanceCalculateInput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    operator: str = Field(pattern=r"^(add|subtract|ratio|percent_change)$")
+    operator: str = Field(pattern=r"^(add|subtract|ratio|percentage|percent_change)$")
     operands: list[FinanceOperandPayload] = Field(min_length=2, max_length=8)
     decimal_places: int = Field(default=2, ge=0, le=12)
     rounding_mode: str = Field(default="half_even", pattern=r"^half_even$")
@@ -75,6 +92,9 @@ class FinanceCalculateOutput(BaseModel):
     scale: int | None
     evidence_refs: list[UUID]
     error_code: str | None = None
+    operand_source: Literal["legacy_fixture", "sec_xbrl_evidence"] | None = None
+    resolved_operands: list[FinancialEvidenceOperandPayload] = Field(default_factory=list)
+    reconciliation: FinancialReconciliationPayload | None = None
 
 
 def finance_calculate_definition() -> ToolDefinition:
@@ -92,10 +112,30 @@ def finance_calculate_definition() -> ToolDefinition:
             "additionalProperties": False,
             "required": ["operator", "operands", "decimal_places", "rounding_mode"],
             "properties": {
-                "operator": {"type": "string"},
-                "operands": {"type": "array"},
-                "decimal_places": {"type": "integer"},
-                "rounding_mode": {"type": "string"},
+                "operator": {
+                    "type": "string",
+                    "enum": [item.value for item in FinancialOperator],
+                },
+                "operands": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 8,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["value", "evidence_ref"],
+                        "properties": {
+                            "value": {"type": "string"},
+                            "evidence_ref": {"type": "string", "format": "uuid"},
+                            "source_fact_id": {
+                                "type": ["string", "null"],
+                                "format": "uuid",
+                            },
+                        },
+                    },
+                },
+                "decimal_places": {"type": "integer", "minimum": 0, "maximum": 12},
+                "rounding_mode": {"type": "string", "const": "half_even"},
             },
         },
         output_schema={
@@ -128,6 +168,9 @@ def finance_calculate_definition() -> ToolDefinition:
                 "scale": {"type": ["integer", "null"]},
                 "evidence_refs": {"type": "array"},
                 "error_code": {"type": ["string", "null"]},
+                "operand_source": {"type": ["string", "null"]},
+                "resolved_operands": {"type": "array"},
+                "reconciliation": {"type": ["object", "null"]},
             },
         },
         capability=WorkspaceAction.RUN_TOOL,
@@ -147,6 +190,7 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
         self,
         repository: KnowledgeCandidateRepository,
         catalog: SecFixtureCatalog,
+        operand_repository: FinancialOperandRepository | None = None,
     ) -> None:
         super().__init__(
             definition=finance_calculate_definition(),
@@ -155,6 +199,7 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
         )
         self._repository = repository
         self._catalog = catalog
+        self._operand_repository = operand_repository
 
     async def invoke(
         self,
@@ -171,13 +216,133 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
         fixture = self._catalog.select(financial_scope)
         operator = FinancialOperator(value.operator)
         rounding_mode = FinancialRoundingMode(value.rounding_mode)
-        status = await self._repository.validate_operands(
-            runtime_context.workspace_scope,
-            knowledge_base_ids=runtime_context.knowledge_base_ids,
-            financial_scope=financial_scope,
-            evidence_values=tuple((UUID(item.evidence_ref), item.value) for item in value.operands),
-            fixture=fixture,
-        )
+        resolved_operands: tuple[FinancialEvidenceOperand, ...] = ()
+        reconciliation_payload: FinancialReconciliationPayload | None = None
+        operand_source: Literal["legacy_fixture", "sec_xbrl_evidence"] = "legacy_fixture"
+        formal_resolution_status = FinancialOperandResolutionStatus.NO_RESULT
+        formal_requested = any(item.source_fact_id is not None for item in value.operands)
+        if formal_requested and (
+            self._operand_repository is None
+            or not all(item.source_fact_id is not None for item in value.operands)
+        ):
+            return (
+                FinanceCalculateOutput(
+                    status=KnowledgeSearchStatus.NO_RESULT,
+                    financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                    operator=operator,
+                    operands=value.operands,
+                    decimal_places=value.decimal_places,
+                    rounding_mode=rounding_mode,
+                    result=None,
+                    formula=None,
+                    unit=None,
+                    scale=None,
+                    evidence_refs=[],
+                    error_code="financial_operand_reference_incomplete",
+                    operand_source="sec_xbrl_evidence",
+                ),
+                0,
+            )
+        if formal_requested:
+            if self._operand_repository is None:
+                raise AssertionError("Formal operand repository check was bypassed")
+            resolution = await self._operand_repository.resolve(
+                runtime_context.workspace_scope,
+                knowledge_base_ids=runtime_context.knowledge_base_ids,
+                financial_scope=financial_scope,
+                references=tuple(
+                    FinancialOperandReference(
+                        evidence_ref=UUID(item.evidence_ref),
+                        source_fact_id=UUID(str(item.source_fact_id)),
+                        value=item.value,
+                    )
+                    for item in value.operands
+                ),
+            )
+            formal_resolution_status = resolution.status
+            if resolution.status is FinancialOperandResolutionStatus.DEPENDENCY_FAILED:
+                return (
+                    FinanceCalculateOutput(
+                        status=KnowledgeSearchStatus.DEPENDENCY_FAILED,
+                        financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                        operator=operator,
+                        operands=value.operands,
+                        decimal_places=value.decimal_places,
+                        rounding_mode=rounding_mode,
+                        result=None,
+                        formula=None,
+                        unit=None,
+                        scale=None,
+                        evidence_refs=[],
+                        error_code="financial_operand_dependency_failed",
+                        operand_source="sec_xbrl_evidence",
+                    ),
+                    0,
+                )
+            if resolution.status is FinancialOperandResolutionStatus.OK:
+                resolved_operands = resolution.operands
+                operand_source = "sec_xbrl_evidence"
+                reconciliation = reconcile_financial_operands(
+                    financial_scope,
+                    operator,
+                    resolved_operands,
+                )
+                reconciliation_payload = FinancialReconciliationPayload.from_domain(reconciliation)
+                if reconciliation.status is not FinancialReconciliationStatus.CONSISTENT:
+                    return (
+                        FinanceCalculateOutput(
+                            status=KnowledgeSearchStatus.NO_RESULT,
+                            financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                            operator=operator,
+                            operands=value.operands,
+                            decimal_places=value.decimal_places,
+                            rounding_mode=rounding_mode,
+                            result=None,
+                            formula=None,
+                            unit=None,
+                            scale=None,
+                            evidence_refs=list(reconciliation.evidence_refs),
+                            error_code=(f"financial_reconciliation_{reconciliation.status.value}"),
+                            operand_source=operand_source,
+                            resolved_operands=[
+                                FinancialEvidenceOperandPayload.from_domain(item)
+                                for item in resolved_operands
+                            ],
+                            reconciliation=reconciliation_payload,
+                        ),
+                        0,
+                    )
+            else:
+                return (
+                    FinanceCalculateOutput(
+                        status=KnowledgeSearchStatus.NO_RESULT,
+                        financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                        operator=operator,
+                        operands=value.operands,
+                        decimal_places=value.decimal_places,
+                        rounding_mode=rounding_mode,
+                        result=None,
+                        formula=None,
+                        unit=None,
+                        scale=None,
+                        evidence_refs=[],
+                        error_code="financial_operand_not_authorized",
+                        operand_source="sec_xbrl_evidence",
+                    ),
+                    0,
+                )
+        if formal_resolution_status is FinancialOperandResolutionStatus.OK:
+            status = KnowledgeSearchStatus.OK
+        else:
+            status = await self._repository.validate_operands(
+                runtime_context.workspace_scope,
+                knowledge_base_ids=runtime_context.knowledge_base_ids,
+                financial_scope=financial_scope,
+                evidence_values=tuple(
+                    (UUID(item.evidence_ref), item.value) for item in value.operands
+                ),
+                fixture=fixture,
+            )
         scope_payload = FinancialScopePayload.from_domain(financial_scope)
         if status is not KnowledgeSearchStatus.OK:
             return (
@@ -194,15 +359,28 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
                     scale=None,
                     evidence_refs=[],
                     error_code=status.value,
+                    operand_source=operand_source,
                 ),
                 0,
             )
         try:
             calculation = FinancialCalculation(
                 operator=operator,
-                operands=tuple(
-                    FinancialOperand(value=item.value, evidence_ref=UUID(item.evidence_ref))
-                    for item in value.operands
+                operands=(
+                    tuple(
+                        FinancialOperand(
+                            value=item.value,
+                            evidence_ref=item.evidence_ref,
+                            unit=item.unit,
+                            scale=item.scale,
+                        )
+                        for item in resolved_operands
+                    )
+                    if resolved_operands
+                    else tuple(
+                        FinancialOperand(value=item.value, evidence_ref=UUID(item.evidence_ref))
+                        for item in value.operands
+                    )
                 ),
                 decimal_places=value.decimal_places,
                 rounding_mode=rounding_mode,
@@ -225,6 +403,11 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
                 scale=result.scale,
                 evidence_refs=list(result.evidence_refs),
                 error_code=None,
+                operand_source=operand_source,
+                resolved_operands=[
+                    FinancialEvidenceOperandPayload.from_domain(item) for item in resolved_operands
+                ],
+                reconciliation=reconciliation_payload,
             ),
             0,
         )
@@ -251,7 +434,11 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
                 ToolSource(
                     source_type=FINANCE_CALCULATION_SOURCE_TYPE,
                     source_version=FINANCE_CALCULATION_SOURCE_VERSION,
-                    locator=f"fixture://finance-calculations/{content_sha256}",
+                    locator=(
+                        f"sec://financial-calculations/{content_sha256}"
+                        if value.operand_source == "sec_xbrl_evidence"
+                        else f"fixture://finance-calculations/{content_sha256}"
+                    ),
                     observed_at=observed_at,
                     content_sha256=content_sha256,
                 ),

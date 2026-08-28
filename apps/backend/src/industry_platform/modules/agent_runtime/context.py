@@ -39,7 +39,9 @@ from industry_platform.modules.workspaces.policy import WORKSPACE_ROLE_ACTIONS
 CONTEXT_MANIFEST_SCHEMA_VERSION: Final = 1
 CONTEXT_COMPILER_V0: Final = "context-v0"
 CONTEXT_COMPILER_V1: Final = "context-v1"
+FINANCIAL_CONTEXT_COMPILER_V1: Final = "financial-context-v1"
 RUNTIME_CONTEXT_PROJECTION_V0: Final = "runtime-context-projection-v0"
+FINANCIAL_SCOPE_CONTEXT_VERSION: Final = "financial-scope-v1"
 TOOL_OBSERVATION_CONTEXT_VERSION: Final = "tool-observation-v1"
 SHORT_TERM_MEMORY_CONTEXT_VERSION: Final = "short-term-memory-v1"
 LONG_TERM_MEMORY_CONTEXT_VERSION: Final = "long-term-memory-v1"
@@ -61,7 +63,7 @@ MAX_CONTEXT_INCLUDED_LONG_TERM_MEMORIES: Final = 6
 MAX_CONTEXT_MEMORY_CONTENT_LENGTH: Final = 4_000
 MAX_CONTEXT_RESPONSE_SCHEMA_BYTES: Final = 100_000
 MAX_CONTEXT_MANIFEST_SOURCES: Final = (
-    5
+    6
     + MAX_CONTEXT_ATTACHMENTS
     + MAX_CONTEXT_TOOL_OBSERVATIONS
     + MAX_CONTEXT_LONG_TERM_MEMORY_CANDIDATES
@@ -105,6 +107,7 @@ class ContextSourceKind(StrEnum):
 
     SYSTEM_INSTRUCTIONS = "system_instructions"
     RUNTIME_CONTEXT_PROJECTION = "runtime_context_projection"
+    FINANCIAL_SCOPE = "financial_scope"
     CONVERSATION_SUMMARY = "conversation_summary"
     ATTACHMENT = "attachment"
     USER_QUESTION = "user_question"
@@ -128,6 +131,10 @@ class ContextDecisionReason(StrEnum):
     EXCLUDED_EXPIRED = "excluded_expired"
     EXCLUDED_DELETED = "excluded_deleted"
     EXCLUDED_NEGATIVE_FEEDBACK = "excluded_negative_feedback"
+    EXCLUDED_FINANCIAL_SCOPE_MISMATCH = "excluded_financial_scope_mismatch"
+    EXCLUDED_FUTURE_SOURCE = "excluded_future_source"
+    EXCLUDED_UNIT_MISMATCH = "excluded_unit_mismatch"
+    EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE = "excluded_unsupported_financial_source"
 
 
 class ContextBudgetExceededError(RuntimeError):
@@ -330,6 +337,7 @@ class ToolObservationContextSource:
     model_text: str = field(repr=False)
     observation_version: str = TOOL_OBSERVATION_CONTEXT_VERSION
     envelope_sha256: str = ""
+    decision_reason: ContextDecisionReason = ContextDecisionReason.INCLUDED
 
     def __post_init__(self) -> None:
         for identifier, field_name in (
@@ -352,6 +360,8 @@ class ToolObservationContextSource:
             _require_version(value, field_name=field_name)
         if self.observation_version != TOOL_OBSERVATION_CONTEXT_VERSION:
             raise ValueError("Tool Observation version is unsupported")
+        if not isinstance(self.decision_reason, ContextDecisionReason):
+            raise ValueError("Tool Observation Context decision reason is invalid")
         require_utc(self.observed_at, field_name="Tool Observation time")
 
         locator = snapshot_json_mapping(
@@ -700,6 +710,16 @@ class ContextCompilationInput:
         )
         if self.compiler_version == CONTEXT_COMPILER_V0 and observations:
             raise ValueError("Context Compiler v0 cannot include Tool Observations")
+        if self.compiler_version != FINANCIAL_CONTEXT_COMPILER_V1 and any(
+            observation.decision_reason is not ContextDecisionReason.INCLUDED
+            for observation in observations
+        ):
+            raise ValueError("Only Financial Context may pre-filter Tool Observations")
+        if (
+            self.compiler_version == FINANCIAL_CONTEXT_COMPILER_V1
+            and self.runtime_context.financial_scope is None
+        ):
+            raise ValueError("Financial Context requires a trusted Financial Scope")
         if any(
             observation.observed_at < self.run.created_at
             or observation.observed_at > self.compiled_at
@@ -741,6 +761,7 @@ class ContextSourceManifestEntry:
     source_scope: str | None = None
     relevance_score: float | None = None
     feedback_score: int | None = None
+    source_identity: Mapping[str, object] | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.ordinal, bool) or not 1 <= self.ordinal <= MAX_CONTEXT_MANIFEST_SOURCES:
@@ -805,6 +826,26 @@ class ContextSourceManifestEntry:
             )
         ):
             raise ValueError("Only Long-term Memory sources may record recall factors")
+        if self.source_identity is None:
+            if self.source_kind is ContextSourceKind.FINANCIAL_SCOPE:
+                raise ValueError("Financial Scope manifest source requires identity")
+        else:
+            identity = snapshot_json_mapping(
+                self.source_identity,
+                error_message="Context source identity must be canonical JSON data",
+            )
+            if (
+                self.source_kind
+                not in {
+                    ContextSourceKind.FINANCIAL_SCOPE,
+                    ContextSourceKind.TOOL_OBSERVATION,
+                }
+                or not identity
+            ):
+                raise ValueError(
+                    "Only Financial Scope or Tool Observation sources may record source identity"
+                )
+            object.__setattr__(self, "source_identity", identity)
 
 
 @dataclass(frozen=True, slots=True)
@@ -890,9 +931,20 @@ class ContextManifest:
         observation_count = kinds.count(ContextSourceKind.TOOL_OBSERVATION)
         short_term_count = kinds.count(ContextSourceKind.SHORT_TERM_MEMORY)
         long_term_count = kinds.count(ContextSourceKind.LONG_TERM_MEMORY)
+        financial_prefix = (
+            ContextSourceKind.SYSTEM_INSTRUCTIONS,
+            ContextSourceKind.RUNTIME_CONTEXT_PROJECTION,
+            ContextSourceKind.FINANCIAL_SCOPE,
+            ContextSourceKind.CONVERSATION_SUMMARY,
+        )
+        expected_common_prefix = (
+            financial_prefix
+            if self.compiler_version == FINANCIAL_CONTEXT_COMPILER_V1
+            else expected_prefix
+        )
         common_order_is_invalid = (
             not 4 <= len(sources) <= MAX_CONTEXT_MANIFEST_SOURCES
-            or kinds[:3] != expected_prefix
+            or kinds[: len(expected_common_prefix)] != expected_common_prefix
             or attachment_count > MAX_CONTEXT_ATTACHMENTS
             or observation_count > MAX_CONTEXT_TOOL_OBSERVATIONS
             or short_term_count > 1
@@ -906,14 +958,15 @@ class ContextManifest:
                 or kinds[-1] is not ContextSourceKind.USER_QUESTION
                 or any(kind is not ContextSourceKind.ATTACHMENT for kind in kinds[3:-1])
             )
-        elif self.compiler_version == CONTEXT_COMPILER_V1:
+        elif self.compiler_version in {CONTEXT_COMPILER_V1, FINANCIAL_CONTEXT_COMPILER_V1}:
             question_indexes = tuple(
                 index for index, kind in enumerate(kinds) if kind is ContextSourceKind.USER_QUESTION
             )
             version_order_is_invalid = len(question_indexes) != 1
             if not version_order_is_invalid:
                 question_index = question_indexes[0]
-                prefix = kinds[3:question_index]
+                prefix_start = 4 if self.compiler_version == FINANCIAL_CONTEXT_COMPILER_V1 else 3
+                prefix = kinds[prefix_start:question_index]
                 phase = 0
                 for kind in prefix:
                     if kind is ContextSourceKind.SHORT_TERM_MEMORY and phase == 0:
@@ -927,7 +980,7 @@ class ContextManifest:
                         break
                 version_order_is_invalid = (
                     version_order_is_invalid
-                    or question_index < 3
+                    or question_index < prefix_start
                     or any(
                         kind is not ContextSourceKind.TOOL_OBSERVATION
                         for kind in kinds[question_index + 1 :]

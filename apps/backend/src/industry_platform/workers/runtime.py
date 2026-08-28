@@ -635,11 +635,12 @@ def create_job_delivery_runtime(
         session_factory,
         tool_http_client,
     )
-    search_filing_tool, read_filing_section_tool, get_xbrl_facts_tool = create_sec_filing_tools(
-        settings,
-        session_factory,
-        tool_http_client,
-    )
+    (
+        search_filing_tool,
+        read_filing_section_tool,
+        get_xbrl_facts_tool,
+        diff_filings_tool,
+    ) = create_sec_filing_tools(settings, session_factory, tool_http_client)
     direct_answer = create_direct_answer_runtime_resources(
         settings,
         session_factory,
@@ -651,6 +652,7 @@ def create_job_delivery_runtime(
             search_filing_tool,
             read_filing_section_tool,
             get_xbrl_facts_tool,
+            diff_filings_tool,
         ),
         tool_surfaces={
             TurnSearchMode.WEB: (industry.web_search_tool.definition.reference,),
@@ -660,6 +662,7 @@ def create_job_delivery_runtime(
                 search_filing_tool.definition.reference,
                 read_filing_section_tool.definition.reference,
                 get_xbrl_facts_tool.definition.reference,
+                diff_filings_tool.definition.reference,
             ),
         },
         fixture_catalog=retrieval.catalog,

@@ -95,7 +95,8 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint(
             "locator_type IN ('industry_source_v1', 'sql_result_v1', "
-            "'sec_filing_chunk_v1', 'financial_calculation_v1')",
+            "'sec_filing_chunk_v1', 'sec_filing_text_v1', 'sec_xbrl_fact_v1', "
+            "'financial_calculation_v1')",
             name="locator_type_supported",
         ),
         CheckConstraint(
@@ -119,6 +120,12 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "(locator_type = 'sec_filing_chunk_v1' AND source_item_id IS NULL "
             "AND query_run_id IS NULL AND document_version_id IS NOT NULL "
             "AND chunk_id IS NOT NULL) OR "
+            "(locator_type = 'sec_filing_text_v1' AND source_item_id IS NULL "
+            "AND query_run_id IS NULL AND document_version_id IS NOT NULL "
+            "AND chunk_id IS NOT NULL) OR "
+            "(locator_type = 'sec_xbrl_fact_v1' AND source_item_id IS NULL "
+            "AND query_run_id IS NULL AND document_version_id IS NULL "
+            "AND chunk_id IS NULL) OR "
             "(locator_type = 'financial_calculation_v1' AND source_item_id IS NULL "
             "AND query_run_id IS NULL AND document_version_id IS NULL AND chunk_id IS NULL)",
             name="source_reference_matches_locator",

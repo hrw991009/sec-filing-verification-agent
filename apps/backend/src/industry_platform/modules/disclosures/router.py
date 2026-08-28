@@ -17,6 +17,8 @@ from industry_platform.modules.disclosures.resources import (
 from industry_platform.modules.disclosures.schemas import (
     FilingSelectionQuery,
     SecFilerResolutionResponse,
+    SecFilingDiffQueryParameters,
+    SecFilingDiffResponse,
     SecFilingImportCollectionResponse,
     SecFilingImportRequest,
     SecFilingSearchQuery,
@@ -252,6 +254,33 @@ async def get_xbrl_facts(
     )
     set_no_store_headers(response)
     return SecXbrlFactCollectionResponse.from_domain(result)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/disclosures/filings/{accession}/diff",
+    response_model=SecFilingDiffResponse,
+    responses=_RESPONSES,
+)
+async def diff_filings(
+    workspace_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+    accession: Annotated[str, Path(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")],
+    query: Annotated[SecFilingDiffQueryParameters, Query()],
+) -> SecFilingDiffResponse:
+    result = await resources.filing_diff_service.compare(
+        _workspace_scope(principal, workspace_id),
+        knowledge_base_ids=(query.knowledge_base_id,),
+        financial_scope=query.to_financial_scope(accession),
+        comparison_accession=query.comparison_accession,
+        section_query=query.section_query,
+        taxonomy=query.taxonomy,
+        concept=query.concept,
+        fact_limit=query.fact_limit,
+    )
+    set_no_store_headers(response)
+    return SecFilingDiffResponse.from_domain(result)
 
 
 def _workspace_scope(

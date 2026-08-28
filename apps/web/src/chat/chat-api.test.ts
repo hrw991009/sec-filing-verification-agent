@@ -490,6 +490,7 @@ describe("chat REST API", () => {
               ordinal: 1,
               relevance_score: null,
               source_id: "question",
+              source_identity: null,
               source_kind: "user_question",
               source_revision_id: null,
               source_scope: null,
@@ -505,6 +506,7 @@ describe("chat REST API", () => {
               ordinal: 2,
               relevance_score: null,
               source_id: "conversation-summary",
+              source_identity: null,
               source_kind: "conversation_summary",
               source_revision_id: null,
               source_scope: null,
@@ -520,6 +522,7 @@ describe("chat REST API", () => {
               ordinal: 3,
               relevance_score: null,
               source_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              source_identity: { sources: ["sec://filing-chunks/example"] },
               source_kind: "tool_observation",
               source_revision_id: null,
               source_scope: null,
@@ -618,6 +621,7 @@ describe("chat REST API", () => {
       included: false,
     });
     expect(result.context_manifests[0]?.sources[2]).toMatchObject({
+      source_identity: { sources: ["sec://filing-chunks/example"] },
       source_kind: "tool_observation",
       source_sha256: "a".repeat(64),
     });

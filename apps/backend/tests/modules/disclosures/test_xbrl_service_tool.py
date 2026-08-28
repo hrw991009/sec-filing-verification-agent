@@ -23,13 +23,17 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSyncPreparation,
     SecXbrlSyncResult,
     sec_companyfacts_url,
+    sec_xbrl_fact_content_sha256,
     sec_xbrl_source_version,
     sha256_hex,
 )
 from industry_platform.modules.disclosures.ports import SecFilingContentRepository
 from industry_platform.modules.disclosures.tool import SecGetXbrlFactsTool
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
-from industry_platform.modules.financial_verification.domain import FinancialScope
+from industry_platform.modules.financial_verification.domain import (
+    FinancialScope,
+    sec_xbrl_evidence_ref,
+)
 from industry_platform.modules.tools.domain import ToolAction
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceScope
@@ -286,7 +290,16 @@ async def test_xbrl_tool_uses_trusted_scope_and_emits_typed_source_lineage() -> 
         context(),
     )
 
+    evidence_ref = sec_xbrl_evidence_ref(
+        workspace_id=WORKSPACE_ID,
+        fact_id=FACT_ID,
+        as_of=NOW,
+        authorization_role="member",
+    )
     assert '"source_kind":"companyfacts_aggregate"' in result.observation.model_text
-    assert result.observation.sources[0].source_type == "sec_xbrl_companyfacts_aggregate"
-    assert result.observation.sources[0].locator == sec_companyfacts_url("0000320193")
-    assert result.observation.sources[0].content_sha256 == aggregate_source().content_sha256
+    assert f'"evidence_ref":"{evidence_ref}"' in result.observation.model_text
+    assert result.observation.sources[0].source_type == "sec_xbrl_fact"
+    assert result.observation.sources[0].locator == f"sec://xbrl-facts/{FACT_ID}"
+    assert result.observation.sources[0].content_sha256 == sec_xbrl_fact_content_sha256(
+        aggregate_fact()
+    )

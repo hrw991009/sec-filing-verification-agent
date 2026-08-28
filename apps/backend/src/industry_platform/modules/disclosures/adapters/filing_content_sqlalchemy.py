@@ -12,7 +12,13 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.modules.disclosures.diff import (
+    SecFilingComparisonIdentity,
+    SecFilingComparisonPreparation,
+    SecFilingDiffStatus,
+)
 from industry_platform.modules.disclosures.domain import (
+    SecAmendmentRelationStatus,
     SecCanonicalFiling,
     SecDisclosurePersistenceError,
     SecFilingArchive,
@@ -48,7 +54,7 @@ from industry_platform.modules.knowledge.models import (
     DocumentRecord,
     DocumentVersionRecord,
 )
-from industry_platform.modules.retrieval.domain import DenseCandidate
+from industry_platform.modules.retrieval.domain import HybridCandidate, RetrievalCandidate
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 
@@ -467,12 +473,83 @@ class SqlAlchemySecFilingContentRepository:
                 accession=accession,
             )
 
+    async def prepare_comparison_identity(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        accession: str,
+        as_of: datetime,
+    ) -> SecFilingComparisonPreparation:
+        preparation = await self.prepare_content(
+            scope,
+            knowledge_base_ids=knowledge_base_ids,
+            accession=accession,
+            as_of=as_of,
+        )
+        if preparation.status is not SecFilingContentStatus.OK:
+            status = {
+                SecFilingContentStatus.NOT_READY: SecFilingDiffStatus.NOT_READY,
+                SecFilingContentStatus.NO_RESULT: SecFilingDiffStatus.NO_RESULT,
+                SecFilingContentStatus.DEPENDENCY_FAILED: SecFilingDiffStatus.DEPENDENCY_FAILED,
+                SecFilingContentStatus.PERMISSION_DENIED: SecFilingDiffStatus.PERMISSION_DENIED,
+            }[preparation.status]
+            return SecFilingComparisonPreparation(
+                status=status,
+                accession=accession,
+                error_code=(
+                    "comparison_identity_reload_failed"
+                    if status is SecFilingDiffStatus.DEPENDENCY_FAILED
+                    else None
+                ),
+            )
+        imported = preparation.import_record
+        if imported is None:
+            raise AssertionError("Ready SEC comparison preparation lost its import")
+        try:
+            async with self._session_factory() as session:
+                filing = await session.scalar(
+                    select(SecFilingRecord).where(
+                        SecFilingRecord.id == imported.filing_id,
+                        SecFilingRecord.accession == accession,
+                    )
+                )
+                if filing is None:
+                    return SecFilingComparisonPreparation(
+                        status=SecFilingDiffStatus.PERMISSION_DENIED,
+                        accession=accession,
+                    )
+                return SecFilingComparisonPreparation(
+                    status=SecFilingDiffStatus.OK,
+                    accession=accession,
+                    identity=SecFilingComparisonIdentity(
+                        import_id=imported.id,
+                        knowledge_base_id=imported.knowledge_base_id,
+                        cik=filing.cik,
+                        accession=filing.accession,
+                        form=SecFilingForm(filing.form),
+                        report_date=filing.report_date,
+                        filed_date=filing.filed_date,
+                        public_available_at=filing.public_available_at,
+                        amendment_relation_status=SecAmendmentRelationStatus(
+                            filing.amendment_relation_status
+                        ),
+                        base_accession=filing.base_accession,
+                    ),
+                )
+        except SQLAlchemyError:
+            return SecFilingComparisonPreparation(
+                status=SecFilingDiffStatus.DEPENDENCY_FAILED,
+                accession=accession,
+                error_code="comparison_identity_reload_failed",
+            )
+
     async def resolve_candidates(
         self,
         scope: WorkspaceScope,
         *,
         preparation: SecFilingContentPreparation,
-        candidates: tuple[DenseCandidate, ...],
+        candidates: tuple[RetrievalCandidate, ...],
     ) -> tuple[SecFilingSearchHit, ...]:
         imported = preparation.import_record
         if imported is None or preparation.status is not SecFilingContentStatus.OK:
@@ -551,11 +628,11 @@ class SqlAlchemySecFilingContentRepository:
             raise SecDisclosurePersistenceError(sqlstate=_sqlstate(error)) from None
         by_pair = {(chunk.id, chunk.document_version_id): row for row in rows for chunk in [row[0]]}
         hits: list[SecFilingSearchHit] = []
-        for candidate in candidates:
+        for rank, candidate in enumerate(candidates, start=1):
             row = by_pair.get((candidate.chunk_id, candidate.document_version_id))
             if row is None:
                 continue
-            chunk, document, snapshot, _vector = row
+            chunk, document, snapshot, vector_record = row
             hits.append(
                 SecFilingSearchHit(
                     chunk_id=chunk.id,
@@ -571,6 +648,22 @@ class SqlAlchemySecFilingContentRepository:
                     source_content_sha256=snapshot.content_sha256.hex(),
                     source_url=snapshot.source_url,
                     source_version=snapshot.source_version,
+                    retrieval_channels=(
+                        tuple(channel.value for channel in candidate.channels)
+                        if isinstance(candidate, HybridCandidate)
+                        else ("dense",)
+                    ),
+                    dense_rank=(
+                        candidate.dense_rank if isinstance(candidate, HybridCandidate) else rank
+                    ),
+                    lexical_rank=(
+                        candidate.lexical_rank if isinstance(candidate, HybridCandidate) else None
+                    ),
+                    rrf_score=(candidate.score if isinstance(candidate, HybridCandidate) else None),
+                    rerank_score=(
+                        candidate.score if isinstance(candidate, HybridCandidate) else None
+                    ),
+                    index_version=vector_record.index_version,
                 )
             )
         return tuple(hits)

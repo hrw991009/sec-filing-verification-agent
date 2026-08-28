@@ -4,13 +4,13 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-26
+> 更新日期：2026-08-28
 >
-> 权威来源：`docs/master-plan.md` 2.0.6
+> 权威来源：`docs/master-plan.md` 2.1.3
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5 实现已合入 `main`，形成通用 Agent、Knowledge、SEC fixture 与 Durable Research L4 基础，但 SEC fixture 浏览器 DoD 尚未关闭。Day 6 Step 1 已在当前分支提交中加入 SEC filer identity 与受控官方来源边界；Step 2 当前工作树加入 submissions current + supplemental point-in-time 选择、不可变 response snapshot、coverage persistence 和第二个 typed SEC Tool，目标产品继续收敛为 SEC 上市公司公开披露监控与财务事实核验 Agent。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5 实现已合入 `main`，形成通用 Agent、Knowledge、SEC fixture 与 Durable Research L4 基础，但 SEC fixture 浏览器 DoD 尚未关闭。Day 6 的 filer/filing/XBRL/source snapshot、五个 SEC read Tool、Workbench 与 `sec-source-v1` 已由 PR #10 合入 `main`，三层 CI 成功；两条 bulk watermark closeout case 与 live SEC smoke 仍未关闭。Day 7 Step 1 已实现 Hybrid Retrieval 与 filing text/XBRL fact locator；Step 2 已在同一 Runtime/Context Compiler 落地 `financial-context-v1`，其 PostgreSQL CI 序列化失败已在当前工作树修复；Step 3 已复用既有 calculator/Evidence 链完成正式 XBRL operand、typed reconciliation 与 Calculation Evidence 重算。ranking/table/Citation、真实 PostgreSQL 与修复后的远端门禁仍待关闭。
 
 架构需要同时满足：
 
@@ -494,7 +494,7 @@ Message、Turn、AgentRun 和 Job 分工如下：Message 是用户可见内容�
 
 模型或 Tool 失败时保留用户输入、已生成部分内容、已确认 Citation、错误码和可重试状态。附件使用统一 FileObject 和 message attachment 关系；删除附件必须检查它是否仍被 Message、Document 或 Evidence 引用。搜索模式、当前行业、KB 与 Harness profile 必须写入 Turn/AgentRun 快照，确保刷新后能解释当时使用了什么上下文。
 
-Day 2 只启用 `none` 的 L0 正式链路；Day 3 在同一 Runtime 上启用 `web` Tool profile；Day 5 Step 4 在冻结 SEC filing 夹具上启用 `local` Dense 查询、Evidence locator 和确定性计算。Day 6 接入官方 SEC 来源与结构化 XBRL；Day 7 再启用 filing BM25/RRF/rerank 与 XBRL+原文双通道。任何未就绪模式都返回稳定 readiness 错误，不能静默回退到 Mock 或通用 Web 搜索。
+Day 2 只启用 `none` 的 L0 正式链路；Day 3 在同一 Runtime 上启用 `web` Tool profile；Day 5 Step 4 在冻结 SEC filing 夹具上启用 `local` Dense 查询、Evidence locator 和确定性计算。Day 6 接入官方 SEC 来源与结构化 XBRL；Day 7 Step 1 已让 filing BM25/RRF/rerank 与 XBRL+原文双通道进入 `local`，Step 2 再让该模式选择 `financial-context-v1`。任何未就绪模式都返回稳定 readiness 错误，不能静默回退到 Mock 或通用 Web 搜索。
 
 ### 10.3 Agent Runtime、Harness 与恢复语义
 
@@ -544,7 +544,7 @@ uploaded → queued → validating → parsing → extracting_assets
                                       ↘ retrying / failed / cancelled
 ```
 
-文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Day 5 的 Embedding、双索引写入、冻结 SEC filing 夹具上的 Dense 查询与正式 `knowledge_search` 已随 PR #9 合入 `main`；ready fixture 的端到端浏览器 Evidence 反查仍待关闭。Day 6 复用同一链路导入锁定 accession 的官方快照并保持 `dense-v1`；Day 7 再启用 filing BM25、RRF 和 rerank 的 `hybrid-v1`。
+文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Day 5 的 Embedding、双索引写入、冻结 SEC filing 夹具上的 Dense 查询与正式 `knowledge_search` 已随 PR #9 合入 `main`；ready fixture 的端到端浏览器 Evidence 反查仍待关闭。Day 6 复用同一链路导入锁定 accession 的官方快照并保持 `dense-v1`；Day 7 Step 1 已通过显式 retrieval profile 启用 filing BM25、RRF 和 rerank 的 `hybrid-v1`，ranking 正式评测仍待关闭。
 
 删除时先进入 deleting，由 Worker 清理索引和对象，最后进入 deleted。
 
@@ -580,7 +580,7 @@ uploaded → queued → validating → parsing → extracting_assets
 
 XBRL 适合标准化数值筛选和确定性计算，但 Company Facts 等聚合接口不能替代具体 filing、custom tag、footnote 和修订上下文。aggregate fact 使用 endpoint response snapshot + accession + concept + unit + period locator，原始 context ID、dimensions、decimals/scale 按来源能力可空；只有 raw iXBRL 或独立 XBRL instance XML 才承诺反查 document、原始 element/context/dimensions。Frames 只用于候选对齐，不能单独作为精确财期判定权威。
 
-Dense Top K、BM25 Top K、RRF 参数、Rerank 数量、concept fallback 和最终 Context 数量都只是版本化实验参数，不能成为未经评测的永久常量。Context Compiler 在 Day 7 才将 XBRL facts、filing chunks、Memory、Tool Observation、Evidence 和 Artifact refs 按来源、多样性、时点和 Token 预算合并。
+Dense Top K、BM25 Top K、RRF 参数、Rerank 数量、concept fallback 和最终 Context 数量都只是版本化实验参数，不能成为未经评测的永久常量。Day 7 Step 2 已在现有 Context Compiler 中加入 `financial-context-v1`，以可信 Scope、来源 identity、cutoff、unit 和 Token 预算筛选 XBRL/filing/Knowledge/Calculation Observation，并继续复用既有 Memory 与 Tool Observation 顺序；独立 Evidence/Citation 仍由正式 Evidence ledger 负责，不能由 Context source 冒充。
 
 Point-in-time 先用 filing identity 的 `public_available_at`、`visibility_basis` 和 `visibility_policy_version` 过滤候选，再用每个 source snapshot/version 的 `source_version_available_at`、依据和有效区间过滤实际字节/响应；两层都必须在 `as_of` 前可证明存在。`report_date`、`filed_date`、`accepted_at` 保留各自业务语义，`retrieved_at` 只表示本地抓取时间：它不能自动排除事后取得的已存在版本，也不能把 correction 后首次抓取的字节追溯成更早版本。精确历史日内或 source version 可见性无法证明时 fail closed，不能用 UTC 零点或当前 submissions/companyfacts 猜测。amendment policy 必须显式记录，未来 canonical 行/版本即使已同步也不能进入 Tool output、Context 或 Calculation。
 
@@ -673,7 +673,7 @@ SEC 主产品冻结以下类型化 Tool：
 | `sec.get_xbrl_facts@v1` | 无 | 经当前 Workspace import 返回 source-typed fact；aggregate/raw locator 分型，raw 才承诺原始 context/dimensions |
 | `sec.search_filing@v1` | 无 | 对锁定 filing snapshot 返回带 `retrieval_profile_version` 的候选；Day 6 为 `dense-v1`，Day 7 为 `hybrid-v1` |
 | `sec.read_filing_section@v1` | 无 | 读取指定 filing/section 范围并生成 Evidence locator |
-| `finance.calculate@v1` | 无 | 对 typed Decimal 输入执行 allowlisted 公式、单位换算和舍入 |
+| `finance.calculate@v1` | 无 | 对正式 SEC Evidence 或历史 fixture 的 typed Decimal 输入执行 allowlisted 公式、scale propagation、单位核对和舍入 |
 | `sec.diff_filings@v1` | 无 | 对两个明确 filing 版本执行事实与章节差异核对 |
 | `monitor.subscribe@v1` | 有 | 创建/更新披露监控；必须授权、Approval、幂等和可审计 |
 
@@ -868,6 +868,7 @@ Day 10 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 
 - [ADR 0006：采用 Access/Refresh Token 鉴权方案](adr/0006-authentication-token-strategy.md)
 - [ADR 0007：SEC 披露财务事实核验边界](adr/0007-sec-disclosure-financial-fact-verification.md)
 - [SEC Agent 评测计划](sec-agent-evaluation.md)
+- [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)
 
 ## 20. 当前实现状态
 
@@ -883,7 +884,9 @@ Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench�
 
 Day 4 步骤 1～5、Trace/Eval/DoD 与授权收口已经完成，D4-01～D4-07 为 `complete`。Memory、Evidence/Claim、唯一 Research L3 graph 与正式 Workbench 共用 PostgreSQL、OpenAPI、Event/Trace、Context manifest、`UnifiedAgentRuntime` 和既有 Tool loop；独立 Scorer 保留 24 条 Day 2/3 基线并把累计 Scenario 扩为 50 条。没有第二 Research/Tool/Provider 链，也没有前端事实缓存。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 通过全部 7 个适用 Job。具体证据和 85% 核心覆盖率债务见 [Day 4 五步执行计划](learning-log/day-4.md)；该债务须在 Day 10 前达到 90%。Day 4 只完成可治理 Memory、Observation→Evidence→Claim 与唯一 Research L3 graph，不提前把普通状态持久化写成 durable Checkpoint，也不提前实现 Day 5 L4 或 Day 8 Verifier/bounded revise。
 
-Day 5 已合并私有上传、版本化解析资产、Embedding/双索引、冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 已合入 `main`，功能 head `cff25c1` 的 push/PR CI `32920879147`、`32924323618` 和合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均成功。D5-01～D5-07 为 `complete`；因为缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，D5-08/D5-09 保持 `implemented_pending_verification`。Day 6 Step 1 已在当前分支提交中新增 filer catalog、认证解析 API 和 `sec.resolve_filer@v1`。Step 2 当前工作树新增 current + supplemental submissions Adapter、source response snapshot、canonical filing/observation/coverage migration、point-in-time API 和 `sec.list_filings@v1`，复用统一 HTTP egress、Redis、MinIO、Workspace policy 与 Tool Registry/Executor。D6-01 为 `implemented_pending_verification`，D6-02/D6-05/D6-06 为 `thin_slice`；live SEC、bulk watermark/post-gap、其余三 Tool、XBRL、Workbench 和 Eval 仍未实现。该开始顺序不关闭 D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门也不能视为当前能力。
+Day 5 已合并私有上传、版本化解析资产、Embedding/双索引、冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 已合入 `main`，功能 head `cff25c1` 的 push/PR CI `32920879147`、`32924323618` 和合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均成功。D5-01～D5-07 为 `complete`；因为缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，D5-08/D5-09 保持 `implemented_pending_verification`。
+
+Day 6 已实现 filer/filing point-in-time、不可变 filing/XBRL source snapshot、Workspace Knowledge import、`dense-v1` content read、typed XBRL facts、五个 SEC read Tool、Workbench 和 `sec-source-v1`，并由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head、PR 和合并提交 CI 均成功。确定性报告仍为 22/24，两条 bulk snapshot/watermark/post-gap closeout case 未通过，合法 live SEC smoke 也尚缺，因此 D6-02/D6-06 保持 `thin_slice`，其余 D6 项保持 `implemented_pending_verification`。项目所有者已将这些缺口改期为 Day 10 发布硬门并推进 Day 7。Day 7 Step 1 的 `hybrid-v1`、Retrieval Trace 与 filing text/XBRL fact locator 已实现，D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`。Step 2 的 `financial-context-v1`、可信 Scope 注入、稳定排除原因、identity manifest 与生产 LOCAL 装配已提交；其远端 PostgreSQL CI 暴露的冻结 identity 深拷贝失败已在当前工作树改为浅层 JSON 投影并补回归测试，尚待新 CI，D7-03 保持 `implemented_pending_verification`。Step 3 复用既有 calculator/Evidence 边界，新增正式 XBRL operand 的 PostgreSQL 授权重载、scale/percentage、typed reconciliation 和 Calculation Evidence 重算；D7-04/D7-05 为 `implemented_pending_verification`。当前状态不关闭 Step 1 ranking/table/Citation、Step 2/3 真实 PostgreSQL 与远端 CI、D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门也不能视为当前能力。
 
 ## 21. 初学者术语表
 

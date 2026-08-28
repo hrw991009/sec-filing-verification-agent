@@ -472,6 +472,165 @@
   font-weight: 700;
 }
 
+.sec-retrieval-audit,
+.sec-diff-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid #dce3de;
+  border-radius: 0.38rem;
+  background: #f7f8f6;
+}
+
+.sec-retrieval-audit > div,
+.sec-diff-summary > div {
+  min-width: 0;
+  padding: 0.58rem 0.68rem;
+  border-right: 1px solid #dce3de;
+}
+
+.sec-retrieval-audit > div:last-child,
+.sec-diff-summary > div:last-child {
+  border-right: 0;
+}
+
+.sec-retrieval-audit dt,
+.sec-diff-summary dt,
+.sec-diff-facts dt {
+  color: #718078;
+  font-size: 0.59rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sec-retrieval-audit dd,
+.sec-diff-summary dd,
+.sec-diff-facts dd {
+  margin: 0.18rem 0 0;
+  overflow-wrap: anywhere;
+  color: #29384b;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.66rem;
+}
+
+.sec-diff-workspace {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sec-diff-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(13rem, 0.8fr) minmax(16rem, 1.2fr) minmax(7rem, 0.4fr) minmax(5rem, 0.25fr)
+    auto;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.sec-diff-failure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-left: 0.2rem solid #a64b40;
+  background: #fbefed;
+  color: #7b352e;
+  font-size: 0.7rem;
+}
+
+.sec-diff-failure span {
+  overflow-wrap: anywhere;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.sec-diff-section,
+.sec-diff-facts {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: 0.2rem;
+}
+
+.sec-diff-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.sec-diff-columns article,
+.sec-diff-facts article {
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid #dce3de;
+  border-radius: 0.38rem;
+  background: #f7f8f6;
+}
+
+.sec-diff-columns article > strong,
+.sec-diff-facts article header {
+  color: #34453c;
+  font-size: 0.68rem;
+}
+
+.sec-diff-columns article p {
+  margin-top: 0.45rem;
+  color: #52625a;
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
+.sec-diff-columns footer,
+.sec-diff-facts footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.7rem;
+  margin-top: 0.6rem;
+  color: #718078;
+  font-size: 0.59rem;
+}
+
+.sec-diff-columns footer a,
+.sec-diff-facts footer a {
+  color: #246b58;
+  font-weight: 800;
+}
+
+.sec-diff-facts > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.sec-diff-facts article header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sec-diff-facts article header strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.sec-diff-facts article header span {
+  color: #765d28;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sec-diff-facts dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0.55rem 0 0;
+}
+
+.sec-diff-facts dl > div {
+  min-width: 0;
+  padding-right: 0.5rem;
+}
+
 .sec-workbench__empty {
   padding: 1.1rem 0.3rem;
   color: #7a8780;
@@ -490,9 +649,22 @@
   }
 
   .sec-xbrl-toolbar,
-  .sec-xbrl-filters {
+  .sec-xbrl-filters,
+  .sec-diff-toolbar {
     align-items: stretch;
+    grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .sec-retrieval-audit,
+  .sec-diff-summary,
+  .sec-diff-facts > div:last-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sec-retrieval-audit > div:nth-child(2),
+  .sec-diff-summary > div:nth-child(2) {
+    border-right: 0;
   }
 
   .sec-xbrl-filters label {
@@ -540,5 +712,24 @@
 
   .sec-fact-detail dl {
     grid-template-columns: 1fr;
+  }
+
+  .sec-retrieval-audit,
+  .sec-diff-summary,
+  .sec-diff-columns,
+  .sec-diff-facts > div:last-child,
+  .sec-diff-facts dl {
+    grid-template-columns: 1fr;
+  }
+
+  .sec-retrieval-audit > div,
+  .sec-diff-summary > div {
+    border-right: 0;
+    border-bottom: 1px solid #dce3de;
+  }
+
+  .sec-retrieval-audit > div:last-child,
+  .sec-diff-summary > div:last-child {
+    border-bottom: 0;
   }
 }

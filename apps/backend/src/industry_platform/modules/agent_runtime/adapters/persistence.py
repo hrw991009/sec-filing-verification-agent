@@ -1,7 +1,7 @@
 """SQLAlchemy adapters for committed Events, manifests, replay, and cancellation."""
 
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
@@ -12,7 +12,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
-from industry_platform.modules.agent_runtime.context import ContextManifest
+from industry_platform.modules.agent_runtime.context import (
+    ContextBudgetSnapshot,
+    ContextManifest,
+    ContextSourceManifestEntry,
+)
 from industry_platform.modules.agent_runtime.delivery import (
     AgentRunDeliveryUnavailableError,
     AgentRunStreamDescriptor,
@@ -1623,8 +1627,10 @@ def _manifest_values(manifest: ContextManifest) -> dict[str, object]:
         "prompt_version": manifest.prompt_version,
         "runtime_projection_version": manifest.runtime_projection_version,
         "token_counter_version": manifest.token_counter_version,
-        "budget": _plain_json_mapping(asdict(manifest.budget)),
-        "sources": [_plain_json_mapping(asdict(source)) for source in manifest.sources],
+        "budget": _plain_json_mapping(_shallow_dataclass_mapping(manifest.budget)),
+        "sources": [
+            _plain_json_mapping(_shallow_dataclass_mapping(source)) for source in manifest.sources
+        ],
         "created_at": manifest.created_at,
     }
 
@@ -1644,6 +1650,12 @@ def _manifest_record_values(record: ContextManifestRecord) -> dict[str, object]:
         "sources": record.sources,
         "created_at": record.created_at,
     }
+
+
+def _shallow_dataclass_mapping(
+    value: ContextBudgetSnapshot | ContextSourceManifestEntry,
+) -> dict[str, object]:
+    return {field.name: getattr(value, field.name) for field in fields(value)}
 
 
 def _plain_json_mapping(value: Mapping[str, object]) -> dict[str, object]:

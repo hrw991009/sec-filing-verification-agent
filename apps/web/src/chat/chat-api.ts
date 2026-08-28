@@ -645,6 +645,13 @@ function traceNullableString(value: Record<string, unknown>, fieldName: string):
   return value[fieldName] === null ? null : traceString(value, fieldName);
 }
 
+function traceNullableRecord(
+  value: Record<string, unknown>,
+  fieldName: string,
+): Record<string, unknown> | null {
+  return value[fieldName] === null ? null : traceRecord(value[fieldName], `Trace ${fieldName}`);
+}
+
 function traceTimestamp(value: Record<string, unknown>, fieldName: string): string {
   const field = traceString(value, fieldName);
   if (Number.isNaN(Date.parse(field))) {
@@ -734,6 +741,7 @@ const stepStatuses = ["running", "completed", "failed", "cancelled"] as const;
 const sourceKinds = [
   "system_instructions",
   "runtime_context_projection",
+  "financial_scope",
   "conversation_summary",
   "attachment",
   "user_question",
@@ -754,6 +762,10 @@ const decisionReasons = [
   "excluded_expired",
   "excluded_deleted",
   "excluded_negative_feedback",
+  "excluded_financial_scope_mismatch",
+  "excluded_future_source",
+  "excluded_unit_mismatch",
+  "excluded_unsupported_financial_source",
 ] as const;
 const messageRoles = ["system", "user", "assistant"] as const;
 const memoryScopes = ["user", "workspace"] as const;
@@ -841,6 +853,7 @@ function parseContextSource(value: unknown): AgentTraceContextSource {
     ordinal: traceInteger(source, "ordinal", 1),
     relevance_score: traceNullableNumber(source, "relevance_score", 0, 1),
     source_id: traceString(source, "source_id"),
+    source_identity: traceNullableRecord(source, "source_identity"),
     source_kind: traceEnum(source, "source_kind", sourceKinds),
     source_revision_id: traceNullableUuid(source, "source_revision_id"),
     source_scope: traceNullableEnum(source, "source_scope", memoryScopes),
@@ -863,6 +876,10 @@ function parseContextSource(value: unknown): AgentTraceContextSource {
         parsed.message_role !== null)) ||
     ((parsed.source_kind === "attachment" || parsed.source_kind === "tool_observation") &&
       parsed.source_sha256 === null) ||
+    (parsed.source_kind === "financial_scope" && parsed.source_identity === null) ||
+    (parsed.source_identity !== null &&
+      parsed.source_kind !== "financial_scope" &&
+      parsed.source_kind !== "tool_observation") ||
     (parsed.source_kind === "long_term_memory") !== hasCompleteMemoryRankingMetadata ||
     (parsed.feedback_score !== null && parsed.feedback_score > 1)
   ) {

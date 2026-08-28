@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "dataset_id": "sec-tool-v1",
+  "dataset_version": "v1",
+  "scorer_version": "sec-tool-scorer-v1",
+  "data_version": "sec-tool-contract-data-v1",
+  "model_fixture_version": "sec-tool-frozen-output-v1",
+  "shared_budget": {
+    "max_steps": 8,
+    "max_total_tokens": 4096,
+    "max_cost_micro_usd": 5000,
+    "max_latency_ms": 5000
+  },
+  "strategies": [
+    {
+      "strategy": "a0",
+      "profile_version": "sec-oracle-v1",
+      "prompt_version": "sec-tool-eval-prompt-v1",
+      "context_version": "oracle-full-context-v1",
+      "toolset_version": "no-tools-v1",
+      "available_tools": []
+    },
+    {
+      "strategy": "a1",
+      "profile_version": "sec-hybrid-rag-v1",
+      "prompt_version": "sec-tool-eval-prompt-v1",
+      "context_version": "financial-context-v1",
+      "toolset_version": "sec-hybrid-rag-toolset-v1",
+      "available_tools": ["sec.search_filing@v1", "sec.read_filing_section@v1"]
+    },
+    {
+      "strategy": "a2",
+      "profile_version": "sec-l4-v1",
+      "prompt_version": "sec-l4-prompt-v1",
+      "context_version": "financial-context-v1",
+      "toolset_version": "sec-l4-toolset-v1",
+      "available_tools": [
+        "knowledge_search@v1",
+        "finance.calculate@v1",
+        "sec.search_filing@v1",
+        "sec.read_filing_section@v1",
+        "sec.get_xbrl_facts@v1",
+        "sec.diff_filings@v1"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "simple-net-sales-2023",
+      "case_version": "v1",
+      "kind": "simple_fact",
+      "question": "What were Apple's fiscal 2023 net sales?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "USD:383285000000",
+      "expected_evidence_keys": ["xbrl:us-gaap:SalesRevenueNet:2023"],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_xbrl_service_tool.py::test_xbrl_tool_uses_trusted_scope_and_emits_typed_source_lineage"
+      ]
+    },
+    {
+      "case_id": "simple-operating-income-2023",
+      "case_version": "v1",
+      "kind": "simple_fact",
+      "question": "What was Apple's fiscal 2023 operating income?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "USD:114301000000",
+      "expected_evidence_keys": ["xbrl:us-gaap:OperatingIncomeLoss:2023"],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_xbrl_adapter.py::test_companyfacts_keeps_only_locked_accession_and_has_aggregate_locator"
+      ]
+    },
+    {
+      "case_id": "calculation-net-sales-change",
+      "case_version": "v1",
+      "kind": "calculation",
+      "question": "By what percentage did Apple's net sales change from 2022 to 2023?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "percent:-2.800000",
+      "expected_evidence_keys": [
+        "xbrl:us-gaap:SalesRevenueNet:2022",
+        "xbrl:us-gaap:SalesRevenueNet:2023"
+      ],
+      "expected_program": "percent_change(net_sales_2022,net_sales_2023)",
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/retrieval/test_tools.py::test_finance_tool_calculates_from_authorized_xbrl_evidence_with_reconciliation"
+      ]
+    },
+    {
+      "case_id": "calculation-gross-margin",
+      "case_version": "v1",
+      "kind": "calculation",
+      "question": "What was Apple's fiscal 2023 gross margin percentage?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "percent:44.131700",
+      "expected_evidence_keys": [
+        "xbrl:us-gaap:GrossProfit:2023",
+        "xbrl:us-gaap:SalesRevenueNet:2023"
+      ],
+      "expected_program": "percentage(gross_profit_2023,net_sales_2023)",
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/financial_verification/test_domain.py::test_percentage_is_distinct_from_ratio_and_uses_percent_unit"
+      ]
+    },
+    {
+      "case_id": "cross-section-liquidity",
+      "case_version": "v1",
+      "kind": "cross_section",
+      "question": "How do Apple's liquidity discussion and balance sheet cash position relate?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "liquidity-cash-supported",
+      "expected_evidence_keys": ["section:liquidity", "section:balance-sheet-cash"],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_hybrid_search_fuses_channels_then_reloads_authorized_chunk_truth",
+        "apps/backend/tests/modules/disclosures/test_filing_content_tool.py::test_read_tool_returns_only_the_authorized_chunk"
+      ]
+    },
+    {
+      "case_id": "cross-section-risk-cash",
+      "case_version": "v1",
+      "kind": "cross_section",
+      "question": "Connect Apple's foreign-exchange risk disclosure with its cash management discussion.",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "fx-risk-cash-supported",
+      "expected_evidence_keys": ["section:market-risk-fx", "section:liquidity-cash"],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_final_selection_limits_repeated_sections_without_reordering"
+      ]
+    },
+    {
+      "case_id": "amendment-net-sales",
+      "case_version": "v1",
+      "kind": "amendment",
+      "question": "Did the amendment change the reported net sales amount?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K/A",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-10T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106", "0000320193-23-000110"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "amendment:no-net-sales-change",
+      "expected_evidence_keys": ["diff:base-net-sales", "diff:amendment-net-sales"],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_filing_diff.py::test_resolved_amendment_is_ordered_after_its_base_filing",
+        "apps/backend/tests/modules/disclosures/test_filing_diff.py::test_diff_tool_returns_calculator_refs_and_underlying_sources"
+      ]
+    },
+    {
+      "case_id": "amendment-risk-text",
+      "case_version": "v1",
+      "kind": "amendment",
+      "question": "What risk-factor text changed between the base filing and amendment?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K/A",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-10T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106", "0000320193-23-000110"],
+      "expected_outcome": "answered",
+      "expected_answer_key": "amendment:risk-text-changed",
+      "expected_evidence_keys": ["diff:base-risk-text", "diff:amendment-risk-text"],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_filing_diff.py::test_adjacent_period_diff_preserves_fact_and_section_lineage"
+      ]
+    },
+    {
+      "case_id": "no-answer-future-quarter",
+      "case_version": "v1",
+      "kind": "no_answer",
+      "question": "What was Apple's revenue for a quarter not public at the as_of cutoff?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-Q",
+      "expected_report_period": "2024-03-30",
+      "as_of": "2024-01-01T00:00:00Z",
+      "expected_accessions": [],
+      "expected_outcome": "insufficient_evidence",
+      "expected_answer_key": null,
+      "expected_evidence_keys": [],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_filing_selection_service.py::test_source_version_after_cutoff_never_becomes_no_result"
+      ]
+    },
+    {
+      "case_id": "no-answer-unsupported-segment",
+      "case_version": "v1",
+      "kind": "no_answer",
+      "question": "What was operating income for an unreported product segment?",
+      "expected_cik": "0000320193",
+      "expected_form": "10-K",
+      "expected_report_period": "2023-09-30",
+      "as_of": "2023-11-04T00:00:00Z",
+      "expected_accessions": ["0000320193-23-000106"],
+      "expected_outcome": "insufficient_evidence",
+      "expected_answer_key": null,
+      "expected_evidence_keys": [],
+      "expected_program": null,
+      "executable_evidence_refs": [
+        "apps/backend/tests/modules/disclosures/test_filing_content_service.py::test_hybrid_dependency_failure_is_not_reported_as_no_result"
+      ]
+    }
+  ]
+}

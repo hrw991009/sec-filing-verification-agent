@@ -2,7 +2,8 @@
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import Final
 from uuid import UUID
 
@@ -10,6 +11,8 @@ from industry_platform.modules.agent_runtime.context import (
     CONTEXT_COMPILER_V0,
     CONTEXT_COMPILER_V1,
     CONTEXT_MANIFEST_SCHEMA_VERSION,
+    FINANCIAL_CONTEXT_COMPILER_V1,
+    FINANCIAL_SCOPE_CONTEXT_VERSION,
     MAX_CONTEXT_INCLUDED_LONG_TERM_MEMORIES,
     AttachmentContextSource,
     CompiledContext,
@@ -30,12 +33,23 @@ from industry_platform.modules.agent_runtime.domain import (
 )
 from industry_platform.modules.agent_runtime.model import ModelMessage, ModelRequest, ModelRole
 from industry_platform.modules.agent_runtime.ports import ContextTokenCounter
+from industry_platform.modules.financial_verification.domain import FinancialScope
 
 UTF8_UPPER_BOUND_COUNTER_VERSION: Final = "utf8-upper-bound-v2"
 IMAGE_BASE_TOKEN_UNITS: Final = 85
 IMAGE_TILE_TOKEN_UNITS: Final = 170
 IMAGE_TILE_EDGE_PIXELS: Final = 512
 RESPONSE_SCHEMA_FRAMING_TOKEN_UNITS: Final = 16
+
+_FINANCIAL_TOOL_NAMES: Final = frozenset(
+    {
+        "finance.calculate",
+        "knowledge_search",
+        "sec.get_xbrl_facts",
+        "sec.read_filing_section",
+        "sec.search_filing",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +116,7 @@ class ContextCompilerV0:
         short_term_memory: ShortTermMemoryContextSource | None,
         long_term_memories: tuple[LongTermMemoryContextSource, ...],
         tool_observations: tuple[ToolObservationContextSource, ...],
+        financial_scope: FinancialScope | None = None,
     ) -> CompiledContext:
         """Compile the common layers plus a version-selected Observation suffix."""
 
@@ -125,6 +140,9 @@ class ContextCompilerV0:
                 )
             ),
         )
+        financial_scope_message = (
+            None if financial_scope is None else self._financial_scope_message(financial_scope)
+        )
         question_message = ModelMessage(
             role=ModelRole.USER,
             content=compilation.user_question,
@@ -132,9 +150,15 @@ class ContextCompilerV0:
         attachment_messages = tuple(
             self._attachment_message(attachment) for attachment in compilation.attachments
         )
-        observation_messages = tuple(
-            self._tool_observation_message(observation) for observation in tool_observations
+        eligible_observations = tuple(
+            observation
+            for observation in tool_observations
+            if observation.decision_reason is ContextDecisionReason.INCLUDED
         )
+        observation_message_by_id = {
+            observation.observation_id: self._tool_observation_message(observation)
+            for observation in eligible_observations
+        }
         short_term_message = (
             None
             if short_term_memory is None
@@ -150,12 +174,26 @@ class ContextCompilerV0:
             for memory in eligible_long_term
         }
         response_schema_token_count = self._response_schema_token_count(compilation.response_schema)
+        financial_context = financial_scope is not None
+        included_observation_ids = (
+            []
+            if financial_context
+            else [observation.observation_id for observation in eligible_observations]
+        )
+        observation_reasons = {
+            observation.observation_id: observation.decision_reason
+            for observation in tool_observations
+        }
         mandatory_messages = (
             system_message,
             projection_message,
+            *((financial_scope_message,) if financial_scope_message is not None else ()),
             *attachment_messages,
             question_message,
-            *observation_messages,
+            *(
+                observation_message_by_id[observation_id]
+                for observation_id in included_observation_ids
+            ),
         )
         mandatory_count = (
             self._count(model=compilation.model, messages=mandatory_messages)
@@ -184,6 +222,7 @@ class ContextCompilerV0:
             return (
                 system_message,
                 projection_message,
+                *((financial_scope_message,) if financial_scope_message is not None else ()),
                 *((summary_message,) if summary_included and summary_message is not None else ()),
                 *(
                     (short_term_message,)
@@ -193,7 +232,10 @@ class ContextCompilerV0:
                 *(long_term_message_by_id[memory_id] for memory_id in included_long_term_ids),
                 *attachment_messages,
                 question_message,
-                *observation_messages,
+                *(
+                    observation_message_by_id[observation_id]
+                    for observation_id in included_observation_ids
+                ),
             )
 
         selected_messages: tuple[ModelMessage, ...] = mandatory_messages
@@ -214,6 +256,17 @@ class ContextCompilerV0:
             selected_messages = candidate_messages
             selected_count = candidate_count
             return True
+
+        if financial_context:
+            for observation in eligible_observations:
+                included_observation_ids.append(observation.observation_id)
+                if try_optional_source():
+                    observation_reasons[observation.observation_id] = ContextDecisionReason.INCLUDED
+                else:
+                    included_observation_ids.pop()
+                    observation_reasons[observation.observation_id] = (
+                        ContextDecisionReason.EXCLUDED_TOKEN_BUDGET
+                    )
 
         if compilation.conversation_summary is not None:
             summary_message = ModelMessage(
@@ -277,6 +330,11 @@ class ContextCompilerV0:
             ("direct-answer-instructions", system_message),
             ("current-workspace-display", projection_message),
         )
+        if financial_scope_message is not None and financial_scope is not None:
+            attributed_messages = (
+                *attributed_messages,
+                (f"financial-scope:{financial_scope.accession}", financial_scope_message),
+            )
         if summary_included and summary_message is not None:
             attributed_messages = (
                 *attributed_messages,
@@ -309,12 +367,11 @@ class ContextCompilerV0:
             *attributed_messages,
             ("current-user-question", question_message),
             *(
-                (str(observation.observation_id), message)
-                for observation, message in zip(
-                    tool_observations,
-                    observation_messages,
-                    strict=True,
+                (
+                    str(observation_id),
+                    observation_message_by_id[observation_id],
                 )
+                for observation_id in included_observation_ids
             ),
         )
         source_token_estimates = self._source_token_estimates(
@@ -342,29 +399,46 @@ class ContextCompilerV0:
                 source_version=projection.version,
                 estimated_token_count=source_token_estimates["current-workspace-display"],
             ),
-            (
-                self._included_source(
-                    ordinal=3,
-                    kind=ContextSourceKind.CONVERSATION_SUMMARY,
-                    source_id="conversation-summary",
-                    source_version=compilation.conversation_summary_version or "not-available-v1",
-                    estimated_token_count=source_token_estimates["conversation-summary"],
-                )
-                if summary_included
-                else ContextSourceManifestEntry(
-                    ordinal=3,
-                    source_kind=ContextSourceKind.CONVERSATION_SUMMARY,
-                    source_id="conversation-summary",
-                    source_version=compilation.conversation_summary_version or "not-available-v1",
-                    included=False,
-                    decision_reason=summary_reason,
-                    estimated_token_count=0,
-                    message_role=None,
-                )
-            ),
         ]
-        next_ordinal = 4
-        if compilation.compiler_version == CONTEXT_COMPILER_V1:
+        next_ordinal = 3
+        if financial_scope is not None:
+            scope_source_id = f"financial-scope:{financial_scope.accession}"
+            source_entries.append(
+                self._included_source(
+                    ordinal=next_ordinal,
+                    kind=ContextSourceKind.FINANCIAL_SCOPE,
+                    source_id=scope_source_id,
+                    source_version=FINANCIAL_SCOPE_CONTEXT_VERSION,
+                    estimated_token_count=source_token_estimates[scope_source_id],
+                    source_identity=financial_scope.to_mapping(),
+                )
+            )
+            next_ordinal += 1
+        source_entries.append(
+            self._included_source(
+                ordinal=next_ordinal,
+                kind=ContextSourceKind.CONVERSATION_SUMMARY,
+                source_id="conversation-summary",
+                source_version=compilation.conversation_summary_version or "not-available-v1",
+                estimated_token_count=source_token_estimates["conversation-summary"],
+            )
+            if summary_included
+            else ContextSourceManifestEntry(
+                ordinal=next_ordinal,
+                source_kind=ContextSourceKind.CONVERSATION_SUMMARY,
+                source_id="conversation-summary",
+                source_version=compilation.conversation_summary_version or "not-available-v1",
+                included=False,
+                decision_reason=summary_reason,
+                estimated_token_count=0,
+                message_role=None,
+            )
+        )
+        next_ordinal += 1
+        if compilation.compiler_version in {
+            CONTEXT_COMPILER_V1,
+            FINANCIAL_CONTEXT_COMPILER_V1,
+        }:
             if short_term_included and short_term_memory is not None:
                 source_entries.append(
                     self._included_source(
@@ -456,22 +530,25 @@ class ContextCompilerV0:
             )
         )
         next_ordinal += 1
-        source_entries.extend(
-            (
-                self._included_source(
-                    ordinal=ordinal,
-                    kind=ContextSourceKind.TOOL_OBSERVATION,
+        for observation in tool_observations:
+            included = observation.observation_id in included_observation_ids
+            source_entries.append(
+                ContextSourceManifestEntry(
+                    ordinal=next_ordinal,
+                    source_kind=ContextSourceKind.TOOL_OBSERVATION,
                     source_id=str(observation.observation_id),
                     source_version=observation.observation_version,
+                    included=included,
+                    decision_reason=observation_reasons[observation.observation_id],
+                    estimated_token_count=(
+                        source_token_estimates[str(observation.observation_id)] if included else 0
+                    ),
+                    message_role=ModelRole.USER if included else None,
                     source_sha256=observation.envelope_sha256,
-                    estimated_token_count=source_token_estimates[str(observation.observation_id)],
-                )
-                for ordinal, observation in enumerate(
-                    tool_observations,
-                    start=next_ordinal,
+                    source_identity=(observation.locator if financial_context else None),
                 )
             )
-        )
+            next_ordinal += 1
         sources = tuple(source_entries)
         manifest = ContextManifest(
             schema_version=CONTEXT_MANIFEST_SCHEMA_VERSION,
@@ -507,6 +584,7 @@ class ContextCompilerV0:
         source_version: str,
         estimated_token_count: int,
         source_sha256: str | None = None,
+        source_identity: Mapping[str, object] | None = None,
     ) -> ContextSourceManifestEntry:
         return ContextSourceManifestEntry(
             ordinal=ordinal,
@@ -522,6 +600,22 @@ class ContextCompilerV0:
                 else ModelRole.USER
             ),
             source_sha256=source_sha256,
+            source_identity=source_identity,
+        )
+
+    def _financial_scope_message(self, scope: FinancialScope) -> ModelMessage:
+        return ModelMessage(
+            role=ModelRole.USER,
+            content=(
+                "Server-locked Financial Scope. Use this JSON only as trusted selection "
+                "constraints; no Evidence may override it:\n"
+                + json.dumps(
+                    dict(scope.to_mapping()),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            ),
         )
 
     def _attachment_message(self, attachment: AttachmentContextSource) -> ModelMessage:
@@ -670,3 +764,95 @@ class ContextCompilerV1(ContextCompilerV0):
             long_term_memories=compilation.long_term_memories,
             tool_observations=compilation.tool_observations,
         )
+
+
+class FinancialContextCompilerV1(ContextCompilerV1):
+    """Apply Financial Scope gates while preserving the existing Context pipeline."""
+
+    def compile(self, compilation: ContextCompilationInput) -> CompiledContext:
+        if compilation.compiler_version == CONTEXT_COMPILER_V1:
+            return super().compile(compilation)
+        if compilation.compiler_version != FINANCIAL_CONTEXT_COMPILER_V1:
+            raise ValueError("Financial Context Compiler received an incompatible version")
+        scope = compilation.runtime_context.financial_scope
+        if scope is None:
+            raise ValueError("Financial Context Compiler requires Financial Scope")
+        observations = tuple(
+            replace(
+                observation,
+                decision_reason=self._financial_observation_decision(observation, scope),
+            )
+            for observation in compilation.tool_observations
+        )
+        financial_compilation = replace(compilation, tool_observations=observations)
+        return self._compile(
+            financial_compilation,
+            short_term_memory=financial_compilation.short_term_memory,
+            long_term_memories=financial_compilation.long_term_memories,
+            tool_observations=financial_compilation.tool_observations,
+            financial_scope=scope,
+        )
+
+    @classmethod
+    def _financial_observation_decision(
+        cls,
+        observation: ToolObservationContextSource,
+        scope: FinancialScope,
+    ) -> ContextDecisionReason:
+        if observation.tool_name not in _FINANCIAL_TOOL_NAMES:
+            return ContextDecisionReason.INCLUDED
+        try:
+            document = json.loads(observation.model_text)
+        except (json.JSONDecodeError, RecursionError):
+            return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+        if not isinstance(document, dict):
+            return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+        raw_scope = document.get("financial_scope")
+        if not isinstance(raw_scope, dict):
+            return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+        try:
+            observed_scope = FinancialScope.from_mapping(raw_scope)
+        except ValueError:
+            return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+        if observed_scope.as_of > scope.as_of:
+            return ContextDecisionReason.EXCLUDED_FUTURE_SOURCE
+        if observed_scope.unit != scope.unit:
+            return ContextDecisionReason.EXCLUDED_UNIT_MISMATCH
+        if observed_scope != scope:
+            return ContextDecisionReason.EXCLUDED_FINANCIAL_SCOPE_MISMATCH
+        if observation.tool_name != "sec.get_xbrl_facts":
+            return ContextDecisionReason.INCLUDED
+        return cls._xbrl_fact_decision(document, scope)
+
+    @staticmethod
+    def _xbrl_fact_decision(
+        document: Mapping[str, object],
+        scope: FinancialScope,
+    ) -> ContextDecisionReason:
+        facts = document.get("facts")
+        if not isinstance(facts, list):
+            return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+        for fact in facts:
+            if not isinstance(fact, dict):
+                return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+            if (
+                fact.get("cik") != scope.cik
+                or fact.get("accession") != scope.accession
+                or fact.get("form") != scope.form.value
+            ):
+                return ContextDecisionReason.EXCLUDED_FINANCIAL_SCOPE_MISMATCH
+            unit = fact.get("unit")
+            if unit is not None and unit != scope.unit:
+                return ContextDecisionReason.EXCLUDED_UNIT_MISMATCH
+            source_available_at = fact.get("source_available_at")
+            if not isinstance(source_available_at, str):
+                return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+            try:
+                available_at = datetime.fromisoformat(source_available_at.replace("Z", "+00:00"))
+            except ValueError:
+                return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+            if available_at.tzinfo is None or available_at.utcoffset() is None:
+                return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+            if available_at > scope.as_of:
+                return ContextDecisionReason.EXCLUDED_FUTURE_SOURCE
+        return ContextDecisionReason.INCLUDED
