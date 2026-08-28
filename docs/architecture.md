@@ -869,6 +869,7 @@ Day 10 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 
 - [ADR 0007：SEC 披露财务事实核验边界](adr/0007-sec-disclosure-financial-fact-verification.md)
 - [SEC Agent 评测计划](sec-agent-evaluation.md)
 - [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)
+- [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)
 
 ## 20. 当前实现状态
 
@@ -887,6 +888,8 @@ Day 4 步骤 1～5、Trace/Eval/DoD 与授权收口已经完成，D4-01～D4-07 
 Day 5 已合并私有上传、版本化解析资产、Embedding/双索引、冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 已合入 `main`，功能 head `cff25c1` 的 push/PR CI `32920879147`、`32924323618` 和合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均成功。D5-01～D5-07 为 `complete`；因为缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，D5-08/D5-09 保持 `implemented_pending_verification`。
 
 Day 6 已实现 filer/filing point-in-time、不可变 filing/XBRL source snapshot、Workspace Knowledge import、`dense-v1` content read、typed XBRL facts、五个 SEC read Tool、Workbench 和 `sec-source-v1`，并由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head、PR 和合并提交 CI 均成功。确定性报告仍为 22/24，两条 bulk snapshot/watermark/post-gap closeout case 未通过，合法 live SEC smoke 也尚缺，因此 D6-02/D6-06 保持 `thin_slice`，其余 D6 项保持 `implemented_pending_verification`。项目所有者已将这些缺口改期为 Day 10 发布硬门并推进 Day 7。Day 7 Step 1 的 `hybrid-v1`、Retrieval Trace 与 filing text/XBRL fact locator 已实现，D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`。Step 2 的 `financial-context-v1`、可信 Scope 注入、稳定排除原因、identity manifest 与生产 LOCAL 装配已提交；其远端 PostgreSQL CI 暴露的冻结 identity 深拷贝失败已在当前工作树改为浅层 JSON 投影并补回归测试，尚待新 CI，D7-03 保持 `implemented_pending_verification`。Step 3 复用既有 calculator/Evidence 边界，新增正式 XBRL operand 的 PostgreSQL 授权重载、scale/percentage、typed reconciliation 和 Calculation Evidence 重算；D7-04/D7-05 为 `implemented_pending_verification`。当前状态不关闭 Step 1 ranking/table/Citation、Step 2/3 真实 PostgreSQL 与远端 CI、D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门也不能视为当前能力。
+
+Day 7 五步代码随后由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。该合并没有关闭 Day 7 的 ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 与 owner review 门禁；D7-01/D7-03～D7-08 仍为 `implemented_pending_verification`，D7-02 仍为 `thin_slice`。项目所有者允许继续后续实现、Day 10 统一查漏补缺，因此 Day 8 先冻结五步计划和 Verifier/Monitor/恢复设计；当前没有 Day 8 migration、domain model、graph node、Tool、API 或 UI，D8-01～D8-08 全部为 `planned`。
 
 ## 21. 初学者术语表
 
