@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.5`
+> 版本：`2.1.6`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1011,6 +1011,8 @@ Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calcu
 
 ## 15. Day 8：SEC Verified Agent L5、监控与 Durable HITL
 
+> 执行状态（2026-08-28）：Day 7 已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败，不能据此关闭 Day 7。项目所有者明确先继续 Day 8～Day 9 代码、Day 10 再统一查漏补缺；该授权只改变执行顺序，Day 4～Day 7 的 coverage、浏览器、bulk/live、ranking/Citation、中英 paired、main CI 和 owner review 债务仍是 Day 10 硬门。Day 8 当前只完成不超过五步的文档规划，D8-01～D8-08 均为 `planned`。详细顺序见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
+
 ### 学习主题
 
 - Verified Claim precision 与回答覆盖率之间的权衡。
@@ -1021,16 +1023,11 @@ Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calcu
 
 ### 实现任务
 
-1. 在同一 Research graph 中实现 SEC L5 Verifier，逐 Claim 检查 filer/accession/`as_of`、Evidence 支持、unit/period/context、calculator lineage、coverage、conflict 和 Citation。
-2. 将终态冻结为 `verified`、`partial`、`conflict`、`insufficient_evidence`；运行失败、取消、预算耗尽仍使用 Runtime stop reason，不能与业务核验状态混淆。
-3. 实现最多一次 `verify → targeted retrieve/recalculate → revise → finalize`；Verifier 输出 typed issue list，不能自由改题、扩大 toolset 或无限循环。
-4. 把 filing/网页中的指令视为普通 Evidence 内容；增加 indirect prompt injection、伪造 system/tool 指令、恶意表格和超预算输入场景。
-5. 实现 `disclosure_monitors`、watermark、form/fact/section 规则和 `disclosure_cases`；Beat 只创建 occurrence/Job/Outbox，Worker 复用 SEC sync、diff、Evidence 与 Case service。
-6. 实现 `monitor.subscribe@v1` 持久审批：模型只能请求，当前用户 allow/deny/timeout 后才能写入；重复 decision/Job 不重复订阅、Case 或通知。
-7. 完成 L4/L5 hard stop、Checkpoint CAS、Worker 重启、取消竞态和依赖恢复；resume 先读副作用账本和现有计算/Case。
-8. 扩展 Workbench 的 Verifier issue、revise diff、业务终态、Approval、Monitor 与 Case 时间线，并允许从 Case 反查两个 accession 和全部 Evidence。
-9. 建立 `sec-verification-v1` 与 fault/security suite，覆盖支持、反驳、冲突、无答案、修订、错误期间、注入、审批、重复 resume 和通知。
-10. 运行 A2/A3/A4 对照：A2 tools+calculator，A3 + mandatory verifier/one revise，A4 + durable monitor/HITL；记录质量、coverage、步骤、恢复、成本和延迟。
+1. **Claim Verifier 与四种业务状态**：在同一 Research graph 中定义 SEC Evidence-aware Verifier、typed issue/report，逐 Claim 重载并检查 filer/accession/`as_of`、support、unit/period/context、Calculation lineage、coverage/conflict 和 Citation；业务状态固定为 `verified/partial/conflict/insufficient_evidence`，与 Runtime stop reason 分列。
+2. **One-revise L5 与不可信输入防线**：实现最多一次 `verify → targeted retrieve/recalculate → revise → finalize`，冻结原 Workspace/Scope/toolset/budget；filing、网页、表格和 Observation 中的指令只作为不可信数据，加入 indirect prompt injection、伪造 tool/system、超预算和 no-progress 场景。
+3. **Monitor、watermark 与幂等 Case**：建立版本化 Monitor/rule/watermark/Case；Beat 只创建 occurrence/Job/Outbox，Worker 复用 SEC sync、filing diff、Evidence 与 side-effect ledger，新 filing/amendment 的同一 trigger 只产生一个 Case。
+4. **`monitor.subscribe@v1`、Durable HITL 与 Workbench**：模型只能请求订阅，当前用户 allow/deny/timeout 后才落库；复用 ApprovalRequest/Decision、Checkpoint CAS 和副作用账本，完成跨刷新/Worker 重启/取消竞态恢复，并让 Workbench 从正式 API/Event/Trace 展示 Verifier、revise、Approval、Monitor、Case 与 Evidence 反查。
+5. **`sec-verification-v1`、A2/A3/A4 与收口**：冻结 deterministic/fault/security cases；同 manifest、数据、Scope 和预算比较 A2、A3、A4，分别报告质量/coverage、trajectory、恢复、副作用、成本和延迟，并完成三层 CI、正式浏览器和所有者复核。
 
 ### 测试
 
@@ -1043,7 +1040,7 @@ Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calcu
 
 ### 当日产物
 
-SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fault/security suite、A2/A3/A4 报告、Verified Agent Workbench、`learning-log/day-8.md`。
+SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fault/security suite、A2/A3/A4 报告、Verified Agent Workbench、[SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)、`learning-log/day-8.md`。
 
 ### 验收门禁
 
@@ -1337,3 +1334,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.1.3 | 2026-08-28 | 记录 Step 2 提交 `d3c88d5` 的分支 CI `33140371558` 因 Context manifest `mappingproxy` 深拷贝在 PostgreSQL Job 失败，并在当前工作树以浅层投影和回归测试修复；同步项目所有者推进 Step 3 后，正式 XBRL Evidence operand、PostgreSQL 授权重载、Decimal scale/percentage、`financial-reconciliation-v1` 和 Calculation Evidence 重算链已落地。D7-04/D7-05 为 `implemented_pending_verification`，保留本机真实 PostgreSQL、Step 3 提交/远端 CI 及既有 Day 6/Step 1 缺口 | 用户授权继续 Day 7 下一步 |
 | 2.1.4 | 2026-08-28 | 同步 Day 7 Step 4 当前工作树：新增 fail-closed filing diff、`sec.diff_filings@v1`、exact six-Tool 中文 `sec-l4-v1`、SEC/Research Workbench 审计链和完整 Evidence HTTP locator；修复分支 CI `33149285431` 暴露的 ready/active PostgreSQL 测试夹具。D7-06/D7-07 为 `implemented_pending_verification`，保留真实依赖、正式浏览器、中英 paired run、新分支/PR/main CI 与既有评测缺口 | 用户授权继续 Day 7 下一步 |
 | 2.1.5 | 2026-08-28 | 同步 Day 7 Step 5 当前工作树：新增可重算 10-case/30-run `sec-tool-v1` manifest、独立 observations、严格 scorer 与 JSON/Markdown；deterministic A2 对 A1 复杂题净增益 `0.833333`、简单题退化 `0`，但报告明确不是 live/model/public benchmark 且 Day 7 未收口。同步修复 `e5fb75c` CI 暴露的 XBRL unit 边界、过期 Hybrid E2E selector 与版本常量 Secret 误报；本地 Python `1081 passed, 84 skipped`、Python/Web/OpenAPI/报告生成/Gitleaks 门禁通过。D7-08 为 `implemented_pending_verification`，保留真实依赖、浏览器、中英 paired、三层 CI、owner review 和既有债务 | 用户授权继续 Day 7 下一步 |
+| 2.1.6 | 2026-08-28 | 记录 PR #11、功能 head、两组通过的 PR 检查与合并提交 main CI 最终 6/7 Job 通过、Browser E2E 失败，Day 7 状态不升级。按项目所有者“先完成后续代码、Day 10 统一查漏补缺”的排期授权，将 Day 8 收敛为五个纵向步骤，新增 Day 8 执行计划和 Verifier/Monitor/恢复设计；D8-01～D8-08 保持 `planned`，Day 4～7 原债务继续作为 Day 10 发布硬门 | 用户授权进入 Day 8 文档规划 |

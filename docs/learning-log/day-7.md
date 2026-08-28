@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Filing Retrieval 与计算设计](../sec-retrieval-design.md)
 >
-> 当前状态：Step 5 已完成当前工作树实现。D7-01/D7-03～D7-08=`implemented_pending_verification`，D7-02=`thin_slice`。`sec-tool-v1` 的 deterministic gate 通过，但 live/model、正式浏览器、中英 paired、真实依赖、新分支/PR/main CI 和所有者复核未完成，因此 Day 7 尚未关闭；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口继续保留为 Day 10 发布硬门，不从原分母删除。
+> 当前状态：Day 7 五步代码已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`；功能 head `6a25ab2` 的两组 PR 检查均通过，但合并提交 `ae33b98` 的 main CI `33156337673` 最终为 6/7 Job 通过、Browser E2E 失败。D7-01/D7-03～D7-08=`implemented_pending_verification`，D7-02=`thin_slice`；`sec-tool-v1` deterministic gate 不代表 live/model、正式浏览器、中英 paired、真实依赖、main CI 或所有者复核已完成。项目所有者授权继续 Day 8～Day 9、Day 10 再统一查漏补缺；Day 6 的 `22/24`、bulk watermark/live SEC 与其他既有缺口继续作为发布硬门，不从原分母删除。
 
 ## 1. 进入条件与本日边界
 

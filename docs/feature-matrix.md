@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-28
 >
-> 权威来源：`docs/master-plan.md` 2.1.3
+> 权威来源：`docs/master-plan.md` 2.1.6
 
 ## 1. 使用规则
 
@@ -239,6 +239,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 
 2026-08-28 Step 5 映射：项目所有者明确继续。当前工作树冻结 10-case `sec-tool-v1`、同一数据版本/预算和 30 个 A0/A1/A2 runs；独立 observation 经规则 scorer 重算 identity、答案/Evidence、calculation lineage、Citation、拒答、Tool/budget 与成本延迟，并可确定生成 JSON/Markdown。deterministic report 中 A2 复杂题相对 A1 提升 `0.833333`、简单题退化 `0`，A2 拒答/Citation/lineage 为 `1.0`，三策略错误 company/period/accession 为 `0`。报告明确不是 live/model/public benchmark，`day7_closeout_ready=false`。提交 `e5fb75c` 的 CI `33152912538` 暴露 raw XBRL QName unit、过期 E2E selector 和测试版本常量误报，当前已按正式边界修复；本地 Python `1081 passed, 84 skipped`、Ruff、mypy `478` 个源文件、Web `87 passed`、格式/lint/typecheck/build、OpenAPI/报告连续生成和 Gitleaks 通过，但尚无新远端 CI。真实依赖、正式浏览器、中英 paired、分支/PR/main CI、owner review、Step 1 ranking/Citation 与 Day 6 `22/24` 仍缺，故 D7-08 为 `implemented_pending_verification`，Day 7 未关闭。
 
+2026-08-28 合并映射：Day 7 已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 `ae33b98` 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。合并事实不关闭 ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 和 owner review，因此 D7-01/D7-03～D7-08 保持 `implemented_pending_verification`，D7-02 保持 `thin_slice`。项目所有者授权继续 Day 8 规划并将统一查漏补缺安排到 Day 10，这不是状态豁免。
+
 ## 10. Day 8：Verified Agent L5、Monitor 与 HITL
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
@@ -251,6 +253,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D8-06 | `monitor.subscribe@v1` 持久 HITL | NEW | 写 Tool 请求→ApprovalRequest→allow/deny/timeout→幂等订阅 | 跨刷新/Worker 重启、重复 decision、deny/timeout 零写入 | `planned` | `complete` |
 | D8-07 | L4/L5 Durable recovery | R2 + NEW | Checkpoint CAS、hard stop、resume、取消竞态、副作用账本 | 恢复成功 100%，Tool/Calculation/Monitor/Case 重复数 0 | `planned` | `complete` |
 | D8-08 | Verified/Monitor Workbench 与 A2/A3/A4 | NEW | Verifier issues、revise diff、Approval、Monitor、Case、两个 accession/Evidence | 正式 API/Event/Trace 驱动、fault/security report 和净收益决定 | `planned` | `complete` |
+
+2026-08-28 规划映射：Day 8 按依赖收敛为五步：① D8-01/D8-02 Claim Verifier 与四种业务状态；② D8-03/D8-04 one-revise 与不可信输入防线；③ D8-05 Monitor/watermark/幂等 Case；④ D8-06/D8-07 及 D8-08 部分的持久 HITL、恢复与 Workbench；⑤ D8-08 的 `sec-verification-v1`、A2/A3/A4 与收口。具体合同见 [Day 8 执行计划](learning-log/day-8.md) 和 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。本轮没有 Day 8 代码、迁移、测试或运行证据，D8-01～D8-08 全部保持 `planned`。
 
 ## 11. Day 9：Benchmark、Temporal Eval 与中文验证
 

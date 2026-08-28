@@ -1,8 +1,8 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 Step 5 `sec-tool-v1` deterministic contract 已完成当前工作树实现；真实依赖、live/model、正式浏览器旅程、中英 paired 与新远端 CI 待关闭
+> 状态：Day 7 五步代码已由 PR #11 合入 `main`，两组 PR 检查通过；合并提交 main CI `33156337673` 最终为 6/7 Job 通过、Browser E2E 失败。D7-01/D7-03～D7-08 保持 `implemented_pending_verification`，D7-02 保持 `thin_slice`，真实依赖、live/model、正式浏览器、中英 paired、main CI 与所有者复核待关闭
 >
-> 基线：`IIP-MASTER-001` 2.1.5，D7-01～D7-08
+> 基线：`IIP-MASTER-001` 2.1.6，D7-01～D7-08
 >
 > 决策来源：[ADR 0003](adr/0003-unified-evidence-model.md)、[ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)
 

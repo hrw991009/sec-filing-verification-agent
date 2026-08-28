@@ -2,15 +2,19 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.3.0`
+> 版本：`1.4.0`
 >
 > 日期：2026-08-26
 >
-> 权威范围：`docs/master-plan.md` v2.1.5 Day 5 Step 4～Day 10
+> 修订日期：2026-08-28
 >
-> 状态：Day 6 `sec-source-v1` 已由 PR #10 合入 `main`，当前报告 22/24；Day 7 `sec-tool-v1` deterministic contract 已实现且门禁通过，但 Day 7 未收口，也不代表 live/model 或任何公开 SEC benchmark 已接入或通过
+> 权威范围：`docs/master-plan.md` v2.1.6 Day 5 Step 4～Day 10
+>
+> 状态：Day 6 `sec-source-v1` 已由 PR #10 合入 `main`，当前报告 22/24；Day 7 `sec-tool-v1` deterministic contract 已由 PR #11 合入 `main`，两组 PR 检查通过，但合并提交 main CI 的 Browser E2E 失败，Day 7 未收口；Day 8 仅冻结 `sec-verification-v1` 评测合同，尚无 D8 代码或结果
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
+
+Day 8 的 Claim Verifier、四种业务状态、one-revise、Monitor/HITL/恢复及 A2/A3/A4 边界见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
 
 ## 1. 目标与不能证明的能力
 
@@ -164,7 +168,23 @@ Scorer 要求 10×3 组合精确覆盖，缺失或重复即拒绝评分；错误
 
 这些 observation 绑定 production component pytest，但仍是 frozen contract，不是当前模型实际运行。报告必须保留 `live_sec_executed=false`、`live_model_executed=false`、`browser_e2e_executed=false` 等边界，并在真实依赖、中英 paired、分支/PR/main CI 和 owner review 未齐时输出 `day7_closeout_ready=false`。A0/A1/A2 的 public/offline 与 live repeated run 属于 Day 9/10，不能回填或平均到该 deterministic 报告。
 
-### 4.4 `sec-temporal-v1`
+### 4.4 `sec-verification-v1`（Day 8）
+
+Day 8 在不改写 `sec-tool-v1` 的前提下新增独立 manifest/observation/report，覆盖五类能力：
+
+- Claim support/refute/conflict/insufficient、Citation resolvability、scope/period/unit 和 Calculation 重算；
+- one-revise success/no-progress/max-revision、budget/deadline/cancel 和 dependency failure；
+- filing/table/web 间接 prompt injection、伪造 system/tool 指令和未授权写请求；
+- monitor approval allow/deny/timeout、watermark、amendment Case、重复 tick/decision/notification；
+- L4/L5/Monitor 的 Worker hard stop、Checkpoint CAS、迟到结果和 side-effect recovery。
+
+每个 case 固定相同的 source/data hash、`FinancialScope`、allowed/forbidden actions、Evidence/Calculation gold、expected verification status、Runtime stop reason、最终数据库状态和预算。A2/A3/A4 必须复用同一适用 case；不允许给 A3 额外 gold Evidence，或把 A4 的 Monitor 恢复结果平均成问答准确率。
+
+Day 8 deterministic 硬门为：verified false support=0、Citation/source identity resolvability=100%、fabricated source/accession/number/formula=0、future leakage=0、跨 Workspace=0、未授权写=0、重复副作用=0、恢复成功率=100%。A3 只有在复杂检索/计算/冲突类相对 A2 有净收益、简单题退化不超过 2pp 且成本/延迟未越界时保留 mandatory verifier/one-revise；A4 主要以审批、最终数据库状态和恢复正确性验收。
+
+当前仅冻结以上 schema、case 类别与门禁，不能生成占位高分或把 Day 7 observation 当作 Day 8 结果。Day 8 代码完成后再写实际 case 数、报告 hash、CI 和限制。
+
+### 4.5 `sec-temporal-v1`
 
 Day 9 冻结至少 60 个 release cases。所有 case 必须来自 `as_of` 前可见的官方 filing snapshot，并锁定：
 
@@ -205,7 +225,7 @@ expected_runtime_stop_reason
 
 同一 case 可以覆盖多个标签，但主类别计数只记一次。case 构造、dev 和 release holdout 必须按 accession/filing 分离，不能把同一表述轻微改写后跨 split。
 
-### 4.4 中英配对集
+### 4.6 中英配对集
 
 至少 30 个 `sec-temporal-v1` case 提供中文/英文配对问题，共享同一 gold scope、accession、Evidence、program、result 和 business status。
 
