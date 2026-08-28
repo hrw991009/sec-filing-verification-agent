@@ -26,7 +26,7 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSyncPreparation,
     SecXbrlSyncResult,
 )
-from industry_platform.modules.retrieval.domain import DenseCandidate
+from industry_platform.modules.retrieval.domain import RetrievalCandidate
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 
@@ -156,7 +156,7 @@ class SecFilingContentRepository(Protocol):
         scope: WorkspaceScope,
         *,
         preparation: SecFilingContentPreparation,
-        candidates: tuple[DenseCandidate, ...],
+        candidates: tuple[RetrievalCandidate, ...],
     ) -> tuple[SecFilingSearchHit, ...]: ...
 
     async def read_section(

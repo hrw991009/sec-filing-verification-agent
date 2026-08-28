@@ -10,11 +10,11 @@
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-08-27 修订同步基线：`docs/master-plan.md` v2.1.0
+> 2026-08-27 修订同步基线：`docs/master-plan.md` v2.1.1
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-27，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，功能 head、PR 与合并提交 CI 均成功；严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验和 24-case `sec-source-v1` 已进入主分支。确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺；因此分支结束不等于 D6-01～D6-08 全部完成。Day 7 已先冻结五步文档基线，代码入口继续受两条 closeout case 阻塞。这些实现不构成 Day 5 DoD 豁免，也不改变本 ADR 的产品决策。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-27，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，但确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺。项目所有者随后明确开始 Day 7 Step 1；该步骤的 `hybrid-v1`、PostgreSQL 重载和 filing text/XBRL fact locator 已进入当前工作树。Day 6 未关闭项显式改为 Day 10 发布硬门并保留原评测分母，不构成 D5/Day 6 DoD 豁免；D7-01/D7-02 也分别保持 `implemented_pending_verification`/`thin_slice`，直到 ranking、table/Citation 与远端门禁关闭。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 

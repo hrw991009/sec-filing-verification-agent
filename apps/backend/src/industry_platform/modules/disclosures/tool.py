@@ -17,6 +17,7 @@ from industry_platform.modules.disclosures.domain import (
     SecFilerResolutionStatus,
     SecFilingContentError,
     SecFilingContentStatus,
+    SecFilingRetrievalTrace,
     SecSourceError,
     SecXbrlFactQuery,
     SecXbrlPeriodKind,
@@ -32,6 +33,7 @@ from industry_platform.modules.disclosures.service import (
     SecFilingSelectionService,
 )
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.tools.domain import (
     MAX_TOOL_SOURCES,
     TOOL_OBSERVATION_NORMALIZER_VERSION,
@@ -414,6 +416,50 @@ class SecFilingContentHitOutput(BaseModel):
     source_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_url: str
     source_version: str
+    retrieval_channels: list[str]
+    dense_rank: int | None
+    lexical_rank: int | None
+    rrf_score: float | None = Field(default=None, ge=0, le=1)
+    rerank_score: float | None = Field(default=None, ge=0, le=1)
+    index_version: str
+
+
+class SecFilingRetrievalTraceOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    profile_version: str
+    dense_candidate_count: int = Field(ge=0, le=100)
+    lexical_candidate_count: int = Field(ge=0, le=100)
+    fused_candidate_count: int = Field(ge=0, le=100)
+    rrf_k: int | None
+    reranker_version: str | None
+    query_rewrite_version: str | None
+    dense_candidate_limit: int | None
+    lexical_candidate_limit: int | None
+    final_limit: int | None
+    diversity_policy_version: str | None
+    as_of: datetime | None
+    active_source_versions: list[str]
+    index_versions: list[str]
+
+    @classmethod
+    def from_domain(cls, value: SecFilingRetrievalTrace) -> "SecFilingRetrievalTraceOutput":
+        return cls(
+            profile_version=value.profile_version,
+            dense_candidate_count=value.dense_candidate_count,
+            lexical_candidate_count=value.lexical_candidate_count,
+            fused_candidate_count=value.fused_candidate_count,
+            rrf_k=value.rrf_k,
+            reranker_version=value.reranker_version,
+            query_rewrite_version=value.query_rewrite_version,
+            dense_candidate_limit=value.dense_candidate_limit,
+            lexical_candidate_limit=value.lexical_candidate_limit,
+            final_limit=value.final_limit,
+            diversity_policy_version=value.diversity_policy_version,
+            as_of=value.as_of,
+            active_source_versions=list(value.active_source_versions),
+            index_versions=list(value.index_versions),
+        )
 
 
 class SecSearchFilingOutput(BaseModel):
@@ -424,6 +470,8 @@ class SecSearchFilingOutput(BaseModel):
     retrieval_profile_version: str
     hits: list[SecFilingContentHitOutput]
     error_code: str | None
+    retrieval_trace: SecFilingRetrievalTraceOutput | None = None
+    financial_scope: FinancialScopePayload | None = None
 
 
 def sec_search_filing_definition() -> ToolDefinition:
@@ -431,7 +479,7 @@ def sec_search_filing_definition() -> ToolDefinition:
         schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
         name=SEC_SEARCH_FILING_TOOL_NAME,
         version=SEC_SEARCH_FILING_TOOL_VERSION,
-        description="Dense search within one imported, server-locked SEC filing snapshot.",
+        description="Versioned search within one imported, server-locked SEC filing snapshot.",
         input_schema_version="sec-search-filing-input-v1",
         output_schema_version="sec-search-filing-output-v1",
         input_schema={
@@ -449,6 +497,8 @@ def sec_search_filing_definition() -> ToolDefinition:
                 "retrieval_profile_version",
                 "hits",
                 "error_code",
+                "retrieval_trace",
+                "financial_scope",
             ],
             "properties": {
                 "status": {"type": "string"},
@@ -456,6 +506,8 @@ def sec_search_filing_definition() -> ToolDefinition:
                 "retrieval_profile_version": {"type": "string"},
                 "hits": {"type": "array"},
                 "error_code": {"type": ["string", "null"]},
+                "retrieval_trace": {"type": ["object", "null"]},
+                "financial_scope": {"type": ["object", "null"]},
             },
         },
         capability=WorkspaceAction.RUN_TOOL,
@@ -522,10 +574,22 @@ class SecSearchFilingTool(PydanticToolAdapter[SecSearchFilingInput, SecSearchFil
                         source_content_sha256=hit.source_content_sha256,
                         source_url=hit.source_url,
                         source_version=hit.source_version,
+                        retrieval_channels=list(hit.retrieval_channels),
+                        dense_rank=hit.dense_rank,
+                        lexical_rank=hit.lexical_rank,
+                        rrf_score=hit.rrf_score,
+                        rerank_score=hit.rerank_score,
+                        index_version=hit.index_version,
                     )
                     for hit in result.hits
                 ],
                 error_code=result.error_code,
+                retrieval_trace=(
+                    None
+                    if result.retrieval_trace is None
+                    else SecFilingRetrievalTraceOutput.from_domain(result.retrieval_trace)
+                ),
+                financial_scope=FinancialScopePayload.from_domain(financial_scope),
             ),
             0,
         )
@@ -547,7 +611,6 @@ class SecSearchFilingTool(PydanticToolAdapter[SecSearchFilingInput, SecSearchFil
             sort_keys=True,
         )
         content_sha256 = hashlib.sha256(model_text.encode("utf-8")).hexdigest()
-        unique_sources = {(hit.snapshot_id, hit.source_version): hit for hit in value.hits}
         return ToolObservation(
             schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
             observation_id=uuid5(NAMESPACE_URL, f"{call_id}:sec-search-filing:v1"),
@@ -559,13 +622,13 @@ class SecSearchFilingTool(PydanticToolAdapter[SecSearchFilingInput, SecSearchFil
             model_text=model_text,
             sources=tuple(
                 ToolSource(
-                    source_type="sec_filing_snapshot",
+                    source_type="sec_filing_text",
                     source_version=hit.source_version,
-                    locator=hit.source_url,
+                    locator=f"sec://filing-chunks/{hit.chunk_id}",
                     observed_at=observed_at,
-                    content_sha256=hit.source_content_sha256,
+                    content_sha256=hit.content_sha256,
                 )
-                for hit in unique_sources.values()
+                for hit in value.hits
             ),
             observed_at=observed_at,
             content_sha256=content_sha256,
@@ -599,6 +662,7 @@ class SecReadFilingSectionOutput(BaseModel):
     source_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_url: str
     source_version: str
+    financial_scope: FinancialScopePayload | None = None
 
 
 def sec_read_filing_section_definition() -> ToolDefinition:
@@ -635,6 +699,7 @@ def sec_read_filing_section_definition() -> ToolDefinition:
                 "source_content_sha256",
                 "source_url",
                 "source_version",
+                "financial_scope",
             ],
             "properties": {
                 "import_id": {"type": "string"},
@@ -650,6 +715,7 @@ def sec_read_filing_section_definition() -> ToolDefinition:
                 "source_content_sha256": {"type": "string"},
                 "source_url": {"type": "string"},
                 "source_version": {"type": "string"},
+                "financial_scope": {"type": ["object", "null"]},
             },
         },
         capability=WorkspaceAction.RUN_TOOL,
@@ -714,6 +780,7 @@ class SecReadFilingSectionTool(
                 source_content_sha256=section.source_content_sha256,
                 source_url=section.source_url,
                 source_version=section.source_version,
+                financial_scope=FinancialScopePayload.from_domain(financial_scope),
             ),
             0,
         )
@@ -746,11 +813,11 @@ class SecReadFilingSectionTool(
             model_text=model_text,
             sources=(
                 ToolSource(
-                    source_type="sec_filing_snapshot",
+                    source_type="sec_filing_text",
                     source_version=value.source_version,
-                    locator=value.source_url,
+                    locator=f"sec://filing-chunks/{value.chunk_id}",
                     observed_at=observed_at,
-                    content_sha256=value.source_content_sha256,
+                    content_sha256=value.content_sha256,
                 ),
             ),
             observed_at=observed_at,
@@ -780,7 +847,7 @@ class SecGetXbrlFactsInput(BaseModel):
         min_length=1,
         max_length=3,
     )
-    limit: int = Field(default=20, ge=1, le=20)
+    limit: int = Field(default=16, ge=1, le=16)
 
     def to_domain(self) -> SecXbrlFactQuery:
         return SecXbrlFactQuery(
@@ -800,6 +867,8 @@ class SecGetXbrlFactsOutput(BaseModel):
     accession: str
     facts: list[SecXbrlFactResponse]
     error_code: str | None
+    financial_scope: FinancialScopePayload | None = None
+    knowledge_base_ids: list[UUID] = Field(default_factory=list)
 
 
 def sec_get_xbrl_facts_definition() -> ToolDefinition:
@@ -831,18 +900,27 @@ def sec_get_xbrl_facts_definition() -> ToolDefinition:
                         "enum": [kind.value for kind in SecXbrlSourceKind],
                     },
                 },
-                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 16},
             },
         },
         output_schema={
             "type": "object",
             "additionalProperties": False,
-            "required": ["status", "accession", "facts", "error_code"],
+            "required": [
+                "status",
+                "accession",
+                "facts",
+                "error_code",
+                "financial_scope",
+                "knowledge_base_ids",
+            ],
             "properties": {
                 "status": {"type": "string"},
                 "accession": {"type": "string"},
                 "facts": {"type": "array"},
                 "error_code": {"type": ["string", "null"]},
+                "financial_scope": {"type": ["object", "null"]},
+                "knowledge_base_ids": {"type": "array", "items": {"type": "string"}},
             },
         },
         capability=WorkspaceAction.RUN_TOOL,
@@ -895,6 +973,8 @@ class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFa
                 accession=result.accession,
                 facts=[SecXbrlFactResponse.from_domain(fact) for fact in result.facts],
                 error_code=result.error_code,
+                financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                knowledge_base_ids=list(runtime_context.knowledge_base_ids),
             ),
             0,
         )
@@ -916,8 +996,7 @@ class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFa
             sort_keys=True,
         )
         content_sha256 = hashlib.sha256(model_text.encode("utf-8")).hexdigest()
-        unique_sources = {fact.source_id: fact for fact in value.facts}
-        if len(unique_sources) > MAX_TOOL_SOURCES:
+        if len(value.facts) > MAX_TOOL_SOURCES:
             raise ValueError("SEC XBRL Tool source count exceeds Observation contract")
         return ToolObservation(
             schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
@@ -930,13 +1009,13 @@ class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFa
             model_text=model_text,
             sources=tuple(
                 ToolSource(
-                    source_type=f"sec_xbrl_{fact.source_kind.value}",
+                    source_type="sec_xbrl_fact",
                     source_version=fact.source_version,
-                    locator=fact.source_url,
+                    locator=f"sec://xbrl-facts/{fact.id}",
                     observed_at=fact.retrieved_at,
-                    content_sha256=fact.source_content_sha256,
+                    content_sha256=fact.content_sha256,
                 )
-                for fact in unique_sources.values()
+                for fact in value.facts
             ),
             observed_at=observed_at,
             content_sha256=content_sha256,

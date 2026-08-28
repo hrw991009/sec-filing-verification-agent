@@ -75,8 +75,12 @@ from industry_platform.modules.disclosures.tool import (
 )
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.files.ports import PrivateFileObjectStore
-from industry_platform.modules.ingestion.index_contract import MILVUS_COLLECTION
+from industry_platform.modules.ingestion.index_contract import (
+    ELASTICSEARCH_INDEX,
+    MILVUS_COLLECTION,
+)
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
+from industry_platform.modules.retrieval.adapters.elasticsearch import ElasticsearchLexicalIndex
 from industry_platform.modules.retrieval.adapters.milvus import MilvusDenseIndex
 from industry_platform.modules.tools.registry import RegisteredToolAdapter
 
@@ -261,6 +265,17 @@ def create_disclosure_resources(
             collection=MILVUS_COLLECTION,
             timeout_seconds=settings.knowledge_index_timeout_seconds,
         ),
+        lexical_index=ElasticsearchLexicalIndex(
+            client=internal_http_client,
+            endpoint=settings.elasticsearch_endpoint,
+            api_key=(
+                None
+                if settings.elasticsearch_api_key is None
+                else settings.elasticsearch_api_key.get_secret_value()
+            ),
+            index=ELASTICSEARCH_INDEX,
+            timeout_seconds=settings.knowledge_index_timeout_seconds,
+        ),
     )
     xbrl_service = SecXbrlService(
         repository=SqlAlchemySecXbrlRepository(
@@ -306,6 +321,17 @@ def create_sec_filing_tools(
                 None if settings.milvus_token is None else settings.milvus_token.get_secret_value()
             ),
             collection=MILVUS_COLLECTION,
+            timeout_seconds=settings.knowledge_index_timeout_seconds,
+        ),
+        lexical_index=ElasticsearchLexicalIndex(
+            client=internal_http_client,
+            endpoint=settings.elasticsearch_endpoint,
+            api_key=(
+                None
+                if settings.elasticsearch_api_key is None
+                else settings.elasticsearch_api_key.get_secret_value()
+            ),
+            index=ELASTICSEARCH_INDEX,
             timeout_seconds=settings.knowledge_index_timeout_seconds,
         ),
     )

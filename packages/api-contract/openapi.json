@@ -2528,6 +2528,8 @@
                 "financial_calculation_v1": "#/components/schemas/FinancialCalculationLocatorResponse",
                 "industry_source_v1": "#/components/schemas/IndustrySourceLocatorResponse",
                 "sec_filing_chunk_v1": "#/components/schemas/SecFilingChunkLocatorResponse",
+                "sec_filing_text_v1": "#/components/schemas/SecFilingTextLocatorResponse",
+                "sec_xbrl_fact_v1": "#/components/schemas/industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse",
                 "sql_result_v1": "#/components/schemas/SqlResultLocatorResponse"
               },
               "propertyName": "locator_type"
@@ -2541,6 +2543,12 @@
               },
               {
                 "$ref": "#/components/schemas/SecFilingChunkLocatorResponse"
+              },
+              {
+                "$ref": "#/components/schemas/SecFilingTextLocatorResponse"
+              },
+              {
+                "$ref": "#/components/schemas/industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse"
               },
               {
                 "$ref": "#/components/schemas/FinancialCalculationLocatorResponse"
@@ -6154,6 +6162,148 @@
         "title": "SecFilingImportStatus",
         "type": "string"
       },
+      "SecFilingRetrievalTraceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_source_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Active Source Versions",
+            "type": "array"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "dense_candidate_count": {
+            "title": "Dense Candidate Count",
+            "type": "integer"
+          },
+          "dense_candidate_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dense Candidate Limit"
+          },
+          "diversity_policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diversity Policy Version"
+          },
+          "final_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Limit"
+          },
+          "fused_candidate_count": {
+            "title": "Fused Candidate Count",
+            "type": "integer"
+          },
+          "index_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Index Versions",
+            "type": "array"
+          },
+          "lexical_candidate_count": {
+            "title": "Lexical Candidate Count",
+            "type": "integer"
+          },
+          "lexical_candidate_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lexical Candidate Limit"
+          },
+          "profile_version": {
+            "title": "Profile Version",
+            "type": "string"
+          },
+          "query_rewrite_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query Rewrite Version"
+          },
+          "reranker_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reranker Version"
+          },
+          "rrf_k": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rrf K"
+          }
+        },
+        "required": [
+          "profile_version",
+          "dense_candidate_count",
+          "lexical_candidate_count",
+          "fused_candidate_count",
+          "rrf_k",
+          "reranker_version",
+          "query_rewrite_version",
+          "dense_candidate_limit",
+          "lexical_candidate_limit",
+          "final_limit",
+          "diversity_policy_version",
+          "as_of",
+          "active_source_versions",
+          "index_versions"
+        ],
+        "title": "SecFilingRetrievalTraceResponse",
+        "type": "object"
+      },
       "SecFilingSearchHitResponse": {
         "additionalProperties": false,
         "properties": {
@@ -6170,6 +6320,17 @@
             "title": "Content Sha256",
             "type": "string"
           },
+          "dense_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dense Rank"
+          },
           "document_version_id": {
             "format": "uuid",
             "title": "Document Version Id",
@@ -6179,9 +6340,53 @@
             "title": "Excerpt",
             "type": "string"
           },
+          "index_version": {
+            "title": "Index Version",
+            "type": "string"
+          },
+          "lexical_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lexical Rank"
+          },
           "page_number": {
             "title": "Page Number",
             "type": "integer"
+          },
+          "rerank_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank Score"
+          },
+          "retrieval_channels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Retrieval Channels",
+            "type": "array"
+          },
+          "rrf_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rrf Score"
           },
           "score": {
             "title": "Score",
@@ -6226,7 +6431,13 @@
           "content_sha256",
           "source_content_sha256",
           "source_url",
-          "source_version"
+          "source_version",
+          "retrieval_channels",
+          "dense_rank",
+          "lexical_rank",
+          "rrf_score",
+          "rerank_score",
+          "index_version"
         ],
         "title": "SecFilingSearchHitResponse",
         "type": "object"
@@ -6260,11 +6471,28 @@
             "title": "Retrieval Profile Version",
             "type": "string"
           },
+          "retrieval_trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingRetrievalTraceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "$ref": "#/components/schemas/SecFilingContentStatus"
           }
         },
-        "required": ["status", "accession", "retrieval_profile_version", "hits", "error_code"],
+        "required": [
+          "status",
+          "accession",
+          "retrieval_profile_version",
+          "hits",
+          "error_code",
+          "retrieval_trace"
+        ],
         "title": "SecFilingSearchResponse",
         "type": "object"
       },
@@ -6393,6 +6621,150 @@
         "enum": ["ok", "no_result", "incomplete"],
         "title": "SecFilingSelectionStatus",
         "type": "string"
+      },
+      "SecFilingTextLocatorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_at": {
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "chunker_version": {
+            "title": "Chunker Version",
+            "type": "string"
+          },
+          "cik": {
+            "title": "Cik",
+            "type": "string"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_version_id": {
+            "format": "uuid",
+            "title": "Document Version Id",
+            "type": "string"
+          },
+          "filed_at": {
+            "title": "Filed At",
+            "type": "string"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "index_version": {
+            "title": "Index Version",
+            "type": "string"
+          },
+          "knowledge_base_id": {
+            "format": "uuid",
+            "title": "Knowledge Base Id",
+            "type": "string"
+          },
+          "locator_type": {
+            "const": "sec_filing_text_v1",
+            "title": "Locator Type",
+            "type": "string"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "parser_version": {
+            "title": "Parser Version",
+            "type": "string"
+          },
+          "report_period": {
+            "title": "Report Period",
+            "type": "string"
+          },
+          "retrieval_channels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Retrieval Channels",
+            "type": "array"
+          },
+          "retrieval_profile_version": {
+            "title": "Retrieval Profile Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source_content_sha256": {
+            "title": "Source Content Sha256",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "locator_type",
+          "cik",
+          "accession",
+          "form",
+          "report_period",
+          "as_of",
+          "filed_at",
+          "accepted_at",
+          "canonical_url",
+          "snapshot_id",
+          "source_version",
+          "source_content_sha256",
+          "knowledge_base_id",
+          "document_id",
+          "document_version_id",
+          "chunk_id",
+          "section",
+          "page_number",
+          "content_sha256",
+          "parser_version",
+          "chunker_version",
+          "index_version",
+          "retrieval_profile_version",
+          "retrieval_channels"
+        ],
+        "title": "SecFilingTextLocatorResponse",
+        "type": "object"
       },
       "SecRawXbrlFactLocatorResponse": {
         "additionalProperties": false,
@@ -6622,24 +6994,6 @@
         "title": "SecXbrlFactCollectionResponse",
         "type": "object"
       },
-      "SecXbrlFactLocatorResponse": {
-        "discriminator": {
-          "mapping": {
-            "companyfacts_aggregate": "#/components/schemas/SecAggregateXbrlFactLocatorResponse",
-            "raw_inline": "#/components/schemas/SecRawXbrlFactLocatorResponse",
-            "raw_instance": "#/components/schemas/SecRawXbrlFactLocatorResponse"
-          },
-          "propertyName": "source_kind"
-        },
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/SecAggregateXbrlFactLocatorResponse"
-          },
-          {
-            "$ref": "#/components/schemas/SecRawXbrlFactLocatorResponse"
-          }
-        ]
-      },
       "SecXbrlFactResponse": {
         "additionalProperties": false,
         "properties": {
@@ -6653,6 +7007,11 @@
           },
           "concept": {
             "title": "Concept",
+            "type": "string"
+          },
+          "content_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256",
             "type": "string"
           },
           "context_id": {
@@ -6718,7 +7077,7 @@
             "type": "boolean"
           },
           "locator": {
-            "$ref": "#/components/schemas/SecXbrlFactLocatorResponse"
+            "$ref": "#/components/schemas/industry_platform__modules__disclosures__schemas__SecXbrlFactLocatorResponse"
           },
           "period": {
             "$ref": "#/components/schemas/SecXbrlPeriodResponse"
@@ -6829,6 +7188,7 @@
           "source_url",
           "source_version",
           "source_content_sha256",
+          "content_sha256",
           "source_available_at",
           "retrieved_at",
           "unavailable_fields"
@@ -7976,6 +8336,243 @@
       "WorkspaceRoleName": {
         "enum": ["owner", "admin", "member", "viewer"],
         "type": "string"
+      },
+      "industry_platform__modules__disclosures__schemas__SecXbrlFactLocatorResponse": {
+        "discriminator": {
+          "mapping": {
+            "companyfacts_aggregate": "#/components/schemas/SecAggregateXbrlFactLocatorResponse",
+            "raw_inline": "#/components/schemas/SecRawXbrlFactLocatorResponse",
+            "raw_instance": "#/components/schemas/SecRawXbrlFactLocatorResponse"
+          },
+          "propertyName": "source_kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SecAggregateXbrlFactLocatorResponse"
+          },
+          {
+            "$ref": "#/components/schemas/SecRawXbrlFactLocatorResponse"
+          }
+        ]
+      },
+      "industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "cik": {
+            "title": "Cik",
+            "type": "string"
+          },
+          "concept": {
+            "title": "Concept",
+            "type": "string"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "context_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Id"
+          },
+          "decimals": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals"
+          },
+          "dimensions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Dimensions",
+            "type": "object"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "fact_id": {
+            "format": "uuid",
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "filing_id": {
+            "format": "uuid",
+            "title": "Filing Id",
+            "type": "string"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "instant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instant"
+          },
+          "locator_type": {
+            "const": "sec_xbrl_fact_v1",
+            "title": "Locator Type",
+            "type": "string"
+          },
+          "period_kind": {
+            "title": "Period Kind",
+            "type": "string"
+          },
+          "report_period": {
+            "title": "Report Period",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source_available_at": {
+            "title": "Source Available At",
+            "type": "string"
+          },
+          "source_content_sha256": {
+            "title": "Source Content Sha256",
+            "type": "string"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_kind": {
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snapshot Id"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "source_version": {
+            "title": "Source Version",
+            "type": "string"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "taxonomy": {
+            "title": "Taxonomy",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "schema_version",
+          "locator_type",
+          "cik",
+          "accession",
+          "form",
+          "report_period",
+          "as_of",
+          "fact_id",
+          "filing_id",
+          "source_id",
+          "source_snapshot_id",
+          "source_kind",
+          "taxonomy",
+          "concept",
+          "unit",
+          "period_kind",
+          "instant",
+          "start_date",
+          "end_date",
+          "context_id",
+          "dimensions",
+          "decimals",
+          "scale",
+          "source_url",
+          "source_version",
+          "source_content_sha256",
+          "content_sha256",
+          "source_available_at",
+          "retrieved_at"
+        ],
+        "title": "SecXbrlFactLocatorResponse",
+        "type": "object"
       }
     },
     "securitySchemes": {

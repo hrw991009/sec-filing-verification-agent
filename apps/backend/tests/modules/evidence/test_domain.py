@@ -18,6 +18,8 @@ from industry_platform.modules.evidence.domain import (
     FinancialCalculationLocatorV1,
     IndustrySourceLocatorV1,
     SecFilingChunkLocatorV1,
+    SecFilingTextLocatorV1,
+    SecXbrlFactLocatorV1,
     SqlResultLocatorV1,
     claim_coverage,
     claim_verification_status,
@@ -156,6 +158,69 @@ def test_filing_and_calculation_locators_preserve_full_lineage() -> None:
     assert parse_evidence_locator(filing.to_mapping()) == filing
     assert parse_evidence_locator(calculation.to_mapping()) == calculation
     assert calculation.input_evidence_refs == (EVIDENCE_ID, EVIDENCE_ID)
+
+
+def test_live_sec_locators_round_trip_scope_source_and_context_identity() -> None:
+    filing = SecFilingTextLocatorV1(
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form="10-K",
+        report_period="2023-09-30",
+        as_of="2023-11-03T12:00:00+00:00",
+        filed_at="2023-11-03T00:00:00+00:00",
+        accepted_at="2023-11-03T06:01:00+00:00",
+        canonical_url=(
+            "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm"
+        ),
+        snapshot_id=SOURCE_ITEM_ID,
+        source_version="sec-filing-primary-v1",
+        source_content_sha256="b" * 64,
+        knowledge_base_id=SOURCE_ITEM_ID,
+        document_id=DOCUMENT_ID,
+        document_version_id=VERSION_ID,
+        chunk_id=CHUNK_ID,
+        section="Item 8",
+        page_number=29,
+        content_sha256="c" * 64,
+        parser_version="1.0.0",
+        chunker_version="1.0.0",
+        index_version="knowledge-index-v1",
+        retrieval_profile_version="hybrid-v1",
+        retrieval_channels=("dense", "lexical"),
+    )
+    xbrl = SecXbrlFactLocatorV1(
+        cik="0000320193",
+        accession="0000320193-23-000106",
+        form="10-K",
+        report_period="2023-09-30",
+        as_of="2023-11-03T12:00:00+00:00",
+        fact_id=EVIDENCE_ID,
+        filing_id=RUN_ID,
+        source_id=SOURCE_ITEM_ID,
+        source_snapshot_id=None,
+        source_kind="companyfacts_aggregate",
+        taxonomy="us-gaap",
+        concept="RevenueFromContractWithCustomerExcludingAssessedTax",
+        unit="USD",
+        period_kind="duration",
+        instant=None,
+        start_date="2022-09-25",
+        end_date="2023-09-30",
+        context_id=None,
+        dimensions={},
+        decimals=None,
+        scale=None,
+        source_url="https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+        source_version="sec-companyfacts-v1",
+        source_content_sha256="d" * 64,
+        content_sha256="e" * 64,
+        source_available_at="2023-11-03T06:01:00+00:00",
+        retrieved_at="2026-08-27T00:00:00+00:00",
+    )
+
+    assert parse_evidence_locator(filing.to_mapping()) == filing
+    assert parse_evidence_locator(xbrl.to_mapping()) == xbrl
+    assert xbrl.locator_type is EvidenceLocatorType.SEC_XBRL_FACT_V1
 
 
 def test_evidence_lifecycle_requires_excerpt_or_explicit_invalidation() -> None:

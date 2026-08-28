@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import unicodedata
 from contextlib import suppress
@@ -38,6 +39,8 @@ SEC_MAX_ARCHIVE_ATTACHMENTS: Final = 12
 SEC_MAX_ARCHIVE_TOTAL_BYTES: Final = 128 * 1_024 * 1_024
 SEC_FILING_CONTENT_ADAPTER_VERSION: Final = "sec-archive-v1"
 SEC_DENSE_RETRIEVAL_PROFILE_VERSION: Final = "dense-v1"
+SEC_HYBRID_RETRIEVAL_PROFILE_VERSION: Final = "hybrid-v1"
+SEC_IDENTITY_RERANKER_VERSION: Final = "identity-reranker-v1"
 SEC_COMPANYFACTS_URL_PREFIX: Final = "https://data.sec.gov/api/xbrl/companyfacts/"
 SEC_MAX_XBRL_RESPONSE_BYTES: Final = 50 * 1_024 * 1_024
 SEC_MAX_XBRL_CONTEXTS: Final = 100_000
@@ -963,6 +966,72 @@ class SecWorkspaceFilingImport:
 
 
 @dataclass(frozen=True, slots=True)
+class SecFilingRetrievalTrace:
+    profile_version: str
+    dense_candidate_count: int
+    lexical_candidate_count: int
+    fused_candidate_count: int
+    rrf_k: int | None
+    reranker_version: str | None
+    query_rewrite_version: str | None = None
+    dense_candidate_limit: int | None = None
+    lexical_candidate_limit: int | None = None
+    final_limit: int | None = None
+    diversity_policy_version: str | None = None
+    as_of: datetime | None = None
+    active_source_versions: tuple[str, ...] = ()
+    index_versions: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        counts = (
+            self.dense_candidate_count,
+            self.lexical_candidate_count,
+            self.fused_candidate_count,
+        )
+        if any(isinstance(value, bool) or not 0 <= value <= 100 for value in counts):
+            raise ValueError("SEC retrieval trace counts are invalid")
+        if self.profile_version == SEC_DENSE_RETRIEVAL_PROFILE_VERSION:
+            if (
+                self.lexical_candidate_count
+                or self.rrf_k is not None
+                or self.reranker_version is not None
+            ):
+                raise ValueError("SEC Dense retrieval trace is invalid")
+        elif self.profile_version == SEC_HYBRID_RETRIEVAL_PROFILE_VERSION:
+            if (
+                self.rrf_k is None
+                or not 1 <= self.rrf_k <= 10_000
+                or self.reranker_version is None
+                or not _SOURCE_VERSION_PATTERN.fullmatch(self.reranker_version)
+                or self.query_rewrite_version is None
+                or not _SOURCE_VERSION_PATTERN.fullmatch(self.query_rewrite_version)
+                or self.dense_candidate_limit is None
+                or self.lexical_candidate_limit is None
+                or self.final_limit is None
+                or not 1 <= self.final_limit <= self.dense_candidate_limit <= 100
+                or not 1 <= self.final_limit <= self.lexical_candidate_limit <= 100
+                or self.diversity_policy_version is None
+                or not _SOURCE_VERSION_PATTERN.fullmatch(self.diversity_policy_version)
+                or self.as_of is None
+            ):
+                raise ValueError("SEC Hybrid retrieval trace is invalid")
+            require_utc(self.as_of, field_name="SEC retrieval cutoff")
+        else:
+            raise ValueError("SEC retrieval profile is invalid")
+        source_versions = tuple(self.active_source_versions)
+        index_versions = tuple(self.index_versions)
+        if (
+            len(source_versions) != len(set(source_versions))
+            or len(index_versions) != len(set(index_versions))
+            or any(not _SOURCE_VERSION_PATTERN.fullmatch(value) for value in source_versions)
+            or any(not _SOURCE_VERSION_PATTERN.fullmatch(value) for value in index_versions)
+        ):
+            raise ValueError("SEC retrieval version identity is invalid")
+        object.__setattr__(self, "active_source_versions", source_versions)
+        object.__setattr__(self, "index_versions", index_versions)
+
+
+@dataclass(frozen=True, slots=True)
 class SecFilingSearchHit:
     chunk_id: UUID
     document_version_id: UUID
@@ -977,6 +1046,12 @@ class SecFilingSearchHit:
     source_content_sha256: str
     source_url: str
     source_version: str
+    retrieval_channels: tuple[str, ...] = ("dense",)
+    dense_rank: int | None = None
+    lexical_rank: int | None = None
+    rrf_score: float | None = None
+    rerank_score: float | None = None
+    index_version: str = "knowledge-index-v1"
 
     def __post_init__(self) -> None:
         if any(
@@ -994,6 +1069,22 @@ class SecFilingSearchHit:
             or not _SHA256_PATTERN.fullmatch(self.source_content_sha256)
         ):
             raise ValueError("SEC filing search provenance is invalid")
+        channels = tuple(self.retrieval_channels)
+        if (
+            not channels
+            or len(channels) != len(set(channels))
+            or any(channel not in {"dense", "lexical"} for channel in channels)
+        ):
+            raise ValueError("SEC filing retrieval channels are invalid")
+        for rank in (self.dense_rank, self.lexical_rank):
+            if rank is not None and (isinstance(rank, bool) or rank < 1):
+                raise ValueError("SEC filing retrieval rank is invalid")
+        for score in (self.rrf_score, self.rerank_score):
+            if score is not None and not 0 <= score <= 1:
+                raise ValueError("SEC filing retrieval score is invalid")
+        if not _SOURCE_VERSION_PATTERN.fullmatch(self.index_version):
+            raise ValueError("SEC filing index version is invalid")
+        object.__setattr__(self, "retrieval_channels", channels)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1003,6 +1094,7 @@ class SecFilingSearchResult:
     retrieval_profile_version: str = SEC_DENSE_RETRIEVAL_PROFILE_VERSION
     hits: tuple[SecFilingSearchHit, ...] = ()
     error_code: str | None = None
+    retrieval_trace: SecFilingRetrievalTrace | None = None
 
     def __post_init__(self) -> None:
         if not _ACCESSION_PATTERN.fullmatch(self.accession):
@@ -1016,6 +1108,15 @@ class SecFilingSearchResult:
             self.error_code is not None
         ):
             raise ValueError("SEC filing search error state is invalid")
+        if self.retrieval_profile_version == SEC_HYBRID_RETRIEVAL_PROFILE_VERSION and (
+            self.retrieval_trace is None
+            or self.retrieval_trace.profile_version != self.retrieval_profile_version
+        ):
+            raise ValueError("SEC Hybrid search trace is missing")
+        if self.retrieval_trace is not None and (
+            self.retrieval_trace.profile_version != self.retrieval_profile_version
+        ):
+            raise ValueError("SEC filing search trace profile is inconsistent")
         object.__setattr__(self, "hits", hits)
 
 
@@ -1417,6 +1518,53 @@ class SecXbrlFact:
             raise ValueError("SEC raw XBRL unavailable fields are invalid")
         object.__setattr__(self, "dimensions", tuple(sorted(self.dimensions)))
         object.__setattr__(self, "unavailable_fields", unavailable)
+
+
+def sec_xbrl_fact_content_sha256(fact: SecXbrlFact) -> str:
+    """Hash the stable fact payload independently from its containing source bytes."""
+
+    payload = {
+        "accession": fact.accession,
+        "cik": fact.cik,
+        "concept": fact.concept,
+        "context_id": fact.context_id,
+        "decimals": fact.decimals,
+        "dimensions": list(fact.dimensions),
+        "fact_id": str(fact.id),
+        "filed_date": fact.filed_date.isoformat(),
+        "filing_id": str(fact.filing_id),
+        "form": fact.form.value,
+        "format": fact.format,
+        "is_custom": fact.is_custom,
+        "locator_key": fact.locator_key,
+        "ordinal": fact.ordinal,
+        "period": {
+            "end_date": None if fact.period.end_date is None else fact.period.end_date.isoformat(),
+            "instant": None if fact.period.instant is None else fact.period.instant.isoformat(),
+            "kind": fact.period.kind.value,
+            "start_date": (
+                None if fact.period.start_date is None else fact.period.start_date.isoformat()
+            ),
+        },
+        "scale": fact.scale,
+        "source_available_at": fact.source_available_at.isoformat(),
+        "source_content_sha256": fact.source_content_sha256,
+        "source_id": str(fact.source_id),
+        "source_kind": fact.source_kind.value,
+        "source_snapshot_id": (
+            None if fact.source_snapshot_id is None else str(fact.source_snapshot_id)
+        ),
+        "source_url": fact.source_url,
+        "source_version": fact.source_version,
+        "taxonomy": fact.taxonomy,
+        "unit": fact.unit,
+        "value": fact.value,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.0`
+> 版本：`2.1.1`
 >
 > 制定日期：`2026-07-23`
 >
@@ -54,7 +54,7 @@
 | Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
 | Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
 | Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
-| Day 6～Day 10 | 尚未完成 | Day 6 已由 PR #10 合入 `main`，分支、PR 与 main CI 均通过；但 `sec-source-v1` 仍为 22/24，D6-02/D6-06 因两条 bulk watermark closeout blocker 保持 `thin_slice`，其余 D6 项保持 `implemented_pending_verification`。Day 7 五步文档基线已冻结，代码入口受 Day 6 gate 阻塞；D5-08/D5-09 浏览器 DoD 仍未关闭 |
+| Day 6～Day 10 | 尚未完成 | Day 6 已由 PR #10 合入 `main`，但 `sec-source-v1` 仍为 22/24，D6-02/D6-06 的 bulk watermark 与其余 live SEC 债务保留。项目所有者已明确开始 Day 7 Step 1，因此 Day 6 未关闭项改为 Day 10 发布前硬门且不删分母。Day 7 Step 1 当前 D7-01=`implemented_pending_verification`、D7-02=`thin_slice`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -966,7 +966,7 @@ SEC 来源复核、ADR 0007 修订、`disclosures` 模块、迁移、EDGAR Adapt
 
 ## 14. Day 7：Filing Hybrid Retrieval、财务计算与核对
 
-> 执行状态（2026-08-27）：五步文档基线已冻结，D7-01～D7-08 均为 `planned`，尚未开始代码。Day 6 已合入 `main` 且分支、PR、main CI 均通过，但 `sec-source-v1` 两条 bulk watermark closeout case 仍未通过；按“当天门禁失败必须顺延”规则，Day 7 代码入口保持阻塞。执行顺序和验收口径见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与计算设计](sec-retrieval-design.md)。
+> 执行状态（2026-08-27）：项目所有者已明确开始 Day 7 Step 1。`hybrid-v1`、BM25/RRF/可插拔 reranker、完整 Retrieval Trace、PostgreSQL 重载授权、filing text/XBRL fact Evidence locator 与迁移已实现并通过真实 PostgreSQL/MinIO/Milvus/Elasticsearch 链；本地 Python 全量为 `1121 passed`，总体分支覆盖率 `80.62%`、核心合集 `86%`，Web 质量/构建与 OpenAPI 连续生成通过。D7-01 为 `implemented_pending_verification`，D7-02 因 table/cell/character locator、Citation 100% 可解析评测和远端 CI 尚缺保持 `thin_slice`。Day 6 的两条 bulk watermark case 保持在原 `sec-source-v1` 分母并改为 Day 10 发布前硬门，不构成完成或豁免。
 
 ### 学习主题
 
@@ -1332,3 +1332,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.0.8 | 2026-08-27 | 同步 Day 6 Step 4 当前工作树：新增 companyfacts aggregate 与 raw iXBRL/instance typed Adapter、不可变 XBRL snapshot、PostgreSQL context/fact、`sec.get_xbrl_facts@v1`、认证 API 和 standard/raw fact Workbench；D6-04/D6-07 为 `implemented_pending_verification`，D6-05 因缺专用五 Tool Runtime/Harness profile 仍为 `thin_slice`，明确 bulk watermark/post-gap、live SEC、`sec-source-v1`、远端 CI 与所有者收口仍未完成 | 用户授权继续 Day 6 下一步 |
 | 2.0.9 | 2026-08-27 | 同步 Day 6 Step 5 当前工作树：新增严格五 SEC Tool 的共享 ToolL2/Harness profile、真实 Adapter composition 校验与 24-case `sec-source-v1` manifest/scorer/report；D6-05/D6-08 为 `implemented_pending_verification`。报告 contract 18/18、closeout 4/6，并保留 submissions/companyfacts bulk watermark 两条 blocker，故 D6-02/D6-06 仍为 `thin_slice`，Day 6 gate 未关闭 | 用户授权继续 Day 6 下一步 |
 | 2.1.0 | 2026-08-27 | 同步 PR #10、功能 head、push/PR/main 三层 CI 与所有者准备 Day 7 文档的指令；明确 Day 6 分支虽已结束并合入，但 `sec-source-v1` 仍为 22/24，D6-02/D6-06 未完成，不能伪写为全量 `complete`。将 Day 7 原十项任务收敛为五个纵向步骤，新增 Day 7 执行计划与 SEC Retrieval/Calculation 设计；D7-01～D7-08 保持 `planned`，代码入口受 Day 6 closeout blocker 约束 | 用户要求确认 Day 6 后先规划 Day 7 |
+| 2.1.1 | 2026-08-27 | 记录项目所有者明确开始 Day 7 Step 1；将 Day 6 的 22/24 与 live SEC 债务改为 Day 10 发布硬门且保留原分母。同步 `hybrid-v1`、版本化 Retrieval Trace、真实双索引重载、SEC filing text/XBRL fact Evidence locator 与迁移的本地实现事实；D7-01 为 `implemented_pending_verification`，D7-02 因 table/cell/Citation 评测缺口保持 `thin_slice` | 用户授权开始 Day 7 Step 1 |

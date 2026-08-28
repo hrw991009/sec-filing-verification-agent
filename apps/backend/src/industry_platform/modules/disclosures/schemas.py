@@ -20,6 +20,7 @@ from industry_platform.modules.disclosures.domain import (
     SecFilingContentStatus,
     SecFilingForm,
     SecFilingImportStatus,
+    SecFilingRetrievalTrace,
     SecFilingSearchHit,
     SecFilingSearchResult,
     SecFilingSection,
@@ -36,6 +37,7 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSourceKind,
     SecXbrlSyncResult,
     normalize_cik,
+    sec_xbrl_fact_content_sha256,
 )
 
 
@@ -306,6 +308,12 @@ class SecFilingSearchHitResponse(BaseModel):
     source_content_sha256: str
     source_url: str
     source_version: str
+    retrieval_channels: list[str]
+    dense_rank: int | None
+    lexical_rank: int | None
+    rrf_score: float | None
+    rerank_score: float | None
+    index_version: str
 
     @classmethod
     def from_domain(cls, value: SecFilingSearchHit) -> Self:
@@ -323,6 +331,50 @@ class SecFilingSearchHitResponse(BaseModel):
             source_content_sha256=value.source_content_sha256,
             source_url=value.source_url,
             source_version=value.source_version,
+            retrieval_channels=list(value.retrieval_channels),
+            dense_rank=value.dense_rank,
+            lexical_rank=value.lexical_rank,
+            rrf_score=value.rrf_score,
+            rerank_score=value.rerank_score,
+            index_version=value.index_version,
+        )
+
+
+class SecFilingRetrievalTraceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    profile_version: str
+    dense_candidate_count: int
+    lexical_candidate_count: int
+    fused_candidate_count: int
+    rrf_k: int | None
+    reranker_version: str | None
+    query_rewrite_version: str | None
+    dense_candidate_limit: int | None
+    lexical_candidate_limit: int | None
+    final_limit: int | None
+    diversity_policy_version: str | None
+    as_of: datetime | None
+    active_source_versions: list[str]
+    index_versions: list[str]
+
+    @classmethod
+    def from_domain(cls, value: SecFilingRetrievalTrace) -> Self:
+        return cls(
+            profile_version=value.profile_version,
+            dense_candidate_count=value.dense_candidate_count,
+            lexical_candidate_count=value.lexical_candidate_count,
+            fused_candidate_count=value.fused_candidate_count,
+            rrf_k=value.rrf_k,
+            reranker_version=value.reranker_version,
+            query_rewrite_version=value.query_rewrite_version,
+            dense_candidate_limit=value.dense_candidate_limit,
+            lexical_candidate_limit=value.lexical_candidate_limit,
+            final_limit=value.final_limit,
+            diversity_policy_version=value.diversity_policy_version,
+            as_of=value.as_of,
+            active_source_versions=list(value.active_source_versions),
+            index_versions=list(value.index_versions),
         )
 
 
@@ -334,6 +386,7 @@ class SecFilingSearchResponse(BaseModel):
     retrieval_profile_version: str
     hits: list[SecFilingSearchHitResponse]
     error_code: str | None
+    retrieval_trace: SecFilingRetrievalTraceResponse | None
 
     @classmethod
     def from_domain(cls, value: SecFilingSearchResult) -> Self:
@@ -343,6 +396,11 @@ class SecFilingSearchResponse(BaseModel):
             retrieval_profile_version=value.retrieval_profile_version,
             hits=[SecFilingSearchHitResponse.from_domain(hit) for hit in value.hits],
             error_code=value.error_code,
+            retrieval_trace=(
+                None
+                if value.retrieval_trace is None
+                else SecFilingRetrievalTraceResponse.from_domain(value.retrieval_trace)
+            ),
         )
 
 
@@ -492,6 +550,7 @@ class SecXbrlFactResponse(BaseModel):
     source_url: str
     source_version: str
     source_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_available_at: datetime
     retrieved_at: datetime
     unavailable_fields: list[str]
@@ -547,6 +606,7 @@ class SecXbrlFactResponse(BaseModel):
             source_url=value.source_url,
             source_version=value.source_version,
             source_content_sha256=value.source_content_sha256,
+            content_sha256=sec_xbrl_fact_content_sha256(value),
             source_available_at=value.source_available_at,
             retrieved_at=value.retrieved_at,
             unavailable_fields=list(value.unavailable_fields),

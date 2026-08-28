@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-27
 >
-> 权威来源：`docs/master-plan.md` 2.1.0
+> 权威来源：`docs/master-plan.md` 2.1.1
 
 ## 1. 使用规则
 
@@ -220,8 +220,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
-| D7-01 | XBRL + Filing Hybrid Retrieval | R1 + SEC + NEW | 锁定 accession；XBRL facts 与 Dense/BM25/RRF/rerank 双通道 | Recall@5/MRR、wrong-accession、filter 和分层 Retrieval Trace | `planned` | `complete` |
-| D7-02 | SEC Evidence locator/Citation | ADR 0003 + SEC | filing section/table/text 与 XBRL fact locator；官方 URL/hash/context/unit/period | source identity/Citation 可解析 100%、失效与权限测试 | `planned` | `complete` |
+| D7-01 | XBRL + Filing Hybrid Retrieval | R1 + SEC + NEW | 锁定 accession；XBRL facts 与 Dense/BM25/RRF/rerank 双通道 | Recall@5/MRR、wrong-accession、filter 和分层 Retrieval Trace | `implemented_pending_verification` | `complete` |
+| D7-02 | SEC Evidence locator/Citation | ADR 0003 + SEC | filing section/table/text 与 XBRL fact locator；官方 URL/hash/context/unit/period | source identity/Citation 可解析 100%、失效与权限测试 | `thin_slice` | `complete` |
 | D7-03 | Financial Context Compiler | NEW | FinancialScope、Memory、facts、filing Evidence、Tool Observation、Token budget 与排除原因 | cutoff/错误 accession/unit 排除、manifest 与注入测试 | `planned` | `complete` |
 | D7-04 | Typed financial calculator | NEW | Decimal operator、百分比/变化率、unit/scale/rounding、Evidence inputs | program/execution、零分母、单位冲突和 lineage 测试 | `planned` | `complete` |
 | D7-05 | Period/unit/context reconciliation | SEC + NEW | company、form、fiscal period、instant/duration、dimension、custom/standard concept、amendment | 错误 company/period/accession 为 0，冲突 typed result | `planned` | `complete` |
@@ -229,7 +229,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D7-07 | 中文 SEC L4 Agent profile | NEW | scope→resolve→select→decompose→structured+narrative→calculate→reconcile→draft | 同一 Runtime/Checkpoint、中文/英文事实链一致与停止语义 | `planned` | `complete` |
 | D7-08 | `sec-tool-v1` 与 A0/A1/A2 | BENCH + NEW | oracle、纯 Hybrid RAG、RAG+SEC/XBRL+calculator；简单/计算/修订/无答案 | 分层质量、简单题退化≤2pp、成本/延迟和回退决定 | `planned` | `complete` |
 
-2026-08-27 计划映射：Day 7 文档已冻结为五个纵向步骤：1）Hybrid Retrieval + SEC locator（D7-01/D7-02）；2）Financial Context Compiler（D7-03）；3）typed calculator + reconciliation（D7-04/D7-05）；4）filing diff + 中文 SEC L4 profile + Workbench（D7-06/D7-07）；5）`sec-tool-v1` + A0/A1/A2 + 收口（D7-08）。D7-01～D7-08 均保持 `planned`，尚无代码实现；按主计划门禁，Day 7 代码入口受 Day 6 两条 bulk closeout case 阻塞。详见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与计算设计](sec-retrieval-design.md)。
+2026-08-27 Step 1 映射：项目所有者明确开始 Day 7 Step 1。生产组合根已把 `sec.search_filing@v1` 接到 Milvus Dense + Elasticsearch BM25、RRF60、可插拔 reranker、section cap 与版本化 Trace；候选经 PostgreSQL 重载 Workspace/import/snapshot/index 后才返回。Tool Observation 改用内部 `sec://` identity，Evidence normalizer 与迁移支持 filing text、XBRL fact 的 scope/source/hash/context 重载。确定性、依赖错误、权限、locator round-trip、migration 往返和真实 PostgreSQL/MinIO/Milvus/Elasticsearch 检索通过；本地 Python 全量为 `1121 passed`、总体分支覆盖率 `80.62%`、核心合集 `86%`，Web 质量与构建、OpenAPI 连续生成也通过。冻结 Recall@5/MRR、table/cell/character locator、正式 Citation 可解析率、分支/PR/main CI 尚缺，因此 D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`，D7-03～D7-08 保持 `planned`。Day 6 两条 bulk case 改为 Day 10 发布硬门，原 `22/24` 不变。
 
 ## 10. Day 8：Verified Agent L5、Monitor 与 HITL
 

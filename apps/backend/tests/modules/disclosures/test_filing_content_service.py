@@ -34,6 +34,7 @@ from industry_platform.modules.disclosures.domain import (
 from industry_platform.modules.disclosures.filing_content_service import (
     SecFilingContentService,
     SecFilingImportService,
+    _select_diverse_sections,
 )
 from industry_platform.modules.disclosures.ports import (
     SecFilingArchivePort,
@@ -47,8 +48,17 @@ from industry_platform.modules.financial_verification.domain import (
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.knowledge.domain import ImportKnowledgeTextSource
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
-from industry_platform.modules.retrieval.domain import DenseCandidate
-from industry_platform.modules.retrieval.ports import DenseIndexPort
+from industry_platform.modules.retrieval.domain import (
+    DenseCandidate,
+    HybridCandidate,
+    LexicalCandidate,
+    RetrievalCandidate,
+)
+from industry_platform.modules.retrieval.ports import (
+    DenseIndexPort,
+    LexicalIndexPort,
+    LexicalSearchDependencyError,
+)
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 NOW = datetime(2026, 8, 26, 4, 0, tzinfo=UTC)
@@ -253,11 +263,12 @@ class MemoryRepository:
         scope: WorkspaceScope,
         *,
         preparation: SecFilingContentPreparation,
-        candidates: tuple[DenseCandidate, ...],
+        candidates: tuple[RetrievalCandidate, ...],
     ) -> tuple[SecFilingSearchHit, ...]:
         del scope, preparation
         self.resolve_calls += 1
         assert candidates[0].chunk_id == CHUNK_ID
+        candidate = candidates[0]
         return (
             SecFilingSearchHit(
                 chunk_id=CHUNK_ID,
@@ -266,7 +277,7 @@ class MemoryRepository:
                 accession=ACCESSION,
                 title="10-K filing",
                 excerpt="Net sales increased.",
-                score=candidates[0].score,
+                score=candidate.score,
                 section="Net sales",
                 page_number=1,
                 content_sha256="a" * 64,
@@ -275,6 +286,17 @@ class MemoryRepository:
                 .document(SecFilingDocumentKind.PRIMARY_DOCUMENT)
                 .source_url,
                 source_version="sec-filing-primary-v1",
+                retrieval_channels=(
+                    tuple(channel.value for channel in candidate.channels)
+                    if isinstance(candidate, HybridCandidate)
+                    else ("dense",)
+                ),
+                dense_rank=(candidate.dense_rank if isinstance(candidate, HybridCandidate) else 1),
+                lexical_rank=(
+                    candidate.lexical_rank if isinstance(candidate, HybridCandidate) else None
+                ),
+                rrf_score=(candidate.score if isinstance(candidate, HybridCandidate) else None),
+                rerank_score=(candidate.score if isinstance(candidate, HybridCandidate) else None),
             ),
         )
 
@@ -320,6 +342,24 @@ class MemoryDenseIndex:
         assert values["document_version_ids"] == (VERSION_ID,)
         self.calls += 1
         return (DenseCandidate(CHUNK_ID, VERSION_ID, 0.91),)
+
+
+@dataclass(slots=True)
+class MemoryLexicalIndex:
+    calls: int = 0
+
+    async def search(self, query: str, **values: object) -> tuple[LexicalCandidate, ...]:
+        assert query == "net sales"
+        assert values["document_version_ids"] == (VERSION_ID,)
+        self.calls += 1
+        return (LexicalCandidate(CHUNK_ID, VERSION_ID, 4.2),)
+
+
+@dataclass(slots=True)
+class FailingLexicalIndex:
+    async def search(self, query: str, **values: object) -> tuple[LexicalCandidate, ...]:
+        del query, values
+        raise LexicalSearchDependencyError("lexical_search_timeout")
 
 
 def scope() -> WorkspaceScope:
@@ -457,3 +497,88 @@ async def test_search_reloads_authorized_chunk_truth_after_dense_candidates() ->
     assert repository.prepare_calls == 1
     assert repository.resolve_calls == 1
     assert dense.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_hybrid_search_fuses_channels_then_reloads_authorized_chunk_truth() -> None:
+    repository = MemoryRepository()
+    dense = MemoryDenseIndex()
+    lexical = MemoryLexicalIndex()
+    service = SecFilingContentService(
+        repository=cast(SecFilingContentRepository, repository),
+        dense_index=cast(DenseIndexPort, dense),
+        lexical_index=cast(LexicalIndexPort, lexical),
+    )
+
+    result = await service.search(
+        scope(),
+        knowledge_base_ids=(KNOWLEDGE_BASE_ID,),
+        financial_scope=financial_scope(),
+        query="net sales",
+    )
+
+    assert result.status is SecFilingContentStatus.OK
+    assert result.retrieval_profile_version == "hybrid-v1"
+    assert result.retrieval_trace is not None
+    assert result.retrieval_trace.dense_candidate_count == 1
+    assert result.retrieval_trace.lexical_candidate_count == 1
+    assert result.hits[0].retrieval_channels == ("dense", "lexical")
+    assert repository.resolve_calls == 1
+    assert dense.calls == lexical.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_hybrid_dependency_failure_is_not_reported_as_no_result() -> None:
+    service = SecFilingContentService(
+        repository=cast(SecFilingContentRepository, MemoryRepository()),
+        dense_index=cast(DenseIndexPort, MemoryDenseIndex()),
+        lexical_index=cast(LexicalIndexPort, FailingLexicalIndex()),
+    )
+
+    result = await service.search(
+        scope(),
+        knowledge_base_ids=(KNOWLEDGE_BASE_ID,),
+        financial_scope=financial_scope(),
+        query="net sales",
+    )
+
+    assert result.status is SecFilingContentStatus.DEPENDENCY_FAILED
+    assert result.error_code == "lexical_search_timeout"
+    assert result.retrieval_trace is not None
+
+
+def test_final_selection_limits_repeated_sections_without_reordering() -> None:
+    hit = SecFilingSearchHit(
+        chunk_id=CHUNK_ID,
+        document_version_id=VERSION_ID,
+        snapshot_id=PRIMARY_SNAPSHOT_ID,
+        accession=ACCESSION,
+        title="10-K filing",
+        excerpt="Net sales increased.",
+        score=0.9,
+        section="Net sales",
+        page_number=1,
+        content_sha256="a" * 64,
+        source_content_sha256="b" * 64,
+        source_url=filing_archive().document(SecFilingDocumentKind.PRIMARY_DOCUMENT).source_url,
+        source_version="sec-filing-primary-v1",
+    )
+    hits = tuple(
+        replace(
+            hit,
+            chunk_id=UUID(f"{number:08x}-eeee-4eee-8eee-eeeeeeeeeeee"),
+            section="Net sales" if number < 4 else f"Section {number}",
+            score=0.9 - number / 100,
+        )
+        for number in range(1, 7)
+    )
+
+    selected = _select_diverse_sections(hits, limit=5)
+
+    assert [item.chunk_id for item in selected] == [
+        hits[0].chunk_id,
+        hits[1].chunk_id,
+        hits[3].chunk_id,
+        hits[4].chunk_id,
+        hits[5].chunk_id,
+    ]

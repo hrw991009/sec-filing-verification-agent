@@ -11,6 +11,7 @@ from industry_platform.modules.retrieval.domain import (
     DenseCandidate,
     KnowledgeSearchHit,
     KnowledgeSearchStatus,
+    LexicalCandidate,
     SecFilingFixture,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceScope
@@ -19,6 +20,12 @@ from industry_platform.modules.workspaces.domain import WorkspaceScope
 class DenseSearchDependencyError(RuntimeError):
     def __init__(self, code: str) -> None:
         super().__init__("Dense search dependency failed")
+        self.code = code
+
+
+class LexicalSearchDependencyError(RuntimeError):
+    def __init__(self, code: str) -> None:
+        super().__init__("Lexical search dependency failed")
         self.code = code
 
 
@@ -53,6 +60,18 @@ class DenseIndexPort(Protocol):
         document_version_ids: tuple[UUID, ...],
         limit: int,
     ) -> tuple[DenseCandidate, ...]: ...
+
+
+class LexicalIndexPort(Protocol):
+    async def search(
+        self,
+        query: str,
+        *,
+        workspace_id: UUID,
+        knowledge_base_ids: tuple[UUID, ...],
+        document_version_ids: tuple[UUID, ...],
+        limit: int,
+    ) -> tuple[LexicalCandidate, ...]: ...
 
 
 class KnowledgeCandidateRepository(Protocol):

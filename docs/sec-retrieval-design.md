@@ -1,8 +1,8 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 计划合同，代码尚未开始
+> 状态：Day 7 Step 1 核心 Hybrid 与 filing text/XBRL fact locator 已通过本地统一门禁；ranking 评测和 table locator 待关闭
 >
-> 基线：`IIP-MASTER-001` 2.1.0，D7-01～D7-08
+> 基线：`IIP-MASTER-001` 2.1.1，D7-01～D7-08
 >
 > 决策来源：[ADR 0003](adr/0003-unified-evidence-model.md)、[ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)
 

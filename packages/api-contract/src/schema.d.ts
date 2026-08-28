@@ -2460,7 +2460,7 @@ export interface components {
             /** License Or Terms */
             license_or_terms: string;
             /** Locator */
-            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"] | components["schemas"]["SecFilingChunkLocatorResponse"] | components["schemas"]["FinancialCalculationLocatorResponse"];
+            locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"] | components["schemas"]["SecFilingChunkLocatorResponse"] | components["schemas"]["SecFilingTextLocatorResponse"] | components["schemas"]["industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse"] | components["schemas"]["FinancialCalculationLocatorResponse"];
             /** Normalizer Version */
             normalizer_version: string;
             /**
@@ -4155,6 +4155,37 @@ export interface components {
          * @enum {string}
          */
         SecFilingImportStatus: "queued" | "ready" | "failed" | "cancelled";
+        /** SecFilingRetrievalTraceResponse */
+        SecFilingRetrievalTraceResponse: {
+            /** Active Source Versions */
+            active_source_versions: string[];
+            /** As Of */
+            as_of: string | null;
+            /** Dense Candidate Count */
+            dense_candidate_count: number;
+            /** Dense Candidate Limit */
+            dense_candidate_limit: number | null;
+            /** Diversity Policy Version */
+            diversity_policy_version: string | null;
+            /** Final Limit */
+            final_limit: number | null;
+            /** Fused Candidate Count */
+            fused_candidate_count: number;
+            /** Index Versions */
+            index_versions: string[];
+            /** Lexical Candidate Count */
+            lexical_candidate_count: number;
+            /** Lexical Candidate Limit */
+            lexical_candidate_limit: number | null;
+            /** Profile Version */
+            profile_version: string;
+            /** Query Rewrite Version */
+            query_rewrite_version: string | null;
+            /** Reranker Version */
+            reranker_version: string | null;
+            /** Rrf K */
+            rrf_k: number | null;
+        };
         /** SecFilingSearchHitResponse */
         SecFilingSearchHitResponse: {
             /** Accession */
@@ -4166,6 +4197,8 @@ export interface components {
             chunk_id: string;
             /** Content Sha256 */
             content_sha256: string;
+            /** Dense Rank */
+            dense_rank: number | null;
             /**
              * Document Version Id
              * Format: uuid
@@ -4173,8 +4206,18 @@ export interface components {
             document_version_id: string;
             /** Excerpt */
             excerpt: string;
+            /** Index Version */
+            index_version: string;
+            /** Lexical Rank */
+            lexical_rank: number | null;
             /** Page Number */
             page_number: number;
+            /** Rerank Score */
+            rerank_score: number | null;
+            /** Retrieval Channels */
+            retrieval_channels: string[];
+            /** Rrf Score */
+            rrf_score: number | null;
             /** Score */
             score: number;
             /** Section */
@@ -4203,6 +4246,7 @@ export interface components {
             hits: components["schemas"]["SecFilingSearchHitResponse"][];
             /** Retrieval Profile Version */
             retrieval_profile_version: string;
+            retrieval_trace: components["schemas"]["SecFilingRetrievalTraceResponse"] | null;
             status: components["schemas"]["SecFilingContentStatus"];
         };
         /** SecFilingSectionResponse */
@@ -4264,6 +4308,80 @@ export interface components {
          * @enum {string}
          */
         SecFilingSelectionStatus: "ok" | "no_result" | "incomplete";
+        /** SecFilingTextLocatorResponse */
+        SecFilingTextLocatorResponse: {
+            /** Accepted At */
+            accepted_at: string;
+            /** Accession */
+            accession: string;
+            /** As Of */
+            as_of: string;
+            /** Canonical Url */
+            canonical_url: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /** Chunker Version */
+            chunker_version: string;
+            /** Cik */
+            cik: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Document Version Id
+             * Format: uuid
+             */
+            document_version_id: string;
+            /** Filed At */
+            filed_at: string;
+            /** Form */
+            form: string;
+            /** Index Version */
+            index_version: string;
+            /**
+             * Knowledge Base Id
+             * Format: uuid
+             */
+            knowledge_base_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "sec_filing_text_v1";
+            /** Page Number */
+            page_number: number;
+            /** Parser Version */
+            parser_version: string;
+            /** Report Period */
+            report_period: string;
+            /** Retrieval Channels */
+            retrieval_channels: string[];
+            /** Retrieval Profile Version */
+            retrieval_profile_version: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Section */
+            section: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /** Source Content Sha256 */
+            source_content_sha256: string;
+            /** Source Version */
+            source_version: string;
+        };
         /** SecRawXbrlFactLocatorResponse */
         SecRawXbrlFactLocatorResponse: {
             /** Accession */
@@ -4390,7 +4508,6 @@ export interface components {
             facts: components["schemas"]["SecXbrlFactResponse"][];
             status: components["schemas"]["SecFilingContentStatus"];
         };
-        SecXbrlFactLocatorResponse: components["schemas"]["SecAggregateXbrlFactLocatorResponse"] | components["schemas"]["SecRawXbrlFactLocatorResponse"];
         /** SecXbrlFactResponse */
         SecXbrlFactResponse: {
             /** Accession */
@@ -4399,6 +4516,8 @@ export interface components {
             cik: string;
             /** Concept */
             concept: string;
+            /** Content Sha256 */
+            content_sha256: string;
             /** Context Id */
             context_id: string | null;
             /** Decimals */
@@ -4427,7 +4546,7 @@ export interface components {
             id: string;
             /** Is Custom */
             is_custom: boolean;
-            locator: components["schemas"]["SecXbrlFactLocatorResponse"];
+            locator: components["schemas"]["industry_platform__modules__disclosures__schemas__SecXbrlFactLocatorResponse"];
             period: components["schemas"]["SecXbrlPeriodResponse"];
             /**
              * Retrieved At
@@ -4988,6 +5107,85 @@ export interface components {
         };
         /** @enum {string} */
         WorkspaceRoleName: "owner" | "admin" | "member" | "viewer";
+        industry_platform__modules__disclosures__schemas__SecXbrlFactLocatorResponse: components["schemas"]["SecAggregateXbrlFactLocatorResponse"] | components["schemas"]["SecRawXbrlFactLocatorResponse"];
+        /** SecXbrlFactLocatorResponse */
+        industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse: {
+            /** Accession */
+            accession: string;
+            /** As Of */
+            as_of: string;
+            /** Cik */
+            cik: string;
+            /** Concept */
+            concept: string;
+            /** Content Sha256 */
+            content_sha256: string;
+            /** Context Id */
+            context_id: string | null;
+            /** Decimals */
+            decimals: string | null;
+            /** Dimensions */
+            dimensions: {
+                [key: string]: string;
+            };
+            /** End Date */
+            end_date: string | null;
+            /**
+             * Fact Id
+             * Format: uuid
+             */
+            fact_id: string;
+            /**
+             * Filing Id
+             * Format: uuid
+             */
+            filing_id: string;
+            /** Form */
+            form: string;
+            /** Instant */
+            instant: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            locator_type: "sec_xbrl_fact_v1";
+            /** Period Kind */
+            period_kind: string;
+            /** Report Period */
+            report_period: string;
+            /** Retrieved At */
+            retrieved_at: string;
+            /** Scale */
+            scale: number | null;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            /** Source Available At */
+            source_available_at: string;
+            /** Source Content Sha256 */
+            source_content_sha256: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Snapshot Id */
+            source_snapshot_id: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Source Version */
+            source_version: string;
+            /** Start Date */
+            start_date: string | null;
+            /** Taxonomy */
+            taxonomy: string;
+            /** Unit */
+            unit: string | null;
+        };
     };
     responses: never;
     parameters: never;

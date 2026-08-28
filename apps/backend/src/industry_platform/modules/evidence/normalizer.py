@@ -16,6 +16,8 @@ INDUSTRY_SOURCE_TYPE = "industry_public_source"
 SQL_SOURCE_TYPE = "sql_query_result"
 SQL_SOURCE_VERSION = "query-table-v1"
 KNOWLEDGE_SEC_SOURCE_TYPE = "knowledge_sec_filing_chunk"
+SEC_FILING_TEXT_SOURCE_TYPE = "sec_filing_text"
+SEC_XBRL_FACT_SOURCE_TYPE = "sec_xbrl_fact"
 FINANCE_CALCULATION_SOURCE_TYPE = "finance_calculation"
 FINANCE_CALCULATION_SOURCE_VERSION = "financial-calculation-v1"
 PROHIBITED_TERMS_MARKERS = (
@@ -36,6 +38,22 @@ class ParsedKnowledgeSource:
     accession: str
     document_version_id: UUID
     chunk_id: UUID
+
+
+def parse_sec_resource_locator(locator: str, *, resource: str) -> UUID:
+    parsed = urlsplit(locator)
+    path = tuple(part for part in parsed.path.split("/") if part)
+    if (
+        parsed.scheme != "sec"
+        or parsed.hostname != resource
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or len(path) != 1
+    ):
+        raise ValueError("SEC Evidence source locator is invalid")
+    return UUID(path[0])
 
 
 def parse_knowledge_source_locator(locator: str) -> ParsedKnowledgeSource:

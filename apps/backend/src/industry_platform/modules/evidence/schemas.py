@@ -95,6 +95,66 @@ class SecFilingChunkLocatorResponse(StrictLedgerModel):
     index_version: str
 
 
+class SecFilingTextLocatorResponse(StrictLedgerModel):
+    schema_version: Literal[1]
+    locator_type: Literal["sec_filing_text_v1"]
+    cik: str
+    accession: str
+    form: str
+    report_period: str
+    as_of: str
+    filed_at: str
+    accepted_at: str
+    canonical_url: str
+    snapshot_id: UUID
+    source_version: str
+    source_content_sha256: str
+    knowledge_base_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    section: str
+    page_number: int
+    content_sha256: str
+    parser_version: str
+    chunker_version: str
+    index_version: str
+    retrieval_profile_version: str
+    retrieval_channels: list[str]
+
+
+class SecXbrlFactLocatorResponse(StrictLedgerModel):
+    schema_version: Literal[1]
+    locator_type: Literal["sec_xbrl_fact_v1"]
+    cik: str
+    accession: str
+    form: str
+    report_period: str
+    as_of: str
+    fact_id: UUID
+    filing_id: UUID
+    source_id: UUID
+    source_snapshot_id: UUID | None
+    source_kind: str
+    taxonomy: str
+    concept: str
+    unit: str | None
+    period_kind: str
+    instant: str | None
+    start_date: str | None
+    end_date: str | None
+    context_id: str | None
+    dimensions: dict[str, str]
+    decimals: str | None
+    scale: int | None
+    source_url: str
+    source_version: str
+    source_content_sha256: str
+    content_sha256: str
+    source_available_at: str
+    retrieved_at: str
+
+
 class FinancialCalculationLocatorResponse(StrictLedgerModel):
     schema_version: Literal[1]
     locator_type: Literal["financial_calculation_v1"]
@@ -115,6 +175,8 @@ EvidenceLocatorResponse = Annotated[
     IndustrySourceLocatorResponse
     | SqlResultLocatorResponse
     | SecFilingChunkLocatorResponse
+    | SecFilingTextLocatorResponse
+    | SecXbrlFactLocatorResponse
     | FinancialCalculationLocatorResponse,
     Field(discriminator="locator_type"),
 ]

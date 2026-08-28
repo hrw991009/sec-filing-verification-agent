@@ -9,6 +9,7 @@ import pytest
 from industry_platform.modules.evidence.normalizer import (
     license_allows_evidence,
     parse_persisted_observation,
+    parse_sec_resource_locator,
     parse_sql_source_locator,
     referenced_sql_columns,
     schema_columns_for_table,
@@ -87,3 +88,13 @@ def test_sql_locator_schema_and_terms_are_fail_closed() -> None:
         parse_sql_source_locator(
             "sql://aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/public.sample_company_metrics"
         )
+
+
+def test_internal_sec_resource_locator_rejects_external_or_ambiguous_identity() -> None:
+    fact_id = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+
+    assert (
+        parse_sec_resource_locator(f"sec://xbrl-facts/{fact_id}", resource="xbrl-facts") == fact_id
+    )
+    with pytest.raises(ValueError, match="SEC Evidence"):
+        parse_sec_resource_locator(f"https://www.sec.gov/{fact_id}", resource="xbrl-facts")

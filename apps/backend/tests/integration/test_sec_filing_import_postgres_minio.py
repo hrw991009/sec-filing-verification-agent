@@ -69,7 +69,10 @@ from industry_platform.modules.identity.models import (
     WorkspaceRole,
     WorkspaceStatus,
 )
-from industry_platform.modules.ingestion.index_contract import MILVUS_COLLECTION
+from industry_platform.modules.ingestion.index_contract import (
+    ELASTICSEARCH_INDEX,
+    MILVUS_COLLECTION,
+)
 from industry_platform.modules.ingestion.resources import create_ingestion_resources
 from industry_platform.modules.jobs.adapters.sqlalchemy import SqlAlchemyOutboxTransactionFactory
 from industry_platform.modules.jobs.domain import ClaimOutboxCommand
@@ -92,6 +95,7 @@ from industry_platform.modules.knowledge.models import (
     IngestionCheckpointRecord,
 )
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
+from industry_platform.modules.retrieval.adapters.elasticsearch import ElasticsearchLexicalIndex
 from industry_platform.modules.retrieval.adapters.milvus import MilvusDenseIndex
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
@@ -455,6 +459,21 @@ def test_sec_filing_import_is_idempotent_and_uses_knowledge_acceptance(
                             migrated_postgres_probe.settings.knowledge_index_timeout_seconds
                         ),
                     ),
+                    lexical_index=ElasticsearchLexicalIndex(
+                        client=internal_client,
+                        endpoint=migrated_postgres_probe.settings.elasticsearch_endpoint,
+                        api_key=(
+                            None
+                            if migrated_postgres_probe.settings.elasticsearch_api_key is None
+                            else (
+                                migrated_postgres_probe.settings.elasticsearch_api_key.get_secret_value()
+                            )
+                        ),
+                        index=ELASTICSEARCH_INDEX,
+                        timeout_seconds=(
+                            migrated_postgres_probe.settings.knowledge_index_timeout_seconds
+                        ),
+                    ),
                 )
                 result = await content_service.search_imported(
                     scope,
@@ -464,9 +483,13 @@ def test_sec_filing_import_is_idempotent_and_uses_knowledge_acceptance(
                     query="net sales increased",
                 )
                 assert result.status is SecFilingContentStatus.OK
-                assert result.retrieval_profile_version == "dense-v1"
+                assert result.retrieval_profile_version == "hybrid-v1"
+                assert result.retrieval_trace is not None
+                assert result.retrieval_trace.dense_candidate_count >= 1
+                assert result.retrieval_trace.lexical_candidate_count >= 1
                 assert result.hits
                 hit = result.hits[0]
+                assert hit.retrieval_channels == ("dense", "lexical")
                 assert hit.snapshot_id == first.primary_snapshot_id
                 assert hit.source_url == sec_primary_document_url(
                     CIK,

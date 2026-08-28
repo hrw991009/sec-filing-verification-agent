@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-27
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.0 Day 7
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.1 Day 7
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D7-01～D7-08
 >
@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Filing Retrieval 与计算设计](../sec-retrieval-design.md)
 >
-> 当前状态：`planned`。Day 7 文档基线已冻结，尚未开始代码；Day 6 已合入 `main` 且分支、PR、main CI 均通过，但 `sec-source-v1` 仍为 `22/24`，D6-02/D6-06 的两条 bulk watermark closeout case 未关闭，因此 Day 7 代码入口仍受阻。
+> 当前状态：Step 1 实施中。D7-01=`implemented_pending_verification`，D7-02=`thin_slice`，D7-03～D7-08=`planned`。项目所有者已明确开始 Step 1；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
 
 ## 1. 进入条件与本日边界
 
@@ -23,7 +23,7 @@ Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platfor
 - `submissions.zip`/`companyfacts.zip` 不可变 bytes、`bulk_published_at`/`coverage_through` 和 post-watermark 官方增量补齐尚未实现；
 - 当前环境未配置合法 SEC 联系身份，尚无 live SEC smoke。
 
-因此，“Day 6 分支已结束并合入”与“D6-01～D6-08 全部 `complete`”必须分开表述。开始 Day 7 代码前，必须先把两条 closeout case 做到 `24/24`；如果产品所有者决定把它们改期，必须显式修改主计划、ADR、矩阵和评测分母，不能只在学习日志中豁免。
+因此，“Day 6 分支已结束并合入”与“D6-01～D6-08 全部 `complete`”仍必须分开表述。项目所有者随后明确要求开始 Day 7 Step 1；本次在主计划、ADR、矩阵和学习日志中把两条 closeout case 显式改期为 Day 10 发布前硬门，保留 `sec-source-v1` 原分母和失败事实，不把改期写成豁免或完成。
 
 Day 7 只交付可解释的 SEC L4 draft：锁定 filer/accession/`as_of` 后完成 Hybrid Retrieval、可定位 Evidence、确定性计算、核对和差异解释。Day 8 的 L5 Verifier、bounded revise、Monitor、持久写审批和跨 Worker 恢复不进入本日；Day 9 的公开 benchmark release suite 也不提前执行。
 
@@ -47,6 +47,15 @@ Day 7 只交付可解释的 SEC L4 draft：锁定 filer/accession/`as_of` 后完
 | 5. `sec-tool-v1`、A0/A1/A2 与 Day 7 收口 | D7-08 | 冻结简单事实、计算、跨章节、修订和无答案 cases；同一 manifest/预算/数据版本运行 oracle/full context、纯 Hybrid RAG、RAG+SEC/XBRL+calculator；生成确定性报告并完成统一 DoD | 错误 company/period/accession 为 0；证据不足正确拒答率 ≥ 0.90；A2 复杂题相对 A1 有净收益，简单题退化 ≤ 2pp；分支/PR/main CI 和所有者复核 |
 
 步骤按依赖顺序执行。前一步没有形成正式数据合同、测试和可反查证据时，不开始下一步；Workbench 随每一步读取正式 API/Event/Trace 增量扩展，不在最后用 Mock 页面补交。
+
+### Step 1 当前证据与缺口
+
+- 已实现：`hybrid-v1` 并行 Dense/BM25、RRF60、去重、可插拔 reranker、section cap；依赖失败保持 `dependency_failed`，不伪装为 `no_result`。
+- 已实现：Trace 冻结 query rewrite、双候选 limit、RRF、reranker、final limit、diversity、`as_of`、active source 与 index version；历史未注入 lexical port 的调用仍为 `dense-v1`。
+- 已实现：Milvus/Elasticsearch 候选经 PostgreSQL 重新校验 Workspace、Knowledge Base、document version、active import/snapshot 与双索引版本；真实 PostgreSQL/MinIO/Milvus/Elasticsearch 链通过。
+- 已实现：Tool Observation 使用 `sec://filing-chunks/{id}` 与 `sec://xbrl-facts/{id}`；Evidence 判别联合、SQLAlchemy normalizer、可用性重载、数据库约束迁移和 OpenAPI DTO 已支持 filing text 与 XBRL fact。
+- 本地门禁：强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量套件为 `1121 passed`，总体分支覆盖率 `80.62%`、Memory/Evidence/Research 核心合集 `86%`；Ruff format/check、mypy、migration 全历史往返与 fresh upgrade、OpenAPI/TypeScript 连续生成一致均通过。Web Prettier、ESLint、typecheck、Vitest `85 passed` 和 production build 通过。上述是当前工作树本地证据，不替代分支、PR 或 main CI。
+- 尚未关闭：冻结 SEC 黄金集 Recall@5/MRR、filing table row/column/cell 与 character locator、正式 Citation resolver 100% 指标、live SEC smoke、分支/PR/main CI。因此本步骤不能标为 `complete`，也不能开始 Step 2。
 
 ## 4. 版本化合同与评测口径
 

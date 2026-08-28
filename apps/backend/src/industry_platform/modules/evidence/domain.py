@@ -5,7 +5,7 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
@@ -50,6 +50,8 @@ class EvidenceLocatorType(StrEnum):
     INDUSTRY_SOURCE_V1 = "industry_source_v1"
     SQL_RESULT_V1 = "sql_result_v1"
     SEC_FILING_CHUNK_V1 = "sec_filing_chunk_v1"
+    SEC_FILING_TEXT_V1 = "sec_filing_text_v1"
+    SEC_XBRL_FACT_V1 = "sec_xbrl_fact_v1"
     FINANCIAL_CALCULATION_V1 = "financial_calculation_v1"
 
 
@@ -344,6 +346,295 @@ class SecFilingChunkLocatorV1:
 
 
 @dataclass(frozen=True, slots=True)
+class SecFilingTextLocatorV1:
+    cik: str
+    accession: str
+    form: str
+    report_period: str
+    as_of: str
+    filed_at: str
+    accepted_at: str
+    canonical_url: str
+    snapshot_id: UUID
+    source_version: str
+    source_content_sha256: str
+    knowledge_base_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    chunk_id: UUID
+    section: str
+    page_number: int
+    content_sha256: str
+    parser_version: str
+    chunker_version: str
+    index_version: str
+    retrieval_profile_version: str
+    retrieval_channels: tuple[str, ...]
+    locator_type: EvidenceLocatorType = EvidenceLocatorType.SEC_FILING_TEXT_V1
+    schema_version: int = EVIDENCE_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for identifier, field_name in (
+            (self.snapshot_id, "SEC filing snapshot ID"),
+            (self.knowledge_base_id, "SEC filing Knowledge Base ID"),
+            (self.document_id, "SEC filing Document ID"),
+            (self.document_version_id, "SEC filing Document Version ID"),
+            (self.chunk_id, "SEC filing Chunk ID"),
+        ):
+            require_non_nil_uuid(identifier, field_name=field_name)
+        if (
+            not re.fullmatch(r"[0-9]{10}", self.cik)
+            or self.cik == "0000000000"
+            or not re.fullmatch(r"[0-9]{10}-[0-9]{2}-[0-9]{6}", self.accession)
+            or self.form not in {"10-K", "10-K/A", "10-Q", "10-Q/A"}
+        ):
+            raise ValueError("SEC filing locator identity is invalid")
+        try:
+            date.fromisoformat(self.report_period)
+            as_of = datetime.fromisoformat(self.as_of)
+            filed_at = datetime.fromisoformat(self.filed_at)
+            accepted_at = datetime.fromisoformat(self.accepted_at)
+            for time_value in (as_of, filed_at, accepted_at):
+                require_utc(time_value, field_name="SEC filing locator time")
+        except ValueError:
+            raise ValueError("SEC filing locator time is invalid") from None
+        if accepted_at > as_of or filed_at > accepted_at:
+            raise ValueError("SEC filing locator cutoff is invalid")
+        parsed_url = urlsplit(self.canonical_url)
+        if parsed_url.scheme != "https" or parsed_url.hostname != "www.sec.gov":
+            raise ValueError("SEC filing locator URL is invalid")
+        for reference_value, field_name in (
+            (self.source_version, "SEC filing source version"),
+            (self.parser_version, "SEC filing parser version"),
+            (self.chunker_version, "SEC filing chunker version"),
+            (self.index_version, "SEC filing index version"),
+            (self.retrieval_profile_version, "SEC filing retrieval profile"),
+        ):
+            if not _REFERENCE_PATTERN.fullmatch(reference_value):
+                raise ValueError(f"{field_name} is invalid")
+        if self.retrieval_profile_version not in {"dense-v1", "hybrid-v1", "direct-read-v1"}:
+            raise ValueError("SEC filing retrieval profile is invalid")
+        channels = tuple(self.retrieval_channels)
+        if (
+            len(channels) != len(set(channels))
+            or any(channel not in {"dense", "lexical"} for channel in channels)
+            or (not channels and self.retrieval_profile_version != "direct-read-v1")
+        ):
+            raise ValueError("SEC filing retrieval channels are invalid")
+        _bounded_text(self.section, field_name="SEC filing section", maximum=1_000)
+        if isinstance(self.page_number, bool) or self.page_number < 1:
+            raise ValueError("SEC filing page is invalid")
+        _sha256(self.source_content_sha256, field_name="SEC filing source hash")
+        _sha256(self.content_sha256, field_name="SEC filing content hash")
+        if self.schema_version != EVIDENCE_SCHEMA_VERSION:
+            raise ValueError("SEC filing locator schema version is unsupported")
+        object.__setattr__(self, "retrieval_channels", channels)
+
+    def to_mapping(self) -> Mapping[str, object]:
+        return MappingProxyType(
+            {
+                "schema_version": self.schema_version,
+                "locator_type": self.locator_type.value,
+                "cik": self.cik,
+                "accession": self.accession,
+                "form": self.form,
+                "report_period": self.report_period,
+                "as_of": self.as_of,
+                "filed_at": self.filed_at,
+                "accepted_at": self.accepted_at,
+                "canonical_url": self.canonical_url,
+                "snapshot_id": str(self.snapshot_id),
+                "source_version": self.source_version,
+                "source_content_sha256": self.source_content_sha256,
+                "knowledge_base_id": str(self.knowledge_base_id),
+                "document_id": str(self.document_id),
+                "document_version_id": str(self.document_version_id),
+                "chunk_id": str(self.chunk_id),
+                "section": self.section,
+                "page_number": self.page_number,
+                "content_sha256": self.content_sha256,
+                "parser_version": self.parser_version,
+                "chunker_version": self.chunker_version,
+                "index_version": self.index_version,
+                "retrieval_profile_version": self.retrieval_profile_version,
+                "retrieval_channels": list(self.retrieval_channels),
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SecXbrlFactLocatorV1:
+    cik: str
+    accession: str
+    form: str
+    report_period: str
+    as_of: str
+    fact_id: UUID
+    filing_id: UUID
+    source_id: UUID
+    source_snapshot_id: UUID | None
+    source_kind: str
+    taxonomy: str
+    concept: str
+    unit: str | None
+    period_kind: str
+    instant: str | None
+    start_date: str | None
+    end_date: str | None
+    context_id: str | None
+    dimensions: Mapping[str, str]
+    decimals: str | None
+    scale: int | None
+    source_url: str
+    source_version: str
+    source_content_sha256: str
+    content_sha256: str
+    source_available_at: str
+    retrieved_at: str
+    locator_type: EvidenceLocatorType = EvidenceLocatorType.SEC_XBRL_FACT_V1
+    schema_version: int = EVIDENCE_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for identifier, field_name in (
+            (self.fact_id, "SEC XBRL fact ID"),
+            (self.filing_id, "SEC XBRL filing ID"),
+            (self.source_id, "SEC XBRL source ID"),
+        ):
+            require_non_nil_uuid(identifier, field_name=field_name)
+        if self.source_snapshot_id is not None:
+            require_non_nil_uuid(self.source_snapshot_id, field_name="SEC XBRL snapshot ID")
+        if (
+            not re.fullmatch(r"[0-9]{10}", self.cik)
+            or self.cik == "0000000000"
+            or not re.fullmatch(r"[0-9]{10}-[0-9]{2}-[0-9]{6}", self.accession)
+            or self.form not in {"10-K", "10-K/A", "10-Q", "10-Q/A"}
+            or self.source_kind not in {"companyfacts_aggregate", "raw_inline", "raw_instance"}
+            or self.period_kind not in {"instant", "duration", "forever"}
+        ):
+            raise ValueError("SEC XBRL locator identity is invalid")
+        try:
+            date.fromisoformat(self.report_period)
+            as_of = datetime.fromisoformat(self.as_of)
+            source_available_at = datetime.fromisoformat(self.source_available_at)
+            retrieved_at = datetime.fromisoformat(self.retrieved_at)
+            for time_value in (as_of, source_available_at, retrieved_at):
+                require_utc(time_value, field_name="SEC XBRL locator time")
+            for period_value in (self.instant, self.start_date, self.end_date):
+                if period_value is not None:
+                    date.fromisoformat(period_value)
+        except ValueError:
+            raise ValueError("SEC XBRL locator time is invalid") from None
+        if source_available_at > as_of or source_available_at > retrieved_at:
+            raise ValueError("SEC XBRL locator cutoff is invalid")
+        valid_period = (
+            (
+                self.period_kind == "instant"
+                and self.instant is not None
+                and self.start_date is None
+                and self.end_date is None
+            )
+            or (
+                self.period_kind == "duration"
+                and self.instant is None
+                and self.start_date is not None
+                and self.end_date is not None
+            )
+            or (
+                self.period_kind == "forever"
+                and self.instant is None
+                and self.start_date is None
+                and self.end_date is None
+            )
+        )
+        if not valid_period:
+            raise ValueError("SEC XBRL period is invalid")
+        if (
+            self.period_kind == "duration"
+            and self.start_date is not None
+            and self.end_date is not None
+            and date.fromisoformat(self.start_date) > date.fromisoformat(self.end_date)
+        ):
+            raise ValueError("SEC XBRL period is invalid")
+        if (
+            self.source_kind == "companyfacts_aggregate" and self.source_snapshot_id is not None
+        ) or (
+            self.source_kind != "companyfacts_aggregate"
+            and (self.source_snapshot_id is None or self.context_id is None)
+        ):
+            raise ValueError("SEC XBRL source boundary is invalid")
+        for reference_value, field_name in (
+            (self.source_kind, "SEC XBRL source kind"),
+            (self.taxonomy, "SEC XBRL taxonomy"),
+            (self.concept, "SEC XBRL concept"),
+            (self.source_version, "SEC XBRL source version"),
+        ):
+            if not _REFERENCE_PATTERN.fullmatch(reference_value):
+                raise ValueError(f"{field_name} is invalid")
+        dimensions = dict(self.dimensions)
+        if len(dimensions) > 32 or any(
+            not _REFERENCE_PATTERN.fullmatch(axis) or not _REFERENCE_PATTERN.fullmatch(member)
+            for axis, member in dimensions.items()
+        ):
+            raise ValueError("SEC XBRL dimensions are invalid")
+        parsed_url = urlsplit(self.source_url)
+        if parsed_url.scheme != "https" or parsed_url.hostname not in {
+            "www.sec.gov",
+            "data.sec.gov",
+        }:
+            raise ValueError("SEC XBRL source URL is invalid")
+        if (
+            self.source_kind == "companyfacts_aggregate" and parsed_url.hostname != "data.sec.gov"
+        ) or (
+            self.source_kind != "companyfacts_aggregate" and parsed_url.hostname != "www.sec.gov"
+        ):
+            raise ValueError("SEC XBRL source URL boundary is invalid")
+        if isinstance(self.scale, bool) or (self.scale is not None and not -12 <= self.scale <= 12):
+            raise ValueError("SEC XBRL scale is invalid")
+        _sha256(self.source_content_sha256, field_name="SEC XBRL source hash")
+        _sha256(self.content_sha256, field_name="SEC XBRL fact hash")
+        if self.schema_version != EVIDENCE_SCHEMA_VERSION:
+            raise ValueError("SEC XBRL locator schema version is unsupported")
+        object.__setattr__(self, "dimensions", MappingProxyType(dimensions))
+
+    def to_mapping(self) -> Mapping[str, object]:
+        return MappingProxyType(
+            {
+                "schema_version": self.schema_version,
+                "locator_type": self.locator_type.value,
+                "cik": self.cik,
+                "accession": self.accession,
+                "form": self.form,
+                "report_period": self.report_period,
+                "as_of": self.as_of,
+                "fact_id": str(self.fact_id),
+                "filing_id": str(self.filing_id),
+                "source_id": str(self.source_id),
+                "source_snapshot_id": (
+                    None if self.source_snapshot_id is None else str(self.source_snapshot_id)
+                ),
+                "source_kind": self.source_kind,
+                "taxonomy": self.taxonomy,
+                "concept": self.concept,
+                "unit": self.unit,
+                "period_kind": self.period_kind,
+                "instant": self.instant,
+                "start_date": self.start_date,
+                "end_date": self.end_date,
+                "context_id": self.context_id,
+                "dimensions": dict(self.dimensions),
+                "decimals": self.decimals,
+                "scale": self.scale,
+                "source_url": self.source_url,
+                "source_version": self.source_version,
+                "source_content_sha256": self.source_content_sha256,
+                "content_sha256": self.content_sha256,
+                "source_available_at": self.source_available_at,
+                "retrieved_at": self.retrieved_at,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class FinancialCalculationLocatorV1:
     financial_scope: Mapping[str, object]
     operator: str
@@ -414,6 +705,8 @@ type EvidenceLocator = (
     IndustrySourceLocatorV1
     | SqlResultLocatorV1
     | SecFilingChunkLocatorV1
+    | SecFilingTextLocatorV1
+    | SecXbrlFactLocatorV1
     | FinancialCalculationLocatorV1
 )
 
@@ -537,6 +830,147 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
                 chunker_version=str(document["chunker_version"]),
                 index_version=str(document["index_version"]),
             )
+        if locator_type is EvidenceLocatorType.SEC_FILING_TEXT_V1:
+            expected = {
+                "schema_version",
+                "locator_type",
+                "cik",
+                "accession",
+                "form",
+                "report_period",
+                "as_of",
+                "filed_at",
+                "accepted_at",
+                "canonical_url",
+                "snapshot_id",
+                "source_version",
+                "source_content_sha256",
+                "knowledge_base_id",
+                "document_id",
+                "document_version_id",
+                "chunk_id",
+                "section",
+                "page_number",
+                "content_sha256",
+                "parser_version",
+                "chunker_version",
+                "index_version",
+                "retrieval_profile_version",
+                "retrieval_channels",
+            }
+            page_number = document["page_number"]
+            channels = document["retrieval_channels"]
+            if (
+                set(document) != expected
+                or isinstance(page_number, bool)
+                or not isinstance(page_number, int)
+                or not isinstance(channels, list)
+            ):
+                raise ValueError
+            return SecFilingTextLocatorV1(
+                cik=str(document["cik"]),
+                accession=str(document["accession"]),
+                form=str(document["form"]),
+                report_period=str(document["report_period"]),
+                as_of=str(document["as_of"]),
+                filed_at=str(document["filed_at"]),
+                accepted_at=str(document["accepted_at"]),
+                canonical_url=str(document["canonical_url"]),
+                snapshot_id=UUID(str(document["snapshot_id"])),
+                source_version=str(document["source_version"]),
+                source_content_sha256=str(document["source_content_sha256"]),
+                knowledge_base_id=UUID(str(document["knowledge_base_id"])),
+                document_id=UUID(str(document["document_id"])),
+                document_version_id=UUID(str(document["document_version_id"])),
+                chunk_id=UUID(str(document["chunk_id"])),
+                section=str(document["section"]),
+                page_number=page_number,
+                content_sha256=str(document["content_sha256"]),
+                parser_version=str(document["parser_version"]),
+                chunker_version=str(document["chunker_version"]),
+                index_version=str(document["index_version"]),
+                retrieval_profile_version=str(document["retrieval_profile_version"]),
+                retrieval_channels=tuple(str(item) for item in channels),
+            )
+        if locator_type is EvidenceLocatorType.SEC_XBRL_FACT_V1:
+            expected = {
+                "schema_version",
+                "locator_type",
+                "cik",
+                "accession",
+                "form",
+                "report_period",
+                "as_of",
+                "fact_id",
+                "filing_id",
+                "source_id",
+                "source_snapshot_id",
+                "source_kind",
+                "taxonomy",
+                "concept",
+                "unit",
+                "period_kind",
+                "instant",
+                "start_date",
+                "end_date",
+                "context_id",
+                "dimensions",
+                "decimals",
+                "scale",
+                "source_url",
+                "source_version",
+                "source_content_sha256",
+                "content_sha256",
+                "source_available_at",
+                "retrieved_at",
+            }
+            dimensions = document["dimensions"]
+            scale = document["scale"]
+            if (
+                set(document) != expected
+                or not isinstance(dimensions, dict)
+                or isinstance(scale, bool)
+                or (scale is not None and not isinstance(scale, int))
+            ):
+                raise ValueError
+            source_snapshot_id = document["source_snapshot_id"]
+            return SecXbrlFactLocatorV1(
+                cik=str(document["cik"]),
+                accession=str(document["accession"]),
+                form=str(document["form"]),
+                report_period=str(document["report_period"]),
+                as_of=str(document["as_of"]),
+                fact_id=UUID(str(document["fact_id"])),
+                filing_id=UUID(str(document["filing_id"])),
+                source_id=UUID(str(document["source_id"])),
+                source_snapshot_id=(
+                    None if source_snapshot_id is None else UUID(str(source_snapshot_id))
+                ),
+                source_kind=str(document["source_kind"]),
+                taxonomy=str(document["taxonomy"]),
+                concept=str(document["concept"]),
+                unit=None if document["unit"] is None else str(document["unit"]),
+                period_kind=str(document["period_kind"]),
+                instant=None if document["instant"] is None else str(document["instant"]),
+                start_date=(
+                    None if document["start_date"] is None else str(document["start_date"])
+                ),
+                end_date=None if document["end_date"] is None else str(document["end_date"]),
+                context_id=(
+                    None if document["context_id"] is None else str(document["context_id"])
+                ),
+                dimensions={str(key): str(value) for key, value in dimensions.items()},
+                decimals=(None if document["decimals"] is None else str(document["decimals"])),
+                scale=scale,
+                source_url=str(document["source_url"]),
+                source_version=str(document["source_version"]),
+                source_content_sha256=str(document["source_content_sha256"]),
+                content_sha256=str(document["content_sha256"]),
+                source_available_at=str(document["source_available_at"]),
+                retrieved_at=str(document["retrieved_at"]),
+            )
+        if locator_type is not EvidenceLocatorType.FINANCIAL_CALCULATION_V1:
+            raise ValueError
         expected = {
             "schema_version",
             "locator_type",

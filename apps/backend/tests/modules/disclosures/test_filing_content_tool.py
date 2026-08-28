@@ -181,9 +181,9 @@ async def test_search_tool_uses_trusted_scope_and_emits_snapshot_lineage() -> No
 
     assert service.search_calls == 1
     assert '"retrieval_profile_version":"dense-v1"' in result.observation.model_text
-    assert result.observation.sources[0].source_type == "sec_filing_snapshot"
-    assert result.observation.sources[0].locator == SOURCE_URL
-    assert result.observation.sources[0].content_sha256 == "b" * 64
+    assert result.observation.sources[0].source_type == "sec_filing_text"
+    assert result.observation.sources[0].locator == f"sec://filing-chunks/{CHUNK_ID}"
+    assert result.observation.sources[0].content_sha256 == "a" * 64
 
 
 @pytest.mark.asyncio
@@ -204,7 +204,7 @@ async def test_read_tool_returns_only_the_authorized_chunk() -> None:
 
     assert service.read_calls == 1
     assert '"text":"Net sales increased."' in result.observation.model_text
-    assert result.observation.sources[0].locator == SOURCE_URL
+    assert result.observation.sources[0].locator == f"sec://filing-chunks/{CHUNK_ID}"
 
 
 def test_model_cannot_override_the_server_locked_accession() -> None:

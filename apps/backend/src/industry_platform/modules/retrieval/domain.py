@@ -140,7 +140,7 @@ class HybridCandidate(RetrievalCandidate):
     channels: tuple[RetrievalChannel, ...]
 
     def __post_init__(self) -> None:
-        super(HybridCandidate, self).__post_init__()
+        RetrievalCandidate.__post_init__(self)
         channels = tuple(self.channels)
         if (
             not channels
@@ -175,9 +175,7 @@ def reciprocal_rank_fusion(
         dense_rank = dense_ranks.get((chunk_id, document_version_id))
         lexical_rank = lexical_ranks.get((chunk_id, document_version_id))
         raw_score = sum(
-            1 / (rrf_k + rank)
-            for rank in (dense_rank, lexical_rank)
-            if rank is not None
+            1 / (rrf_k + rank) for rank in (dense_rank, lexical_rank) if rank is not None
         )
         channels = tuple(
             channel
@@ -212,8 +210,10 @@ def _unique_candidate_ranks(
     candidates: tuple[RetrievalCandidate | LexicalCandidate, ...],
 ) -> dict[tuple[UUID, UUID], int]:
     ranks: dict[tuple[UUID, UUID], int] = {}
-    for rank, candidate in enumerate(candidates, start=1):
-        ranks.setdefault((candidate.chunk_id, candidate.document_version_id), rank)
+    for candidate in candidates:
+        key = (candidate.chunk_id, candidate.document_version_id)
+        if key not in ranks:
+            ranks[key] = len(ranks) + 1
     return ranks
 
 
