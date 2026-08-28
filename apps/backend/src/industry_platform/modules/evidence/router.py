@@ -16,10 +16,14 @@ from industry_platform.modules.evidence.domain import (
     EvidenceNormalizationResult,
     EvidenceRequestRejectedError,
     EvidenceStatus,
+    FinancialCalculationLocatorV1,
     IndustrySourceLocatorV1,
     InvalidateEvidence,
     NormalizeObservation,
     ResearchClaim,
+    SecFilingChunkLocatorV1,
+    SecFilingTextLocatorV1,
+    SecXbrlFactLocatorV1,
     SqlResultLocatorV1,
 )
 from industry_platform.modules.evidence.ports import EvidenceUseCase
@@ -33,6 +37,7 @@ from industry_platform.modules.evidence.schemas import (
     EvidenceNormalizationItemResponse,
     EvidenceNormalizationResponse,
     EvidenceResponse,
+    FinancialCalculationLocatorResponse,
     GraphEdgeResponse,
     GraphNodeResponse,
     IndustrySourceLocatorResponse,
@@ -40,6 +45,9 @@ from industry_platform.modules.evidence.schemas import (
     NormalizeObservationRequest,
     ResearchClaimCollectionResponse,
     ResearchClaimResponse,
+    SecFilingChunkLocatorResponse,
+    SecFilingTextLocatorResponse,
+    SecXbrlFactLocatorResponse,
     SqlResultLocatorResponse,
 )
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
@@ -301,11 +309,28 @@ def _workspace_scope(
 
 def _evidence_response(evidence: Evidence) -> EvidenceResponse:
     locator = evidence.locator
-    locator_response: IndustrySourceLocatorResponse | SqlResultLocatorResponse
+    locator_response: (
+        IndustrySourceLocatorResponse
+        | SqlResultLocatorResponse
+        | SecFilingChunkLocatorResponse
+        | SecFilingTextLocatorResponse
+        | SecXbrlFactLocatorResponse
+        | FinancialCalculationLocatorResponse
+    )
     if isinstance(locator, IndustrySourceLocatorV1):
         locator_response = IndustrySourceLocatorResponse.model_validate(dict(locator.to_mapping()))
     elif isinstance(locator, SqlResultLocatorV1):
         locator_response = SqlResultLocatorResponse.model_validate(dict(locator.to_mapping()))
+    elif isinstance(locator, SecFilingChunkLocatorV1):
+        locator_response = SecFilingChunkLocatorResponse.model_validate(dict(locator.to_mapping()))
+    elif isinstance(locator, SecFilingTextLocatorV1):
+        locator_response = SecFilingTextLocatorResponse.model_validate(dict(locator.to_mapping()))
+    elif isinstance(locator, SecXbrlFactLocatorV1):
+        locator_response = SecXbrlFactLocatorResponse.model_validate(dict(locator.to_mapping()))
+    elif isinstance(locator, FinancialCalculationLocatorV1):
+        locator_response = FinancialCalculationLocatorResponse.model_validate(
+            dict(locator.to_mapping())
+        )
     else:
         raise EvidenceRequestRejectedError
     authorization = evidence.authorization_snapshot

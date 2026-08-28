@@ -8,6 +8,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from industry_platform.modules.disclosures.diff import (
+    SEC_MAX_DIFF_FACT_CHANGES,
+    SecFilingChangeKind,
+    SecFilingComparisonIdentity,
+    SecFilingDiffRelationship,
+    SecFilingDiffResult,
+    SecFilingDiffStatus,
+)
 from industry_platform.modules.disclosures.domain import (
     FilingSelectionScope,
     SecAmendmentPolicy,
@@ -38,6 +46,10 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSyncResult,
     normalize_cik,
     sec_xbrl_fact_content_sha256,
+)
+from industry_platform.modules.financial_verification.domain import (
+    FinancialForm,
+    FinancialScope,
 )
 
 
@@ -651,4 +663,169 @@ class SecXbrlFactCollectionResponse(BaseModel):
             accession=value.accession,
             facts=[SecXbrlFactResponse.from_domain(fact) for fact in value.facts],
             error_code=value.error_code,
+        )
+
+
+class SecFilingDiffQueryParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    knowledge_base_id: UUID
+    comparison_accession: str = Field(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
+    cik: str = Field(pattern=r"^[0-9]{10}$")
+    form: FinancialForm
+    report_period: date
+    as_of: datetime
+    unit: str = Field(default="USD", pattern=r"^[A-Z][A-Z0-9_/-]{0,15}$")
+    scale: int = Field(default=0, ge=-12, le=12)
+    section_query: str = Field(min_length=1, max_length=500)
+    taxonomy: str | None = Field(default=None, pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$")
+    concept: str | None = Field(default=None, pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$")
+    fact_limit: int = Field(default=10, ge=1, le=SEC_MAX_DIFF_FACT_CHANGES)
+
+    def to_financial_scope(self, accession: str) -> FinancialScope:
+        return FinancialScope(
+            cik=self.cik,
+            accession=accession,
+            form=self.form,
+            report_period=self.report_period,
+            as_of=self.as_of,
+            unit=self.unit,
+            scale=self.scale,
+        )
+
+
+class SecFilingComparisonIdentityResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    import_id: UUID
+    knowledge_base_id: UUID
+    cik: str
+    accession: str
+    form: SecFilingForm
+    report_date: date
+    filed_date: date
+    public_available_at: datetime
+    amendment_relation_status: SecAmendmentRelationStatus
+    base_accession: str | None
+
+    @classmethod
+    def from_domain(cls, value: SecFilingComparisonIdentity) -> Self:
+        return cls(
+            import_id=value.import_id,
+            knowledge_base_id=value.knowledge_base_id,
+            cik=value.cik,
+            accession=value.accession,
+            form=value.form,
+            report_date=value.report_date,
+            filed_date=value.filed_date,
+            public_available_at=value.public_available_at,
+            amendment_relation_status=value.amendment_relation_status,
+            base_accession=value.base_accession,
+        )
+
+
+class SecFilingFactChangeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    taxonomy: str
+    concept: str
+    unit: str | None
+    period_kind: str
+    period_bucket: str
+    dimensions: dict[str, str]
+    is_custom: bool
+    change_kind: SecFilingChangeKind
+    baseline: SecXbrlFactResponse | None
+    target: SecXbrlFactResponse | None
+
+
+class SecFilingSectionChangeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    section: str
+    change_kind: SecFilingChangeKind
+    baseline: SecFilingSearchHitResponse
+    target: SecFilingSearchHitResponse
+
+
+class SecFilingDiffResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: SecFilingDiffStatus
+    requested_accession: str
+    comparison_accession: str
+    relationship: SecFilingDiffRelationship | None
+    baseline: SecFilingComparisonIdentityResponse | None
+    target: SecFilingComparisonIdentityResponse | None
+    fact_changes: list[SecFilingFactChangeResponse]
+    section_change: SecFilingSectionChangeResponse | None
+    unchanged_fact_count: int
+    baseline_retrieval_trace: SecFilingRetrievalTraceResponse | None
+    target_retrieval_trace: SecFilingRetrievalTraceResponse | None
+    error_code: str | None
+    version: str
+
+    @classmethod
+    def from_domain(cls, value: SecFilingDiffResult) -> Self:
+        return cls(
+            status=value.status,
+            requested_accession=value.requested_accession,
+            comparison_accession=value.comparison_accession,
+            relationship=value.relationship,
+            baseline=(
+                None
+                if value.baseline is None
+                else SecFilingComparisonIdentityResponse.from_domain(value.baseline)
+            ),
+            target=(
+                None
+                if value.target is None
+                else SecFilingComparisonIdentityResponse.from_domain(value.target)
+            ),
+            fact_changes=[
+                SecFilingFactChangeResponse(
+                    taxonomy=change.taxonomy,
+                    concept=change.concept,
+                    unit=change.unit,
+                    period_kind=change.period_kind,
+                    period_bucket=change.period_bucket,
+                    dimensions=dict(change.dimensions),
+                    is_custom=change.is_custom,
+                    change_kind=change.change_kind,
+                    baseline=(
+                        None
+                        if change.baseline is None
+                        else SecXbrlFactResponse.from_domain(change.baseline)
+                    ),
+                    target=(
+                        None
+                        if change.target is None
+                        else SecXbrlFactResponse.from_domain(change.target)
+                    ),
+                )
+                for change in value.fact_changes
+            ],
+            section_change=(
+                None
+                if value.section_change is None
+                else SecFilingSectionChangeResponse(
+                    section=value.section_change.section,
+                    change_kind=value.section_change.change_kind,
+                    baseline=SecFilingSearchHitResponse.from_domain(value.section_change.baseline),
+                    target=SecFilingSearchHitResponse.from_domain(value.section_change.target),
+                )
+            ),
+            unchanged_fact_count=value.unchanged_fact_count,
+            baseline_retrieval_trace=(
+                None
+                if value.baseline_retrieval_trace is None
+                else SecFilingRetrievalTraceResponse.from_domain(value.baseline_retrieval_trace)
+            ),
+            target_retrieval_trace=(
+                None
+                if value.target_retrieval_trace is None
+                else SecFilingRetrievalTraceResponse.from_domain(value.target_retrieval_trace)
+            ),
+            error_code=value.error_code,
+            version=value.version,
         )

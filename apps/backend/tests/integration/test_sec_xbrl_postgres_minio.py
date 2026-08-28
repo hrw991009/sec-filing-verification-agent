@@ -79,7 +79,7 @@ from industry_platform.modules.knowledge.adapters.sqlalchemy import (
     SqlAlchemyKnowledgeRepository,
 )
 from industry_platform.modules.knowledge.domain import CreateKnowledgeBase, DocumentVersionStatus
-from industry_platform.modules.knowledge.models import DocumentVersionRecord
+from industry_platform.modules.knowledge.models import DocumentRecord, DocumentVersionRecord
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
@@ -282,8 +282,16 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
                 )
                 if version is None:
                     raise AssertionError("Accepted SEC import version disappeared")
+                document = await session.get(
+                    DocumentRecord,
+                    imported.document_id,
+                    with_for_update=True,
+                )
+                if document is None:
+                    raise AssertionError("Accepted SEC import document disappeared")
                 version.status = DocumentVersionStatus.READY
                 version.ready_at = now
+                document.active_version_id = version.id
 
             service = SecXbrlService(
                 repository=SqlAlchemySecXbrlRepository(

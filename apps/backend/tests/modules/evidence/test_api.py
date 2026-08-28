@@ -22,6 +22,7 @@ from industry_platform.modules.evidence.domain import (
     EvidenceNormalizationItem,
     EvidenceNormalizationResult,
     EvidenceStatus,
+    FinancialCalculationLocatorV1,
     IndustrySourceLocatorV1,
     InvalidateEvidence,
     NormalizeObservation,
@@ -67,6 +68,10 @@ class StubEvidenceService:
     normalize_calls: list[tuple[WorkspaceScope, NormalizeObservation]] = field(default_factory=list)
     invalidate_calls: list[tuple[WorkspaceScope, InvalidateEvidence]] = field(default_factory=list)
     claim_calls: list[tuple[WorkspaceScope, CreateClaim]] = field(default_factory=list)
+    evidence: Evidence | None = None
+
+    async def get_evidence(self, _scope: WorkspaceScope, _evidence_id: UUID) -> Evidence:
+        return self.evidence or active_evidence()
 
     async def normalize_observation(
         self,
@@ -217,6 +222,56 @@ def test_normalization_uses_trusted_scope_and_server_trace(test_settings: Settin
     assert command.tool_call_id == CALL_ID
     assert str(command.trace_id) == response.headers["X-Trace-ID"]
     assert str(command.trace_id) != "untrusted-client-trace"
+
+
+def test_calculation_evidence_response_preserves_reconciliation_lineage(
+    test_settings: Settings,
+) -> None:
+    calculation = FinancialCalculationLocatorV1(
+        financial_scope={
+            "schema_version": 1,
+            "cik": "0000320193",
+            "accession": "0000320193-23-000106",
+            "form": "10-K",
+            "report_period": "2023-09-30",
+            "as_of": NOW.isoformat(),
+            "unit": "USD",
+            "scale": 6,
+        },
+        operator="percent_change",
+        operand_values=("383285", "394328"),
+        input_evidence_refs=(EVIDENCE_ID, SOURCE_ITEM_ID),
+        decimal_places=2,
+        rounding_mode="half_even",
+        formula="((383285 - 394328) / 394328) * 100",
+        result="-2.80",
+        unit="PERCENT",
+        scale=0,
+        observation_sha256="d" * 64,
+        reconciliation_status="consistent",
+        reconciliation_version="financial-reconciliation-v1",
+    )
+    service = StubEvidenceService(
+        evidence=replace(
+            active_evidence(),
+            kind=EvidenceKind.CALCULATION,
+            title="Financial calculation: percent_change",
+            canonical_url=None,
+            locator=calculation,
+        )
+    )
+    with evidence_client(test_settings, service) as client:
+        response = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/evidence/{EVIDENCE_ID}",
+            headers=headers(),
+        )
+
+    assert response.status_code == 200
+    locator = response.json()["locator"]
+    assert locator["locator_type"] == "financial_calculation_v1"
+    assert locator["input_evidence_refs"] == [str(EVIDENCE_ID), str(SOURCE_ITEM_ID)]
+    assert locator["reconciliation_status"] == "consistent"
+    assert locator["reconciliation_version"] == "financial-reconciliation-v1"
 
 
 def test_invalidation_requires_revision_and_outside_workspace_is_denied(

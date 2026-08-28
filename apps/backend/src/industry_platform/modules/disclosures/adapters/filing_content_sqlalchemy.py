@@ -12,7 +12,13 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.modules.disclosures.diff import (
+    SecFilingComparisonIdentity,
+    SecFilingComparisonPreparation,
+    SecFilingDiffStatus,
+)
 from industry_platform.modules.disclosures.domain import (
+    SecAmendmentRelationStatus,
     SecCanonicalFiling,
     SecDisclosurePersistenceError,
     SecFilingArchive,
@@ -465,6 +471,77 @@ class SqlAlchemySecFilingContentRepository:
             return SecFilingContentPreparation(
                 status=SecFilingContentStatus.DEPENDENCY_FAILED,
                 accession=accession,
+            )
+
+    async def prepare_comparison_identity(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        accession: str,
+        as_of: datetime,
+    ) -> SecFilingComparisonPreparation:
+        preparation = await self.prepare_content(
+            scope,
+            knowledge_base_ids=knowledge_base_ids,
+            accession=accession,
+            as_of=as_of,
+        )
+        if preparation.status is not SecFilingContentStatus.OK:
+            status = {
+                SecFilingContentStatus.NOT_READY: SecFilingDiffStatus.NOT_READY,
+                SecFilingContentStatus.NO_RESULT: SecFilingDiffStatus.NO_RESULT,
+                SecFilingContentStatus.DEPENDENCY_FAILED: SecFilingDiffStatus.DEPENDENCY_FAILED,
+                SecFilingContentStatus.PERMISSION_DENIED: SecFilingDiffStatus.PERMISSION_DENIED,
+            }[preparation.status]
+            return SecFilingComparisonPreparation(
+                status=status,
+                accession=accession,
+                error_code=(
+                    "comparison_identity_reload_failed"
+                    if status is SecFilingDiffStatus.DEPENDENCY_FAILED
+                    else None
+                ),
+            )
+        imported = preparation.import_record
+        if imported is None:
+            raise AssertionError("Ready SEC comparison preparation lost its import")
+        try:
+            async with self._session_factory() as session:
+                filing = await session.scalar(
+                    select(SecFilingRecord).where(
+                        SecFilingRecord.id == imported.filing_id,
+                        SecFilingRecord.accession == accession,
+                    )
+                )
+                if filing is None:
+                    return SecFilingComparisonPreparation(
+                        status=SecFilingDiffStatus.PERMISSION_DENIED,
+                        accession=accession,
+                    )
+                return SecFilingComparisonPreparation(
+                    status=SecFilingDiffStatus.OK,
+                    accession=accession,
+                    identity=SecFilingComparisonIdentity(
+                        import_id=imported.id,
+                        knowledge_base_id=imported.knowledge_base_id,
+                        cik=filing.cik,
+                        accession=filing.accession,
+                        form=SecFilingForm(filing.form),
+                        report_date=filing.report_date,
+                        filed_date=filing.filed_date,
+                        public_available_at=filing.public_available_at,
+                        amendment_relation_status=SecAmendmentRelationStatus(
+                            filing.amendment_relation_status
+                        ),
+                        base_accession=filing.base_accession,
+                    ),
+                )
+        except SQLAlchemyError:
+            return SecFilingComparisonPreparation(
+                status=SecFilingDiffStatus.DEPENDENCY_FAILED,
+                accession=accession,
+                error_code="comparison_identity_reload_failed",
             )
 
     async def resolve_candidates(

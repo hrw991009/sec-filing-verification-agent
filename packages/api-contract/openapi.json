@@ -2977,6 +2977,30 @@
             "title": "Operator",
             "type": "string"
           },
+          "reconciliation_status": {
+            "anyOf": [
+              {
+                "const": "consistent",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Status"
+          },
+          "reconciliation_version": {
+            "anyOf": [
+              {
+                "const": "financial-reconciliation-v1",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Version"
+          },
           "result": {
             "title": "Result",
             "type": "string"
@@ -3012,7 +3036,9 @@
           "result",
           "unit",
           "scale",
-          "observation_sha256"
+          "observation_sha256",
+          "reconciliation_status",
+          "reconciliation_version"
         ],
         "title": "FinancialCalculationLocatorResponse",
         "type": "object"
@@ -6007,6 +6033,11 @@
         "title": "SecFilingCandidateResponse",
         "type": "object"
       },
+      "SecFilingChangeKind": {
+        "enum": ["added", "removed", "changed", "unchanged"],
+        "title": "SecFilingChangeKind",
+        "type": "string"
+      },
       "SecFilingChunkLocatorResponse": {
         "additionalProperties": false,
         "properties": {
@@ -6132,10 +6163,295 @@
         "title": "SecFilingChunkLocatorResponse",
         "type": "object"
       },
+      "SecFilingComparisonIdentityResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "amendment_relation_status": {
+            "$ref": "#/components/schemas/SecAmendmentRelationStatus"
+          },
+          "base_accession": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Accession"
+          },
+          "cik": {
+            "title": "Cik",
+            "type": "string"
+          },
+          "filed_date": {
+            "format": "date",
+            "title": "Filed Date",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/SecFilingForm"
+          },
+          "import_id": {
+            "format": "uuid",
+            "title": "Import Id",
+            "type": "string"
+          },
+          "knowledge_base_id": {
+            "format": "uuid",
+            "title": "Knowledge Base Id",
+            "type": "string"
+          },
+          "public_available_at": {
+            "format": "date-time",
+            "title": "Public Available At",
+            "type": "string"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "import_id",
+          "knowledge_base_id",
+          "cik",
+          "accession",
+          "form",
+          "report_date",
+          "filed_date",
+          "public_available_at",
+          "amendment_relation_status",
+          "base_accession"
+        ],
+        "title": "SecFilingComparisonIdentityResponse",
+        "type": "object"
+      },
       "SecFilingContentStatus": {
         "enum": ["ok", "not_ready", "no_result", "dependency_failed", "permission_denied"],
         "title": "SecFilingContentStatus",
         "type": "string"
+      },
+      "SecFilingDiffRelationship": {
+        "enum": ["base_amendment", "adjacent_period"],
+        "title": "SecFilingDiffRelationship",
+        "type": "string"
+      },
+      "SecFilingDiffResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingComparisonIdentityResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_retrieval_trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingRetrievalTraceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comparison_accession": {
+            "title": "Comparison Accession",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "fact_changes": {
+            "items": {
+              "$ref": "#/components/schemas/SecFilingFactChangeResponse"
+            },
+            "title": "Fact Changes",
+            "type": "array"
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingDiffRelationship"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_accession": {
+            "title": "Requested Accession",
+            "type": "string"
+          },
+          "section_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingSectionChangeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/SecFilingDiffStatus"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingComparisonIdentityResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_retrieval_trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecFilingRetrievalTraceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unchanged_fact_count": {
+            "title": "Unchanged Fact Count",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "requested_accession",
+          "comparison_accession",
+          "relationship",
+          "baseline",
+          "target",
+          "fact_changes",
+          "section_change",
+          "unchanged_fact_count",
+          "baseline_retrieval_trace",
+          "target_retrieval_trace",
+          "error_code",
+          "version"
+        ],
+        "title": "SecFilingDiffResponse",
+        "type": "object"
+      },
+      "SecFilingDiffStatus": {
+        "enum": [
+          "ok",
+          "no_result",
+          "not_ready",
+          "not_comparable",
+          "permission_denied",
+          "dependency_failed"
+        ],
+        "title": "SecFilingDiffStatus",
+        "type": "string"
+      },
+      "SecFilingFactChangeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecXbrlFactResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_kind": {
+            "$ref": "#/components/schemas/SecFilingChangeKind"
+          },
+          "concept": {
+            "title": "Concept",
+            "type": "string"
+          },
+          "dimensions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Dimensions",
+            "type": "object"
+          },
+          "is_custom": {
+            "title": "Is Custom",
+            "type": "boolean"
+          },
+          "period_bucket": {
+            "title": "Period Bucket",
+            "type": "string"
+          },
+          "period_kind": {
+            "title": "Period Kind",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecXbrlFactResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxonomy": {
+            "title": "Taxonomy",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "taxonomy",
+          "concept",
+          "unit",
+          "period_kind",
+          "period_bucket",
+          "dimensions",
+          "is_custom",
+          "change_kind",
+          "baseline",
+          "target"
+        ],
+        "title": "SecFilingFactChangeResponse",
+        "type": "object"
       },
       "SecFilingForm": {
         "enum": ["10-K", "10-K/A", "10-Q", "10-Q/A"],
@@ -6512,6 +6828,27 @@
           "retrieval_trace"
         ],
         "title": "SecFilingSearchResponse",
+        "type": "object"
+      },
+      "SecFilingSectionChangeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/SecFilingSearchHitResponse"
+          },
+          "change_kind": {
+            "$ref": "#/components/schemas/SecFilingChangeKind"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/SecFilingSearchHitResponse"
+          }
+        },
+        "required": ["section", "change_kind", "baseline", "target"],
+        "title": "SecFilingSectionChangeResponse",
         "type": "object"
       },
       "SecFilingSectionResponse": {
@@ -15346,6 +15683,390 @@
           }
         ],
         "summary": "List Filings",
+        "tags": ["disclosures"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/disclosures/filings/{accession}/diff": {
+      "get": {
+        "operationId": "diff_filings_api_v1_workspaces__workspace_id__disclosures_filings__accession__diff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "accession",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{10}-[0-9]{2}-[0-9]{6}$",
+              "title": "Accession",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "knowledge_base_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledge Base Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "comparison_accession",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{10}-[0-9]{2}-[0-9]{6}$",
+              "title": "Comparison Accession",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cik",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{10}$",
+              "title": "Cik",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "form",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FinancialForm"
+            }
+          },
+          {
+            "in": "query",
+            "name": "report_period",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Report Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "As Of",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unit",
+            "required": false,
+            "schema": {
+              "default": "USD",
+              "pattern": "^[A-Z][A-Z0-9_/-]{0,15}$",
+              "title": "Unit",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scale",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 12,
+              "minimum": -12,
+              "title": "Scale",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "section_query",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Section Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "taxonomy",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Taxonomy"
+            }
+          },
+          {
+            "in": "query",
+            "name": "concept",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Concept"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fact_limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Fact Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecFilingDiffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "SEC source response rejected"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "SEC filer discovery temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Diff Filings",
         "tags": ["disclosures"]
       }
     },

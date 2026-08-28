@@ -169,6 +169,8 @@ class FinancialCalculationLocatorResponse(StrictLedgerModel):
     unit: str
     scale: int
     observation_sha256: str
+    reconciliation_status: Literal["consistent"] | None
+    reconciliation_version: Literal["financial-reconciliation-v1"] | None
 
 
 EvidenceLocatorResponse = Annotated[

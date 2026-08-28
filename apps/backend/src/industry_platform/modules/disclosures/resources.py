@@ -48,6 +48,7 @@ from industry_platform.modules.disclosures.adapters.xbrl import (
 from industry_platform.modules.disclosures.adapters.xbrl_sqlalchemy import (
     SqlAlchemySecXbrlRepository,
 )
+from industry_platform.modules.disclosures.diff import SecFilingDiffService
 from industry_platform.modules.disclosures.filing_content_service import (
     SecFilingContentService,
     SecFilingImportService,
@@ -67,6 +68,7 @@ from industry_platform.modules.disclosures.service import (
     SecFilingSelectionService,
 )
 from industry_platform.modules.disclosures.tool import (
+    SecDiffFilingsTool,
     SecGetXbrlFactsTool,
     SecListFilingsTool,
     SecReadFilingSectionTool,
@@ -97,6 +99,8 @@ class DisclosureResources:
     read_filing_section_tool: SecReadFilingSectionTool
     xbrl_service: SecXbrlService
     get_xbrl_facts_tool: SecGetXbrlFactsTool
+    filing_diff_service: SecFilingDiffService
+    diff_filings_tool: SecDiffFilingsTool
 
     @property
     def sec_source_tool_adapters(self) -> tuple[RegisteredToolAdapter, ...]:
@@ -286,6 +290,11 @@ def create_disclosure_resources(
         companyfacts_source=selected_companyfacts_source,
         snapshot_store=selected_xbrl_snapshot_store,
     )
+    filing_diff_service = SecFilingDiffService(
+        repository=filing_content_repository,
+        content_service=filing_content_service,
+        xbrl_service=xbrl_service,
+    )
     resources = DisclosureResources(
         resolution_service=resolution_service,
         resolve_filer_tool=SecResolveFilerTool(resolution_service),
@@ -297,6 +306,8 @@ def create_disclosure_resources(
         read_filing_section_tool=SecReadFilingSectionTool(filing_content_service),
         xbrl_service=xbrl_service,
         get_xbrl_facts_tool=SecGetXbrlFactsTool(xbrl_service),
+        filing_diff_service=filing_diff_service,
+        diff_filings_tool=SecDiffFilingsTool(filing_diff_service),
     )
     # Fail application composition if profile references drift from concrete Tool definitions.
     _ = resources.sec_source_tool_adapters
@@ -307,7 +318,12 @@ def create_sec_filing_tools(
     settings: Settings,
     session_factory: AsyncSessionFactory,
     internal_http_client: httpx2.AsyncClient,
-) -> tuple[SecSearchFilingTool, SecReadFilingSectionTool, SecGetXbrlFactsTool]:
+) -> tuple[
+    SecSearchFilingTool,
+    SecReadFilingSectionTool,
+    SecGetXbrlFactsTool,
+    SecDiffFilingsTool,
+]:
     repository = SqlAlchemySecFilingContentRepository(
         session_factory,
         object_bucket=settings.minio_bucket or "sec-snapshots-unconfigured",
@@ -344,10 +360,16 @@ def create_sec_filing_tools(
         companyfacts_source=UnavailableSecCompanyFactsAdapter(),
         snapshot_store=UnavailableSecXbrlSnapshotStore(),
     )
+    diff_service = SecFilingDiffService(
+        repository=repository,
+        content_service=service,
+        xbrl_service=xbrl_service,
+    )
     return (
         SecSearchFilingTool(service),
         SecReadFilingSectionTool(service),
         SecGetXbrlFactsTool(xbrl_service),
+        SecDiffFilingsTool(diff_service),
     )
 
 

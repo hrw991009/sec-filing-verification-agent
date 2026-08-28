@@ -21,29 +21,37 @@ from industry_platform.modules.agent_harness.tool_use import (
 from industry_platform.modules.agent_runtime.domain import AgentRunType
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import TOOL_L2_RUNTIME_VERSION
 from industry_platform.modules.disclosures.profile import (
+    SEC_L4_MAX_TOOL_CALLS,
+    SEC_L4_PROFILE_VERSION,
+    SEC_L4_TOOL_REFERENCES,
     SEC_SOURCE_HARNESS_VERSION,
     SEC_SOURCE_MODEL_FIXTURE_VERSION,
     SEC_SOURCE_PROFILE_VERSION,
     SEC_SOURCE_PROMPT_VERSION,
     SEC_SOURCE_TOOL_REFERENCES,
     SEC_SOURCE_TOOLSET_VERSION,
+    create_sec_l4_profile,
     create_sec_source_profile,
+    require_sec_l4_tool_adapters,
     require_sec_source_profile,
     require_sec_source_tool_adapters,
 )
 from industry_platform.modules.disclosures.tool import (
+    sec_diff_filings_definition,
     sec_get_xbrl_facts_definition,
     sec_list_filings_definition,
     sec_read_filing_section_definition,
     sec_resolve_filer_definition,
     sec_search_filing_definition,
 )
+from industry_platform.modules.financial_verification.tool import finance_calculate_definition
 from industry_platform.modules.identity.domain import (
     AuthenticatedPrincipal,
     AuthenticatedWorkspace,
     NormalizedEmail,
     TraceId,
 )
+from industry_platform.modules.retrieval.tool import knowledge_search_definition
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import RegisteredToolAdapter
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
@@ -68,6 +76,40 @@ def test_sec_source_profile_projects_exactly_five_tools_to_shared_runtime() -> N
         "sec.search_filing",
         "sec.read_filing_section",
     }
+
+
+def test_sec_l4_profile_freezes_one_bilingual_scope_and_six_tool_surface() -> None:
+    profile = create_sec_l4_profile(model="sec-l4-model-v1")
+    chinese_policy = profile.to_runtime_policy()
+    english_policy = create_sec_l4_profile(model="sec-l4-model-v1").to_runtime_policy()
+
+    assert chinese_policy == english_policy
+    assert chinese_policy.profile_version == SEC_L4_PROFILE_VERSION
+    assert chinese_policy.available_tools == SEC_L4_TOOL_REFERENCES
+    assert chinese_policy.max_tool_calls == SEC_L4_MAX_TOOL_CALLS
+    assert chinese_policy.context_compiler_version == "financial-context-v1"
+    assert "默认使用中文" in chinese_policy.system_instructions
+    assert "不得因语言改变 FinancialScope" in chinese_policy.system_instructions
+
+
+def test_sec_l4_adapter_surface_uses_existing_runtime_tools_plus_diff() -> None:
+    definitions = (
+        knowledge_search_definition(),
+        finance_calculate_definition(),
+        sec_search_filing_definition(),
+        sec_read_filing_section_definition(),
+        sec_get_xbrl_facts_definition(),
+        sec_diff_filings_definition(),
+    )
+    adapters = tuple(
+        cast(RegisteredToolAdapter, SimpleNamespace(definition=definition))
+        for definition in definitions
+    )
+
+    assert (
+        tuple(adapter.definition.reference for adapter in require_sec_l4_tool_adapters(adapters))
+        == SEC_L4_TOOL_REFERENCES
+    )
 
 
 def test_sec_source_profile_rejects_an_extra_non_sec_tool() -> None:

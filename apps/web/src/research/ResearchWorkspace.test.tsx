@@ -152,6 +152,8 @@ const trace = {
     },
   ],
 } satisfies AgentTrace;
+const traceStep = trace.steps[0];
+if (traceStep === undefined) throw new Error("Research trace fixture is incomplete");
 
 const durability: ResearchDurability = {
   approvals: [],
@@ -264,6 +266,140 @@ describe("ResearchWorkspace", () => {
     });
   });
 
+  it("shows context exclusions, calculation reconciliation, diff and citation drilldown", async () => {
+    const onOpenEvidence = vi.fn();
+    chatMocks.getAgentTrace.mockResolvedValue({
+      ...trace,
+      context_manifests: [
+        {
+          budget: {
+            allowed_output_tokens: 256,
+            estimated_input_tokens: 100,
+            max_input_tokens: 4096,
+            run_max_total_tokens: 12000,
+            tokens_used_before_step: 20,
+            unreserved_run_tokens: 11624,
+          },
+          compiler_version: "financial-context-v1",
+          created_at: "2026-08-22T08:00:02Z",
+          manifest_id: "14141414-1414-4414-8414-141414141414",
+          prompt_version: "sec-l4-prompt-v1",
+          run_id: agentRunId,
+          runtime_projection_version: "runtime-context-v1",
+          schema_version: 1,
+          sources: [
+            {
+              decision_reason: "excluded_scope_mismatch",
+              estimated_token_count: 12,
+              feedback_score: null,
+              included: false,
+              message_role: null,
+              ordinal: 1,
+              relevance_score: null,
+              source_id: "future-fact",
+              source_identity: null,
+              source_kind: "tool_observation",
+              source_revision_id: null,
+              source_scope: null,
+              source_sha256: "a".repeat(64),
+              source_version: "sec-xbrl-v1",
+            },
+          ],
+          step_id: traceStep.step_id,
+          token_counter_version: "utf8-upper-bound-v1",
+          workspace_id: workspaceId,
+        },
+      ],
+      events: [
+        ...trace.events,
+        {
+          details: {
+            call_id: "15151515-1515-4515-8515-151515151515",
+            requested_tool_name: "sec.diff_filings",
+          },
+          event_type: "agent.tool.requested",
+          occurred_at: "2026-08-22T08:00:03Z",
+          schema_version: 1,
+          sequence: 32,
+        },
+        {
+          details: { call_id: "15151515-1515-4515-8515-151515151515" },
+          event_type: "agent.tool.completed",
+          occurred_at: "2026-08-22T08:00:04Z",
+          schema_version: 1,
+          sequence: 33,
+        },
+      ],
+    });
+    evidenceMocks.listResearchClaims.mockResolvedValue([
+      {
+        confidence: 1,
+        conflict: false,
+        coverage: 1,
+        created_at: researchRun.created_at,
+        id: "16161616-1616-4616-8616-161616161616",
+        relations: [
+          {
+            evidence: {
+              id: "17171717-1717-4717-8717-171717171717",
+              locator: {
+                formula: "(120 - 100) / 100 * 100",
+                input_evidence_refs: [
+                  "18181818-1818-4818-8818-181818181818",
+                  "19191919-1919-4919-8919-191919191919",
+                ],
+                locator_type: "financial_calculation_v1",
+                operator: "percent_change",
+                reconciliation_status: "consistent",
+                result: "20.00",
+                scale: 0,
+                unit: "PERCENT",
+              },
+              status: "active",
+              title: "Financial calculation: percent_change",
+            },
+            relation: "supports",
+          },
+          {
+            evidence: {
+              id: "20202020-2020-4020-8020-202020202020",
+              locator: { locator_type: "sec_xbrl_fact_v1" },
+              status: "active",
+              title: "us-gaap:Revenue",
+            },
+            relation: "supports",
+          },
+        ],
+        research_run_id: researchRunId,
+        revision: 1,
+        statement: "Revenue increased by 20 percent.",
+        updated_at: researchRun.updated_at,
+        verification_status: "supported",
+        workspace_id: workspaceId,
+      },
+    ]);
+
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={researchRunId}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={onOpenEvidence}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    expect(await screen.findByText("excluded_scope_mismatch")).toBeInTheDocument();
+    expect(screen.getByText("(120 - 100) / 100 * 100")).toBeInTheDocument();
+    expect(screen.getByText("consistent")).toBeInTheDocument();
+    expect(screen.getByText("sec.diff_filings@v1")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "反查 Calculation Citation" }));
+    expect(onOpenEvidence).toHaveBeenCalledWith("17171717-1717-4717-8717-171717171717");
+  });
+
   it("submits the user-confirmed Brief with bounded values", async () => {
     const user = userEvent.setup();
     researchMocks.listResearchRuns.mockResolvedValueOnce([]).mockResolvedValueOnce([researchRun]);
@@ -336,7 +472,7 @@ describe("ResearchWorkspace", () => {
     );
 
     await screen.findByText("尚无 Research Run。");
-    await user.click(screen.getByRole("button", { name: "SEC Fixture" }));
+    await user.click(screen.getByRole("button", { name: "SEC Filing" }));
     expect(await screen.findByLabelText("Research Knowledge Base")).toHaveValue(knowledgeBaseId);
     await user.click(screen.getByLabelText("公司或期间存在歧义，计划后暂停确认"));
     await user.type(

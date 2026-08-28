@@ -1641,6 +1641,12 @@ class SqlAlchemyEvidenceRepository:
             unit=output.unit,
             scale=output.scale,
             observation_sha256=model_hash,
+            reconciliation_status=(
+                None if output.reconciliation is None else output.reconciliation.status.value
+            ),
+            reconciliation_version=(
+                None if output.reconciliation is None else output.reconciliation.version
+            ),
         )
         dedupe = canonical_fingerprint(
             {

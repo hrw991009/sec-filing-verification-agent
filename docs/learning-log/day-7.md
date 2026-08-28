@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Filing Retrieval 与计算设计](../sec-retrieval-design.md)
 >
-> 当前状态：Step 3 已完成当前工作树实现。D7-01/D7-03～D7-05=`implemented_pending_verification`，D7-02=`thin_slice`，D7-06～D7-08=`planned`。项目所有者在保留 Step 1/2 缺口的前提下明确继续 Step 3；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
+> 当前状态：Step 4 已完成当前工作树实现。D7-01/D7-03～D7-07=`implemented_pending_verification`，D7-02=`thin_slice`，D7-08=`planned`。项目所有者在保留既有缺口的前提下明确继续 Step 4；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
 
 ## 1. 进入条件与本日边界
 
@@ -76,6 +76,16 @@ Day 7 只交付可解释的 SEC L4 draft：锁定 filer/accession/`as_of` 后完
 - 已实现：正式 Calculation Evidence 不只校验输出 hash，而是重新加载 active 输入 Evidence 与底层 XBRL fact/source/filing，复核 locator/value/identity，重跑 reconciliation 和 calculator 后才保存现有 `financial_calculation_v1` locator；历史 fixture calculation 保留原路径。
 - 本地证据：不启用外部服务硬门的 Python 全量为 `1060 passed, 84 skipped`；全后端 Ruff format/check、全仓 mypy `473` 个源文件、Web format/lint/typecheck、Vitest `85 passed` 与 production build 通过。测试覆盖 scale propagation、percentage/percent change、负数/零分母、unit、instant/duration、dimensions、concept、amendment、正式 Tool 成功/拒绝/禁止 fixture 降级、Evidence locator 和 Context manifest 回归。
 - 尚未关闭：本机 Docker daemon 未运行，新增 PostgreSQL operand 授权/跨 Workspace 负向测试未在本地执行；当前 Step 3 未提交，也没有新的分支、PR 或 main CI。尚未建立 `sec-tool-v1` 的错误 company/period/accession 指标和所有派生数字 lineage 100% 总门，因此 D7-04/D7-05 只能标为 `implemented_pending_verification`。
+
+### Step 4 当前证据与缺口
+
+- 已实现：新增 `sec-filing-diff-v1` application contract 和认证 API；仅接受已解析 base/amendment 或同 CIK、同基础 form 的相邻 annual/quarterly period。授权、active Knowledge/DocumentVersion、`as_of`、当前 `FinancialScope`、来源优先级、fact identity 和共享 section identity 都在服务端重载；不可比、未就绪、无结果、权限和依赖失败均返回 typed 状态，失败时不暴露部分 diff。
+- 已实现：`sec.diff_filings@v1` 复用现有 XBRL 与 Hybrid filing service，返回左右 fact Evidence ref、section source/hash/Chunk 和完整 scope；Tool 不计算 delta，派生数字仍必须交给既有 `finance.calculate@v1`。同 section 多个 Chunk 按最高 score 和稳定 UUID tie-break 选择，避免候选顺序覆盖高质量结果。
+- 已实现：生产 LOCAL surface 冻结为 `knowledge_search`、`finance.calculate`、`sec.search_filing`、`sec.read_filing_section`、`sec.get_xbrl_facts`、`sec.diff_filings` 六个只读 Tool；只有 exact surface 才启用中文 `sec-l4-v1`，仍复用同一 Tool L2 Runtime、Research graph、Checkpoint、Context manifest、Trace 与 Evidence ledger。语言切换不得改变 scope、事实、公式、reconciliation 或终态。
+- 已实现：SEC Workbench 增加正式 Filing Diff 输入、typed failure、fact/section 双向来源与显式 unit/scale；Research Workbench 从正式 Trace/Evidence 展示 Retrieval、Context 排除、Calculation formula、reconciliation、diff Tool 状态和 Citation 反查。修复 Evidence API 只序列化旧 Industry/SQL locator 的缺陷，现可返回 SEC text/XBRL/Calculation locator 与正式 reconciliation lineage。
+- 本地证据：不启用外部服务硬门的 Python 全量为 `1069 passed, 84 skipped`；Ruff format/check、全仓 mypy `475` 个源文件、Web format/lint/typecheck、Vitest `87 passed`、production build 和 OpenAPI 连续生成一致均通过。差异服务、base/amendment、相邻期间、跨公司拒绝、Tool source/Evidence、profile surface、composition root、认证 API、Evidence HTTP 序列化和两个 Workbench 审计路径均有回归测试。
+- 远端事实：提交 `3462b48` 的分支 CI [`33149285431`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33149285431) 有 6 个 Job 通过；PostgreSQL integration 因测试夹具只把 `DocumentVersion` 标成 `READY`、未设置正式 `Document.active_version_id` 而得到预期的 operand `no_result`，故整体失败。当前工作树已补齐 ready/active 夹具，未放宽生产授权查询，但尚未取得新的真实依赖或远端 CI 证据。
+- 尚未关闭：当前 Step 4 未提交；正式 API 驱动的浏览器 SEC diff/Research 全链、中英同题 paired run、真实 PostgreSQL/MinIO/Milvus/Elasticsearch 重跑、分支/PR/main CI 和所有者复核仍缺。D7-06/D7-07 因此只能标为 `implemented_pending_verification`，D7-08 仍属于 Step 5。
 
 ## 4. 版本化合同与评测口径
 

@@ -647,6 +647,8 @@ class FinancialCalculationLocatorV1:
     unit: str
     scale: int
     observation_sha256: str
+    reconciliation_status: str | None = None
+    reconciliation_version: str | None = None
     locator_type: EvidenceLocatorType = EvidenceLocatorType.FINANCIAL_CALCULATION_V1
     schema_version: int = EVIDENCE_SCHEMA_VERSION
 
@@ -675,6 +677,13 @@ class FinancialCalculationLocatorV1:
         if isinstance(self.scale, bool) or not -12 <= self.scale <= 12:
             raise ValueError("Calculation scale is invalid")
         _sha256(self.observation_sha256, field_name="Calculation observation hash")
+        if (self.reconciliation_status is None) != (self.reconciliation_version is None):
+            raise ValueError("Calculation reconciliation identity is incomplete")
+        if self.reconciliation_status is not None and (
+            self.reconciliation_status != "consistent"
+            or self.reconciliation_version != "financial-reconciliation-v1"
+        ):
+            raise ValueError("Calculation reconciliation identity is invalid")
         if self.schema_version != EVIDENCE_SCHEMA_VERSION:
             raise ValueError("Calculation locator schema version is unsupported")
         object.__setattr__(self, "financial_scope", MappingProxyType(scope))
@@ -697,6 +706,8 @@ class FinancialCalculationLocatorV1:
                 "unit": self.unit,
                 "scale": self.scale,
                 "observation_sha256": self.observation_sha256,
+                "reconciliation_status": self.reconciliation_status,
+                "reconciliation_version": self.reconciliation_version,
             }
         )
 
@@ -986,7 +997,8 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
             "scale",
             "observation_sha256",
         }
-        if set(document) != expected:
+        extended = expected | {"reconciliation_status", "reconciliation_version"}
+        if frozenset(document) not in {frozenset(expected), frozenset(extended)}:
             raise ValueError
         scope = document["financial_scope"]
         values = document["operand_values"]
@@ -1015,6 +1027,16 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
             unit=str(document["unit"]),
             scale=scale,
             observation_sha256=str(document["observation_sha256"]),
+            reconciliation_status=(
+                None
+                if document.get("reconciliation_status") is None
+                else str(document["reconciliation_status"])
+            ),
+            reconciliation_version=(
+                None
+                if document.get("reconciliation_version") is None
+                else str(document["reconciliation_version"])
+            ),
         )
     except (KeyError, TypeError, ValueError):
         raise ValueError("Evidence locator is invalid") from None

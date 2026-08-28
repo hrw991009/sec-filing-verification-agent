@@ -10,6 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from industry_platform.modules.agent_runtime.context import TrustedRuntimeContext
 from industry_platform.modules.agent_runtime.domain import AGENT_RUNTIME_SCHEMA_VERSION
+from industry_platform.modules.disclosures.diff import (
+    SEC_MAX_DIFF_TOOL_FACT_CHANGES,
+    SecFilingDiffService,
+)
 from industry_platform.modules.disclosures.domain import (
     SEC_COMPANY_TICKERS_URL,
     SecDisclosurePersistenceError,
@@ -25,6 +29,7 @@ from industry_platform.modules.disclosures.domain import (
 )
 from industry_platform.modules.disclosures.filing_content_service import SecFilingContentService
 from industry_platform.modules.disclosures.schemas import (
+    SecFilingDiffResponse,
     SecFilingSelectionResponse,
     SecXbrlFactResponse,
 )
@@ -1033,6 +1038,235 @@ class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFa
                 )
                 for fact in value.facts
             ),
+            observed_at=observed_at,
+            content_sha256=content_sha256,
+        )
+
+
+SEC_DIFF_FILINGS_TOOL_NAME = "sec.diff_filings"
+SEC_DIFF_FILINGS_TOOL_VERSION = "v1"
+
+
+class SecDiffFilingsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    comparison_accession: str = Field(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
+    section_query: str = Field(min_length=1, max_length=500)
+    taxonomy: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+    )
+    concept: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+    )
+    fact_limit: int = Field(default=SEC_MAX_DIFF_TOOL_FACT_CHANGES, ge=1, le=6)
+
+
+class SecDiffFactEvidenceRef(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    fact_id: UUID
+    evidence_ref: UUID
+
+
+class SecDiffFilingsOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    result: SecFilingDiffResponse
+    fact_evidence_refs: list[SecDiffFactEvidenceRef]
+    financial_scope: FinancialScopePayload
+    knowledge_base_ids: list[UUID]
+
+
+def sec_diff_filings_definition() -> ToolDefinition:
+    return ToolDefinition(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        name=SEC_DIFF_FILINGS_TOOL_NAME,
+        version=SEC_DIFF_FILINGS_TOOL_VERSION,
+        description=(
+            "Compare a base filing with its resolved amendment, or two adjacent comparable "
+            "periods, using authorized XBRL facts and one matched filing section. The Tool "
+            "does not calculate numeric deltas; pass returned fact Evidence refs to "
+            "finance.calculate."
+        ),
+        input_schema_version="sec-diff-filings-input-v1",
+        output_schema_version="sec-diff-filings-output-v1",
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "comparison_accession",
+                "section_query",
+                "taxonomy",
+                "concept",
+                "fact_limit",
+            ],
+            "properties": {
+                "comparison_accession": {"type": "string"},
+                "section_query": {"type": "string"},
+                "taxonomy": {"type": ["string", "null"]},
+                "concept": {"type": ["string", "null"]},
+                "fact_limit": {"type": "integer", "minimum": 1, "maximum": 6},
+            },
+        },
+        output_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "result",
+                "fact_evidence_refs",
+                "financial_scope",
+                "knowledge_base_ids",
+            ],
+            "properties": {
+                "result": {"type": "object"},
+                "fact_evidence_refs": {"type": "array"},
+                "financial_scope": {"type": "object"},
+                "knowledge_base_ids": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        capability=WorkspaceAction.RUN_TOOL,
+        timeout_ms=45_000,
+        max_result_bytes=500_000,
+        max_cost_micro_usd=1,
+        cost_class=ToolCostClass.LOW,
+        side_effect_class=ToolSideEffectClass.READ_ONLY,
+        retry_classification=ToolRetryClassification.SAFE_READ_ONLY,
+        approval_policy=ToolApprovalPolicy.AUTO_ALLOW,
+        policy_version="sec-imported-filing-diff-v1",
+    )
+
+
+class SecDiffFilingsTool(PydanticToolAdapter[SecDiffFilingsInput, SecDiffFilingsOutput]):
+    def __init__(self, service: SecFilingDiffService) -> None:
+        super().__init__(
+            definition=sec_diff_filings_definition(),
+            input_model=SecDiffFilingsInput,
+            output_model=SecDiffFilingsOutput,
+        )
+        self._service = service
+
+    async def invoke(
+        self,
+        value: SecDiffFilingsInput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        idempotency_key: str | None,
+    ) -> tuple[SecDiffFilingsOutput, int]:
+        if idempotency_key is not None:
+            raise ToolExecutionError("tool_idempotency_key_unexpected")
+        financial_scope = runtime_context.financial_scope
+        if financial_scope is None or not runtime_context.knowledge_base_ids:
+            raise ToolExecutionError("financial_scope_not_configured")
+        try:
+            result = await self._service.compare(
+                runtime_context.workspace_scope,
+                knowledge_base_ids=runtime_context.knowledge_base_ids,
+                financial_scope=financial_scope,
+                comparison_accession=value.comparison_accession,
+                section_query=value.section_query,
+                taxonomy=value.taxonomy,
+                concept=value.concept,
+                fact_limit=value.fact_limit,
+            )
+        except SecFilingContentError as error:
+            raise ToolExecutionError(error.code.value) from None
+        except SecDisclosurePersistenceError:
+            raise ToolExecutionError("sec_filing_diff_unavailable") from None
+        fact_ids = tuple(
+            dict.fromkeys(
+                fact.id
+                for change in result.fact_changes
+                for fact in (change.baseline, change.target)
+                if fact is not None
+            )
+        )
+        return (
+            SecDiffFilingsOutput(
+                result=SecFilingDiffResponse.from_domain(result),
+                fact_evidence_refs=[
+                    SecDiffFactEvidenceRef(
+                        fact_id=fact_id,
+                        evidence_ref=sec_xbrl_evidence_ref(
+                            workspace_id=runtime_context.workspace_scope.workspace_id,
+                            fact_id=fact_id,
+                            as_of=financial_scope.as_of,
+                            authorization_role=runtime_context.workspace_scope.role,
+                        ),
+                    )
+                    for fact_id in fact_ids
+                ],
+                financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                knowledge_base_ids=list(runtime_context.knowledge_base_ids),
+            ),
+            0,
+        )
+
+    def normalize(
+        self,
+        value: SecDiffFilingsOutput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        call_id: UUID,
+        run_id: UUID,
+        observed_at: datetime,
+    ) -> ToolObservation:
+        model_text = json.dumps(
+            value.model_dump(mode="json"),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        content_sha256 = hashlib.sha256(model_text.encode("utf-8")).hexdigest()
+        sources: list[ToolSource] = []
+        seen: set[str] = set()
+        for change in value.result.fact_changes:
+            for fact in (change.baseline, change.target):
+                if fact is None:
+                    continue
+                locator = f"sec://xbrl-facts/{fact.id}"
+                if locator in seen:
+                    continue
+                seen.add(locator)
+                sources.append(
+                    ToolSource(
+                        source_type="sec_xbrl_fact",
+                        source_version=fact.source_version,
+                        locator=locator,
+                        observed_at=fact.retrieved_at,
+                        content_sha256=fact.content_sha256,
+                    )
+                )
+        section = value.result.section_change
+        if section is not None:
+            for hit in (section.baseline, section.target):
+                locator = f"sec://filing-chunks/{hit.chunk_id}"
+                if locator in seen:
+                    continue
+                seen.add(locator)
+                sources.append(
+                    ToolSource(
+                        source_type="sec_filing_text",
+                        source_version=hit.source_version,
+                        locator=locator,
+                        observed_at=observed_at,
+                        content_sha256=hit.content_sha256,
+                    )
+                )
+        if len(sources) > MAX_TOOL_SOURCES:
+            raise ValueError("SEC filing diff source count exceeds Observation contract")
+        return ToolObservation(
+            schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+            observation_id=uuid5(NAMESPACE_URL, f"{call_id}:sec-diff-filings:v1"),
+            call_id=call_id,
+            run_id=run_id,
+            workspace_id=runtime_context.workspace_scope.workspace_id,
+            tool=ToolReference(self.definition.name, self.definition.version),
+            normalizer_version=TOOL_OBSERVATION_NORMALIZER_VERSION,
+            model_text=model_text,
+            sources=tuple(sources),
             observed_at=observed_at,
             content_sha256=content_sha256,
         )

@@ -1,6 +1,6 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 Step 3 typed calculator/reconciliation 已完成当前工作树实现；Step 1 ranking/table/Citation、Step 2 修复后的远端 CI 与 Step 3 真实 PostgreSQL/远端 CI 待关闭
+> 状态：Day 7 Step 4 filing diff、中文 L4 profile 与 Workbench 已完成当前工作树实现；冻结评测、真实依赖、正式浏览器旅程与新远端 CI 待关闭
 >
 > 基线：`IIP-MASTER-001` 2.1.3，D7-01～D7-08
 >
@@ -68,7 +68,7 @@ Locator 只有在读取时重新通过 Workspace、source visibility、snapshot/
 
 正式 Calculation Evidence 必须重新加载 active 输入 Evidence 及其 XBRL fact/source/filing，校验 locator、value、scope 与版本，重跑 reconciliation 和 calculator 后才保存 `financial_calculation_v1` locator。Observation 中的 resolved operand 或计算结果只能作为待验证声明，不能替代重算。
 
-`sec.diff_filings@v1` 只比较同公司且满足明确关系的 base/amendment 或相邻可比 filing。Fact diff 与 section diff 分报，并各自保留左右 Evidence locator；不可比 period、unit、dimension 或来源覆盖返回理由，不生成误导性 delta。
+`sec.diff_filings@v1` 只比较已导入且同公司、满足明确关系的 base/amendment 或相邻可比 filing。base/amendment 必须由已解析 `base_accession` 证明；相邻 10-K period 间隔限制为 300～430 天，10-Q 限制为 70～110 天。当前 fact universe 受既有 XBRL query 的 100 条上限约束，只选择报告期锚点一致的 fact，并按 raw instance、raw inline、companyfacts aggregate 的顺序消歧；同优先级冲突值 fail closed。Fact diff 与 section diff 分报，section 在标准化 identity 内选择最高分且稳定 tie-break 的 Chunk，各自保留左右 Evidence locator。Tool 不生成数值 delta；需要变化率时必须把返回的 fact Evidence refs 交给 `finance.calculate@v1`。
 
 ## 7. Runtime、Trace 与 Workbench
 
@@ -80,7 +80,7 @@ scope -> resolve -> select -> decompose
       -> calculate -> reconcile -> draft
 ```
 
-轨迹允许部分顺序，只冻结安全和业务里程碑，不要求模型采用唯一 Tool 序列。Workbench 从正式 API/Event/Trace 展示 query rewrite、各通道候选、RRF/rerank、Context 排除、Calculation、reconciliation、diff 和 Citation 反查；前端不自行计算排名或财务结果。
+生产 LOCAL surface 只有在 Tool references 精确等于 `knowledge_search@v1`、`finance.calculate@v1`、`sec.search_filing@v1`、`sec.read_filing_section@v1`、`sec.get_xbrl_facts@v1`、`sec.diff_filings@v1` 时才使用 `sec-l4-v1`；其他 LOCAL surface 保留通用 policy。轨迹允许部分顺序，只冻结安全和业务里程碑，不要求模型采用唯一 Tool 序列。Workbench 从正式 API/Event/Trace 展示 query rewrite、各通道候选、RRF/rerank、Context 排除、Calculation、reconciliation、diff 和 Citation 反查；前端不自行计算排名或财务结果。Evidence HTTP 判别联合必须覆盖 filing text、XBRL fact 与 Calculation locator，否则 Workbench 不得把领域对象存在误写成 Citation 可反查。
 
 ## 8. 评测与回滚
 
