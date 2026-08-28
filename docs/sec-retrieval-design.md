@@ -1,8 +1,8 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 Step 1 核心 Hybrid 与 filing text/XBRL fact locator 已通过本地统一门禁；ranking 评测和 table locator 待关闭
+> 状态：Day 7 Step 2 `financial-context-v1` 已完成当前工作树实现；Step 1 ranking/table/Citation 与 Step 2 真实 PostgreSQL/远端 CI 待关闭
 >
-> 基线：`IIP-MASTER-001` 2.1.1，D7-01～D7-08
+> 基线：`IIP-MASTER-001` 2.1.2，D7-01～D7-08
 >
 > 决策来源：[ADR 0003](adr/0003-unified-evidence-model.md)、[ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)
 
@@ -54,9 +54,9 @@ Locator 只有在读取时重新通过 Workspace、source visibility、snapshot/
 
 ## 5. Financial Context manifest
 
-`financial-context-v1` 由现有 Context Compiler 生成，不建立独立拼接器。Manifest 对每个候选记录：来源类型、identity、Token 成本、优先级、保留/排除决定和稳定原因码。
+`financial-context-v1` 由现有 Context Compiler 生成，不建立独立拼接器。生产 LOCAL Tool L2 选择该版本，WEB 继续使用 `context-v1`；共享编译器先注入可信 Runtime `FinancialScope`，再按既有顺序选择 Observation、Summary 与 Memory。Manifest 对每个候选记录来源类型、locator identity、source version、envelope hash、Token 成本、保留/排除决定和稳定原因码；确定性选择顺序表达优先级，不新增第二套排序器。
 
-强制排除条件包括：错误 Workspace/CIK/accession、晚于 `as_of`、inactive source、错误 period/form、unit 不可比、缺失 locator、预算不足和重复内容。Memory 与 Tool Observation 只能提供上下文，不能覆盖可信 `FinancialScope` 或把自身提升为 SEC Evidence。
+当前 Compiler 强制排除错误 CIK/accession/form/report period/scale、晚于 `as_of` 的 scope 或 XBRL fact、unit 不可比、畸形金融 payload 和预算不足候选，并保留稳定原因。Workspace、inactive source、缺失 locator 与重复内容仍由上游 typed Tool/Evidence/领域校验 fail closed；Compiler 不把这些已验证事实重新实现为字符串规则。Memory 与 Tool Observation 只能提供上下文，不能覆盖可信 `FinancialScope` 或把自身提升为 SEC Evidence。
 
 ## 6. Calculation、reconciliation 与 diff
 

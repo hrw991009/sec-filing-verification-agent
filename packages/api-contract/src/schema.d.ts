@@ -1692,7 +1692,7 @@ export interface components {
          * @description Why one declared input was or was not sent to the model.
          * @enum {string}
          */
-        ContextDecisionReason: "included" | "not_available" | "excluded_token_budget" | "excluded_not_relevant" | "excluded_stale" | "excluded_conflicted" | "excluded_duplicate" | "excluded_sensitive" | "excluded_disabled" | "excluded_expired" | "excluded_deleted" | "excluded_negative_feedback";
+        ContextDecisionReason: "included" | "not_available" | "excluded_token_budget" | "excluded_not_relevant" | "excluded_stale" | "excluded_conflicted" | "excluded_duplicate" | "excluded_sensitive" | "excluded_disabled" | "excluded_expired" | "excluded_deleted" | "excluded_negative_feedback" | "excluded_financial_scope_mismatch" | "excluded_future_source" | "excluded_unit_mismatch" | "excluded_unsupported_financial_source";
         /** ContextManifestResponse */
         ContextManifestResponse: {
             budget: components["schemas"]["ContextBudgetResponse"];
@@ -1739,7 +1739,7 @@ export interface components {
          * @description The explicit, versioned sources considered for one model request.
          * @enum {string}
          */
-        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "conversation_summary" | "attachment" | "user_question" | "tool_observation" | "short_term_memory" | "long_term_memory";
+        ContextSourceKind: "system_instructions" | "runtime_context_projection" | "financial_scope" | "conversation_summary" | "attachment" | "user_question" | "tool_observation" | "short_term_memory" | "long_term_memory";
         /** ContextSourceResponse */
         ContextSourceResponse: {
             decision_reason: components["schemas"]["ContextDecisionReason"];
@@ -1756,6 +1756,10 @@ export interface components {
             relevance_score: number | null;
             /** Source Id */
             source_id: string;
+            /** Source Identity */
+            source_identity: {
+                [key: string]: unknown;
+            } | null;
             source_kind: components["schemas"]["ContextSourceKind"];
             /** Source Revision Id */
             source_revision_id: string | null;

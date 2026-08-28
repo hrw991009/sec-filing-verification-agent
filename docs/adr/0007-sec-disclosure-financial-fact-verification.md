@@ -4,17 +4,17 @@
 >
 > 日期：2026-08-25
 >
-> 修订日期：2026-08-27
+> 修订日期：2026-08-28
 >
 > 决策人：用户
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-08-27 修订同步基线：`docs/master-plan.md` v2.1.1
+> 2026-08-28 修订同步基线：`docs/master-plan.md` v2.1.2
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-27，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，但确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺。项目所有者随后明确开始 Day 7 Step 1；该步骤的 `hybrid-v1`、PostgreSQL 重载和 filing text/XBRL fact locator 已进入当前工作树。Day 6 未关闭项显式改为 Day 10 发布硬门并保留原评测分母，不构成 D5/Day 6 DoD 豁免；D7-01/D7-02 也分别保持 `implemented_pending_verification`/`thin_slice`，直到 ranking、table/Citation 与远端门禁关闭。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-28，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，但确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺；项目所有者将其改期为 Day 10 发布硬门并保留原评测分母。Day 7 Step 1 的 `hybrid-v1`、PostgreSQL 重载和 filing text/XBRL fact locator 已实现，D7-01/D7-02 分别保持 `implemented_pending_verification`/`thin_slice`，直到 ranking、table/Citation 与 PR/main 门禁关闭。项目所有者随后继续 Step 2；`financial-context-v1` 已在同一 Context Compiler/Tool L2 链进入当前工作树，D7-03 因真实 PostgreSQL、提交与远端 CI 尚缺保持 `implemented_pending_verification`。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 
@@ -129,6 +129,8 @@ source result
 前七个是只读 Tool；`monitor.subscribe@v1` 是写 Tool，必须持久审批。Tool capability、WorkspaceScope、`as_of`、allowed forms、Budget、SEC client policy 和审批结果来自可信 Runtime Context，模型不能提交或扩大这些字段。
 
 交付按日分层：Day 6 只验收前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Day 5 fixture 实现保留，正式 SEC 计算/核对与 `sec.diff_filings@v1` 在 Day 7 验收，`monitor.subscribe@v1` 在 Day 8 验收。`sec.search_filing@v1` 输出必须携带 `retrieval_profile_version`：Day 6 仅为 `dense-v1`，Day 7 才能声明 `hybrid-v1`；不能用同一 Tool 名静默把 Dense 结果描述为 Hybrid。Day 7 的五步顺序和具体合同见 [Day 7 执行计划](../learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](../sec-retrieval-design.md)。
+
+`financial-context-v1` 必须扩展现有 Context Compiler，而不是新建 finance loop 或拼接器。LOCAL Tool L2 从可信 Runtime Context 注入完整 `FinancialScope`；Memory、filing/XBRL Observation 和其他文本均保持不可信 USER data。Compiler 对 scope/cutoff/unit/预算冲突 fail closed，并在 manifest/Trace 中记录 candidate identity、版本、hash、Token 与稳定决定原因；WEB Tool L2 保持 `context-v1`，历史 Trace 不被原地改写。
 
 `finance.calculate@v1` 只允许受控 Decimal operator、unit/scale、rounding policy 和 Evidence refs。它不能执行 Python、JavaScript、Shell、SQL 或任意表达式。
 

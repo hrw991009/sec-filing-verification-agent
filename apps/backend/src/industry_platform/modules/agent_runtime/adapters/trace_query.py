@@ -460,6 +460,11 @@ def _to_context_source(value: object) -> ContextSourceManifestEntry:
         feedback_score=(
             None if value.get("feedback_score") is None else _required_int(value, "feedback_score")
         ),
+        source_identity=(
+            None
+            if value.get("source_identity") is None
+            else _required_mapping(value, "source_identity")
+        ),
     )
 
 
@@ -489,3 +494,10 @@ def _required_float(value: Mapping[str, object], key: str) -> float:
     if isinstance(item, bool) or not isinstance(item, int | float):
         raise ValueError("Trace numeric field is invalid")
     return float(item)
+
+
+def _required_mapping(value: Mapping[str, object], key: str) -> dict[str, object]:
+    item = value.get(key)
+    if not isinstance(item, Mapping):
+        raise ValueError("Trace mapping field is invalid")
+    return {str(item_key): item_value for item_key, item_value in item.items()}

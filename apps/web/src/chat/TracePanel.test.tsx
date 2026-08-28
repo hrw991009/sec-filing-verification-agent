@@ -37,6 +37,7 @@ const trace = {
           ordinal: 5,
           relevance_score: null,
           source_id: "55555555-5555-4555-8555-555555555555",
+          source_identity: null,
           source_kind: "tool_observation",
           source_revision_id: null,
           source_scope: null,

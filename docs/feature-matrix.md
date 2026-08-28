@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-27
 >
-> 权威来源：`docs/master-plan.md` 2.1.1
+> 权威来源：`docs/master-plan.md` 2.1.2
 
 ## 1. 使用规则
 
@@ -222,7 +222,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 |---|---|---|---|---|---|---|
 | D7-01 | XBRL + Filing Hybrid Retrieval | R1 + SEC + NEW | 锁定 accession；XBRL facts 与 Dense/BM25/RRF/rerank 双通道 | Recall@5/MRR、wrong-accession、filter 和分层 Retrieval Trace | `implemented_pending_verification` | `complete` |
 | D7-02 | SEC Evidence locator/Citation | ADR 0003 + SEC | filing section/table/text 与 XBRL fact locator；官方 URL/hash/context/unit/period | source identity/Citation 可解析 100%、失效与权限测试 | `thin_slice` | `complete` |
-| D7-03 | Financial Context Compiler | NEW | FinancialScope、Memory、facts、filing Evidence、Tool Observation、Token budget 与排除原因 | cutoff/错误 accession/unit 排除、manifest 与注入测试 | `planned` | `complete` |
+| D7-03 | Financial Context Compiler | NEW | FinancialScope、Memory、facts、filing Evidence、Tool Observation、Token budget 与排除原因 | cutoff/错误 accession/unit 排除、manifest 与注入测试 | `implemented_pending_verification` | `complete` |
 | D7-04 | Typed financial calculator | NEW | Decimal operator、百分比/变化率、unit/scale/rounding、Evidence inputs | program/execution、零分母、单位冲突和 lineage 测试 | `planned` | `complete` |
 | D7-05 | Period/unit/context reconciliation | SEC + NEW | company、form、fiscal period、instant/duration、dimension、custom/standard concept、amendment | 错误 company/period/accession 为 0，冲突 typed result | `planned` | `complete` |
 | D7-06 | Filing/amendment diff | SEC + NEW | 同公司可比期间、base/amendment、相邻 filing 的 fact/section diff | 不可比拒绝、Evidence 双向定位和幂等测试 | `planned` | `complete` |
@@ -230,6 +230,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D7-08 | `sec-tool-v1` 与 A0/A1/A2 | BENCH + NEW | oracle、纯 Hybrid RAG、RAG+SEC/XBRL+calculator；简单/计算/修订/无答案 | 分层质量、简单题退化≤2pp、成本/延迟和回退决定 | `planned` | `complete` |
 
 2026-08-27 Step 1 映射：项目所有者明确开始 Day 7 Step 1。生产组合根已把 `sec.search_filing@v1` 接到 Milvus Dense + Elasticsearch BM25、RRF60、可插拔 reranker、section cap 与版本化 Trace；候选经 PostgreSQL 重载 Workspace/import/snapshot/index 后才返回。Tool Observation 改用内部 `sec://` identity，Evidence normalizer 与迁移支持 filing text、XBRL fact 的 scope/source/hash/context 重载。确定性、依赖错误、权限、locator round-trip、migration 往返和真实 PostgreSQL/MinIO/Milvus/Elasticsearch 检索通过；本地 Python 全量为 `1121 passed`、总体分支覆盖率 `80.62%`、核心合集 `86%`，Web 质量与构建、OpenAPI 连续生成也通过。冻结 Recall@5/MRR、table/cell/character locator、正式 Citation 可解析率、分支/PR/main CI 尚缺，因此 D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`，D7-03～D7-08 保持 `planned`。Day 6 两条 bulk case 改为 Day 10 发布硬门，原 `22/24` 不变。
+
+2026-08-28 Step 2 映射：项目所有者在 Step 1 的 ranking/table/Citation 债务仍登记的前提下明确继续。现有 Context Compiler 扩展为兼容 `context-v1` 与 `financial-context-v1` 的同一实现；生产 LOCAL Tool L2 注入锁定的 `FinancialScope`，WEB 路径保持原合同。金融 Tool Observation 按 scope/cutoff/unit/Token budget 记录稳定排除原因，并在 manifest/Trace/OpenAPI 中保存 locator identity、版本与 hash；错误 accession、future XBRL、unit 冲突、畸形来源、超预算和 prompt injection 均有负向测试，同输入 manifest 保持确定一致。本地 Agent Runtime `177 passed`、相关 retrieval/financial/disclosures `97 passed`，不启用外部服务的 Python 全量 `1046 passed, 84 skipped`；全后端 Ruff、全仓 mypy `469` 个源文件、Web format/lint/typecheck、Vitest `85 passed`、production build 与 OpenAPI 连续生成一致。真实 PostgreSQL Trace 往返因本机 Docker daemon/PostgreSQL 未运行未取得执行证据，当前改动也尚无提交、PR/main CI，因此 D7-03 为 `implemented_pending_verification`，D7-04～D7-08 保持 `planned`。Step 1 分支提交 `2944591` 的 CI `33135122319` 已通过，但 Recall@5/MRR、table/cell/character locator、Citation 100%、PR/main CI 仍未关闭。Day 6 原 `22/24` 不变。
 
 ## 10. Day 8：Verified Agent L5、Monitor 与 HITL
 

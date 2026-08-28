@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-27
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.1 Day 7
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.2 Day 7
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D7-01～D7-08
 >
@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Filing Retrieval 与计算设计](../sec-retrieval-design.md)
 >
-> 当前状态：Step 1 实施中。D7-01=`implemented_pending_verification`，D7-02=`thin_slice`，D7-03～D7-08=`planned`。项目所有者已明确开始 Step 1；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
+> 当前状态：Step 2 已完成当前工作树实现。D7-01/D7-03=`implemented_pending_verification`，D7-02=`thin_slice`，D7-04～D7-08=`planned`。项目所有者在保留 Step 1 缺口的前提下明确继续 Step 2；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
 
 ## 1. 进入条件与本日边界
 
@@ -55,7 +55,17 @@ Day 7 只交付可解释的 SEC L4 draft：锁定 filer/accession/`as_of` 后完
 - 已实现：Milvus/Elasticsearch 候选经 PostgreSQL 重新校验 Workspace、Knowledge Base、document version、active import/snapshot 与双索引版本；真实 PostgreSQL/MinIO/Milvus/Elasticsearch 链通过。
 - 已实现：Tool Observation 使用 `sec://filing-chunks/{id}` 与 `sec://xbrl-facts/{id}`；Evidence 判别联合、SQLAlchemy normalizer、可用性重载、数据库约束迁移和 OpenAPI DTO 已支持 filing text 与 XBRL fact。
 - 本地门禁：强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量套件为 `1121 passed`，总体分支覆盖率 `80.62%`、Memory/Evidence/Research 核心合集 `86%`；Ruff format/check、mypy、migration 全历史往返与 fresh upgrade、OpenAPI/TypeScript 连续生成一致均通过。Web Prettier、ESLint、typecheck、Vitest `85 passed` 和 production build 通过。上述是当前工作树本地证据，不替代分支、PR 或 main CI。
-- 尚未关闭：冻结 SEC 黄金集 Recall@5/MRR、filing table row/column/cell 与 character locator、正式 Citation resolver 100% 指标、live SEC smoke、分支/PR/main CI。因此本步骤不能标为 `complete`，也不能开始 Step 2。
+- 尚未关闭：冻结 SEC 黄金集 Recall@5/MRR、filing table row/column/cell 与 character locator、正式 Citation resolver 100% 指标、live SEC smoke、PR/main CI。因此本步骤不能标为 `complete`。提交 `2944591` 的分支 CI `33135122319` 已通过；项目所有者随后明确继续 Step 2，该排期决定不删除上述验收缺口。
+
+### Step 2 当前证据与缺口
+
+- 已实现：在现有 `ContextCompilerV1` 上扩展兼容 `financial-context-v1` 的 `FinancialContextCompilerV1`，没有建立第二套 Runtime 或金融拼接器；同一编译器继续处理 WEB 的 `context-v1`。
+- 已实现：生产 LOCAL Tool L2 policy 使用 `financial-context-v1`，把可信 Runtime `FinancialScope` 作为独立 source 注入模型请求；manifest/Trace 记录完整 scope identity，Memory、附件和 Tool Observation 仍是不能覆盖 scope 的不可信 USER data。
+- 已实现：`finance.calculate`、`knowledge_search` 与三个 accession-bound SEC Tool 的 Observation 先按 scope 分类；错误 CIK/accession/form/period/scale 记为 `excluded_financial_scope_mismatch`，cutoff 后 scope/XBRL fact 记为 `excluded_future_source`，unit 冲突记为 `excluded_unit_mismatch`，畸形 payload 记为 `excluded_unsupported_financial_source`。
+- 已实现：金融 Observation 按既有 Tool 顺序作为可选 Context source；预算不足时不使整个 Run 静默失败，而是在 manifest 中保留 locator identity、envelope hash、source version、零 Token 成本和 `excluded_token_budget`。同输入 request/manifest 确定一致。
+- 已实现：Trace API/OpenAPI/TypeScript 增加 `financial_scope` source kind、稳定排除枚举和 nullable `source_identity`；Web decoder 对枚举、identity object 及 source kind 一致性做运行时校验。
+- 本地证据：Financial Context 定向测试 `16 passed`，Agent Runtime `177 passed`，retrieval/financial verification/disclosures 关联测试 `97 passed`；不启用外部服务硬门的 Python 全量为 `1046 passed, 84 skipped`。全后端 Ruff、全仓 mypy `469` 个源文件、Web format/lint/typecheck、Vitest `85 passed`、production build 和 OpenAPI 连续生成一致。上述是当前工作树证据，不替代真实依赖、提交或远端 CI。
+- 尚未关闭：本机 Docker daemon/PostgreSQL 未运行，强制 PostgreSQL Trace identity 往返在连接阶段超时，未取得真实数据库执行证据；当前 Step 2 改动尚未提交，也没有分支、PR 或 main CI。Step 1 的 ranking/table/Citation 和 Day 6 `22/24` 缺口继续保留，因此 D7-03 只能标为 `implemented_pending_verification`。
 
 ## 4. 版本化合同与评测口径
 

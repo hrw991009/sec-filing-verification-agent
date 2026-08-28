@@ -33,6 +33,7 @@ from industry_platform.modules.agent_runtime.adapters.trace_query import (
 )
 from industry_platform.modules.agent_runtime.context_compiler import (
     ContextCompilerV1,
+    FinancialContextCompilerV1,
     Utf8UpperBoundTokenCounter,
 )
 from industry_platform.modules.agent_runtime.delivery import (
@@ -193,7 +194,9 @@ def create_direct_answer_runtime_resources(
     research_runtime: ResearchL3Runtime | None = None
     if selected_adapters:
         registry = ToolRegistry(selected_adapters)
-        shared_tool_compiler = ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter())
+        shared_tool_compiler = FinancialContextCompilerV1(
+            token_counter=Utf8UpperBoundTokenCounter()
+        )
         shared_tool_executor = RegistryToolExecutor(registry)
         default_references = tuple(
             ToolReference(adapter.definition.name, adapter.definition.version)
@@ -214,7 +217,7 @@ def create_direct_answer_runtime_resources(
                 schema_version=1,
                 profile_version=f"conversation-{mode.value}-l2-v1",
                 prompt_version=f"conversation-{mode.value}-l2-prompt-v1",
-                context_compiler_version="context-v1",
+                context_compiler_version=("financial-context-v1" if local_mode else "context-v1"),
                 output_contract_version="final-markdown-v1",
                 toolset_version=f"conversation-{mode.value}-toolset-v1",
                 model=model,

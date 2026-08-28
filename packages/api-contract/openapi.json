@@ -734,7 +734,11 @@
           "excluded_disabled",
           "excluded_expired",
           "excluded_deleted",
-          "excluded_negative_feedback"
+          "excluded_negative_feedback",
+          "excluded_financial_scope_mismatch",
+          "excluded_future_source",
+          "excluded_unit_mismatch",
+          "excluded_unsupported_financial_source"
         ],
         "title": "ContextDecisionReason",
         "type": "string"
@@ -820,6 +824,7 @@
         "enum": [
           "system_instructions",
           "runtime_context_projection",
+          "financial_scope",
           "conversation_summary",
           "attachment",
           "user_question",
@@ -884,6 +889,18 @@
             "title": "Source Id",
             "type": "string"
           },
+          "source_identity": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Identity"
+          },
           "source_kind": {
             "$ref": "#/components/schemas/ContextSourceKind"
           },
@@ -939,7 +956,8 @@
           "source_revision_id",
           "source_scope",
           "relevance_score",
-          "feedback_score"
+          "feedback_score",
+          "source_identity"
         ],
         "title": "ContextSourceResponse",
         "type": "object"
