@@ -41,6 +41,8 @@ from industry_platform.modules.knowledge.models import (
 )
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
+_SEC_XBRL_FINANCIAL_UNIT_PREFIXES = frozenset({"iso4217", "xbrli"})
+
 
 class SqlAlchemyFinancialOperandRepository(FinancialOperandRepository):
     def __init__(self, session_factory: AsyncSessionFactory) -> None:
@@ -186,7 +188,7 @@ def financial_evidence_operand_from_records(
         accession=fact.accession,
         form=FinancialForm(fact.form),
         report_period=filing.report_date,
-        unit=fact.unit,
+        unit=_financial_unit(fact.unit),
         scale=0 if fact.scale is None else fact.scale,
         period_kind=FinancialPeriodKind(fact.period_kind),
         instant=fact.instant,
@@ -203,3 +205,17 @@ def financial_evidence_operand_from_records(
         amendment_relation_status=filing.amendment_relation_status,
         base_accession=filing.base_accession,
     )
+
+
+def _financial_unit(value: str | None) -> str | None:
+    """Map standard XBRL QName measures into the calculator's canonical units."""
+
+    if value is None or ":" not in value:
+        return value
+    normalized: list[str] = []
+    for component in value.split("/"):
+        prefix, separator, local_name = component.partition(":")
+        if separator != ":" or prefix not in _SEC_XBRL_FINANCIAL_UNIT_PREFIXES or not local_name:
+            raise ValueError("SEC XBRL unit cannot be normalized for financial calculation")
+        normalized.append(local_name.upper())
+    return "/".join(normalized)

@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-27
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.3 Day 7
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.5 Day 7
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D7-01～D7-08
 >
@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Filing Retrieval 与计算设计](../sec-retrieval-design.md)
 >
-> 当前状态：Step 4 已完成当前工作树实现。D7-01/D7-03～D7-07=`implemented_pending_verification`，D7-02=`thin_slice`，D7-08=`planned`。项目所有者在保留既有缺口的前提下明确继续 Step 4；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口保留为 Day 10 发布硬门，不从原分母删除。
+> 当前状态：Step 5 已完成当前工作树实现。D7-01/D7-03～D7-08=`implemented_pending_verification`，D7-02=`thin_slice`。`sec-tool-v1` 的 deterministic gate 通过，但 live/model、正式浏览器、中英 paired、真实依赖、新分支/PR/main CI 和所有者复核未完成，因此 Day 7 尚未关闭；Day 6 的 `22/24`、bulk watermark 和 live SEC 缺口继续保留为 Day 10 发布硬门，不从原分母删除。
 
 ## 1. 进入条件与本日边界
 
@@ -84,8 +84,18 @@ Day 7 只交付可解释的 SEC L4 draft：锁定 filer/accession/`as_of` 后完
 - 已实现：生产 LOCAL surface 冻结为 `knowledge_search`、`finance.calculate`、`sec.search_filing`、`sec.read_filing_section`、`sec.get_xbrl_facts`、`sec.diff_filings` 六个只读 Tool；只有 exact surface 才启用中文 `sec-l4-v1`，仍复用同一 Tool L2 Runtime、Research graph、Checkpoint、Context manifest、Trace 与 Evidence ledger。语言切换不得改变 scope、事实、公式、reconciliation 或终态。
 - 已实现：SEC Workbench 增加正式 Filing Diff 输入、typed failure、fact/section 双向来源与显式 unit/scale；Research Workbench 从正式 Trace/Evidence 展示 Retrieval、Context 排除、Calculation formula、reconciliation、diff Tool 状态和 Citation 反查。修复 Evidence API 只序列化旧 Industry/SQL locator 的缺陷，现可返回 SEC text/XBRL/Calculation locator 与正式 reconciliation lineage。
 - 本地证据：不启用外部服务硬门的 Python 全量为 `1069 passed, 84 skipped`；Ruff format/check、全仓 mypy `475` 个源文件、Web format/lint/typecheck、Vitest `87 passed`、production build 和 OpenAPI 连续生成一致均通过。差异服务、base/amendment、相邻期间、跨公司拒绝、Tool source/Evidence、profile surface、composition root、认证 API、Evidence HTTP 序列化和两个 Workbench 审计路径均有回归测试。
-- 远端事实：提交 `3462b48` 的分支 CI [`33149285431`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33149285431) 有 6 个 Job 通过；PostgreSQL integration 因测试夹具只把 `DocumentVersion` 标成 `READY`、未设置正式 `Document.active_version_id` 而得到预期的 operand `no_result`，故整体失败。当前工作树已补齐 ready/active 夹具，未放宽生产授权查询，但尚未取得新的真实依赖或远端 CI 证据。
-- 尚未关闭：当前 Step 4 未提交；正式 API 驱动的浏览器 SEC diff/Research 全链、中英同题 paired run、真实 PostgreSQL/MinIO/Milvus/Elasticsearch 重跑、分支/PR/main CI 和所有者复核仍缺。D7-06/D7-07 因此只能标为 `implemented_pending_verification`，D7-08 仍属于 Step 5。
+- 远端事实：Step 4 已随提交 `e5fb75c` 推送；其分支 CI [`33152912538`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33152912538) 中 Python/Web quality 与两项依赖审计通过，Browser E2E、PostgreSQL integration 和 Secret history 失败。Browser 仍寻找已被正式 Hybrid 控件取代的 `Dense 检索`；对 operand `no_result` 的代码路径审计定位到 raw XBRL `iso4217:USD` 尚未规范到 calculator `USD`；Secret scan 命中测试中的 `token_counter_version` 非凭据常量。
+- 当前工作树修复：E2E 选择器改为 `Hybrid 检索`；SEC XBRL→Financial 边界只把标准 `iso4217`/`xbrli` QName unit 规范为 calculator unit，未知 custom unit fail closed；版本常量使用仓库既有的精确 `gitleaks:allow` 注释。上述修复尚无新远端 CI。
+- 尚未关闭：正式 API 驱动的浏览器 SEC diff/Research 全链、中英同题 paired run、真实 PostgreSQL/MinIO/Milvus/Elasticsearch 重跑、新分支/PR/main CI 和所有者复核仍缺。D7-06/D7-07 因此只能标为 `implemented_pending_verification`。
+
+### Step 5 当前证据与缺口
+
+- 已实现：新增严格 `sec-tool-v1` manifest、独立 frozen observation 输入和 `sec-tool-scorer-v1`；固定 `sec-tool-contract-data-v1`、同一 8 step/4096 Token/费用/延迟预算，以及 A0 oracle/no-tools、A1 纯 filing Hybrid search/read、A2 正式 `sec-l4-v1` 六 Tool surface。10 个 case 对简单事实、计算、跨章节、base/amendment 和无答案各固定 2 条，共 30 个策略运行，任何 case/strategy 缺失或重复都拒绝评分。
+- 已实现：规则 scorer 从观察值重新计算 answer/Evidence、calculation program/lineage、Citation、identity、拒答、Tool surface、预算、步骤、Token、费用和延迟；错误 company/period/accession 直接从实际选择与 gold identity 比较，不接受报告自报计数。case 和 observation 均绑定现有 production component pytest 证据。
+- 确定性报告：[`sec-tool-v1.json`](../../evals/reports/sec-tool-v1.json) 与 [`sec-tool-v1.md`](../../evals/reports/sec-tool-v1.md) 可由 `pnpm run eval:sec-tool` 确定重建并格式化。A0/A1/A2 case accuracy 为 `1.0/0.5/1.0`，复杂题为 `1.0/0.166667/1.0`，A2 对 A1 净增益 `0.833333`；A1/A2 简单题均 `1.0`，退化 `0`；A2 拒答、Citation、calculation lineage、Tool/budget 均 `1.0`，三策略错误 company/period/accession 均为 `0`。A2 相对 A1 增加 `73 micro USD` 与 `43 ms`，报告保留成本而不只报质量。
+- 防误报边界：当前 observations 是 deterministic frozen contract，不是当前模型实际跑出的答案；报告自身标记 `day7_closeout_ready=false`，并列出真实依赖、live SEC/model、正式浏览器、中英 paired、三层 CI 和 owner review 阻断项。公开 benchmark 仍属于 Day 9，不能把本报告写成公开 benchmark 分数或完整金融 Agent 能力。
+- 本地统一门禁：不启用外部服务硬门的 Python 全量为 `1081 passed, 84 skipped`；Ruff format/check 与全仓 mypy `478` 个源文件通过。Prettier、ESLint、Web/contract typecheck、Vitest `87 passed`、production build、OpenAPI 连续生成、`sec-tool-v1` 连续生成和最近 10 次提交的 Gitleaks 均通过。84 个 skipped 明确包含 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch integration，不能作为真实依赖通过证据。
+- 尚未关闭：上述外部/真实运行证据未完成，Step 1 的 Recall@5/table/cell/Citation 100% 与 Day 6 `22/24` 债务仍在；D7-08 因此是 `implemented_pending_verification`，不是 `complete`。
 
 ## 4. 版本化合同与评测口径
 

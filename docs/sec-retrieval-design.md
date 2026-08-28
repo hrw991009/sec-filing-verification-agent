@@ -1,8 +1,8 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 Step 4 filing diff、中文 L4 profile 与 Workbench 已完成当前工作树实现；冻结评测、真实依赖、正式浏览器旅程与新远端 CI 待关闭
+> 状态：Day 7 Step 5 `sec-tool-v1` deterministic contract 已完成当前工作树实现；真实依赖、live/model、正式浏览器旅程、中英 paired 与新远端 CI 待关闭
 >
-> 基线：`IIP-MASTER-001` 2.1.3，D7-01～D7-08
+> 基线：`IIP-MASTER-001` 2.1.5，D7-01～D7-08
 >
 > 决策来源：[ADR 0003](adr/0003-unified-evidence-model.md)、[ADR 0007](adr/0007-sec-disclosure-financial-fact-verification.md)
 
@@ -85,5 +85,7 @@ scope -> resolve -> select -> decompose
 ## 8. 评测与回滚
 
 `sec-tool-v1` 的 A0/A1/A2 必须共用 case manifest、数据版本、Scope 和预算：A0 为 oracle/full context，A1 为纯 Filing Hybrid RAG，A2 为 RAG + SEC/XBRL Tool + calculator。核心门禁见 [Day 7 执行计划](learning-log/day-7.md) 和 [SEC Agent 评测计划](sec-agent-evaluation.md)。
+
+当前 deterministic contract 已冻结 10 个 case 和 30 个策略观察，报告从独立 observation 输入重算 identity、答案/Evidence、计算 lineage、Citation、拒答、Tool surface、预算与成本延迟；其 A2 复杂题净收益通过，且简单题无退化。该结果不包含 live/model、公开 benchmark、真实依赖浏览器全链或中英 paired run，不能据此把 Day 7 标为完成。
 
 回滚时通过 profile/retrieval version 停止新 `hybrid-v1` 和 `sec-l4-v1` 运行，保留 PostgreSQL 中的 Run、Trace、Evidence、Calculation 与审计记录；恢复 `dense-v1` 只影响新请求，不能原地改写历史结果或删除 locator。

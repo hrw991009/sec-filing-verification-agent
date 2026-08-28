@@ -2,13 +2,13 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.2.0`
+> 版本：`1.3.0`
 >
 > 日期：2026-08-26
 >
-> 权威范围：`docs/master-plan.md` v2.1.0 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.1.5 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 已实现并由 PR #10 合入 `main`，当前报告 22/24；Day 7 `sec-tool-v1` 与 A0/A1/A2 仍为计划合同，不代表任何公开 SEC benchmark 已接入或通过
+> 状态：Day 6 `sec-source-v1` 已由 PR #10 合入 `main`，当前报告 22/24；Day 7 `sec-tool-v1` deterministic contract 已实现且门禁通过，但 Day 7 未收口，也不代表 live/model 或任何公开 SEC benchmark 已接入或通过
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
@@ -150,7 +150,21 @@ argument_constraints / budget / scorer_version
 
 冻结 response/replay 进入普通 PR CI；live smoke 单独记录日期、官方 URL、retrieved_at、content hash、Adapter/version、请求速率、失败和重试，不进入普通 PR 硬门，也不得与 deterministic 指标平均。
 
-### 4.3 `sec-temporal-v1`
+### 4.3 `sec-tool-v1`
+
+Day 7 使用同一 10-case manifest、`sec-tool-contract-data-v1` 和共享预算运行 30 个 A0/A1/A2 策略观察。主类别简单事实、计算、跨章节、base/amendment 和无答案各 2 条；A0 是 full-context/no-tools oracle，A1 只允许 filing Hybrid search/read，A2 必须使用正式 `sec-l4-v1` 六 Tool surface。三者不能获得不同 gold、Scope、预算或数据版本。
+
+输入与产物分层保存：
+
+- `evals/scenarios/sec-tool-v1.json`：不可变 case、gold identity/Evidence/program、共享预算和策略 surface；
+- `evals/observations/sec-tool-v1.json`：冻结策略观察与 execution boundary；
+- `evals/reports/sec-tool-v1.json` / `.md`：只能由 `sec-tool-scorer-v1` 重算的派生报告。
+
+Scorer 要求 10×3 组合精确覆盖，缺失或重复即拒绝评分；错误 company/period/accession 从实际选择直接计算，不读取自报布尔值。答案、Evidence、Citation、calculation program/lineage、无答案拒答、Tool allowlist、预算、步骤、Token、成本和延迟分别报告。当前 deterministic report 的 A2 复杂题相对 A1 净增益为 `0.833333`，简单题退化为 `0`，错误 identity 为 `0`，A2 拒答/Citation/calculation lineage 均为 `1.0`。
+
+这些 observation 绑定 production component pytest，但仍是 frozen contract，不是当前模型实际运行。报告必须保留 `live_sec_executed=false`、`live_model_executed=false`、`browser_e2e_executed=false` 等边界，并在真实依赖、中英 paired、分支/PR/main CI 和 owner review 未齐时输出 `day7_closeout_ready=false`。A0/A1/A2 的 public/offline 与 live repeated run 属于 Day 9/10，不能回填或平均到该 deterministic 报告。
+
+### 4.4 `sec-temporal-v1`
 
 Day 9 冻结至少 60 个 release cases。所有 case 必须来自 `as_of` 前可见的官方 filing snapshot，并锁定：
 

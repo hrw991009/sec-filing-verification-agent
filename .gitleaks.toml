@@ -6,3 +6,8 @@ useDefault = true
 [[allowlists]]
 description = "Ignore the uv-managed virtual environment"
 paths = ['''^\.venv/''']
+
+[[allowlists]]
+description = "Ignore the frozen UTF-8 token-counter version label"
+regexTarget = "line"
+regexes = ['''token_counter_version:\s*"utf8-upper-bound-v1"''']

@@ -306,7 +306,7 @@ describe("ResearchWorkspace", () => {
             },
           ],
           step_id: traceStep.step_id,
-          token_counter_version: "utf8-upper-bound-v1",
+          token_counter_version: "utf8-upper-bound-v1", // gitleaks:allow -- version, not a credential
           workspace_id: workspaceId,
         },
       ],

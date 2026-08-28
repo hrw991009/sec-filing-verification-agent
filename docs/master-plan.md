@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.3`
+> 版本：`2.1.5`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1336,3 +1336,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.1.2 | 2026-08-28 | 同步 Day 7 Step 1 分支 CI 与项目所有者推进 Step 2 的指令；在唯一 Context Compiler/Tool L2 链落地 `financial-context-v1`、可信 `FinancialScope`、稳定 scope/cutoff/unit/budget 排除原因、Tool Observation identity 和 Trace/OpenAPI/Web 契约。D7-03 为 `implemented_pending_verification`，保留真实 PostgreSQL、提交/PR/main CI、Step 1 ranking/table/Citation 与 Day 6 22/24 缺口 | 用户授权继续 Day 7 下一步 |
 | 2.1.3 | 2026-08-28 | 记录 Step 2 提交 `d3c88d5` 的分支 CI `33140371558` 因 Context manifest `mappingproxy` 深拷贝在 PostgreSQL Job 失败，并在当前工作树以浅层投影和回归测试修复；同步项目所有者推进 Step 3 后，正式 XBRL Evidence operand、PostgreSQL 授权重载、Decimal scale/percentage、`financial-reconciliation-v1` 和 Calculation Evidence 重算链已落地。D7-04/D7-05 为 `implemented_pending_verification`，保留本机真实 PostgreSQL、Step 3 提交/远端 CI 及既有 Day 6/Step 1 缺口 | 用户授权继续 Day 7 下一步 |
 | 2.1.4 | 2026-08-28 | 同步 Day 7 Step 4 当前工作树：新增 fail-closed filing diff、`sec.diff_filings@v1`、exact six-Tool 中文 `sec-l4-v1`、SEC/Research Workbench 审计链和完整 Evidence HTTP locator；修复分支 CI `33149285431` 暴露的 ready/active PostgreSQL 测试夹具。D7-06/D7-07 为 `implemented_pending_verification`，保留真实依赖、正式浏览器、中英 paired run、新分支/PR/main CI 与既有评测缺口 | 用户授权继续 Day 7 下一步 |
+| 2.1.5 | 2026-08-28 | 同步 Day 7 Step 5 当前工作树：新增可重算 10-case/30-run `sec-tool-v1` manifest、独立 observations、严格 scorer 与 JSON/Markdown；deterministic A2 对 A1 复杂题净增益 `0.833333`、简单题退化 `0`，但报告明确不是 live/model/public benchmark 且 Day 7 未收口。同步修复 `e5fb75c` CI 暴露的 XBRL unit 边界、过期 Hybrid E2E selector 与版本常量 Secret 误报；本地 Python `1081 passed, 84 skipped`、Python/Web/OpenAPI/报告生成/Gitleaks 门禁通过。D7-08 为 `implemented_pending_verification`，保留真实依赖、浏览器、中英 paired、三层 CI、owner review 和既有债务 | 用户授权继续 Day 7 下一步 |
