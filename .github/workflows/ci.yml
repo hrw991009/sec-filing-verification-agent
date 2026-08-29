@@ -250,20 +250,32 @@ jobs:
             fi
             sleep 2
           done
-          curl --fail --silent --request PUT \
-            'http://127.0.0.1:9200/ci-readiness-probe' \
-            --header 'Content-Type: application/json' \
-            --data '{"settings":{"number_of_shards":1,"number_of_replicas":0}}' \
-            >/dev/null
-          curl --fail --silent --request POST \
-            'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=true' \
-            --header 'Content-Type: application/json' \
-            --data '{"ready":true}' \
-            >/dev/null
-          curl --fail --silent \
-            'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready' \
-            | grep --quiet '"found":true'
-          curl --fail --silent --request DELETE \
+          for attempt in $(seq 1 30); do
+            curl --silent --request DELETE \
+              'http://127.0.0.1:9200/ci-readiness-probe' \
+              >/dev/null || true
+            if curl --fail --silent --show-error --request PUT \
+              'http://127.0.0.1:9200/ci-readiness-probe' \
+              --header 'Content-Type: application/json' \
+              --data '{"settings":{"number_of_shards":1,"number_of_replicas":0}}' \
+              >/dev/null \
+              && curl --fail --silent --show-error --request POST \
+                'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=true' \
+                --header 'Content-Type: application/json' \
+                --data '{"ready":true}' \
+                >/dev/null \
+              && curl --fail --silent --show-error \
+                'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready' \
+                | grep --quiet '"found":true'; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs day5-elasticsearch
+              exit 1
+            fi
+            sleep 2
+          done
+          curl --fail --silent --show-error --request DELETE \
             'http://127.0.0.1:9200/ci-readiness-probe' \
             >/dev/null
 
