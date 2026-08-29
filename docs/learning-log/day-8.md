@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-28
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.6 Day 8
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.8 Day 8
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D8-01～D8-08
 >
@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)
 >
-> 当前状态（2026-08-29）：Step 1 已在 `feat/day-8` 工作树实现，D8-01、D8-02 为 `implemented_pending_verification`；Step 2～5 与 D8-03～D8-08 仍为 `planned`。本地规则/API 测试、真实 PostgreSQL append-only 持久化测试和完整迁移往返已通过，OpenAPI 已生成；尚无提交、分支/PR/main CI、graph 节点、正式浏览器或所有者复核，不能把 Day 8 写成完成。Day 7 合并提交 CI `33156337673` 的 Browser E2E 失败及既有评测债务继续保留到 Day 10。
+> 当前状态（2026-08-29）：Step 1～2 已在 `feat/day-8` 工作树实现，D8-01～D8-04 为 `implemented_pending_verification`；Step 3～5 与 D8-05～D8-08 仍为 `planned`。本机完整真实依赖门禁为 `1180 passed`、总体分支覆盖率 `80.27%`、核心合集 `85%`，完整迁移往返/drift、OpenAPI 确定生成与现有真实 Chromium `8 passed`。提交 `3a46220` 的 push CI `33229040121` 中 PostgreSQL Job 曾因 Elasticsearch 冷启动索引操作超过 10 秒失败；当前工作树已加入实际写读 readiness probe，并仅在该 Job 将索引超时设为 30 秒，尚无修复后的远端 CI。D8 专属 Workbench 浏览器链、frozen eval、PR/main CI 与所有者复核仍缺，不能把 Step 2 或 Day 8 写成完成。
 
 ## 1. 进入基线与本日边界
 
@@ -88,7 +88,17 @@ PostgreSQL 新增 `research_verification_reports`、`research_verification_claim
 
 本地证据包括 14 条聚焦规则/API 测试、真实 PostgreSQL append-only/stale-revision 测试、完整 Alembic upgrade→downgrade→upgrade 与 autogenerate drift 检查、确定性 OpenAPI 生成，以及 `1089 passed, 85 skipped` 的完整 Python 回归。回归同时暴露并修复 `sec-tool-v1` Markdown 在 Windows 写 CRLF、仓库基线为 LF 的跨平台字节漂移；只固定输出换行，不修改报告内容或评测分母。以上证据只支持 D8-01/D8-02 的 `implemented_pending_verification`，不替代远端 CI、正式浏览器、frozen eval 或 owner review。
 
-## 6. Day 8 完成定义
+## 6. Step 2 实现与证据
+
+唯一 Research graph 已升级为 `research-l5-graph-v1`/state schema 2，并在原 `draft` 后追加 `verify → optional revise → finalize`。普通非金融 Research 走 `verify → finalize` 且不伪造业务核验状态；Financial Research 必须调用生产装配的 `ResearchVerificationService`。Verifier report 通过正式 Event/Trace 发射，业务状态与 Runtime stop reason 继续分离。
+
+revise 只选择一个 repairable typed issue，并优先按 `recalculate`、再按 `targeted_retrieve` 处理。Tool 名称、版本和参数由服务端从可信原问题、issue refs 或已重载的 Calculation locator 推导；模型只看到单 Tool schema 和 exact action，任何名称/版本/参数偏离在 Tool 执行前以 `verification_action_mismatch` 拒绝。原 Workspace、`FinancialScope`、Tool allowlist、Budget、deadline、取消与审批边界不变；一次 Tool 后必须结束，重复 Observation 或无新 Evidence 直接保留 non-verified，不创建 revision 2。
+
+Research Draft 改为 `(research_run_id, revision)` append-only；revision 2 的 Draft/Claim ID 稳定，Claim repository 对相同命令返回已有事实、对冲突重试 fail closed。L5 Checkpoint 保存 report revision/status、issue/action/observation digest，并用同一 graph router 校验下一节点；旧 L4 payload 不猜字段而明确拒绝恢复。迁移降级会先删除 L5 report/draft revision，再把 run 映射回 L4 schema，避免已有 revision 2 时唯一约束失败。
+
+聚焦测试覆盖成功 retrieve→reverify、targeted retrieve/recalculate no-progress、预算不足不 revise、最多一次 revise、filing 注入诱导未注册写 Tool、L4 hard-stop 恢复与 Claim PostgreSQL 重试幂等。CI 查漏同时补齐 `ResearchDraftResponse.revision` 的 Web fixture，并把浏览器 Research 驱动升级为显式校验 L5 graph/state/finalize 与 10 个正常路径节点；现有 8 条 Chromium 旅程全量通过。完整真实依赖门禁、迁移和覆盖率数字见本页顶部；新的远端分支 CI、D8 专属 security frozen set、A2/A3 对照和 owner review 尚缺，因此 D8-03/D8-04 只能是 `implemented_pending_verification`。
+
+## 7. Day 8 完成定义
 
 Day 8 只有同时满足以下条件才可关闭：
 
@@ -99,4 +109,4 @@ Day 8 只有同时满足以下条件才可关闭：
 - 分支、PR、合并提交 CI 均通过，正式浏览器旅程和所有者复核完成；
 - Day 5～7 遗留项仍在 Day 10 台账中逐项可见，没有被 Day 8 报告删除、改分母或伪写完成。
 
-当前仅 Step 1 达到本地 `implemented_pending_verification`，不满足 Day 8 总完成条件。下一步进入 Step 2，把 Verifier 接入唯一 Research graph 并实现 one-revise 与不可信输入防线；不提前实现 Monitor 或 UI 占位。
+当前 Step 1～2 达到本地 `implemented_pending_verification`，不满足 Day 8 总完成条件。下一步进入 Step 3，建立 Monitor、watermark 与幂等 Case；不提前实现订阅 HITL 或 UI 占位。

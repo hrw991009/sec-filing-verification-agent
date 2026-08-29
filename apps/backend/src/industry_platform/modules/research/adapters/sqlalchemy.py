@@ -132,7 +132,8 @@ class SqlAlchemyResearchQueryRepository:
                     raise ResearchNotFoundError
                 existing = await session.scalar(
                     select(ResearchDraftRecord).where(
-                        ResearchDraftRecord.research_run_id == draft.research_run_id
+                        ResearchDraftRecord.research_run_id == draft.research_run_id,
+                        ResearchDraftRecord.revision == draft.revision,
                     )
                 )
                 if existing is None:
@@ -141,6 +142,7 @@ class SqlAlchemyResearchQueryRepository:
                             id=draft.draft_id,
                             workspace_id=draft.workspace_id,
                             research_run_id=draft.research_run_id,
+                            revision=draft.revision,
                             plan_id=draft.plan_id,
                             status=draft.status,
                             content_markdown=draft.content_markdown,
@@ -155,7 +157,14 @@ class SqlAlchemyResearchQueryRepository:
                     )
                 elif (
                     existing.id != draft.draft_id
+                    or existing.workspace_id != draft.workspace_id
+                    or existing.plan_id != draft.plan_id
+                    or existing.status is not draft.status
                     or existing.content_markdown != draft.content_markdown
+                    or tuple(existing.outline) != draft.outline
+                    or tuple(UUID(value) for value in existing.evidence_refs) != draft.evidence_refs
+                    or tuple(UUID(value) for value in existing.claim_refs) != draft.claim_refs
+                    or existing.uncertainty_summary != draft.uncertainty_summary
                 ):
                     raise ResearchPersistenceError
         except (ResearchNotFoundError, ResearchPersistenceError):
@@ -235,10 +244,13 @@ class SqlAlchemyResearchQueryRepository:
             .limit(1)
         )
         draft_record = await session.scalar(
-            select(ResearchDraftRecord).where(
+            select(ResearchDraftRecord)
+            .where(
                 ResearchDraftRecord.research_run_id == record.id,
                 ResearchDraftRecord.workspace_id == record.workspace_id,
             )
+            .order_by(ResearchDraftRecord.revision.desc())
+            .limit(1)
         )
         if agent is None or brief_record is None:
             raise ResearchPersistenceError
@@ -353,6 +365,7 @@ def _draft_snapshot(record: ResearchDraftRecord) -> ResearchDraft:
         uncertainty_summary=record.uncertainty_summary,
         created_at=record.created_at,
         updated_at=record.updated_at,
+        revision=record.revision,
     )
 
 

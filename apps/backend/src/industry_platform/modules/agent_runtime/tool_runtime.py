@@ -1993,12 +1993,50 @@ class ToolL2Runtime(ToolL1Runtime):
         seen_actions: set[tuple[str, str, str]],
         seen_observation_content: set[tuple[str, str, str]],
         outcome: _ToolLoopSegmentOutcome,
+        decision_index_start: int = 0,
+        decision_call_limit: int | None = None,
+        required_action: ToolAction | None = None,
+        max_additional_tool_calls: int | None = None,
+        system_instructions: str | None = None,
     ) -> AsyncGenerator[AgentEvent]:
         """Advance the one shared bounded loop, leaving finalization to its caller."""
 
         run = outcome.run
         state = outcome.state
-        for decision_index in range(command.policy.model_call_limit):
+        if (
+            decision_index_start < 0
+            or decision_index_start >= command.policy.model_call_limit
+            or (decision_call_limit is not None and decision_call_limit < 1)
+            or (max_additional_tool_calls is not None and max_additional_tool_calls < 1)
+            or (
+                required_action is not None
+                and len(outcome.observations) >= len(command.tool_call_ids)
+            )
+        ):
+            raise ValueError("Tool loop segment bounds are invalid")
+        decision_stop = min(
+            command.policy.model_call_limit,
+            decision_index_start
+            + (
+                command.policy.model_call_limit
+                if decision_call_limit is None
+                else decision_call_limit
+            ),
+        )
+        initial_observation_count = len(outcome.observations)
+        required_signature = (
+            None
+            if required_action is None
+            else (
+                required_action.name,
+                required_action.version,
+                ToolRequestAudit(
+                    call_id=command.tool_call_ids[initial_observation_count],
+                    action=required_action,
+                ).arguments_sha256,
+            )
+        )
+        for decision_index in range(decision_index_start, decision_stop):
             decision_sequence = state.step_count + 1
             if decision_sequence > run.budget.max_steps:
                 terminal = self._max_steps_terminal(
@@ -2021,7 +2059,11 @@ class ToolL2Runtime(ToolL1Runtime):
                 sequence=decision_sequence,
                 step_id=command.decision_model_step_ids[decision_index],
                 manifest_id=command.decision_manifest_ids[decision_index],
-                system_instructions=self._loop_instructions(command, definitions),
+                system_instructions=(
+                    self._loop_instructions(command, definitions)
+                    if system_instructions is None
+                    else system_instructions
+                ),
                 max_output_tokens=command.policy.max_decision_output_tokens,
                 response_schema=decision_schema,
                 observations=tuple(outcome.observations),
@@ -2102,7 +2144,15 @@ class ToolL2Runtime(ToolL1Runtime):
             audit = ToolRequestAudit(call_id=command.tool_call_ids[tool_index], action=decision)
             signature = (decision.name, decision.version, audit.arguments_sha256)
             guard: tuple[RunStopReason, str] | None = None
-            if signature in seen_actions:
+            additional_tool_count = tool_index - initial_observation_count
+            if required_signature is not None and signature != required_signature:
+                guard = (RunStopReason.TOOL_DENIED, "verification_action_mismatch")
+            elif (
+                max_additional_tool_calls is not None
+                and additional_tool_count >= max_additional_tool_calls
+            ):
+                guard = (RunStopReason.NO_PROGRESS, "verification_revise_limit_reached")
+            elif signature in seen_actions:
                 guard = (RunStopReason.NO_PROGRESS, "tool_action_repeated")
             elif state.step_count + 3 > run.budget.max_steps:
                 guard = (RunStopReason.MAX_STEPS, "run_step_budget")

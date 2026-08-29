@@ -6,11 +6,11 @@
 >
 > 更新日期：2026-08-28
 >
-> 权威来源：`docs/master-plan.md` 2.1.3
+> 权威来源：`docs/master-plan.md` 2.1.8
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5 实现已合入 `main`，形成通用 Agent、Knowledge、SEC fixture 与 Durable Research L4 基础，但 SEC fixture 浏览器 DoD 尚未关闭。Day 6 的 filer/filing/XBRL/source snapshot、五个 SEC read Tool、Workbench 与 `sec-source-v1` 已由 PR #10 合入 `main`，三层 CI 成功；两条 bulk watermark closeout case 与 live SEC smoke 仍未关闭。Day 7 Step 1 已实现 Hybrid Retrieval 与 filing text/XBRL fact locator；Step 2 已在同一 Runtime/Context Compiler 落地 `financial-context-v1`，其 PostgreSQL CI 序列化失败已在当前工作树修复；Step 3 已复用既有 calculator/Evidence 链完成正式 XBRL operand、typed reconciliation 与 Calculation Evidence 重算。ranking/table/Citation、真实 PostgreSQL 与修复后的远端门禁仍待关闭。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 7 已合入 `main`，但各自登记的浏览器、ranking/table/Citation、bulk watermark、live SEC 与发布证据债务仍留到 Day 10。Day 8 Step 1～2 当前在 `feat/day-8` 工作树实现：确定性 SEC Claim Verifier 与四种业务状态已进入 PostgreSQL/API/Event/Trace，唯一 Research graph 已升级为 L5 并增加最多一次、服务端 exact-action 驱动的 retrieve/recalculate revise。D8-01～D8-04 均为 `implemented_pending_verification`；Monitor、持久订阅 HITL、Workbench 与 A2/A3/A4 仍未实现，修复后的远端 CI 也尚未取得。
 
 架构需要同时满足：
 
@@ -890,6 +890,8 @@ Day 5 已合并私有上传、版本化解析资产、Embedding/双索引、冻�
 Day 6 已实现 filer/filing point-in-time、不可变 filing/XBRL source snapshot、Workspace Knowledge import、`dense-v1` content read、typed XBRL facts、五个 SEC read Tool、Workbench 和 `sec-source-v1`，并由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head、PR 和合并提交 CI 均成功。确定性报告仍为 22/24，两条 bulk snapshot/watermark/post-gap closeout case 未通过，合法 live SEC smoke 也尚缺，因此 D6-02/D6-06 保持 `thin_slice`，其余 D6 项保持 `implemented_pending_verification`。项目所有者已将这些缺口改期为 Day 10 发布硬门并推进 Day 7。Day 7 Step 1 的 `hybrid-v1`、Retrieval Trace 与 filing text/XBRL fact locator 已实现，D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`。Step 2 的 `financial-context-v1`、可信 Scope 注入、稳定排除原因、identity manifest 与生产 LOCAL 装配已提交；其远端 PostgreSQL CI 暴露的冻结 identity 深拷贝失败已在当前工作树改为浅层 JSON 投影并补回归测试，尚待新 CI，D7-03 保持 `implemented_pending_verification`。Step 3 复用既有 calculator/Evidence 边界，新增正式 XBRL operand 的 PostgreSQL 授权重载、scale/percentage、typed reconciliation 和 Calculation Evidence 重算；D7-04/D7-05 为 `implemented_pending_verification`。当前状态不关闭 Step 1 ranking/table/Citation、Step 2/3 真实 PostgreSQL 与远端 CI、D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门也不能视为当前能力。
 
 Day 7 五步代码随后由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。该合并没有关闭 Day 7 的 ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 与 owner review 门禁；D7-01/D7-03～D7-08 仍为 `implemented_pending_verification`，D7-02 仍为 `thin_slice`。项目所有者允许继续后续实现、Day 10 统一查漏补缺，因此 Day 8 先冻结五步计划和 Verifier/Monitor/恢复设计；当前没有 Day 8 migration、domain model、graph node、Tool、API 或 UI，D8-01～D8-08 全部为 `planned`。
+
+Day 8 Step 1～2 随后在同一 `research`/`agent_runtime`/`evidence` 边界内实现 Verifier 与 L5 graph。`research-l5-graph-v1` 只在 typed repairable issue、剩余预算/期限/取消允许且原 Tool allowlist 可满足时进入一次 revise；Tool 名称、版本和参数 digest 由服务端固定，模型偏离即在执行前 `TOOL_DENIED`。成功节点保存 verification report/action/observation digest，Draft revision append-only，Claim 稳定 ID 使 hard-stop 重试不产生第二条业务事实。真实依赖全量为 `1180 passed`、总体分支覆盖率 `80.27%`、核心合集 `85%`，迁移往返/drift 与现有 Chromium `8 passed`；远端 CI `33229040121` 的 Elasticsearch 冷启动失败已在工作树增加真实写读预热与 Job 级 30 秒索引超时，Web fixture 和浏览器驱动也已同步 L5 契约，仍待 push 后验证。Monitor/HITL/Workbench/eval 未提前实现，D8-01～D8-04 仅为 `implemented_pending_verification`。
 
 ## 21. 初学者术语表
 

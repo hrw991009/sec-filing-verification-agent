@@ -1,4 +1,4 @@
-"""Execute one browser-created Research Run through the formal Job and L3 Runtime stack."""
+"""Execute one browser-created Research Run through the formal Job and Research Runtime."""
 
 import argparse
 import asyncio
@@ -61,9 +61,12 @@ from industry_platform.modules.research.adapters.sqlalchemy import (
     SqlAlchemyResearchQueryRepository,
 )
 from industry_platform.modules.research.domain import (
+    RESEARCH_GRAPH_VERSION,
     RESEARCH_NODE_ORDER,
+    RESEARCH_STATE_SCHEMA_VERSION,
     RESEARCH_TASK_NAME,
     ResearchDraftStatus,
+    ResearchNode,
     ResearchRunStatus,
 )
 from industry_platform.modules.research.models import ResearchDraftRecord, ResearchRunRecord
@@ -260,6 +263,9 @@ async def execute_browser_research_run(
             or job_status is not JobStatus.SUCCEEDED
             or research_run is None
             or research_run.status is not ResearchRunStatus.COMPLETED
+            or research_run.graph_version != RESEARCH_GRAPH_VERSION
+            or research_run.state_schema_version != RESEARCH_STATE_SCHEMA_VERSION
+            or research_run.current_node is not ResearchNode.FINALIZE
             or draft is None
             or draft.status is not ResearchDraftStatus.UNCERTAIN_DRAFT
             or DRAFT_MARKDOWN not in draft.content_markdown
@@ -270,11 +276,14 @@ async def execute_browser_research_run(
         ):
             raise BrowserSuccessDriverError("The Research L3 terminal facts are inconsistent")
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "run_id": str(run_id),
             "research_run_id": str(research_run_id),
             "job_id": str(job_id),
             "disposition": disposition.value,
+            "graph_version": research_run.graph_version,
+            "state_schema_version": research_run.state_schema_version,
+            "current_node": research_run.current_node.value,
             "provider_calls": len(provider.requests),
             "completed_node_count": completed_node_count,
             "draft_status": draft.status.value,

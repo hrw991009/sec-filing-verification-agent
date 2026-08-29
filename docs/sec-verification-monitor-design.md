@@ -1,10 +1,10 @@
 # SEC Verifier、Monitor 与恢复设计
 
-> 版本：`0.2.0`
+> 版本：`0.3.0`
 >
 > 日期：2026-08-29
 >
-> 状态：Step 1 已本地实现并等待远端验证；Step 2～5 仍为规划
+> 状态：Step 1～2 已本地实现并等待新远端验证；Step 3～5 仍为规划
 >
 > 适用范围：D8-01～D8-08
 
@@ -115,6 +115,10 @@ Guard 必须同时检查：
 
 Checkpoint 在每个成功节点后保存 graph version、verification revision、issue/action digest 和 side-effect refs。旧 schema 显式迁移或拒绝恢复，不能猜字段。
 
+Step 2 已按此状态机落入唯一 Research graph：`research-l5-graph-v1` 使用同一个条件路由函数生成运行时 successor 与 Checkpoint `next_node`，避免恢复路径另写一套顺序。Verifier report、issue/action/observation digest 进入 state schema 2；Draft revision append-only，Claim ID 稳定且 repository 支持一致重试。旧 L4 run ledger 仍可读取，但旧 Checkpoint 因缺少 L5 verification block 被明确拒绝恢复。
+
+targeted retrieve 的 query 只由可信原问题、issue code 和 typed refs 组成，不读取 filing 指令或模型自由生成的 Claim 文本；recalculate 只从 issue 指向且重新授权加载的 `FinancialCalculationLocatorV1` 重建 operator、operand Evidence、decimal 与 rounding。模型返回的 action 必须与服务端 action digest 完全相同，并且只允许一个附加 Tool call；无新 Evidence、重复 Observation、预算不足或取消时不创建 revision 2，也不提升业务状态。
+
 ## 5. 不可信输入与 Tool 安全
 
 - Context Compiler 保持 system/trusted runtime/untrusted data 分层；filing 内的“忽略前文”“调用工具”“修改订阅”等内容只作为 Evidence content。
@@ -200,4 +204,4 @@ Day 8 硬门：
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1 已完成本地实现与 PostgreSQL/迁移聚焦验证；下一步只接入 one-revise graph 与不可信输入防线，不建 Monitor 表或页面。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。
+实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1～2 已完成本地实现、真实依赖全量测试与 PostgreSQL/迁移验证；修复后的远端 CI、正式 security frozen set 和 owner review 尚缺。下一步只实现 Monitor、watermark 与幂等 Case，不提前创建订阅 HITL 或页面。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。

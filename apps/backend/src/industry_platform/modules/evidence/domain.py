@@ -1236,6 +1236,7 @@ class CreateClaim:
     origin_run_id: UUID
     origin_step_id: UUID
     trace_id: TraceId
+    claim_id: UUID | None = None
 
     def __post_init__(self) -> None:
         for identifier, field_name in (
@@ -1244,6 +1245,8 @@ class CreateClaim:
             (self.origin_step_id, "Claim origin Step ID"),
         ):
             require_non_nil_uuid(identifier, field_name=field_name)
+        if self.claim_id is not None:
+            require_non_nil_uuid(self.claim_id, field_name="Claim ID")
         object.__setattr__(
             self,
             "statement",

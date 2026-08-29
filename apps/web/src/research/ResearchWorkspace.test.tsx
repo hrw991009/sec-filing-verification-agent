@@ -51,6 +51,7 @@ const researchRun: ResearchRun = {
     evidence_refs: [],
     id: "77777777-7777-4777-8777-777777777777",
     outline: ["Finding", "Limitations"],
+    revision: 1,
     status: "uncertain_draft",
     uncertainty_summary: "No source passed the immutable snapshot gate.",
     updated_at: "2026-08-22T08:00:05Z",

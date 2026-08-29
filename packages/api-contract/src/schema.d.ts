@@ -3787,6 +3787,8 @@ export interface components {
             id: string;
             /** Outline */
             outline: string[];
+            /** Revision */
+            revision: number;
             status: components["schemas"]["ResearchDraftStatus"];
             /** Uncertainty Summary */
             uncertainty_summary: string | null;
@@ -3814,7 +3816,7 @@ export interface components {
          * ResearchNode
          * @enum {string}
          */
-        ResearchNode: "clarify_scope" | "write_research_brief" | "plan" | "research_loop" | "normalize_evidence" | "synthesize_claims" | "outline" | "draft";
+        ResearchNode: "clarify_scope" | "write_research_brief" | "plan" | "research_loop" | "normalize_evidence" | "synthesize_claims" | "outline" | "draft" | "verify" | "revise" | "finalize";
         /** ResearchPlanActionResponse */
         ResearchPlanActionResponse: {
             /** Allowed Tool Names */

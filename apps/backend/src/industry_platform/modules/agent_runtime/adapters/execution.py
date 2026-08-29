@@ -86,8 +86,9 @@ from industry_platform.modules.identity.models import (
 from industry_platform.modules.industry.models import IndustryRecord
 from industry_platform.modules.research.domain import (
     RESEARCH_GRAPH_VERSION,
-    RESEARCH_NODE_ORDER,
     RESEARCH_STATE_SCHEMA_VERSION,
+    RESEARCH_VERIFICATION_ACTIONS,
+    RESEARCH_VERIFICATION_STATUSES,
     ResearchApprovalStatus,
     ResearchBrief,
     ResearchBriefInput,
@@ -110,6 +111,7 @@ from industry_platform.workflows.research.contracts import (
     ResearchResumeKind,
     ResearchResumeSnapshot,
 )
+from industry_platform.workflows.research.graph import next_research_node
 
 
 class DirectAnswerRunNotExecutableError(RuntimeError):
@@ -773,7 +775,7 @@ def _resume_snapshot(
     raw_node = raw_payload.get("node")
     raw_next_node = raw_payload.get("next_node")
     if (
-        raw_payload.get("kind") != "research_l4_v1"
+        raw_payload.get("kind") != "research_l5_v1"
         or raw_payload.get("graph_version") != RESEARCH_GRAPH_VERSION
         or raw_payload.get("research_state_schema_version") != RESEARCH_STATE_SCHEMA_VERSION
         or financial_scope is None
@@ -801,6 +803,13 @@ def _resume_snapshot(
         "output_tokens_used",
         "cost_micro_usd",
         "revise_count",
+        "verification_report_id",
+        "verification_revision",
+        "verification_status",
+        "verification_issue_digest",
+        "verification_action",
+        "verification_action_digest",
+        "verification_observation_digest",
         "approval_status",
         "approval_reason",
         "cancel_requested",
@@ -818,16 +827,23 @@ def _resume_snapshot(
     try:
         if FinancialScope.from_mapping(raw_financial_scope) != financial_scope:
             raise ValueError("Checkpoint Financial Scope is invalid")
+        _validate_l5_verification_graph(graph)
         node = ResearchNode(raw_node)
-        node_index = RESEARCH_NODE_ORDER.index(node)
-        expected_next = (
-            None
-            if node_index + 1 == len(RESEARCH_NODE_ORDER)
-            else RESEARCH_NODE_ORDER[node_index + 1]
-        )
+        expected_next = next_research_node(node, cast(ResearchGraphState, graph))
         next_node = None if raw_next_node is None else ResearchNode(cast(str, raw_next_node))
         if next_node is not expected_next:
             raise ValueError("Checkpoint next node is invalid")
+        verification = raw_payload.get("verification")
+        if not isinstance(verification, dict) or verification != {
+            "report_id": graph["verification_report_id"],
+            "revision": graph["verification_revision"],
+            "status": graph["verification_status"],
+            "issue_digest": graph["verification_issue_digest"],
+            "action": graph["verification_action"],
+            "action_digest": graph["verification_action_digest"],
+            "observation_digest": graph["verification_observation_digest"],
+        }:
+            raise ValueError("Checkpoint Verification state is invalid")
         execution = raw_payload.get("execution")
         if not isinstance(execution, dict):
             raise ValueError("Checkpoint execution payload is missing")
@@ -843,9 +859,11 @@ def _resume_snapshot(
             isinstance(value, str) for value in raw_outline
         ):
             raise ValueError("Checkpoint outline is invalid")
-        if node_index >= RESEARCH_NODE_ORDER.index(ResearchNode.RESEARCH_LOOP) and (
-            decision is None or response is None or not steps
-        ):
+        if node not in {
+            ResearchNode.CLARIFY_SCOPE,
+            ResearchNode.WRITE_RESEARCH_BRIEF,
+            ResearchNode.PLAN,
+        } and (decision is None or response is None or not steps):
             raise ValueError("Checkpoint Tool loop result is incomplete")
         return ResearchResumeSnapshot(
             kind=kind,
@@ -862,6 +880,60 @@ def _resume_snapshot(
         )
     except (KeyError, TypeError, ValueError):
         raise DirectAnswerRunNotExecutableError from None
+
+
+def _validate_l5_verification_graph(graph: dict[str, object]) -> None:
+    revision = graph["verification_revision"]
+    revise_count = graph["revise_count"]
+    report_id = graph["verification_report_id"]
+    status = graph["verification_status"]
+    issue_digest = graph["verification_issue_digest"]
+    action = graph["verification_action"]
+    action_digest = graph["verification_action_digest"]
+    observation_digest = graph["verification_observation_digest"]
+    if (
+        isinstance(revision, bool)
+        or not isinstance(revision, int)
+        or not 0 <= revision <= 2
+        or isinstance(revise_count, bool)
+        or not isinstance(revise_count, int)
+        or not 0 <= revise_count <= 1
+    ):
+        raise ValueError("Checkpoint Verification revision is invalid")
+    if report_id is not None and (not isinstance(report_id, str) or UUID(report_id).int == 0):
+        raise ValueError("Checkpoint Verification report ID is invalid")
+    if status is not None and status not in RESEARCH_VERIFICATION_STATUSES:
+        raise ValueError("Checkpoint Verification status is invalid")
+    if action is not None and action not in RESEARCH_VERIFICATION_ACTIONS:
+        raise ValueError("Checkpoint Verification action is invalid")
+    for digest in (issue_digest, action_digest, observation_digest):
+        if digest is not None and (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise ValueError("Checkpoint Verification digest is invalid")
+    if revision == 0:
+        if any(
+            value is not None
+            for value in (
+                report_id,
+                status,
+                issue_digest,
+                action,
+                action_digest,
+                observation_digest,
+            )
+        ):
+            raise ValueError("Unverified Checkpoint contains Verification data")
+    elif report_id is None or status is None or issue_digest is None:
+        raise ValueError("Checkpoint Verification state is incomplete")
+    if (action is None) != (action_digest is None):
+        raise ValueError("Checkpoint Verification action digest is inconsistent")
+    if action is not None and (revision != 1 or revise_count != 0 or status == "verified"):
+        raise ValueError("Checkpoint Verification action is not pending")
+    if observation_digest is not None and revise_count != 1:
+        raise ValueError("Checkpoint Verification observation has no revise")
 
 
 def _restore_observations(

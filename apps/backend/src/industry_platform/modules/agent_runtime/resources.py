@@ -67,10 +67,14 @@ from industry_platform.modules.research.adapters.durability import (
     SqlAlchemyResearchDurabilityRepository,
 )
 from industry_platform.modules.research.adapters.sqlalchemy import SqlAlchemyResearchQueryRepository
+from industry_platform.modules.research.adapters.verification import (
+    SqlAlchemyVerificationReportRepository,
+)
 from industry_platform.modules.research.durability import (
     ResearchDurabilityService,
     ResumeTokenCodec,
 )
+from industry_platform.modules.research.verification import ResearchVerificationService
 from industry_platform.modules.retrieval.fixtures import SecFixtureCatalog
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import (
@@ -264,13 +268,20 @@ def create_direct_answer_runtime_resources(
             event_committer=event_committer,
             cancellation_probe=cancellation_probe,
         )
+        research_repository = SqlAlchemyResearchQueryRepository(session_factory)
+        research_evidence_service = EvidenceApplicationService(
+            SqlAlchemyEvidenceRepository(
+                session_factory,
+                fixture_catalog=fixture_catalog,
+            )
+        )
         research_runtime = ResearchL3Runtime(
-            workflow_store=SqlAlchemyResearchQueryRepository(session_factory),
-            evidence_service=EvidenceApplicationService(
-                SqlAlchemyEvidenceRepository(
-                    session_factory,
-                    fixture_catalog=fixture_catalog,
-                )
+            workflow_store=research_repository,
+            evidence_service=research_evidence_service,
+            verification_service=ResearchVerificationService(
+                research_repository=research_repository,
+                evidence_service=research_evidence_service,
+                report_repository=SqlAlchemyVerificationReportRepository(session_factory),
             ),
             context_compiler=shared_tool_compiler,
             context_manifest_store=manifest_store,

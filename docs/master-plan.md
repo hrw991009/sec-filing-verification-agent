@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.7`
+> 版本：`2.1.8`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1011,7 +1011,7 @@ Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calcu
 
 ## 15. Day 8：SEC Verified Agent L5、监控与 Durable HITL
 
-> 执行状态（2026-08-29）：Day 8 Step 1 已在 `feat/day-8` 工作树落地确定性 SEC Claim Verifier、四种独立业务状态、append-only PostgreSQL report/Claim/issue、只读 API、Event/Trace contract 与 OpenAPI；聚焦规则/API、真实 PostgreSQL 持久化和完整迁移往返均已通过。D8-01/D8-02 为 `implemented_pending_verification`，D8-03～D8-08 仍为 `planned`。尚无提交、分支/PR/main CI、graph/one-revise、正式浏览器、frozen eval 或 owner review，Day 7 main Browser E2E 失败及 Day 4～7 债务继续作为 Day 10 硬门。详细事实见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
+> 执行状态（2026-08-29）：Day 8 Step 1～2 已在 `feat/day-8` 工作树实现。Step 1 提供确定性 SEC Claim Verifier、四种独立业务状态、append-only PostgreSQL report/Claim/issue、只读 API 与 Event/Trace contract；Step 2 将 `verify → optional revise → finalize` 接入唯一 Research graph，以服务端派生的 exact Tool action 完成最多一次 targeted retrieve/recalculate，并新增 Draft revision、Claim 幂等、L5 Checkpoint 与不可信输入 guard。D8-01～D8-04 为 `implemented_pending_verification`，D8-05～D8-08 仍为 `planned`。本机完整真实依赖门禁为 `1180 passed`、总体分支覆盖率 `80.27%`、核心合集 `85%`，迁移往返、drift、OpenAPI 和现有真实 Chromium `8 passed`；提交 `3a46220` 的 push CI `33229040121` 曾因 Elasticsearch 冷启动索引超时导致 PostgreSQL Job 失败，当前工作树已增加实际写读 readiness probe，并仅在该 Job 将索引超时设为 30 秒，尚无修复后的远端 CI。D8 专属 Workbench 浏览器链、frozen eval、PR/main CI 与 owner review 仍缺，Day 4～7 债务继续作为 Day 10 硬门。详细事实见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
 
 ### 学习主题
 
@@ -1336,3 +1336,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.1.5 | 2026-08-28 | 同步 Day 7 Step 5 当前工作树：新增可重算 10-case/30-run `sec-tool-v1` manifest、独立 observations、严格 scorer 与 JSON/Markdown；deterministic A2 对 A1 复杂题净增益 `0.833333`、简单题退化 `0`，但报告明确不是 live/model/public benchmark 且 Day 7 未收口。同步修复 `e5fb75c` CI 暴露的 XBRL unit 边界、过期 Hybrid E2E selector 与版本常量 Secret 误报；本地 Python `1081 passed, 84 skipped`、Python/Web/OpenAPI/报告生成/Gitleaks 门禁通过。D7-08 为 `implemented_pending_verification`，保留真实依赖、浏览器、中英 paired、三层 CI、owner review 和既有债务 | 用户授权继续 Day 7 下一步 |
 | 2.1.6 | 2026-08-28 | 记录 PR #11、功能 head、两组通过的 PR 检查与合并提交 main CI 最终 6/7 Job 通过、Browser E2E 失败，Day 7 状态不升级。按项目所有者“先完成后续代码、Day 10 统一查漏补缺”的排期授权，将 Day 8 收敛为五个纵向步骤，新增 Day 8 执行计划和 Verifier/Monitor/恢复设计；D8-01～D8-08 保持 `planned`，Day 4～7 原债务继续作为 Day 10 发布硬门 | 用户授权进入 Day 8 文档规划 |
 | 2.1.7 | 2026-08-29 | 同步 Day 8 Step 1 当前工作树：复用正式 Evidence/SEC/Calculation 链实现确定性 Claim Verifier、四种业务状态、typed issue 与 append-only PostgreSQL 报告，增加只读 API、Event/Trace/OpenAPI 和真实迁移/持久化测试；D8-01/D8-02 为 `implemented_pending_verification`。明确 graph 发射、one-revise、Workbench、frozen eval、提交/远端 CI 和 owner review 尚未完成 | 用户授权继续 Day 8 |
+| 2.1.8 | 2026-08-29 | 同步 Day 8 Step 2：在唯一 Research graph/Runtime 内实现 verify、最多一次 exact-action revise 与 finalize，增加 Draft revision、Claim 重试幂等、L5 Checkpoint 和不可信输入防线；修复 PostgreSQL CI 的 Elasticsearch 冷启动 readiness/超时，并同步 Web fixture 与 L5 浏览器驱动契约。真实依赖 `1180 passed`、现有 Chromium `8 passed`，D8-01～D8-04 为 `implemented_pending_verification`，远端 CI 和 D8 专属 browser/eval/owner 证据仍待关闭 | 用户授权继续 Day 8 并要求修复 CI |

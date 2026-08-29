@@ -284,6 +284,20 @@ class VerificationReportRepository(Protocol):
     ) -> VerificationReport | None: ...
 
 
+class ResearchVerificationUseCase(Protocol):
+    async def verify(
+        self,
+        scope: WorkspaceScope,
+        research_run_id: UUID,
+        *,
+        expected_revision: int | None = None,
+    ) -> VerificationReport: ...
+
+    async def latest(
+        self, scope: WorkspaceScope, research_run_id: UUID
+    ) -> VerificationReport | None: ...
+
+
 class VerificationInputError(ValueError):
     pass
 
@@ -305,9 +319,19 @@ class ResearchVerificationService:
     report_repository: VerificationReportRepository
     clock: Callable[[], datetime] = field(default=lambda: datetime.now(UTC), repr=False)
 
-    async def verify(self, scope: WorkspaceScope, research_run_id: UUID) -> VerificationReport:
+    async def verify(
+        self,
+        scope: WorkspaceScope,
+        research_run_id: UUID,
+        *,
+        expected_revision: int | None = None,
+    ) -> VerificationReport:
         if not scope_allows(scope, WorkspaceAction.RUN_RESEARCH):
             raise WorkspaceAccessDeniedError
+        if expected_revision is not None and (
+            isinstance(expected_revision, bool) or expected_revision < 1
+        ):
+            raise VerificationInputError("Verification expected revision is invalid")
         view = await self.research_repository.get(scope, research_run_id)
         draft = view.draft
         financial_scope = view.brief.input.financial_scope
@@ -315,6 +339,14 @@ class ResearchVerificationService:
             raise VerificationInputError("SEC Verification requires a scoped Research Draft")
         if len(draft.claim_refs) > MAX_VERIFICATION_CLAIMS:
             raise VerificationInputError("SEC Verification Claim limit exceeded")
+        if expected_revision is not None:
+            latest = await self.report_repository.latest(scope, research_run_id)
+            if latest is not None and latest.revision == expected_revision:
+                if latest.draft_id != draft.draft_id:
+                    raise VerificationConflictError
+                return latest
+            if latest is not None and latest.revision >= expected_revision:
+                raise VerificationConflictError
         claims = await self.evidence_service.list_claims(
             scope, research_run_id, limit=MAX_VERIFICATION_CLAIMS
         )
@@ -353,6 +385,8 @@ class ResearchVerificationService:
                 )
             )
         revision = await self.report_repository.next_revision(scope, research_run_id)
+        if expected_revision is not None and revision != expected_revision:
+            raise VerificationConflictError
         report_id = uuid5(
             research_run_id,
             f"verification:{VERIFICATION_CHECKER_VERSION}:{revision}:{draft.draft_id}",

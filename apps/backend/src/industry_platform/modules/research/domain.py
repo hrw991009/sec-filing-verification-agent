@@ -16,8 +16,16 @@ from industry_platform.modules.agent_runtime.domain import (
 from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import TraceId
 
-RESEARCH_GRAPH_VERSION: Final = "research-l4-graph-v1"
-RESEARCH_STATE_SCHEMA_VERSION: Final = 1
+RESEARCH_GRAPH_VERSION: Final = "research-l5-graph-v1"
+RESEARCH_STATE_SCHEMA_VERSION: Final = 2
+RESEARCH_GRAPH_SCHEMA_VERSIONS: Final = {
+    "research-l4-graph-v1": 1,
+    RESEARCH_GRAPH_VERSION: RESEARCH_STATE_SCHEMA_VERSION,
+}
+RESEARCH_VERIFICATION_STATUSES: Final = frozenset(
+    {"verified", "partial", "conflict", "insufficient_evidence"}
+)
+RESEARCH_VERIFICATION_ACTIONS: Final = frozenset({"targeted_retrieve", "recalculate"})
 RESEARCH_RUNTIME_VERSION: Final = "agent-runtime-v1"
 RESEARCH_HARNESS_VERSION: Final = "harness-research-v1"
 RESEARCH_TASK_NAME: Final = "agent.run.research"
@@ -46,9 +54,12 @@ class ResearchNode(StrEnum):
     SYNTHESIZE_CLAIMS = "synthesize_claims"
     OUTLINE = "outline"
     DRAFT = "draft"
+    VERIFY = "verify"
+    REVISE = "revise"
+    FINALIZE = "finalize"
 
 
-RESEARCH_NODE_ORDER: Final = tuple(ResearchNode)
+RESEARCH_NODE_ORDER: Final = tuple(node for node in ResearchNode if node is not ResearchNode.REVISE)
 
 
 class ResearchApprovalReason(StrEnum):
@@ -83,6 +94,20 @@ def research_brief_id_for_run(research_run_id: UUID, revision: int = 1) -> UUID:
     if isinstance(revision, bool) or revision < 1:
         raise ValueError("Research Brief revision is invalid")
     return uuid5(research_run_id, f"research-brief:{revision}")
+
+
+def research_draft_id_for_run(research_run_id: UUID, revision: int = 1) -> UUID:
+    require_non_nil_uuid(research_run_id, field_name="Research Run ID")
+    if isinstance(revision, bool) or revision < 1:
+        raise ValueError("Research Draft revision is invalid")
+    return uuid5(research_run_id, f"research-draft:{revision}")
+
+
+def research_claim_id_for_run(research_run_id: UUID, revision: int = 1) -> UUID:
+    require_non_nil_uuid(research_run_id, field_name="Research Run ID")
+    if isinstance(revision, bool) or revision < 1:
+        raise ValueError("Research Claim revision is invalid")
+    return uuid5(research_run_id, f"research-claim:{revision}")
 
 
 def initial_research_state_document(
@@ -122,6 +147,13 @@ def initial_research_state_document(
         "output_tokens_used": 0,
         "cost_micro_usd": 0,
         "revise_count": 0,
+        "verification_report_id": None,
+        "verification_revision": 0,
+        "verification_status": None,
+        "verification_issue_digest": None,
+        "verification_action": None,
+        "verification_action_digest": None,
+        "verification_observation_digest": None,
         "approval_status": (
             ResearchApprovalStatus.PENDING.value if approval_reason is not None else "not_required"
         ),
@@ -272,6 +304,7 @@ class ResearchDraft:
     uncertainty_summary: str | None
     created_at: datetime
     updated_at: datetime
+    revision: int = 1
 
     def __post_init__(self) -> None:
         for value, name in (
@@ -281,6 +314,8 @@ class ResearchDraft:
             (self.plan_id, "Research Draft Plan ID"),
         ):
             require_non_nil_uuid(value, field_name=name)
+        if isinstance(self.revision, bool) or self.revision < 1:
+            raise ValueError("Research Draft revision is invalid")
         markdown = self.content_markdown.replace("\r\n", "\n").replace("\r", "\n").strip()
         if not markdown or len(markdown) > MAX_RESEARCH_DRAFT_LENGTH or "\x00" in markdown:
             raise ValueError("Research Draft Markdown is invalid")
@@ -320,6 +355,13 @@ class ResearchState:
     output_tokens_used: int
     cost_micro_usd: int
     revise_count: int
+    verification_report_id: UUID | None
+    verification_revision: int
+    verification_status: str | None
+    verification_issue_digest: str | None
+    verification_action: str | None
+    verification_action_digest: str | None
+    verification_observation_digest: str | None
     cancel_requested: bool
     status: AgentRunStatus
     stop_reason: RunStopReason | None
@@ -353,8 +395,64 @@ class ResearchState:
         ):
             if isinstance(numeric_value, bool) or numeric_value < 0:
                 raise ValueError(f"{name} is invalid")
-        if self.revise_count != 0:
-            raise ValueError("Research L3 cannot perform revise")
+        if self.revise_count > 1:
+            raise ValueError("Research L5 revise count exceeds the bounded limit")
+        if self.verification_report_id is not None:
+            require_non_nil_uuid(
+                self.verification_report_id,
+                field_name="Research Verification report ID",
+            )
+        if (
+            isinstance(self.verification_revision, bool)
+            or self.verification_revision < 0
+            or self.verification_revision > 2
+        ):
+            raise ValueError("Research Verification revision is invalid")
+        if (
+            self.verification_status is not None
+            and self.verification_status not in RESEARCH_VERIFICATION_STATUSES
+        ):
+            raise ValueError("Research Verification status is invalid")
+        if (
+            self.verification_action is not None
+            and self.verification_action not in RESEARCH_VERIFICATION_ACTIONS
+        ):
+            raise ValueError("Research Verification action is invalid")
+        for digest, field_name in (
+            (self.verification_issue_digest, "Research Verification issue digest"),
+            (self.verification_action_digest, "Research Verification action digest"),
+            (self.verification_observation_digest, "Research Verification observation digest"),
+        ):
+            if digest is not None and (
+                len(digest) != 64
+                or any(character not in "0123456789abcdef" for character in digest)
+            ):
+                raise ValueError(f"{field_name} is invalid")
+        if self.verification_revision == 0:
+            if any(
+                value is not None
+                for value in (
+                    self.verification_report_id,
+                    self.verification_status,
+                    self.verification_issue_digest,
+                    self.verification_action,
+                    self.verification_action_digest,
+                    self.verification_observation_digest,
+                )
+            ):
+                raise ValueError("Unverified Research State contains Verification data")
+        elif (
+            self.verification_report_id is None
+            or self.verification_status is None
+            or self.verification_issue_digest is None
+        ):
+            raise ValueError("Verified Research State is incomplete")
+        if (self.verification_action is None) != (self.verification_action_digest is None):
+            raise ValueError("Research Verification action digest is inconsistent")
+        if self.verification_action is not None and self.revise_count != 0:
+            raise ValueError("Consumed Research Verification action is still pending")
+        if self.verification_observation_digest is not None and self.revise_count != 1:
+            raise ValueError("Research Verification observation has no revise")
         object.__setattr__(self, "evidence_refs", _unique_ids(self.evidence_refs, "Evidence refs"))
         object.__setattr__(self, "claim_refs", _unique_ids(self.claim_refs, "Claim refs"))
         object.__setattr__(self, "artifact_refs", _unique_ids(self.artifact_refs, "Artifact refs"))
@@ -401,9 +499,10 @@ class ResearchRun:
             require_non_nil_uuid(identifier, field_name=field_name)
         if isinstance(self.revision, bool) or self.revision < 1:
             raise ValueError("Research Run revision is invalid")
-        if self.graph_version != RESEARCH_GRAPH_VERSION:
+        expected_schema = RESEARCH_GRAPH_SCHEMA_VERSIONS.get(self.graph_version)
+        if expected_schema is None:
             raise ValueError("Research Run graph version is unsupported")
-        if self.state_schema_version != RESEARCH_STATE_SCHEMA_VERSION:
+        if self.state_schema_version != expected_schema:
             raise ValueError("Research Run state schema version is unsupported")
         require_utc(self.created_at, field_name="Research Run creation time")
         require_utc(self.updated_at, field_name="Research Run update time")

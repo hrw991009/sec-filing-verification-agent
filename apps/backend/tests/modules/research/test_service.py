@@ -131,6 +131,13 @@ def valid_research_state() -> ResearchState:
         output_tokens_used=5,
         cost_micro_usd=20,
         revise_count=0,
+        verification_report_id=None,
+        verification_revision=0,
+        verification_status=None,
+        verification_issue_digest=None,
+        verification_action=None,
+        verification_action_digest=None,
+        verification_observation_digest=None,
         cancel_requested=False,
         status=AgentRunStatus.RUNNING,
         stop_reason=None,
@@ -138,7 +145,7 @@ def valid_research_state() -> ResearchState:
     )
 
 
-def test_research_state_accepts_the_versioned_l4_checkpoint_shape() -> None:
+def test_research_state_accepts_the_versioned_l5_checkpoint_shape() -> None:
     state = valid_research_state()
 
     assert state.graph_version == RESEARCH_GRAPH_VERSION
@@ -150,13 +157,32 @@ def test_research_state_accepts_the_versioned_l4_checkpoint_shape() -> None:
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [
-        (lambda state: replace(state, schema_version=2), "schema version"),
+        (
+            lambda state: replace(state, schema_version=RESEARCH_STATE_SCHEMA_VERSION + 1),
+            "schema version",
+        ),
         (lambda state: replace(state, graph_version="research-unknown"), "graph version"),
         (lambda state: replace(state, brief_revision=0), "Brief revision"),
         (lambda state: replace(state, pending_actions=(0,)), "pending actions"),
         (lambda state: replace(state, approval_status="pending"), "approval status"),
         (lambda state: replace(state, step_count=-1), "step count"),
-        (lambda state: replace(state, revise_count=1), "cannot perform revise"),
+        (lambda state: replace(state, revise_count=2), "bounded limit"),
+        (
+            lambda state: replace(state, verification_status="model_verified"),
+            "Verification status",
+        ),
+        (
+            lambda state: replace(state, verification_revision=1),
+            "Verified Research State is incomplete",
+        ),
+        (
+            lambda state: replace(
+                state,
+                verification_action="targeted_retrieve",
+                verification_action_digest="a" * 64,
+            ),
+            "Unverified Research State",
+        ),
         (
             lambda state: replace(state, evidence_refs=(EVIDENCE_ID, EVIDENCE_ID)),
             "Evidence refs",

@@ -46,6 +46,13 @@ class ResearchGraphState(TypedDict):
     output_tokens_used: int
     cost_micro_usd: int
     revise_count: int
+    verification_report_id: str | None
+    verification_revision: int
+    verification_status: str | None
+    verification_issue_digest: str | None
+    verification_action: str | None
+    verification_action_digest: str | None
+    verification_observation_digest: str | None
     approval_status: str
     approval_reason: str | None
     cancel_requested: bool

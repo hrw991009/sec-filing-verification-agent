@@ -1,7 +1,6 @@
-"""LangGraph-only adapter for the one ordered Research L3/L4 graph."""
+"""LangGraph adapter for the single versioned Research L5 graph."""
 
 from collections.abc import AsyncIterator
-from itertools import pairwise
 from typing import Protocol, cast
 
 from langgraph.graph import END, START, StateGraph
@@ -18,6 +17,40 @@ class ResearchNodeExecutor(Protocol):
 
 class CompiledResearchGraph(Protocol):
     def astream(self, state: ResearchGraphState, *, stream_mode: str) -> AsyncIterator[object]: ...
+
+
+_LINEAR_NEXT = {
+    ResearchNode.CLARIFY_SCOPE: ResearchNode.WRITE_RESEARCH_BRIEF,
+    ResearchNode.WRITE_RESEARCH_BRIEF: ResearchNode.PLAN,
+    ResearchNode.PLAN: ResearchNode.RESEARCH_LOOP,
+    ResearchNode.RESEARCH_LOOP: ResearchNode.NORMALIZE_EVIDENCE,
+    ResearchNode.NORMALIZE_EVIDENCE: ResearchNode.SYNTHESIZE_CLAIMS,
+    ResearchNode.SYNTHESIZE_CLAIMS: ResearchNode.OUTLINE,
+    ResearchNode.OUTLINE: ResearchNode.DRAFT,
+    ResearchNode.DRAFT: ResearchNode.VERIFY,
+    ResearchNode.FINALIZE: None,
+}
+
+
+def next_research_node(
+    node: ResearchNode,
+    state: ResearchGraphState,
+) -> ResearchNode | None:
+    """Return the one legal successor used by graph routing and Checkpoints."""
+
+    if state["stop_reason"] is not None:
+        return None
+    if node is ResearchNode.VERIFY:
+        if state["verification_action"] is not None and state["revise_count"] == 0:
+            return ResearchNode.REVISE
+        return ResearchNode.FINALIZE
+    if node is ResearchNode.REVISE:
+        return (
+            ResearchNode.VERIFY
+            if state["verification_observation_digest"] is not None
+            else ResearchNode.FINALIZE
+        )
+    return _LINEAR_NEXT[node]
 
 
 def build_research_graph(
@@ -39,17 +72,15 @@ def build_research_graph(
 
         builder.add_node(node.value, execute_node)
     builder.add_edge(START, start_node.value)
-    nodes = tuple(ResearchNode)
-    start_index = nodes.index(start_node)
-    for current, following in pairwise(nodes[start_index:]):
+    for node in ResearchNode:
 
         def route(
             state: ResearchGraphState,
             *,
-            next_node: ResearchNode = following,
+            current: ResearchNode = node,
         ) -> str:
-            return END if state["stop_reason"] is not None else next_node.value
+            following = next_research_node(current, state)
+            return END if following is None else following.value
 
-        builder.add_conditional_edges(current.value, route)
-    builder.add_edge(ResearchNode.DRAFT.value, END)
+        builder.add_conditional_edges(node.value, route)
     return cast(CompiledResearchGraph, builder.compile())

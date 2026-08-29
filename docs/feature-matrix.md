@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-28
 >
-> 权威来源：`docs/master-plan.md` 2.1.7
+> 权威来源：`docs/master-plan.md` 2.1.8
 
 ## 1. 使用规则
 
@@ -247,8 +247,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 |---|---|---|---|---|---|---|
 | D8-01 | SEC Evidence-aware Verifier | NEW | filer/accession/as_of、support、unit/period/context、calculation、coverage/conflict/Citation | 规则 Scorer、verified false support=0、typed issue list | `implemented_pending_verification` | `complete` |
 | D8-02 | 四种业务核验终态 | NEW | `verified/partial/conflict/insufficient_evidence`，与 Runtime stop reason 分离 | UI/API/导出一致，后 3 种不伪装 verified | `implemented_pending_verification` | `complete` |
-| D8-03 | 最多一次 bounded revise | NEW | targeted retrieve/recalculate→revise→finalize；不改 scope/toolset | max revise、budget/deadline/no-progress、A2/A3 对照 | `planned` | `complete` |
-| D8-04 | Indirect Prompt Injection 防护 | AgentDojo 方法 + NEW | filing/网页/表格不能改 Instructions、Tool、Scope、Budget、as_of 或审批 | benign utility、attack cases、未授权写 Tool=0 | `planned` | `complete` |
+| D8-03 | 最多一次 bounded revise | NEW | targeted retrieve/recalculate→revise→finalize；不改 scope/toolset | max revise、budget/deadline/no-progress、A2/A3 对照 | `implemented_pending_verification` | `complete` |
+| D8-04 | Indirect Prompt Injection 防护 | AgentDojo 方法 + NEW | filing/网页/表格不能改 Instructions、Tool、Scope、Budget、as_of 或审批 | benign utility、attack cases、未授权写 Tool=0 | `implemented_pending_verification` | `complete` |
 | D8-05 | 披露 Monitor 与差异 Case | SEC + NEW | filer/forms/rules/watermark/schedule；新 filing/amendment 生成幂等 Case | tick/misfire/429/dead-letter/amendment/重复通知测试 | `planned` | `complete` |
 | D8-06 | `monitor.subscribe@v1` 持久 HITL | NEW | 写 Tool 请求→ApprovalRequest→allow/deny/timeout→幂等订阅 | 跨刷新/Worker 重启、重复 decision、deny/timeout 零写入 | `planned` | `complete` |
 | D8-07 | L4/L5 Durable recovery | R2 + NEW | Checkpoint CAS、hard stop、resume、取消竞态、副作用账本 | 恢复成功 100%，Tool/Calculation/Monitor/Case 重复数 0 | `planned` | `complete` |
@@ -257,6 +257,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 2026-08-28 规划映射：Day 8 按依赖收敛为五步：① D8-01/D8-02 Claim Verifier 与四种业务状态；② D8-03/D8-04 one-revise 与不可信输入防线；③ D8-05 Monitor/watermark/幂等 Case；④ D8-06/D8-07 及 D8-08 部分的持久 HITL、恢复与 Workbench；⑤ D8-08 的 `sec-verification-v1`、A2/A3/A4 与收口。具体合同见 [Day 8 执行计划](learning-log/day-8.md) 和 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。本轮没有 Day 8 代码、迁移、测试或运行证据，D8-01～D8-08 全部保持 `planned`。
 
 2026-08-29 Step 1 映射：当前工作树新增确定性 `sec-claim-verifier-v1`、四种业务状态与 typed issue，复用正式 Evidence availability、SEC locator/hash、`FinancialScope` 和 Calculation 重算链；新增 append-only PostgreSQL report/Claim/issue、授权只读 API、Event/Trace contract 和 OpenAPI。14 条聚焦规则/API 测试、真实 PostgreSQL append-only/stale-revision 测试及完整 Alembic 往返/autogenerate drift 检查通过；完整 Python 回归为 `1089 passed, 85 skipped`，并修复 `sec-tool-v1` 报告在 Windows/Linux 间的 LF 字节漂移。当前没有 graph 事件发射、one-revise、Workbench、frozen eval、提交或远端 CI，因此仅 D8-01/D8-02 更新为 `implemented_pending_verification`，D8-03～D8-08 保持 `planned`。
+
+2026-08-29 Step 2 映射：当前工作树把 graph 升级为 `research-l5-graph-v1`/state schema 2，在同一 `UnifiedAgentRuntime` 与 Tool loop 中追加 `verify/revise/finalize`。Verifier issue 只能生成原 allowlist 内的一个服务端 exact action，targeted query 来自可信原问题与 typed refs，recalculate 从 PostgreSQL Evidence locator 重载 operator/operands；模型改 Tool/参数、第二次 Tool、重复 Observation、预算不足均不能扩大循环。Draft 以 `(run, revision)` append-only 保存，revised Claim 使用稳定 ID 并支持重试幂等，Checkpoint 固化 report/action/observation digest 且旧 L4 payload 明确拒绝恢复。成功 reverify、retrieve/recalculate no-progress、预算不足、间接注入写 Tool=0 和 L4 hard-stop 回归均有测试；完整真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 门禁 `1180 passed`，总体分支覆盖率 `80.27%`、核心合集 `85%`，迁移往返/drift 通过。提交 `3a46220` 的 push CI `33229040121` 中 PostgreSQL Job 因 Elasticsearch 首次索引超过 10 秒而失败；当前 CI 已增加实际写读 readiness probe 并把该 Job 的索引超时设为 30 秒。CI 查漏还同步了 Draft revision Web fixture 与 L5 浏览器驱动契约，现有 Chromium 回归 `8 passed`；修复后的远端 CI 和 D8 专属浏览器/eval 仍待验证。因此 D8-03/D8-04 仅为 `implemented_pending_verification`，D8-05～D8-08 保持 `planned`。
 
 ## 11. Day 9：Benchmark、Temporal Eval 与中文验证
 

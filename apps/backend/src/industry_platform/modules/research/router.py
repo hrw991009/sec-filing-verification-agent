@@ -348,6 +348,7 @@ def _view_response(view: ResearchRunView) -> ResearchRunDetailResponse:
             if draft is None
             else ResearchDraftResponse(
                 id=draft.draft_id,
+                revision=draft.revision,
                 status=draft.status,
                 content_markdown=draft.content_markdown,
                 outline=list(draft.outline),

@@ -548,6 +548,31 @@ class SqlAlchemyEvidenceRepository:
                 if origin_step is None:
                     raise ResearchRunNotFoundError
 
+                if command.claim_id is not None:
+                    existing_claim = await session.scalar(
+                        select(ResearchClaimRecord).where(
+                            ResearchClaimRecord.id == command.claim_id,
+                            ResearchClaimRecord.workspace_id == scope.workspace_id,
+                            ResearchClaimRecord.research_run_id == research_run.id,
+                        )
+                    )
+                    if existing_claim is not None:
+                        snapshot = await self._claim_snapshot(session, existing_claim)
+                        existing_relations = tuple(
+                            ClaimEvidenceInput(
+                                evidence_id=link.evidence.evidence_id,
+                                relation=link.relation,
+                            )
+                            for link in snapshot.relations
+                        )
+                        if (
+                            snapshot.statement != command.statement
+                            or snapshot.confidence != command.confidence
+                            or existing_relations != command.relations
+                        ):
+                            raise EvidenceConflictError
+                        return snapshot
+
                 evidence_by_id: dict[UUID, EvidenceRecord] = {}
                 if command.relations:
                     records = (
@@ -574,7 +599,7 @@ class SqlAlchemyEvidenceRepository:
 
                 verification = claim_verification_status(command.relations)
                 claim = ResearchClaimRecord(
-                    id=uuid4(),
+                    id=command.claim_id or uuid4(),
                     workspace_id=scope.workspace_id,
                     research_run_id=research_run.id,
                     statement=command.statement,

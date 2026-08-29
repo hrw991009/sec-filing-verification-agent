@@ -75,12 +75,13 @@ class ResearchRunRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="status_supported",
         ),
         CheckConstraint("revision >= 1", name="revision_positive"),
-        CheckConstraint("state_schema_version = 1", name="state_schema_version_supported"),
+        CheckConstraint("state_schema_version IN (1, 2)", name="state_schema_version_supported"),
         CheckConstraint("length(btrim(graph_version)) > 0", name="graph_version_not_blank"),
         CheckConstraint(
             "current_node IS NULL OR current_node IN ("
             "'clarify_scope', 'write_research_brief', 'plan', 'research_loop', "
-            "'normalize_evidence', 'synthesize_claims', 'outline', 'draft')",
+            "'normalize_evidence', 'synthesize_claims', 'outline', 'draft', "
+            "'verify', 'revise', 'finalize')",
             name="current_node_supported",
         ),
         Index(None, "workspace_id", "owner_user_id", "created_at"),
@@ -222,7 +223,7 @@ class ResearchDraftRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "research_drafts"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id"),
-        UniqueConstraint("research_run_id"),
+        UniqueConstraint("research_run_id", "revision"),
         ForeignKeyConstraint(
             ["research_run_id", "workspace_id"],
             ["research_runs.id", "research_runs.workspace_id"],
@@ -238,11 +239,15 @@ class ResearchDraftRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint("length(btrim(content_markdown)) > 0", name="content_not_blank"),
         CheckConstraint("jsonb_array_length(outline) > 0", name="outline_not_empty"),
-        Index(None, "workspace_id", "research_run_id"),
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        Index(None, "workspace_id", "research_run_id", "revision"),
     )
 
     workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     research_run_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
     plan_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     status: Mapped[ResearchDraftStatus] = mapped_column(
         SqlEnum(

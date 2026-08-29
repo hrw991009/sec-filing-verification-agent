@@ -143,6 +143,7 @@ class ResearchPlanResponse(StrictResearchModel):
 
 class ResearchDraftResponse(StrictResearchModel):
     id: UUID
+    revision: int
     status: ResearchDraftStatus
     content_markdown: str
     outline: list[str]

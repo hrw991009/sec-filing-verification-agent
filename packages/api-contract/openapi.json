@@ -5279,6 +5279,10 @@
             "title": "Outline",
             "type": "array"
           },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
           "status": {
             "$ref": "#/components/schemas/ResearchDraftStatus"
           },
@@ -5301,6 +5305,7 @@
         },
         "required": [
           "id",
+          "revision",
           "status",
           "content_markdown",
           "outline",
@@ -5354,7 +5359,10 @@
           "normalize_evidence",
           "synthesize_claims",
           "outline",
-          "draft"
+          "draft",
+          "verify",
+          "revise",
+          "finalize"
         ],
         "title": "ResearchNode",
         "type": "string"
