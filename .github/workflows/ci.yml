@@ -80,6 +80,7 @@ jobs:
       MINIO_SECURE: "false"
       MILVUS_ENDPOINT: http://127.0.0.1:19530
       ELASTICSEARCH_ENDPOINT: http://127.0.0.1:9200
+      KNOWLEDGE_INDEX_TIMEOUT_SECONDS: "30"
       REFRESH_TOKEN_HMAC_KEY_B64: cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnI
       CSRF_TOKEN_HMAC_KEY_B64: Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M
       DEVICE_TOKEN_HMAC_KEY_B64: ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ
@@ -249,6 +250,22 @@ jobs:
             fi
             sleep 2
           done
+          curl --fail --silent --request PUT \
+            'http://127.0.0.1:9200/ci-readiness-probe' \
+            --header 'Content-Type: application/json' \
+            --data '{"settings":{"number_of_shards":1,"number_of_replicas":0}}' \
+            >/dev/null
+          curl --fail --silent --request POST \
+            'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=true' \
+            --header 'Content-Type: application/json' \
+            --data '{"ready":true}' \
+            >/dev/null
+          curl --fail --silent \
+            'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready' \
+            | grep --quiet '"found":true'
+          curl --fail --silent --request DELETE \
+            'http://127.0.0.1:9200/ci-readiness-probe' \
+            >/dev/null
 
       - name: Exercise PostgreSQL, Redis, and MinIO integration paths
         run: |
