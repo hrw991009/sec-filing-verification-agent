@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -24,6 +25,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from industry_platform.core.database import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from industry_platform.modules.agent_runtime.domain import RunStopReason
 from industry_platform.modules.identity.models import enum_values
 from industry_platform.modules.research.domain import (
     RESEARCH_GRAPH_VERSION,
@@ -35,6 +37,16 @@ from industry_platform.modules.research.domain import (
     ResearchNode,
     ResearchRunStatus,
     ResearchSideEffectStatus,
+)
+from industry_platform.modules.research.verification import (
+    VERIFICATION_CHECKER_VERSION,
+    VERIFICATION_REPORT_SCHEMA_VERSION,
+    VerificationAllowedAction,
+    VerificationClaimVerdict,
+    VerificationIssueCode,
+    VerificationIssueSeverity,
+    VerificationRepairability,
+    VerificationStatus,
 )
 
 
@@ -63,12 +75,13 @@ class ResearchRunRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="status_supported",
         ),
         CheckConstraint("revision >= 1", name="revision_positive"),
-        CheckConstraint("state_schema_version = 1", name="state_schema_version_supported"),
+        CheckConstraint("state_schema_version IN (1, 2)", name="state_schema_version_supported"),
         CheckConstraint("length(btrim(graph_version)) > 0", name="graph_version_not_blank"),
         CheckConstraint(
             "current_node IS NULL OR current_node IN ("
             "'clarify_scope', 'write_research_brief', 'plan', 'research_loop', "
-            "'normalize_evidence', 'synthesize_claims', 'outline', 'draft')",
+            "'normalize_evidence', 'synthesize_claims', 'outline', 'draft', "
+            "'verify', 'revise', 'finalize')",
             name="current_node_supported",
         ),
         Index(None, "workspace_id", "owner_user_id", "created_at"),
@@ -108,7 +121,7 @@ class ResearchRunRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             create_constraint=False,
             validate_strings=True,
             values_callable=enum_values,
-            length=32,
+            length=40,
         ),
         nullable=True,
     )
@@ -210,7 +223,7 @@ class ResearchDraftRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "research_drafts"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id"),
-        UniqueConstraint("research_run_id"),
+        UniqueConstraint("research_run_id", "revision"),
         ForeignKeyConstraint(
             ["research_run_id", "workspace_id"],
             ["research_runs.id", "research_runs.workspace_id"],
@@ -226,11 +239,15 @@ class ResearchDraftRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint("length(btrim(content_markdown)) > 0", name="content_not_blank"),
         CheckConstraint("jsonb_array_length(outline) > 0", name="outline_not_empty"),
-        Index(None, "workspace_id", "research_run_id"),
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        Index(None, "workspace_id", "research_run_id", "revision"),
     )
 
     workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     research_run_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
     plan_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     status: Mapped[ResearchDraftStatus] = mapped_column(
         SqlEnum(
@@ -286,6 +303,15 @@ class ResearchApprovalRequestRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "(resume_claimed = true AND resume_job_id IS NOT NULL AND resumed_at IS NOT NULL)",
             name="resume_claim_consistent",
         ),
+        CheckConstraint(
+            "(reason = 'monitor_subscription' AND tool_call_id IS NOT NULL "
+            "AND tool_name IS NOT NULL AND tool_version IS NOT NULL "
+            "AND tool_arguments IS NOT NULL AND tool_arguments_sha256 IS NOT NULL) OR "
+            "(reason <> 'monitor_subscription' AND tool_call_id IS NULL "
+            "AND tool_name IS NULL AND tool_version IS NULL "
+            "AND tool_arguments IS NULL AND tool_arguments_sha256 IS NULL)",
+            name="tool_request_consistent",
+        ),
         Index(None, "workspace_id", "run_id", "created_at"),
     )
 
@@ -327,6 +353,13 @@ class ResearchApprovalRequestRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     resume_job_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    tool_call_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    tool_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    tool_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tool_arguments: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
+    tool_arguments_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ResearchApprovalDecisionRecord(UUIDPrimaryKeyMixin, Base):
@@ -401,3 +434,242 @@ class ResearchSideEffectRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     resource_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
     result_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ResearchVerificationReportRecord(UUIDPrimaryKeyMixin, Base):
+    """Append-only deterministic verification result for one Research Draft revision."""
+
+    __tablename__ = "research_verification_reports"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
+        UniqueConstraint("research_run_id", "revision"),
+        ForeignKeyConstraint(
+            ["research_run_id", "workspace_id"],
+            ["research_runs.id", "research_runs.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["agent_run_id", "workspace_id"],
+            ["agent_runs.id", "agent_runs.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["draft_id", "workspace_id"],
+            ["research_drafts.id", "research_drafts.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            f"schema_version = {VERIFICATION_REPORT_SCHEMA_VERSION}",
+            name="schema_version_supported",
+        ),
+        CheckConstraint(
+            f"checker_version = '{VERIFICATION_CHECKER_VERSION}'",
+            name="checker_version_supported",
+        ),
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        CheckConstraint("coverage BETWEEN 0 AND 1", name="coverage_bounded"),
+        CheckConstraint(
+            "status IN ('verified', 'partial', 'conflict', 'insufficient_evidence')",
+            name="status_supported",
+        ),
+        CheckConstraint("jsonb_typeof(financial_scope) = 'object'", name="scope_object"),
+        CheckConstraint(
+            "jsonb_typeof(required_claim_ids) = 'array' "
+            "AND jsonb_array_length(required_claim_ids) > 0",
+            name="required_claims_not_empty",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(evidence_snapshots) = 'array'", name="evidence_snapshots_array"
+        ),
+        Index(None, "workspace_id", "research_run_id", "revision"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    research_run_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    agent_run_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    draft_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    schema_version: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=VERIFICATION_REPORT_SCHEMA_VERSION
+    )
+    checker_version: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=VERIFICATION_CHECKER_VERSION
+    )
+    graph_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    financial_scope: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[VerificationStatus] = mapped_column(
+        SqlEnum(
+            VerificationStatus,
+            name="research_verification_status",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    coverage: Mapped[float] = mapped_column(Float, nullable=False)
+    required_claim_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    evidence_snapshots: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    runtime_stop_reason: Mapped[RunStopReason | None] = mapped_column(
+        SqlEnum(
+            RunStopReason,
+            name="run_stop_reason",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=40,
+        ),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ResearchVerificationClaimRecord(Base):
+    __tablename__ = "research_verification_claims"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["report_id", "workspace_id"],
+            ["research_verification_reports.id", "research_verification_reports.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("report_id", "ordinal"),
+        CheckConstraint("ordinal BETWEEN 1 AND 100", name="ordinal_bounded"),
+        CheckConstraint(
+            "claim_revision IS NULL OR claim_revision >= 1", name="claim_revision_positive"
+        ),
+        CheckConstraint("coverage BETWEEN 0 AND 1", name="coverage_bounded"),
+        CheckConstraint(
+            "verdict IN ('supported', 'refuted', 'conflicting', 'insufficient')",
+            name="verdict_supported",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(evidence_refs) = 'array' "
+            "AND jsonb_typeof(citation_refs) = 'array' "
+            "AND jsonb_typeof(calculation_refs) = 'array'",
+            name="refs_are_arrays",
+        ),
+    )
+
+    report_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    claim_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    ordinal: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    claim_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    required: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    verdict: Mapped[VerificationClaimVerdict] = mapped_column(
+        SqlEnum(
+            VerificationClaimVerdict,
+            name="research_verification_claim_verdict",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    coverage: Mapped[float] = mapped_column(Float, nullable=False)
+    evidence_refs: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    citation_refs: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    calculation_refs: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ResearchVerificationIssueRecord(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "research_verification_issues"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["report_id", "workspace_id"],
+            ["research_verification_reports.id", "research_verification_reports.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("report_id", "ordinal"),
+        CheckConstraint("ordinal BETWEEN 1 AND 1000", name="ordinal_bounded"),
+        CheckConstraint(
+            "jsonb_typeof(expected_refs) = 'array' AND jsonb_typeof(observed_refs) = 'array'",
+            name="refs_are_arrays",
+        ),
+        CheckConstraint("details_digest ~ '^[a-f0-9]{64}$'", name="digest_valid"),
+        CheckConstraint(
+            "code IN ('claim_not_found', 'relation_invalidated', 'evidence_inactive', "
+            "'authorization_mismatch', 'citation_unresolvable', "
+            "'scope_identity_mismatch', 'future_source', 'source_hash_mismatch', "
+            "'calculation_input_missing', 'calculation_mismatch', 'claim_conflict', "
+            "'claim_refuted', 'missing_evidence', 'coverage_incomplete')",
+            name="code_supported",
+        ),
+        CheckConstraint("severity IN ('error', 'warning')", name="severity_supported"),
+        CheckConstraint(
+            "repairability IN ('repairable', 'terminal')", name="repairability_supported"
+        ),
+        CheckConstraint(
+            "allowed_action IS NULL OR allowed_action IN ('targeted_retrieve', 'recalculate')",
+            name="allowed_action_supported",
+        ),
+        CheckConstraint(
+            "(repairability = 'repairable' AND allowed_action IS NOT NULL) OR "
+            "(repairability = 'terminal' AND allowed_action IS NULL)",
+            name="repair_action_consistent",
+        ),
+        Index(None, "workspace_id", "report_id", "ordinal"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    report_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    ordinal: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    code: Mapped[VerificationIssueCode] = mapped_column(
+        SqlEnum(
+            VerificationIssueCode,
+            name="research_verification_issue_code",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=40,
+        ),
+        nullable=False,
+    )
+    severity: Mapped[VerificationIssueSeverity] = mapped_column(
+        SqlEnum(
+            VerificationIssueSeverity,
+            name="research_verification_issue_severity",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    claim_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    expected_refs: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    observed_refs: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    repairability: Mapped[VerificationRepairability] = mapped_column(
+        SqlEnum(
+            VerificationRepairability,
+            name="research_verification_repairability",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=16,
+        ),
+        nullable=False,
+    )
+    allowed_action: Mapped[VerificationAllowedAction | None] = mapped_column(
+        SqlEnum(
+            VerificationAllowedAction,
+            name="research_verification_allowed_action",
+            native_enum=False,
+            create_constraint=False,
+            validate_strings=True,
+            values_callable=enum_values,
+            length=24,
+        ),
+        nullable=True,
+    )
+    details_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -20,6 +20,7 @@ from industry_platform.modules.agent_runtime.context import (
     TrustedRuntimeContext,
 )
 from industry_platform.modules.agent_runtime.domain import (
+    AGENT_RUNTIME_SCHEMA_VERSION,
     AgentRun,
     AgentRunStatus,
     AgentRunType,
@@ -86,18 +87,23 @@ from industry_platform.modules.identity.models import (
 from industry_platform.modules.industry.models import IndustryRecord
 from industry_platform.modules.research.domain import (
     RESEARCH_GRAPH_VERSION,
-    RESEARCH_NODE_ORDER,
     RESEARCH_STATE_SCHEMA_VERSION,
+    RESEARCH_VERIFICATION_ACTIONS,
+    RESEARCH_VERIFICATION_STATUSES,
+    ResearchApprovalReason,
     ResearchApprovalStatus,
     ResearchBrief,
     ResearchBriefInput,
     ResearchNode,
+    ResearchSideEffectStatus,
 )
 from industry_platform.modules.research.models import (
     ResearchApprovalRequestRecord,
     ResearchBriefRecord,
     ResearchRunRecord,
+    ResearchSideEffectRecord,
 )
+from industry_platform.modules.tools.domain import ToolAction, canonical_mapping_sha256
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -110,6 +116,7 @@ from industry_platform.workflows.research.contracts import (
     ResearchResumeKind,
     ResearchResumeSnapshot,
 )
+from industry_platform.workflows.research.graph import next_research_node
 
 
 class DirectAnswerRunNotExecutableError(RuntimeError):
@@ -294,6 +301,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                 research_row = None
                 resume_checkpoint = None
                 resume_approval = None
+                resume_effect = None
                 resume_events: tuple[AgentEventRecord, ...] = ()
                 if record.run_type is AgentRunType.RESEARCH:
                     research_row = (
@@ -339,6 +347,22 @@ class SqlAlchemyDirectAnswerRunLoader:
                                 .order_by(ResearchApprovalRequestRecord.created_at.desc())
                                 .limit(1)
                             )
+                            if (
+                                resume_approval is not None
+                                and resume_approval.reason
+                                is ResearchApprovalReason.MONITOR_SUBSCRIPTION
+                            ):
+                                resume_effect = await session.scalar(
+                                    select(ResearchSideEffectRecord).where(
+                                        ResearchSideEffectRecord.run_id == record.id,
+                                        ResearchSideEffectRecord.workspace_id
+                                        == record.workspace_id,
+                                        ResearchSideEffectRecord.effect_kind
+                                        == "monitor_subscription",
+                                        ResearchSideEffectRecord.status
+                                        == ResearchSideEffectStatus.COMPLETED,
+                                    )
+                                )
                         resume_events = tuple(
                             await session.scalars(
                                 select(AgentEventRecord)
@@ -562,6 +586,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                         record=record,
                         checkpoint=resume_checkpoint,
                         approval=resume_approval,
+                        approved_effect=resume_effect,
                         events=resume_events,
                         financial_scope=financial_scope,
                     )
@@ -728,6 +753,7 @@ def _resume_snapshot(
     record: AgentRunRecord,
     checkpoint: AgentCheckpointRecord | None,
     approval: ResearchApprovalRequestRecord | None,
+    approved_effect: ResearchSideEffectRecord | None,
     events: tuple[AgentEventRecord, ...],
     financial_scope: FinancialScope | None,
 ) -> ResearchResumeSnapshot:
@@ -773,7 +799,7 @@ def _resume_snapshot(
     raw_node = raw_payload.get("node")
     raw_next_node = raw_payload.get("next_node")
     if (
-        raw_payload.get("kind") != "research_l4_v1"
+        raw_payload.get("kind") != "research_l5_v1"
         or raw_payload.get("graph_version") != RESEARCH_GRAPH_VERSION
         or raw_payload.get("research_state_schema_version") != RESEARCH_STATE_SCHEMA_VERSION
         or financial_scope is None
@@ -801,6 +827,13 @@ def _resume_snapshot(
         "output_tokens_used",
         "cost_micro_usd",
         "revise_count",
+        "verification_report_id",
+        "verification_revision",
+        "verification_status",
+        "verification_issue_digest",
+        "verification_action",
+        "verification_action_digest",
+        "verification_observation_digest",
         "approval_status",
         "approval_reason",
         "cancel_requested",
@@ -816,22 +849,41 @@ def _resume_snapshot(
     ):
         raise DirectAnswerRunNotExecutableError
     try:
+        approved_action, approved_observation = _approved_monitor_tool_result(
+            approval,
+            approved_effect,
+            workspace_id=record.workspace_id,
+        )
+        monitor_resume = approved_action is not None
         if FinancialScope.from_mapping(raw_financial_scope) != financial_scope:
             raise ValueError("Checkpoint Financial Scope is invalid")
+        _validate_l5_verification_graph(graph)
         node = ResearchNode(raw_node)
-        node_index = RESEARCH_NODE_ORDER.index(node)
         expected_next = (
-            None
-            if node_index + 1 == len(RESEARCH_NODE_ORDER)
-            else RESEARCH_NODE_ORDER[node_index + 1]
+            node if monitor_resume else next_research_node(node, cast(ResearchGraphState, graph))
         )
         next_node = None if raw_next_node is None else ResearchNode(cast(str, raw_next_node))
         if next_node is not expected_next:
             raise ValueError("Checkpoint next node is invalid")
+        verification = raw_payload.get("verification")
+        if not isinstance(verification, dict) or verification != {
+            "report_id": graph["verification_report_id"],
+            "revision": graph["verification_revision"],
+            "status": graph["verification_status"],
+            "issue_digest": graph["verification_issue_digest"],
+            "action": graph["verification_action"],
+            "action_digest": graph["verification_action_digest"],
+            "observation_digest": graph["verification_observation_digest"],
+        }:
+            raise ValueError("Checkpoint Verification state is invalid")
         execution = raw_payload.get("execution")
         if not isinstance(execution, dict):
             raise ValueError("Checkpoint execution payload is missing")
         observations = _restore_observations(execution.get("observations"), record.workspace_id)
+        if approved_observation is not None:
+            if observations:
+                raise ValueError("Approved Tool Checkpoint already contains observations")
+            observations = (approved_observation,)
         steps = _restore_steps(execution.get("steps"), record.id, record.workspace_id)
         decision = _restore_final_decision(execution.get("final_decision"))
         response = _restore_model_response(execution.get("final_response"))
@@ -843,8 +895,15 @@ def _resume_snapshot(
             isinstance(value, str) for value in raw_outline
         ):
             raise ValueError("Checkpoint outline is invalid")
-        if node_index >= RESEARCH_NODE_ORDER.index(ResearchNode.RESEARCH_LOOP) and (
-            decision is None or response is None or not steps
+        if (
+            not monitor_resume
+            and node
+            not in {
+                ResearchNode.CLARIFY_SCOPE,
+                ResearchNode.WRITE_RESEARCH_BRIEF,
+                ResearchNode.PLAN,
+            }
+            and (decision is None or response is None or not steps)
         ):
             raise ValueError("Checkpoint Tool loop result is incomplete")
         return ResearchResumeSnapshot(
@@ -859,9 +918,123 @@ def _resume_snapshot(
             final_response=response,
             final_markdown=final_markdown,
             outline=tuple(cast(list[str], raw_outline)),
+            approved_tool_action=approved_action,
         )
     except (KeyError, TypeError, ValueError):
         raise DirectAnswerRunNotExecutableError from None
+
+
+def _approved_monitor_tool_result(
+    approval: ResearchApprovalRequestRecord | None,
+    effect: ResearchSideEffectRecord | None,
+    *,
+    workspace_id: UUID,
+) -> tuple[ToolAction | None, ToolObservationContextSource | None]:
+    if approval is None or approval.reason is not ResearchApprovalReason.MONITOR_SUBSCRIPTION:
+        if effect is not None:
+            raise ValueError("Unexpected approved Tool effect")
+        return None, None
+    if (
+        effect is None
+        or effect.workspace_id != workspace_id
+        or effect.run_id != approval.run_id
+        or effect.effect_kind != "monitor_subscription"
+        or effect.status is not ResearchSideEffectStatus.COMPLETED
+        or effect.resource_ref is None
+        or effect.result_sha256 is None
+        or approval.tool_call_id is None
+        or approval.tool_name is None
+        or approval.tool_version is None
+        or approval.tool_arguments is None
+        or approval.resumed_at is None
+    ):
+        raise ValueError("Approved Tool result is incomplete")
+    prefix = "sec-monitor:"
+    if not effect.resource_ref.startswith(prefix):
+        raise ValueError("Approved Tool resource is invalid")
+    UUID(effect.resource_ref.removeprefix(prefix))
+    if hashlib.sha256(effect.resource_ref.encode("ascii")).hexdigest() != effect.result_sha256:
+        raise ValueError("Approved Tool result digest is invalid")
+    action = ToolAction(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        name=approval.tool_name,
+        version=approval.tool_version,
+        arguments=approval.tool_arguments,
+    )
+    if canonical_mapping_sha256(action.arguments) != approval.tool_arguments_sha256:
+        raise ValueError("Approved Tool arguments changed after review")
+    observation = ToolObservationContextSource(
+        observation_id=uuid5(approval.id, "approved-tool-observation-v1"),
+        tool_call_id=approval.tool_call_id,
+        workspace_id=workspace_id,
+        ordinal=1,
+        tool_name=approval.tool_name,
+        tool_version=approval.tool_version,
+        source_name="normalized_tool_result",
+        source_version="approved-tool-result-v1",
+        observed_at=approval.resumed_at,
+        locator={
+            "approval_request_id": str(approval.id),
+            "resource_ref": effect.resource_ref,
+        },
+        content_sha256=effect.result_sha256,
+        model_text=effect.resource_ref,
+    )
+    return action, observation
+
+
+def _validate_l5_verification_graph(graph: dict[str, object]) -> None:
+    revision = graph["verification_revision"]
+    revise_count = graph["revise_count"]
+    report_id = graph["verification_report_id"]
+    status = graph["verification_status"]
+    issue_digest = graph["verification_issue_digest"]
+    action = graph["verification_action"]
+    action_digest = graph["verification_action_digest"]
+    observation_digest = graph["verification_observation_digest"]
+    if (
+        isinstance(revision, bool)
+        or not isinstance(revision, int)
+        or not 0 <= revision <= 2
+        or isinstance(revise_count, bool)
+        or not isinstance(revise_count, int)
+        or not 0 <= revise_count <= 1
+    ):
+        raise ValueError("Checkpoint Verification revision is invalid")
+    if report_id is not None and (not isinstance(report_id, str) or UUID(report_id).int == 0):
+        raise ValueError("Checkpoint Verification report ID is invalid")
+    if status is not None and status not in RESEARCH_VERIFICATION_STATUSES:
+        raise ValueError("Checkpoint Verification status is invalid")
+    if action is not None and action not in RESEARCH_VERIFICATION_ACTIONS:
+        raise ValueError("Checkpoint Verification action is invalid")
+    for digest in (issue_digest, action_digest, observation_digest):
+        if digest is not None and (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise ValueError("Checkpoint Verification digest is invalid")
+    if revision == 0:
+        if any(
+            value is not None
+            for value in (
+                report_id,
+                status,
+                issue_digest,
+                action,
+                action_digest,
+                observation_digest,
+            )
+        ):
+            raise ValueError("Unverified Checkpoint contains Verification data")
+    elif report_id is None or status is None or issue_digest is None:
+        raise ValueError("Checkpoint Verification state is incomplete")
+    if (action is None) != (action_digest is None):
+        raise ValueError("Checkpoint Verification action digest is inconsistent")
+    if action is not None and (revision != 1 or revise_count != 0 or status == "verified"):
+        raise ValueError("Checkpoint Verification action is not pending")
+    if observation_digest is not None and revise_count != 1:
+        raise ValueError("Checkpoint Verification observation has no revise")
 
 
 def _restore_observations(

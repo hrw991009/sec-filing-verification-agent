@@ -9,6 +9,8 @@ import type {
   SecFilingImport,
   SecFilingSearch,
   SecFilingSection,
+  SecDisclosureCase,
+  SecMonitor,
   SecXbrlFactCollection,
 } from "./sec-api";
 
@@ -21,11 +23,15 @@ const chunkId = "44444444-4444-4444-8444-444444444444";
 
 const mocks = vi.hoisted(() => ({
   diffSecFilings: vi.fn(),
+  deleteSecMonitor: vi.fn(),
   getSecXbrlFacts: vi.fn(),
   importSecFiling: vi.fn(),
   listKnowledgeBases: vi.fn(),
   listSecFilingImports: vi.fn(),
   listSecFilings: vi.fn(),
+  listSecDisclosureCases: vi.fn(),
+  listSecMonitors: vi.fn(),
+  changeSecMonitorStatus: vi.fn(),
   readSecFilingSection: vi.fn(),
   searchSecFiling: vi.fn(),
   syncSecXbrl: vi.fn(),
@@ -36,11 +42,15 @@ vi.mock("../knowledge/knowledge-api", () => ({
 }));
 
 vi.mock("./sec-api", () => ({
+  deleteSecMonitor: mocks.deleteSecMonitor,
+  changeSecMonitorStatus: mocks.changeSecMonitorStatus,
   diffSecFilings: mocks.diffSecFilings,
   getSecXbrlFacts: mocks.getSecXbrlFacts,
   importSecFiling: mocks.importSecFiling,
   listSecFilingImports: mocks.listSecFilingImports,
   listSecFilings: mocks.listSecFilings,
+  listSecDisclosureCases: mocks.listSecDisclosureCases,
+  listSecMonitors: mocks.listSecMonitors,
   readSecFilingSection: mocks.readSecFilingSection,
   searchSecFiling: mocks.searchSecFiling,
   syncSecXbrl: mocks.syncSecXbrl,
@@ -313,6 +323,63 @@ const diffResult: SecFilingDiff = {
   version: "sec-filing-diff-v1",
 };
 
+const monitor: SecMonitor = {
+  allowed_forms: ["10-K", "10-K/A"],
+  canonical_name: "Apple Inc.",
+  cik: "0000320193",
+  created_at: "2026-08-29T01:00:00Z",
+  created_from_approval_id: "14141414-1414-4414-8414-141414141414",
+  cron_expression: "0 3 * * *",
+  knowledge_base_id: knowledgeBaseId,
+  monitor_id: "15151515-1515-4515-8515-151515151515",
+  owner_user_id: "16161616-1616-4616-8616-161616161616",
+  revision: 1,
+  rules: [
+    {
+      comparator: null,
+      concept: null,
+      kind: "new_filing",
+      rule_id: "17171717-1717-4717-8717-171717171717",
+      rule_version: "sec-monitor-rules-v1",
+      section_query: "management discussion and analysis",
+      taxonomy: null,
+      threshold: null,
+      unit: null,
+    },
+  ],
+  schedule_id: "18181818-1818-4818-8818-181818181818",
+  status: "active",
+  timezone_name: "Asia/Shanghai",
+  updated_at: "2026-08-29T01:00:00Z",
+  watermark_accepted_at: null,
+  watermark_accession: null,
+  watermark_coverage_version: "sec-monitor-initial-v1",
+  watermark_revision: 1,
+  workspace_id: workspaceId,
+};
+
+const disclosureCase: SecDisclosureCase = {
+  baseline_accession: comparisonAccession,
+  case_id: "19191919-1919-4919-8919-191919191919",
+  created_at: "2026-08-29T02:00:00Z",
+  diff_payload: { relationship: "adjacent_period" },
+  diff_sha256: "a".repeat(64),
+  diff_version: "sec-filing-diff-v1",
+  evidence: [
+    { evidence_id: "20202020-2020-4020-8020-202020202020", side: "baseline" },
+    { evidence_id: "21212121-2121-4121-8121-212121212121", side: "target" },
+  ],
+  monitor_id: monitor.monitor_id,
+  monitor_run_id: "22222222-2222-4222-8222-222222222220",
+  notification_status: "pending",
+  rule_id: monitor.rules[0]?.rule_id ?? "",
+  source_coverage_version: "sec-filings-v2",
+  target_accession: accession,
+  trigger_kind: "new_filing",
+  updated_at: "2026-08-29T02:00:00Z",
+  verification_status: "verified",
+};
+
 describe("SecWorkbench", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -331,6 +398,28 @@ describe("SecWorkbench", () => {
     });
     mocks.getSecXbrlFacts.mockResolvedValue(xbrlResult);
     mocks.diffSecFilings.mockResolvedValue(diffResult);
+    mocks.listSecMonitors.mockResolvedValue([monitor]);
+    mocks.listSecDisclosureCases.mockResolvedValue([disclosureCase]);
+    mocks.changeSecMonitorStatus.mockResolvedValue({ ...monitor, revision: 2, status: "paused" });
+  });
+
+  it("rebuilds Monitor and Case state from formal APIs and pauses with its revision", async () => {
+    const user = userEvent.setup();
+    render(<SecWorkbench canManage workspaceId={workspaceId} />);
+
+    await user.click(await screen.findByRole("tab", { name: "Monitor / Case" }));
+    expect(await screen.findByRole("heading", { name: "Apple Inc." })).toBeInTheDocument();
+    expect(screen.getByText(`${comparisonAccession} → ${accession}`)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "暂停" }));
+    await waitFor(() => {
+      expect(mocks.changeSecMonitorStatus).toHaveBeenCalledWith(
+        workspaceId,
+        monitor.monitor_id,
+        1,
+        "paused",
+      );
+    });
   });
 
   it("runs the CIK to locked snapshot to chunk reading journey", async () => {

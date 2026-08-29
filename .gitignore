@@ -51,6 +51,8 @@ evals/reports/*
 !evals/reports/sec-source-v1.md
 !evals/reports/sec-tool-v1.json
 !evals/reports/sec-tool-v1.md
+!evals/reports/sec-verification-v1.json
+!evals/reports/sec-verification-v1.md
 
 # Runtime and infrastructure state
 *.log

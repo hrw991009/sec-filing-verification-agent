@@ -16,6 +16,7 @@ from industry_platform.modules.agent_runtime.domain import (
 from industry_platform.modules.agent_runtime.events import AgentEvent
 from industry_platform.modules.agent_runtime.model import ModelResponse
 from industry_platform.modules.agent_runtime.state import RunState, validate_run_state
+from industry_platform.modules.agent_runtime.tool_runtime import _PendingToolApproval
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
     ToolL2RunCommand,
     ToolLoopFinalDecision,
@@ -25,6 +26,7 @@ from industry_platform.modules.research.domain import (
     ResearchNode,
     initial_research_state_document,
 )
+from industry_platform.modules.tools.domain import ToolAction
 
 
 class ResearchGraphState(TypedDict):
@@ -46,6 +48,13 @@ class ResearchGraphState(TypedDict):
     output_tokens_used: int
     cost_micro_usd: int
     revise_count: int
+    verification_report_id: str | None
+    verification_revision: int
+    verification_status: str | None
+    verification_issue_digest: str | None
+    verification_action: str | None
+    verification_action_digest: str | None
+    verification_observation_digest: str | None
     approval_status: str
     approval_reason: str | None
     cancel_requested: bool
@@ -71,6 +80,7 @@ class ResearchResumeSnapshot:
     final_response: ModelResponse | None = None
     final_markdown: str | None = field(default=None, repr=False)
     outline: tuple[str, ...] = ()
+    approved_tool_action: ToolAction | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if isinstance(self.checkpoint_revision, bool) or self.checkpoint_revision < 0:
@@ -153,6 +163,7 @@ class ResearchExecutionState:
     final_response: ModelResponse | None = None
     final_markdown: str | None = field(default=None, repr=False)
     outline: tuple[str, ...] = ()
+    pending_tool_approval: _PendingToolApproval | None = field(default=None, repr=False)
     terminated: bool = False
 
 

@@ -86,6 +86,12 @@ from industry_platform.modules.data_explorer.resources import (
     create_data_explorer_resources,
 )
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
+from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
+    sec_monitor_occurrence_observer,
+)
+from industry_platform.modules.disclosures.adapters.subscription_sqlalchemy import (
+    SecMonitorSubscriptionPersistenceError,
+)
 from industry_platform.modules.disclosures.domain import (
     SecDisclosurePersistenceError,
     SecFilingContentError,
@@ -94,6 +100,10 @@ from industry_platform.modules.disclosures.domain import (
 )
 from industry_platform.modules.disclosures.resources import create_disclosure_resources
 from industry_platform.modules.disclosures.router import router as disclosure_router
+from industry_platform.modules.disclosures.subscription import (
+    SecMonitorNotFoundError,
+    SecMonitorRevisionConflictError,
+)
 from industry_platform.modules.evidence.domain import (
     ClaimNotFoundError,
     EvidenceConflictError,
@@ -156,6 +166,9 @@ from industry_platform.modules.industry.domain import (
 )
 from industry_platform.modules.industry.resources import create_industry_resources
 from industry_platform.modules.industry.router import router as industry_router
+from industry_platform.modules.jobs.adapters.sqlalchemy import (
+    compose_schedule_occurrence_observers,
+)
 from industry_platform.modules.jobs.domain import (
     ScheduleDefinitionConflictError,
     ScheduleNotFoundError,
@@ -194,6 +207,11 @@ from industry_platform.modules.research.durability import (
 from industry_platform.modules.research.resources import create_research_resources
 from industry_platform.modules.research.router import router as research_router
 from industry_platform.modules.research.service import ResearchNotFoundError
+from industry_platform.modules.research.verification import (
+    VerificationConflictError,
+    VerificationInputError,
+    VerificationPersistenceError,
+)
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
     WorkspaceAccessDeniedError,
@@ -284,7 +302,10 @@ def create_app(
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
-                occurrence_observer=industry_collection_occurrence_observer,
+                occurrence_observer=compose_schedule_occurrence_observers(
+                    industry_collection_occurrence_observer,
+                    sec_monitor_occurrence_observer,
+                ),
             )
             industry_resources = create_industry_resources(
                 active_settings,
@@ -457,9 +478,14 @@ def create_app(
 
     @application.exception_handler(ResearchPersistenceError)
     @application.exception_handler(ResearchDurabilityPersistenceError)
+    @application.exception_handler(VerificationPersistenceError)
     async def handle_research_unavailable(
         request: Request,
-        _error: ResearchPersistenceError | ResearchDurabilityPersistenceError,
+        _error: (
+            ResearchPersistenceError
+            | ResearchDurabilityPersistenceError
+            | VerificationPersistenceError
+        ),
     ) -> JSONResponse:
         return problem_response(
             trace_id=get_trace_id(request),
@@ -468,6 +494,34 @@ def create_app(
             code="RESEARCH_UNAVAILABLE",
             detail="Research facts could not be loaded safely.",
             problem_type="urn:iip:problem:research-unavailable",
+        )
+
+    @application.exception_handler(VerificationConflictError)
+    async def handle_verification_conflict(
+        request: Request,
+        _error: VerificationConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Verification snapshot conflict",
+            code="VERIFICATION_SNAPSHOT_CONFLICT",
+            detail="The Research facts changed while verification was running.",
+            problem_type="urn:iip:problem:verification-snapshot-conflict",
+        )
+
+    @application.exception_handler(VerificationInputError)
+    async def handle_verification_input_rejected(
+        request: Request,
+        _error: VerificationInputError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Verification input rejected",
+            code="VERIFICATION_INPUT_REJECTED",
+            detail="A scoped SEC Research Draft is required for verification.",
+            problem_type="urn:iip:problem:verification-input-rejected",
         )
 
     @application.exception_handler(ResearchApprovalNotFoundError)
@@ -498,6 +552,53 @@ def create_app(
             code=error.code.upper(),
             detail="Reload the durability timeline before retrying this operation.",
             problem_type="urn:iip:problem:research-resume-conflict",
+        )
+
+    @application.exception_handler(SecMonitorNotFoundError)
+    async def handle_sec_monitor_not_found(
+        request: Request,
+        _error: SecMonitorNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="SEC Monitor not found",
+            code="SEC_MONITOR_NOT_FOUND",
+            detail="The requested Monitor or Case is not available in this workspace.",
+            problem_type="urn:iip:problem:sec-monitor-not-found",
+        )
+
+    @application.exception_handler(SecMonitorRevisionConflictError)
+    async def handle_sec_monitor_conflict(
+        request: Request,
+        _error: SecMonitorRevisionConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="SEC Monitor revision conflict",
+            code="SEC_MONITOR_REVISION_CONFLICT",
+            detail="Reload the Monitor before retrying this operation.",
+            problem_type="urn:iip:problem:sec-monitor-revision-conflict",
+        )
+
+    @application.exception_handler(SecMonitorSubscriptionPersistenceError)
+    async def handle_sec_monitor_unavailable(
+        request: Request,
+        error: SecMonitorSubscriptionPersistenceError,
+    ) -> JSONResponse:
+        logger.error(
+            "SEC Monitor persistence unavailable trace_id=%s sqlstate=%s",
+            get_trace_id(request),
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="SEC Monitor service unavailable",
+            code="SEC_MONITOR_UNAVAILABLE",
+            detail="Monitor facts could not be loaded safely.",
+            problem_type="urn:iip:problem:sec-monitor-unavailable",
         )
 
     @application.exception_handler(EvidenceNotFoundError)

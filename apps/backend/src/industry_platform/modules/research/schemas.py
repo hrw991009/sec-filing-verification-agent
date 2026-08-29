@@ -14,6 +14,7 @@ from pydantic import (
 )
 
 from industry_platform.modules.agent_runtime.domain import AgentRunStatus, RunStopReason
+from industry_platform.modules.evidence.domain import EvidenceStatus
 from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.research.domain import (
     ResearchApprovalOutcome,
@@ -22,6 +23,14 @@ from industry_platform.modules.research.domain import (
     ResearchDraftStatus,
     ResearchNode,
     ResearchRunStatus,
+)
+from industry_platform.modules.research.verification import (
+    VerificationAllowedAction,
+    VerificationClaimVerdict,
+    VerificationIssueCode,
+    VerificationIssueSeverity,
+    VerificationRepairability,
+    VerificationStatus,
 )
 
 
@@ -134,6 +143,7 @@ class ResearchPlanResponse(StrictResearchModel):
 
 class ResearchDraftResponse(StrictResearchModel):
     id: UUID
+    revision: int
     status: ResearchDraftStatus
     content_markdown: str
     outline: list[str]
@@ -197,6 +207,11 @@ class ResearchApprovalResponse(StrictResearchModel):
     resume_claimed: bool
     resume_job_id: UUID | None
     resumed_at: datetime | None
+    tool_call_id: UUID | None
+    tool_name: str | None
+    tool_version: str | None
+    tool_arguments: dict[str, object] | None
+    tool_arguments_sha256: str | None
     resume_token: str | None = Field(default=None, min_length=40, max_length=100)
 
 
@@ -222,3 +237,56 @@ class ResumeResearchResponse(StrictResearchModel):
     agent_run_id: UUID
     job_id: UUID
     created: bool
+
+
+class VerificationEvidenceSnapshotResponse(StrictResearchModel):
+    evidence_id: UUID
+    revision: int
+    status: EvidenceStatus
+    content_sha256: str
+    available: bool
+
+
+class VerificationIssueResponse(StrictResearchModel):
+    issue_id: UUID
+    code: VerificationIssueCode
+    severity: VerificationIssueSeverity
+    claim_id: UUID | None
+    expected_refs: list[str]
+    observed_refs: list[str]
+    repairability: VerificationRepairability
+    allowed_action: VerificationAllowedAction | None
+    details_digest: str
+
+
+class VerificationClaimResponse(StrictResearchModel):
+    claim_id: UUID
+    claim_revision: int | None
+    required: bool
+    verdict: VerificationClaimVerdict
+    coverage: float
+    evidence_refs: list[UUID]
+    citation_refs: list[UUID]
+    calculation_refs: list[UUID]
+    issues: list[VerificationIssueResponse]
+
+
+class VerificationReportResponse(StrictResearchModel):
+    report_id: UUID
+    research_run_id: UUID
+    agent_run_id: UUID
+    workspace_id: UUID
+    draft_id: UUID
+    revision: int
+    schema_version: int
+    checker_version: str
+    graph_version: str
+    financial_scope: FinancialScopePayload
+    verification_status: VerificationStatus
+    coverage: float
+    required_claim_ids: list[UUID]
+    claims: list[VerificationClaimResponse]
+    evidence_snapshots: list[VerificationEvidenceSnapshotResponse]
+    issues: list[VerificationIssueResponse]
+    runtime_stop_reason: RunStopReason | None
+    created_at: datetime

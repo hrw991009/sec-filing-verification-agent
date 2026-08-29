@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.6`
+> 版本：`2.1.9`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-28`
+> 修订日期：`2026-08-29`
 >
 > 状态：SEC 财务事实核验 Agent 执行基线
 >
@@ -1011,7 +1011,7 @@ Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calcu
 
 ## 15. Day 8：SEC Verified Agent L5、监控与 Durable HITL
 
-> 执行状态（2026-08-28）：Day 7 已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败，不能据此关闭 Day 7。项目所有者明确先继续 Day 8～Day 9 代码、Day 10 再统一查漏补缺；该授权只改变执行顺序，Day 4～Day 7 的 coverage、浏览器、bulk/live、ranking/Citation、中英 paired、main CI 和 owner review 债务仍是 Day 10 硬门。Day 8 当前只完成不超过五步的文档规划，D8-01～D8-08 均为 `planned`。详细顺序见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
+> 执行状态（2026-08-29）：Day 8 Step 1～5 已在 `feat/day-8` 工作树实现。Step 1～4 已提供 Verifier/one-revise、Monitor/Case、七工具 L5 Profile、持久 HITL、同 Run resume 与正式 Workbench；Step 5 新增 14-case/42-run `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 和可重生成 JSON/Markdown。frozen deterministic/security/fault 合同门通过，A3 对 A2 的复杂场景净增益 `0.714286`、简单题退化 `0`，A4 operational/recovery 单独为 `1.0/1.0`。最终本地门禁为真实依赖 `1207 passed`、总体/核心分支 coverage `80.21%`/`86%`、Web `89 passed`、现有 Chromium `8 passed`，依赖与完整历史密钥审计通过。D8-01～D8-08 均为 `implemented_pending_verification`；报告不是 live SEC/model 质量，专用 Monitor browser、真实 Monitor hard-stop 注入、branch/PR/main CI、owner review 与 Day 4～7 债务均未关闭。详细事实见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
 
 ### 学习主题
 
@@ -1335,3 +1335,8 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.1.4 | 2026-08-28 | 同步 Day 7 Step 4 当前工作树：新增 fail-closed filing diff、`sec.diff_filings@v1`、exact six-Tool 中文 `sec-l4-v1`、SEC/Research Workbench 审计链和完整 Evidence HTTP locator；修复分支 CI `33149285431` 暴露的 ready/active PostgreSQL 测试夹具。D7-06/D7-07 为 `implemented_pending_verification`，保留真实依赖、正式浏览器、中英 paired run、新分支/PR/main CI 与既有评测缺口 | 用户授权继续 Day 7 下一步 |
 | 2.1.5 | 2026-08-28 | 同步 Day 7 Step 5 当前工作树：新增可重算 10-case/30-run `sec-tool-v1` manifest、独立 observations、严格 scorer 与 JSON/Markdown；deterministic A2 对 A1 复杂题净增益 `0.833333`、简单题退化 `0`，但报告明确不是 live/model/public benchmark 且 Day 7 未收口。同步修复 `e5fb75c` CI 暴露的 XBRL unit 边界、过期 Hybrid E2E selector 与版本常量 Secret 误报；本地 Python `1081 passed, 84 skipped`、Python/Web/OpenAPI/报告生成/Gitleaks 门禁通过。D7-08 为 `implemented_pending_verification`，保留真实依赖、浏览器、中英 paired、三层 CI、owner review 和既有债务 | 用户授权继续 Day 7 下一步 |
 | 2.1.6 | 2026-08-28 | 记录 PR #11、功能 head、两组通过的 PR 检查与合并提交 main CI 最终 6/7 Job 通过、Browser E2E 失败，Day 7 状态不升级。按项目所有者“先完成后续代码、Day 10 统一查漏补缺”的排期授权，将 Day 8 收敛为五个纵向步骤，新增 Day 8 执行计划和 Verifier/Monitor/恢复设计；D8-01～D8-08 保持 `planned`，Day 4～7 原债务继续作为 Day 10 发布硬门 | 用户授权进入 Day 8 文档规划 |
+| 2.1.7 | 2026-08-29 | 同步 Day 8 Step 1 当前工作树：复用正式 Evidence/SEC/Calculation 链实现确定性 Claim Verifier、四种业务状态、typed issue 与 append-only PostgreSQL 报告，增加只读 API、Event/Trace/OpenAPI 和真实迁移/持久化测试；D8-01/D8-02 为 `implemented_pending_verification`。明确 graph 发射、one-revise、Workbench、frozen eval、提交/远端 CI 和 owner review 尚未完成 | 用户授权继续 Day 8 |
+| 2.1.8 | 2026-08-29 | 同步 Day 8 Step 2：在唯一 Research graph/Runtime 内实现 verify、最多一次 exact-action revise 与 finalize，增加 Draft revision、Claim 重试幂等、L5 Checkpoint 和不可信输入防线；修复 PostgreSQL CI 的 Elasticsearch 冷启动 readiness/超时，并同步 Web fixture 与 L5 浏览器驱动契约。真实依赖 `1180 passed`、现有 Chromium `8 passed`，D8-01～D8-04 为 `implemented_pending_verification`，远端 CI 和 D8 专属 browser/eval/owner 证据仍待关闭 | 用户授权继续 Day 8 并要求修复 CI |
+| 2.1.9 | 2026-08-29 | 同步 Day 8 Step 3：复用 Schedule/Job/Outbox、SEC sync、filing diff 与 Evidence ledger，实现版本化 Monitor/rule、append-only watermark/run、幂等 Case、双侧 Evidence 反查和 Beat/Worker 装配；将 CI 真实根因从放宽超时修正为 Elasticsearch 写入显式 `refresh=true`。本机真实依赖主门 `1186 passed`，3 个本机 endpoint 配置失败用实际 Compose endpoint 重跑通过，总体/核心覆盖率为 `80.15%`/`85%`。D8-05 为 `implemented_pending_verification`，持久订阅 HITL、Workbench、完整 fault/security suite、A2/A3/A4、远端 CI 和 owner review 仍待关闭 | 用户授权继续 Day 8 并要求解决 CI |
+| 2.2.0 | 2026-08-29 | 同步 Day 8 Step 4：新增版本化 `sec-l5-v1` 七工具 Profile 和严格 `sec.monitor.subscribe@v1`，复用唯一 Research Runtime/Approval/Checkpoint/side-effect ledger，原子完成 allow 后 Monitor/Schedule 与同 Run resume，deny/timeout 零业务写；增加正式 Monitor/Case API 与刷新恢复 Workbench。保留 `sec-l4-v1` 六工具 benchmark 契约，修复 JSONB SQL NULL 兼容并验证旧审批、迁移和 `sec-tool-v1` 可复算。真实依赖 `1197 passed`，总体/核心 coverage `80.11%`/`86%`，Web `89 passed`、现有 Chromium `8 passed`。D8-06/D8-07 为 `implemented_pending_verification`，D8-08 为 `thin_slice`；Step 5、远端 CI、专用 Monitor 浏览器旅程和 owner review 仍待关闭 | 用户授权继续 Day 8 |
+| 2.2.1 | 2026-08-29 | 同步 Day 8 Step 5：新增 14-case/42-run `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 与 deterministic/security/fault JSON+Markdown；scorer 重算 Evidence/Citation、Scope、trajectory、stop reason 和最终数据库计数，并以负向测试拒绝伪 verified、越权动作、缺跑与重复副作用。A3 复杂题净增益 `0.714286`、简单题退化 `0`，A4 operational/recovery 为 `1.0/1.0`。修复相同逻辑事件时间触发数据库墙钟 `onupdate` 的 Runtime 顺序误判，并以 PostgreSQL 回归锁定；最终本地门禁为真实依赖 `1207 passed`、总体/核心 coverage `80.21%`/`86%`、Web `89 passed`、Chromium `8 passed`，依赖审计和完整历史 Gitleaks 通过。报告明确不是 live SEC/model，Day 8 因专用浏览器、真实 Monitor hard-stop 注入、三层远端 CI 与 owner review 保持未完成 | 用户授权继续 Day 8 最后一步 |

@@ -1,10 +1,10 @@
 # SEC Verifier、Monitor 与恢复设计
 
-> 版本：`0.1.0`
+> 版本：`0.5.0`
 >
-> 日期：2026-08-28
+> 日期：2026-08-29
 >
-> 状态：Day 8 设计已冻结，代码未开始
+> 状态：Step 1～5 已本地实现；Day 8 等待专用浏览器、完整故障注入、远端 CI 与 owner review
 >
 > 适用范围：D8-01～D8-08
 
@@ -40,6 +40,8 @@ approved monitor
 | Notification receipt | side-effect ledger/对应 Adapter | request/destination/payload hash 唯一；迟到结果不能覆盖终态 |
 
 Milvus、Elasticsearch、Redis、浏览器状态和 OpenTelemetry 都不是上述业务事实源。
+
+Step 1 已按上述所有权落入既有 `research` bounded context：正式 PostgreSQL 保存 report/Claim/issue 的 append-only revision，Verifier 通过现有 Evidence service 重载实际 availability，并通过只读 API 暴露最新报告。当前只注册 verification Event/Trace contract；Event 发射和 graph/checkpoint 连接属于 Step 2，不能由 API 手动伪造。
 
 ## 3. Verifier contract
 
@@ -113,6 +115,10 @@ Guard 必须同时检查：
 
 Checkpoint 在每个成功节点后保存 graph version、verification revision、issue/action digest 和 side-effect refs。旧 schema 显式迁移或拒绝恢复，不能猜字段。
 
+Step 2 已按此状态机落入唯一 Research graph：`research-l5-graph-v1` 使用同一个条件路由函数生成运行时 successor 与 Checkpoint `next_node`，避免恢复路径另写一套顺序。Verifier report、issue/action/observation digest 进入 state schema 2；Draft revision append-only，Claim ID 稳定且 repository 支持一致重试。旧 L4 run ledger 仍可读取，但旧 Checkpoint 因缺少 L5 verification block 被明确拒绝恢复。
+
+targeted retrieve 的 query 只由可信原问题、issue code 和 typed refs 组成，不读取 filing 指令或模型自由生成的 Claim 文本；recalculate 只从 issue 指向且重新授权加载的 `FinancialCalculationLocatorV1` 重建 operator、operand Evidence、decimal 与 rounding。模型返回的 action 必须与服务端 action digest 完全相同，并且只允许一个附加 Tool call；无新 Evidence、重复 Observation、预算不足或取消时不创建 revision 2，也不提升业务状态。
+
 ## 5. 不可信输入与 Tool 安全
 
 - Context Compiler 保持 system/trusted runtime/untrusted data 分层；filing 内的“忽略前文”“调用工具”“修改订阅”等内容只作为 Evidence content。
@@ -154,6 +160,8 @@ Beat tick
 
 部分覆盖、429、dependency failure 或 dead-letter 时不越过缺口推进 watermark。misfire 按既有 Schedule policy 补跑或合并 occurrence，但不得以当前 snapshot 冒充错过时点的数据。
 
+Step 3 已按该边界落地：Monitor occurrence observer 与既有行业 observer 通过通用组合器进入同一调度事务；Worker 固定注册表调用正式 disclosure composition，不在 Beat 或 handler 内另写 SEC client。分析先读取完整 point-in-time coverage，再复用 filing import、XBRL sync 与 filing diff；repository 仅在分析完整时原子写入 Case/Evidence 和下一 revision watermark。Job 在业务提交后重投时先读取 completed result，避免重复推进水位。
+
 ### 6.3 Case 幂等
 
 Case 幂等键至少由 `workspace + monitor + trigger source version + rule version + comparison pair` 组成。Case 保存 base/current accession、source snapshot/version、diff artifact、matched rule、Evidence refs、verification status 和通知状态。重复 Worker、手动重放或 amendment 重现返回现有 Case；不同规则或新 source version 可以产生新 Case。
@@ -168,6 +176,8 @@ Case 幂等键至少由 `workspace + monitor + trigger source version + rule ver
 4. `deny/timeout` 写 Decision 和终态 Event，不创建 Monitor/Schedule/Outbox；
 5. 重复 decision 返回既有结果，冲突 decision 明确拒绝；迟到 Worker 受 checkpoint revision/run epoch/fence 阻止。
 
+Step 4 已把该协议接入唯一 Tool/Research Runtime。Day 7 的 `sec-l4-v1` 六个只读 Tool 保持冻结，新的 `sec-l5-v1` 才增加 `sec.monitor.subscribe@v1`；审批记录持久化 call ID、Tool reference、严格参数与 canonical digest。allow 在同一 PostgreSQL 事务写 Monitor/rule/初始 watermark/Schedule、Decision、completed side-effect ledger 和 resume Job/Outbox；deny/timeout 不写 Monitor、Schedule 或 resume Outbox。恢复加载器从 Approval 与 ledger 重建同一 Tool Observation，回到暂停的 Research loop，而不是调用第二套恢复服务。
+
 恢复测试必须覆盖 API 刷新、Worker hard stop、lease 过期、决定与取消竞态、Tool/Calculation 已完成但 Event 未投影、Case 已写但通知未知等阶段。恢复前先读账本和最终业务表，不能依据内存或 Trace 猜测。
 
 ## 8. API、Event 与 Workbench
@@ -180,6 +190,8 @@ Case 幂等键至少由 `workspace + monitor + trigger source version + rule ver
 - Case 列表、详情及 base/current filing、diff、Evidence/Citation 导航。
 
 SSE/Event 增加版本化 verification/approval/monitor/case 事件，但继续使用统一 envelope 和单调 sequence。Workbench 只从正式 API/Event/Trace 重建，刷新后能恢复相同状态；四种业务状态使用文字与语义图标，不只依赖颜色。
+
+Step 4 的正式 HTTP 面已提供原子 Monitor 审批决定、Monitor 列表/详情/暂停/恢复/删除和 Case 列表/详情。Research 审批面板只调用原子决定端点；SEC Workbench 从 API 展示 schedule、rules、watermark、来源 Approval、Case diff 和双侧 Evidence ID。现有 Chromium 8 条回归已通过，但没有专用 Monitor allow/deny/timeout 页面旅程；当前仍是可恢复的正式薄切片，不能据此关闭 D8-08。
 
 ## 9. `sec-verification-v1` 与门禁
 
@@ -198,4 +210,6 @@ Day 8 硬门：
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1 先冻结 domain contract 和状态决策表；未完成前不建 Monitor 表或页面。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。
+实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 5 已冻结 14-case/42-run `sec-verification-v1`，以 A3 作为六只读 Tool + mandatory verifier/one-revise，以 A4 作为 A3 + `sec.monitor.subscribe@v1`/HITL；A4 的 operational/recovery 指标与普通 question quality 分列。独立 scorer 从 Evidence/Citation、answer/program、Scope、trajectory、stop reason 和最终数据库计数重算，deterministic/security/fault JSON 与 Markdown 由同一 manifest 生成。
+
+当前 frozen replay 三层合同门通过，A3 复杂场景相对 A2 净增益 `0.714286`、简单题退化 `0`，A4 操作正确率/恢复率 `1.0/1.0`。报告不是 live SEC/model 质量结果；专用 Monitor allow/deny/timeout 浏览器旅程、真实 Monitor hard-stop 故障注入、branch/PR/main CI 和 owner review 尚缺，`day8_closeout_ready=false`。不得回写 observation 或修改分母来掩盖这些边界。

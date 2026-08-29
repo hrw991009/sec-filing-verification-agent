@@ -15,6 +15,9 @@ from industry_platform.modules.disclosures.adapters.filing_content_sqlalchemy im
 from industry_platform.modules.disclosures.adapters.filings_sqlalchemy import (
     SqlAlchemySecFilingRepository,
 )
+from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
+    SqlAlchemySecMonitorRepository,
+)
 from industry_platform.modules.disclosures.adapters.sec_archives import (
     LiveSecFilingArchiveAdapter,
     UnavailableSecFilingArchiveAdapter,
@@ -41,6 +44,9 @@ from industry_platform.modules.disclosures.adapters.snapshots import (
 from industry_platform.modules.disclosures.adapters.sqlalchemy import (
     SqlAlchemySecFilerCatalogRepository,
 )
+from industry_platform.modules.disclosures.adapters.subscription_sqlalchemy import (
+    SqlAlchemySecMonitorSubscriptionRepository,
+)
 from industry_platform.modules.disclosures.adapters.xbrl import (
     LiveSecCompanyFactsAdapter,
     UnavailableSecCompanyFactsAdapter,
@@ -52,6 +58,10 @@ from industry_platform.modules.disclosures.diff import SecFilingDiffService
 from industry_platform.modules.disclosures.filing_content_service import (
     SecFilingContentService,
     SecFilingImportService,
+)
+from industry_platform.modules.disclosures.monitor import (
+    SecMonitorAnalysisService,
+    SecMonitorApplicationService,
 )
 from industry_platform.modules.disclosures.ports import (
     SecCompanyFactsPort,
@@ -67,10 +77,12 @@ from industry_platform.modules.disclosures.service import (
     SecFilerResolutionService,
     SecFilingSelectionService,
 )
+from industry_platform.modules.disclosures.subscription import SecMonitorSubscriptionService
 from industry_platform.modules.disclosures.tool import (
     SecDiffFilingsTool,
     SecGetXbrlFactsTool,
     SecListFilingsTool,
+    SecMonitorSubscribeTool,
     SecReadFilingSectionTool,
     SecResolveFilerTool,
     SecSearchFilingTool,
@@ -101,6 +113,8 @@ class DisclosureResources:
     get_xbrl_facts_tool: SecGetXbrlFactsTool
     filing_diff_service: SecFilingDiffService
     diff_filings_tool: SecDiffFilingsTool
+    monitor_service: SecMonitorApplicationService
+    monitor_subscription_service: SecMonitorSubscriptionService
 
     @property
     def sec_source_tool_adapters(self) -> tuple[RegisteredToolAdapter, ...]:
@@ -308,6 +322,18 @@ def create_disclosure_resources(
         get_xbrl_facts_tool=SecGetXbrlFactsTool(xbrl_service),
         filing_diff_service=filing_diff_service,
         diff_filings_tool=SecDiffFilingsTool(filing_diff_service),
+        monitor_service=SecMonitorApplicationService(
+            repository=SqlAlchemySecMonitorRepository(session_factory),
+            analyzer=SecMonitorAnalysisService(
+                selection=filing_selection_service,
+                imports=filing_import_service,
+                xbrl=xbrl_service,
+                diff=filing_diff_service,
+            ),
+        ),
+        monitor_subscription_service=SecMonitorSubscriptionService(
+            repository=SqlAlchemySecMonitorSubscriptionRepository(session_factory)
+        ),
     )
     # Fail application composition if profile references drift from concrete Tool definitions.
     _ = resources.sec_source_tool_adapters
@@ -323,6 +349,7 @@ def create_sec_filing_tools(
     SecReadFilingSectionTool,
     SecGetXbrlFactsTool,
     SecDiffFilingsTool,
+    SecMonitorSubscribeTool,
 ]:
     repository = SqlAlchemySecFilingContentRepository(
         session_factory,
@@ -370,6 +397,7 @@ def create_sec_filing_tools(
         SecReadFilingSectionTool(service),
         SecGetXbrlFactsTool(xbrl_service),
         SecDiffFilingsTool(diff_service),
+        SecMonitorSubscribeTool(),
     )
 
 

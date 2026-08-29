@@ -353,6 +353,7 @@ def _evidence_response(evidence: Evidence) -> EvidenceResponse:
         origin_run_id=evidence.origin_run_id,
         origin_step_id=evidence.origin_step_id,
         origin_tool_call_id=evidence.origin_tool_call_id,
+        origin_case_id=evidence.origin_case_id,
         origin_observation_id=evidence.origin_observation_id,
         origin_source_ordinal=evidence.origin_source_ordinal,
         normalizer_version=evidence.normalizer_version,

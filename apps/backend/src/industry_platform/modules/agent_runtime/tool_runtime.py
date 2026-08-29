@@ -140,6 +140,7 @@ class _ToolLoopStepOutcome:
     state: RunState
     step: AgentStep | None = None
     observation: ToolObservation | None = field(default=None, repr=False)
+    approval: _PendingToolApproval | None = field(default=None, repr=False)
     terminated: bool = False
 
 
@@ -153,7 +154,16 @@ class _ToolLoopSegmentOutcome:
     observations: list[ToolObservationContextSource]
     final_decision: ToolLoopFinalDecision | None = None
     final_response: ModelResponse | None = None
+    approval: _PendingToolApproval | None = field(default=None, repr=False)
     terminated: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class _PendingToolApproval:
+    """Validated write intent handed to the durable Research checkpoint boundary."""
+
+    request: ApprovalRequest
+    action: ToolAction = field(repr=False)
 
 
 class ToolL1Runtime(RuntimeTransitionSupport):
@@ -1993,12 +2003,50 @@ class ToolL2Runtime(ToolL1Runtime):
         seen_actions: set[tuple[str, str, str]],
         seen_observation_content: set[tuple[str, str, str]],
         outcome: _ToolLoopSegmentOutcome,
+        decision_index_start: int = 0,
+        decision_call_limit: int | None = None,
+        required_action: ToolAction | None = None,
+        max_additional_tool_calls: int | None = None,
+        system_instructions: str | None = None,
     ) -> AsyncGenerator[AgentEvent]:
         """Advance the one shared bounded loop, leaving finalization to its caller."""
 
         run = outcome.run
         state = outcome.state
-        for decision_index in range(command.policy.model_call_limit):
+        if (
+            decision_index_start < 0
+            or decision_index_start >= command.policy.model_call_limit
+            or (decision_call_limit is not None and decision_call_limit < 1)
+            or (max_additional_tool_calls is not None and max_additional_tool_calls < 1)
+            or (
+                required_action is not None
+                and len(outcome.observations) >= len(command.tool_call_ids)
+            )
+        ):
+            raise ValueError("Tool loop segment bounds are invalid")
+        decision_stop = min(
+            command.policy.model_call_limit,
+            decision_index_start
+            + (
+                command.policy.model_call_limit
+                if decision_call_limit is None
+                else decision_call_limit
+            ),
+        )
+        initial_observation_count = len(outcome.observations)
+        required_signature = (
+            None
+            if required_action is None
+            else (
+                required_action.name,
+                required_action.version,
+                ToolRequestAudit(
+                    call_id=command.tool_call_ids[initial_observation_count],
+                    action=required_action,
+                ).arguments_sha256,
+            )
+        )
+        for decision_index in range(decision_index_start, decision_stop):
             decision_sequence = state.step_count + 1
             if decision_sequence > run.budget.max_steps:
                 terminal = self._max_steps_terminal(
@@ -2021,7 +2069,11 @@ class ToolL2Runtime(ToolL1Runtime):
                 sequence=decision_sequence,
                 step_id=command.decision_model_step_ids[decision_index],
                 manifest_id=command.decision_manifest_ids[decision_index],
-                system_instructions=self._loop_instructions(command, definitions),
+                system_instructions=(
+                    self._loop_instructions(command, definitions)
+                    if system_instructions is None
+                    else system_instructions
+                ),
                 max_output_tokens=command.policy.max_decision_output_tokens,
                 response_schema=decision_schema,
                 observations=tuple(outcome.observations),
@@ -2102,7 +2154,15 @@ class ToolL2Runtime(ToolL1Runtime):
             audit = ToolRequestAudit(call_id=command.tool_call_ids[tool_index], action=decision)
             signature = (decision.name, decision.version, audit.arguments_sha256)
             guard: tuple[RunStopReason, str] | None = None
-            if signature in seen_actions:
+            additional_tool_count = tool_index - initial_observation_count
+            if required_signature is not None and signature != required_signature:
+                guard = (RunStopReason.TOOL_DENIED, "verification_action_mismatch")
+            elif (
+                max_additional_tool_calls is not None
+                and additional_tool_count >= max_additional_tool_calls
+            ):
+                guard = (RunStopReason.NO_PROGRESS, "verification_revise_limit_reached")
+            elif signature in seen_actions:
                 guard = (RunStopReason.NO_PROGRESS, "tool_action_repeated")
             elif state.step_count + 3 > run.budget.max_steps:
                 guard = (RunStopReason.MAX_STEPS, "run_step_budget")
@@ -2129,6 +2189,9 @@ class ToolL2Runtime(ToolL1Runtime):
                 return
             run, state = tool_outcome.run, tool_outcome.state
             outcome.run, outcome.state = run, state
+            if tool_outcome.approval is not None:
+                outcome.approval = tool_outcome.approval
+                return
             if tool_outcome.step is None or tool_outcome.observation is None:
                 raise AssertionError("Successful L2 Tool transition lost its result")
             outcome.steps.append(tool_outcome.step)
@@ -2281,7 +2344,7 @@ class ToolL2Runtime(ToolL1Runtime):
         except ToolPreparationError as error:
             decision_at = self._time(not_before=events[-1].occurred_at)
             if error.outcome is ToolApprovalOutcome.APPROVAL_REQUIRED:
-                ApprovalRequest(
+                approval = ApprovalRequest(
                     schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
                     approval_request_id=command.approval_request_ids[tool_index],
                     call_id=audit.call_id,
@@ -2320,6 +2383,19 @@ class ToolL2Runtime(ToolL1Runtime):
                     **self._definition_payload(error.definition),
                 },
             )
+            if (
+                error.outcome is ToolApprovalOutcome.APPROVAL_REQUIRED
+                and command.embedded_in_research
+            ):
+                await self._commit(events, rejected)
+                outcome.state = replace(
+                    state,
+                    event_count=len(events),
+                    updated_at=decision_at,
+                )
+                outcome.approval = _PendingToolApproval(request=approval, action=action)
+                yield rejected
+                return
             terminal = self._terminal_event(
                 run=run,
                 state=state,

@@ -11,6 +11,7 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 import httpx2
+from redis.asyncio import Redis
 
 from industry_platform.adapters.public_egress import create_public_egress_http_client
 from industry_platform.core.config import Settings
@@ -19,6 +20,7 @@ from industry_platform.core.database import (
     create_database_engine,
     create_database_session_factory,
 )
+from industry_platform.core.redis_client import create_redis_client
 from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerRunExecutionUseCase,
     RecoverableAgentRunInterruption,
@@ -30,7 +32,17 @@ from industry_platform.modules.conversations.domain import (
     DIRECT_ANSWER_TASK_NAME,
     TurnSearchMode,
 )
-from industry_platform.modules.disclosures.resources import create_sec_filing_tools
+from industry_platform.modules.disclosures.monitor import (
+    SEC_MONITOR_TASK_NAME,
+    SecMonitorApplicationService,
+    SecMonitorDependencyError,
+    SecMonitorStateError,
+    monitor_job_result_payload,
+)
+from industry_platform.modules.disclosures.resources import (
+    create_disclosure_resources,
+    create_sec_filing_tools,
+)
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.adapters.refresh_cleanup import (
     SqlAlchemyRefreshRecoveryCleanupTransactionFactory,
@@ -82,6 +94,7 @@ from industry_platform.modules.knowledge.domain import (
     KNOWLEDGE_DELETION_TASK_NAME,
     KNOWLEDGE_INGESTION_TASK_NAME,
 )
+from industry_platform.modules.knowledge.resources import create_knowledge_resources
 from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
 from industry_platform.modules.retrieval.resources import create_retrieval_resources
 
@@ -332,6 +345,47 @@ class KnowledgeDeletionJobHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class SecMonitorJobHandler:
+    monitor: SecMonitorApplicationService = field(repr=False)
+
+    async def execute(self, job: AcquiredJob) -> Mapping[str, object]:
+        if job.scope.workspace_id is None or job.scope.system_scope_key is not None:
+            raise InvalidJobPayloadError
+        if set(job.payload) != {"schema_version", "monitor_id"}:
+            raise InvalidJobPayloadError
+        schema_version = job.payload["schema_version"]
+        monitor_id = job.payload["monitor_id"]
+        if (
+            schema_version != 1
+            or isinstance(schema_version, bool)
+            or not isinstance(monitor_id, str)
+        ):
+            raise InvalidJobPayloadError
+        try:
+            parsed_monitor_id = UUID(monitor_id)
+        except ValueError:
+            raise InvalidJobPayloadError from None
+        if parsed_monitor_id.int == 0:
+            raise InvalidJobPayloadError
+        try:
+            result = await self.monitor.execute_job(
+                job_id=job.job_id,
+                workspace_id=job.scope.workspace_id,
+            )
+        except SecMonitorDependencyError:
+            raise RetryableJobHandlerError(
+                JobExecutionErrorCode.SEC_MONITOR_DEPENDENCY_RETRYABLE
+            ) from None
+        except SecMonitorStateError:
+            raise PermanentJobHandlerError(
+                JobExecutionErrorCode.SEC_MONITOR_STATE_INVALID
+            ) from None
+        if result.monitor_id != parsed_monitor_id:
+            raise PermanentJobHandlerError(JobExecutionErrorCode.SEC_MONITOR_STATE_INVALID)
+        return monitor_job_result_payload(result)
+
+
+@dataclass(frozen=True, slots=True)
 class FixedJobHandlerRegistry:
     """Immutable allowlist; persisted names never trigger dynamic imports."""
 
@@ -348,6 +402,7 @@ class FixedJobHandlerRegistry:
         collection_use_case: IndustryCollectionUseCase | None = None,
         ingestion_use_case: KnowledgeIngestionService | None = None,
         deletion_use_case: KnowledgeDeletionService | None = None,
+        monitor_use_case: SecMonitorApplicationService | None = None,
     ) -> "FixedJobHandlerRegistry":
         handlers: dict[str, JobHandler] = {
             IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
@@ -367,6 +422,8 @@ class FixedJobHandlerRegistry:
             )
         if deletion_use_case is not None:
             handlers[KNOWLEDGE_DELETION_TASK_NAME] = KnowledgeDeletionJobHandler(deletion_use_case)
+        if monitor_use_case is not None:
+            handlers[SEC_MONITOR_TASK_NAME] = SecMonitorJobHandler(monitor_use_case)
         return cls(handlers)
 
     def resolve(self, task_name: str) -> JobHandler:
@@ -594,6 +651,7 @@ async def run_job_delivery(
     """Compose fresh task resources; every operation borrows its own session."""
 
     engine = create_database_engine(settings)
+    redis_client = create_redis_client(settings)
     try:
         session_factory = create_database_session_factory(engine)
         async with (
@@ -605,10 +663,14 @@ async def run_job_delivery(
                 session_factory,
                 provider_http_client,
                 internal_http_client,
+                redis_client=redis_client,
             )
             return await runtime.execute(delivery)
     finally:
-        await engine.dispose()
+        try:
+            await redis_client.aclose()
+        finally:
+            await engine.dispose()
 
 
 def create_job_delivery_runtime(
@@ -616,6 +678,8 @@ def create_job_delivery_runtime(
     session_factory: AsyncSessionFactory,
     provider_http_client: httpx2.AsyncClient,
     internal_http_client: httpx2.AsyncClient | None = None,
+    *,
+    redis_client: Redis | None = None,
 ) -> JobExecutionRuntime:
     """Compose every fixed production handler, including the unified Agent Runtime."""
 
@@ -640,6 +704,7 @@ def create_job_delivery_runtime(
         read_filing_section_tool,
         get_xbrl_facts_tool,
         diff_filings_tool,
+        monitor_subscribe_tool,
     ) = create_sec_filing_tools(settings, session_factory, tool_http_client)
     direct_answer = create_direct_answer_runtime_resources(
         settings,
@@ -653,6 +718,7 @@ def create_job_delivery_runtime(
             read_filing_section_tool,
             get_xbrl_facts_tool,
             diff_filings_tool,
+            monitor_subscribe_tool,
         ),
         tool_surfaces={
             TurnSearchMode.WEB: (industry.web_search_tool.definition.reference,),
@@ -663,17 +729,32 @@ def create_job_delivery_runtime(
                 read_filing_section_tool.definition.reference,
                 get_xbrl_facts_tool.definition.reference,
                 diff_filings_tool.definition.reference,
+                monitor_subscribe_tool.definition.reference,
             ),
         },
         fixture_catalog=retrieval.catalog,
     )
+    object_store = create_private_file_object_store(settings)
     ingestion = create_ingestion_resources(
         settings,
         session_factory,
         job_resources.application_service,
-        create_private_file_object_store(settings),
+        object_store,
         tool_http_client,
     )
+    monitor_service: SecMonitorApplicationService | None = None
+    if redis_client is not None:
+        knowledge = create_knowledge_resources(settings, session_factory, object_store)
+        disclosures = create_disclosure_resources(
+            settings,
+            session_factory,
+            provider_http_client,
+            redis_client,
+            tool_http_client,
+            knowledge.service,
+            object_store,
+        )
+        monitor_service = disclosures.monitor_service
     return JobExecutionRuntime(
         jobs=job_resources.application_service,
         handlers=FixedJobHandlerRegistry.production(
@@ -682,6 +763,7 @@ def create_job_delivery_runtime(
             industry.collection_service,
             ingestion.service,
             ingestion.deletion_service,
+            monitor_service,
         ),
         worker_id=f"celery-{uuid4().hex}",
         heartbeat_seconds=settings.job_heartbeat_seconds,

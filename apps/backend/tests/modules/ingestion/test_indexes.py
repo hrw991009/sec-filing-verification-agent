@@ -1,6 +1,7 @@
 """External index adapter request and response contracts."""
 
 import json
+from uuid import UUID
 
 import httpx2
 import pytest
@@ -9,7 +10,23 @@ from industry_platform.modules.ingestion.adapters.indexes import (
     ElasticsearchLexicalIndexWriter,
     MilvusVectorIndexWriter,
 )
-from industry_platform.modules.ingestion.domain import IngestionDependencyError
+from industry_platform.modules.ingestion.domain import IndexableChunk, IngestionDependencyError
+
+
+def _indexable_chunk() -> IndexableChunk:
+    return IndexableChunk(
+        workspace_id=UUID("10000000-0000-0000-0000-000000000001"),
+        knowledge_base_id=UUID("20000000-0000-0000-0000-000000000002"),
+        document_id=UUID("30000000-0000-0000-0000-000000000003"),
+        document_version_id=UUID("40000000-0000-0000-0000-000000000004"),
+        chunk_id=UUID("50000000-0000-0000-0000-000000000005"),
+        ordinal=1,
+        page_number=1,
+        text="Auditable filing text",
+        content_hash="a" * 64,
+        vector=(1.0,),
+        external_id="chunk-1:knowledge-index-v1",
+    )
 
 
 def _writer(client: httpx2.AsyncClient) -> MilvusVectorIndexWriter:
@@ -91,3 +108,29 @@ async def test_elasticsearch_delete_is_a_noop_when_index_does_not_exist() -> Non
     assert len(requests) == 1
     assert requests[0].method == "GET"
     assert requests[0].url.path == "/knowledge_chunks_v1"
+
+
+@pytest.mark.asyncio
+async def test_elasticsearch_writes_request_an_immediate_refresh() -> None:
+    requests: list[httpx2.Request] = []
+
+    def respond(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        if request.method == "GET":
+            return httpx2.Response(200, json={"knowledge_chunks_v1": {}})
+        return httpx2.Response(200, json={"errors": False, "items": []})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
+        writer = ElasticsearchLexicalIndexWriter(
+            client=client,
+            endpoint="http://elasticsearch.test",
+            api_key=None,
+            index="knowledge_chunks_v1",
+            timeout_seconds=1.0,
+        )
+        await writer.upsert((_indexable_chunk(),))
+        await writer.delete(("chunk-1:knowledge-index-v1",))
+
+    bulk_requests = [request for request in requests if request.method == "POST"]
+    assert len(bulk_requests) == 2
+    assert all(request.url.params.get("refresh") == "true" for request in bulk_requests)

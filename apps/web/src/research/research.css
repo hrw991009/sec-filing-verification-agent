@@ -627,6 +627,31 @@
   gap: 0.45rem;
 }
 
+.research-approval-request {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: 0.45rem 1rem;
+  width: 100%;
+  margin: 0.7rem 0 0;
+}
+
+.research-approval-request div {
+  min-width: 0;
+}
+
+.research-approval-request dt {
+  color: #68766f;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.research-approval-request dd {
+  overflow-wrap: anywhere;
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+}
+
 .research-approval-panel button {
   min-height: 2rem;
   padding: 0.45rem 0.65rem;

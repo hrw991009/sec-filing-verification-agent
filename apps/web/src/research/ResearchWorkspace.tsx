@@ -14,6 +14,7 @@ import { SafeMarkdown } from "../chat/SafeMarkdown";
 import { listResearchClaims, type ResearchClaim } from "../evidence/evidence-api";
 import {
   decideResearchApproval,
+  decideMonitorSubscription,
   getResearchDurability,
   getResearchRun,
   listResearchRuns,
@@ -77,6 +78,10 @@ function lines(value: string): string[] {
 
 function nodeEvents(trace: AgentTrace | null) {
   return trace?.events.filter((event) => event.event_type.startsWith("agent.research.node_")) ?? [];
+}
+
+function textArgument(value: unknown): string {
+  return typeof value === "string" ? value : "-";
 }
 
 export function ResearchWorkspace({
@@ -333,12 +338,19 @@ export function ResearchWorkspace({
     setDeciding(true);
     setDetailError(null);
     try {
-      const decided = await decideResearchApproval(workspaceId, detail.id, {
+      const request = {
         approval_request_id: approval.approval_request_id,
         checkpoint_revision: approval.checkpoint_revision,
         outcome,
-      });
-      if (outcome === "allow") {
+      } as const;
+      if (approval.reason === "monitor_subscription") {
+        await decideMonitorSubscription(workspaceId, detail.id, request);
+      } else {
+        const decided = await decideResearchApproval(workspaceId, detail.id, request);
+        if (outcome !== "allow") {
+          await loadRuns(detail.id);
+          return;
+        }
         const resumeToken = decided.resume_token;
         if (resumeToken === null || resumeToken === undefined) {
           throw new Error("审批已允许，但服务端没有返回可用的恢复凭据。");
@@ -1136,12 +1148,34 @@ export function ResearchWorkspace({
                     {latestApproval === null ? null : (
                       <div className="research-approval-panel">
                         <div>
-                          <strong>公司 / 期间歧义确认</strong>
+                          <strong>
+                            {latestApproval.reason === "monitor_subscription"
+                              ? "SEC Monitor 订阅审批"
+                              : "公司 / 期间歧义确认"}
+                          </strong>
                           <span>
                             {approvalStatusNames[latestApproval.status] ?? latestApproval.status} ·
                             Checkpoint r{latestApproval.checkpoint_revision}
                           </span>
                         </div>
+                        {latestApproval.tool_arguments == null ? null : (
+                          <dl className="research-approval-request">
+                            <div>
+                              <dt>Tool</dt>
+                              <dd>
+                                {latestApproval.tool_name}@{latestApproval.tool_version}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>CIK / Schedule</dt>
+                              <dd>
+                                {textArgument(latestApproval.tool_arguments.cik)} ·{" "}
+                                {textArgument(latestApproval.tool_arguments.cron_expression)} ·{" "}
+                                {textArgument(latestApproval.tool_arguments.timezone_name)}
+                              </dd>
+                            </div>
+                          </dl>
+                        )}
                         {latestApproval.status === "pending" && canManage ? (
                           <div className="research-approval-actions">
                             <button

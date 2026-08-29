@@ -4,10 +4,14 @@ import { publicError } from "../chat/chat-workbench-model";
 import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-api";
 import {
   diffSecFilings,
+  changeSecMonitorStatus,
+  deleteSecMonitor,
   getSecXbrlFacts,
   importSecFiling,
   listSecFilingImports,
   listSecFilings,
+  listSecDisclosureCases,
+  listSecMonitors,
   readSecFilingSection,
   searchSecFiling,
   syncSecXbrl,
@@ -16,6 +20,8 @@ import {
   type SecFilingImport,
   type SecFilingSearch,
   type SecFilingSection,
+  type SecDisclosureCase,
+  type SecMonitor,
   type SecXbrlFact,
   type SecXbrlFactCollection,
   type SecXbrlSourceKind,
@@ -40,7 +46,7 @@ const xbrlSourceNames: Readonly<Record<SecXbrlSourceKind, string>> = {
   raw_instance: "Raw Instance",
 };
 
-type ContentMode = "text" | "xbrl" | "diff";
+type ContentMode = "text" | "xbrl" | "diff" | "monitor";
 type XbrlSourceMode = "all" | "aggregate" | "raw";
 
 function xbrlSourceKinds(mode: XbrlSourceMode): readonly SecXbrlSourceKind[] {
@@ -92,6 +98,10 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
   const [diffUnit, setDiffUnit] = useState("USD");
   const [diffScale, setDiffScale] = useState(0);
   const [diffResult, setDiffResult] = useState<SecFilingDiff | null>(null);
+  const [monitors, setMonitors] = useState<SecMonitor[]>([]);
+  const [cases, setCases] = useState<SecDisclosureCase[]>([]);
+  const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
+  const [changingMonitorId, setChangingMonitorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -105,14 +115,36 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
     setImports(values);
   }, [workspaceId]);
 
+  const reloadMonitoring = useCallback(async (): Promise<void> => {
+    const [monitorValues, caseValues] = await Promise.all([
+      listSecMonitors(workspaceId),
+      listSecDisclosureCases(workspaceId),
+    ]);
+    setMonitors(monitorValues);
+    setCases(caseValues);
+    setSelectedMonitorId((current) =>
+      current !== null && monitorValues.some((item) => item.monitor_id === current)
+        ? current
+        : (monitorValues[0]?.monitor_id ?? null),
+    );
+  }, [workspaceId]);
+
   useEffect(() => {
     let active = true;
-    void Promise.all([listKnowledgeBases(workspaceId), listSecFilingImports(workspaceId)])
-      .then(([bases, imported]) => {
+    void Promise.all([
+      listKnowledgeBases(workspaceId),
+      listSecFilingImports(workspaceId),
+      listSecMonitors(workspaceId),
+      listSecDisclosureCases(workspaceId),
+    ])
+      .then(([bases, imported, monitorValues, caseValues]) => {
         if (!active) return;
         setKnowledgeBases(bases);
         setKnowledgeBaseId((current) => (current === "" ? (bases[0]?.id ?? "") : current));
         setImports(imported);
+        setMonitors(monitorValues);
+        setCases(caseValues);
+        setSelectedMonitorId(monitorValues[0]?.monitor_id ?? null);
       })
       .catch((caught: unknown) => {
         if (active) setError(publicError(caught));
@@ -140,6 +172,39 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
       (item) => item.accession === selectedAccession && item.knowledge_base_id === knowledgeBaseId,
     ) ?? null;
   const selectedFact = xbrlResult?.facts.find((item) => item.id === selectedFactId) ?? null;
+  const selectedMonitor = monitors.find((item) => item.monitor_id === selectedMonitorId) ?? null;
+  const selectedMonitorCases = cases.filter((item) => item.monitor_id === selectedMonitorId);
+
+  async function changeMonitorStatus(monitor: SecMonitor): Promise<void> {
+    setChangingMonitorId(monitor.monitor_id);
+    setError(null);
+    try {
+      await changeSecMonitorStatus(
+        workspaceId,
+        monitor.monitor_id,
+        monitor.revision,
+        monitor.status === "active" ? "paused" : "active",
+      );
+      await reloadMonitoring();
+    } catch (caught: unknown) {
+      setError(publicError(caught));
+    } finally {
+      setChangingMonitorId(null);
+    }
+  }
+
+  async function deleteMonitor(monitor: SecMonitor): Promise<void> {
+    setChangingMonitorId(monitor.monitor_id);
+    setError(null);
+    try {
+      await deleteSecMonitor(workspaceId, monitor.monitor_id, monitor.revision);
+      await reloadMonitoring();
+    } catch (caught: unknown) {
+      setError(publicError(caught));
+    } finally {
+      setChangingMonitorId(null);
+    }
+  }
 
   async function submitFilingSearch(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -513,6 +578,19 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
               >
                 Filing Diff
               </button>
+              <button
+                aria-selected={contentMode === "monitor"}
+                onClick={() => {
+                  setContentMode("monitor");
+                  void reloadMonitoring().catch((caught: unknown) => {
+                    setError(publicError(caught));
+                  });
+                }}
+                role="tab"
+                type="button"
+              >
+                Monitor / Case
+              </button>
             </div>
 
             {contentMode === "text" ? (
@@ -799,7 +877,7 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                   </article>
                 </div>
               </>
-            ) : (
+            ) : contentMode === "diff" ? (
               <div className="sec-diff-workspace">
                 <form className="sec-diff-toolbar" onSubmit={(event) => void runFilingDiff(event)}>
                   <label>
@@ -996,6 +1074,129 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                     </section>
                   </>
                 )}
+              </div>
+            ) : (
+              <div className="sec-monitor-workspace">
+                <aside className="sec-monitor-list" aria-label="SEC Monitor 列表">
+                  <div className="sec-workbench__pane-title">
+                    <h2>Monitors</h2>
+                    <span>{monitors.length}</span>
+                  </div>
+                  {monitors.length === 0 ? (
+                    <p className="sec-workbench__empty">尚无已审批的 Monitor。</p>
+                  ) : (
+                    monitors.map((monitor) => (
+                      <button
+                        aria-pressed={selectedMonitorId === monitor.monitor_id}
+                        className="sec-monitor-row"
+                        key={monitor.monitor_id}
+                        onClick={() => {
+                          setSelectedMonitorId(monitor.monitor_id);
+                        }}
+                        type="button"
+                      >
+                        <strong>{monitor.canonical_name}</strong>
+                        <span>{monitor.allowed_forms.join(" / ")}</span>
+                        <small>
+                          {monitor.status} · r{monitor.revision}
+                        </small>
+                      </button>
+                    ))
+                  )}
+                </aside>
+
+                <div className="sec-monitor-detail">
+                  {selectedMonitor === null ? (
+                    <p className="sec-workbench__empty">选择一个 Monitor 查看正式状态。</p>
+                  ) : (
+                    <>
+                      <header>
+                        <div>
+                          <p className="eyebrow">Durable subscription</p>
+                          <h2>{selectedMonitor.canonical_name}</h2>
+                          <span>
+                            CIK {selectedMonitor.cik} · {selectedMonitor.cron_expression} ·{" "}
+                            {selectedMonitor.timezone_name}
+                          </span>
+                        </div>
+                        <div className="sec-monitor-actions">
+                          {selectedMonitor.status === "deleted" ? null : (
+                            <button
+                              disabled={
+                                !canManage || changingMonitorId === selectedMonitor.monitor_id
+                              }
+                              onClick={() => void changeMonitorStatus(selectedMonitor)}
+                              type="button"
+                            >
+                              {changingMonitorId === selectedMonitor.monitor_id
+                                ? "正在提交…"
+                                : selectedMonitor.status === "active"
+                                  ? "暂停"
+                                  : "恢复"}
+                            </button>
+                          )}
+                          {selectedMonitor.status === "deleted" ? null : (
+                            <button
+                              className="danger-button"
+                              disabled={
+                                !canManage || changingMonitorId === selectedMonitor.monitor_id
+                              }
+                              onClick={() => void deleteMonitor(selectedMonitor)}
+                              type="button"
+                            >
+                              删除
+                            </button>
+                          )}
+                        </div>
+                      </header>
+                      <dl className="sec-monitor-summary">
+                        <div>
+                          <dt>Watermark</dt>
+                          <dd>
+                            r{selectedMonitor.watermark_revision} ·{" "}
+                            {selectedMonitor.watermark_accession ?? "initial"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Rules</dt>
+                          <dd>{selectedMonitor.rules.map((rule) => rule.kind).join(", ")}</dd>
+                        </div>
+                        <div>
+                          <dt>Approval</dt>
+                          <dd>{selectedMonitor.created_from_approval_id?.slice(0, 8) ?? "-"}</dd>
+                        </div>
+                      </dl>
+                      <section className="sec-case-timeline">
+                        <div className="sec-workbench__pane-title">
+                          <h2>Verified Cases</h2>
+                          <span>{selectedMonitorCases.length}</span>
+                        </div>
+                        {selectedMonitorCases.length === 0 ? (
+                          <p className="sec-workbench__empty">当前水位尚未生成差异 Case。</p>
+                        ) : (
+                          <ol>
+                            {selectedMonitorCases.map((item) => (
+                              <li key={item.case_id}>
+                                <header>
+                                  <strong>{item.trigger_kind}</strong>
+                                  <span>{item.verification_status}</span>
+                                </header>
+                                <p>
+                                  {item.baseline_accession} → {item.target_accession}
+                                </p>
+                                <small>
+                                  {item.evidence
+                                    .map((link) => `${link.side}:${link.evidence_id.slice(0, 8)}`)
+                                    .join(" · ")}
+                                </small>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </section>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </section>

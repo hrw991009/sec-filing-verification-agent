@@ -1,0 +1,368 @@
+{
+  "strategy_scores": {
+    "a2": {
+      "strategy": "a2",
+      "metrics": {
+        "question_accuracy": {
+          "numerator": 4,
+          "denominator": 9,
+          "value": 0.444444
+        },
+        "simple_accuracy": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "complex_accuracy": {
+          "numerator": 2,
+          "denominator": 7,
+          "value": 0.285714
+        },
+        "operational_accuracy": {
+          "numerator": 0,
+          "denominator": 5,
+          "value": 0.0
+        },
+        "citation_resolvability": {
+          "numerator": 7,
+          "denominator": 9,
+          "value": 0.777778
+        },
+        "trajectory_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "budget_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "tool_surface_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "fabricated_source_rate": {
+          "numerator": 2,
+          "denominator": 14,
+          "value": 0.142857
+        },
+        "fabricated_accession_rate": {
+          "numerator": 1,
+          "denominator": 14,
+          "value": 0.071429
+        },
+        "fabricated_number_rate": {
+          "numerator": 5,
+          "denominator": 14,
+          "value": 0.357143
+        },
+        "fabricated_formula_rate": {
+          "numerator": 1,
+          "denominator": 14,
+          "value": 0.071429
+        },
+        "future_leakage_rate": {
+          "numerator": 1,
+          "denominator": 14,
+          "value": 0.071429
+        },
+        "cross_workspace_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "unauthorized_write_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "duplicate_effect_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "verified_false_support_rate": {
+          "numerator": 4,
+          "denominator": 14,
+          "value": 0.285714
+        },
+        "recovery_success": {
+          "numerator": 0,
+          "denominator": 4,
+          "value": 0.0
+        }
+      },
+      "total_steps": 24,
+      "total_tokens": 6800,
+      "total_cost_micro_usd": 1360,
+      "total_latency_ms": 1640
+    },
+    "a3": {
+      "strategy": "a3",
+      "metrics": {
+        "question_accuracy": {
+          "numerator": 9,
+          "denominator": 9,
+          "value": 1.0
+        },
+        "simple_accuracy": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "complex_accuracy": {
+          "numerator": 7,
+          "denominator": 7,
+          "value": 1.0
+        },
+        "operational_accuracy": {
+          "numerator": 0,
+          "denominator": 5,
+          "value": 0.0
+        },
+        "citation_resolvability": {
+          "numerator": 9,
+          "denominator": 9,
+          "value": 1.0
+        },
+        "trajectory_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "budget_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "tool_surface_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "fabricated_source_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "fabricated_accession_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "fabricated_number_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "fabricated_formula_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "future_leakage_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "cross_workspace_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "unauthorized_write_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "duplicate_effect_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "verified_false_support_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "recovery_success": {
+          "numerator": 1,
+          "denominator": 4,
+          "value": 0.25
+        }
+      },
+      "total_steps": 38,
+      "total_tokens": 8350,
+      "total_cost_micro_usd": 1700,
+      "total_latency_ms": 2040
+    },
+    "a4": {
+      "strategy": "a4",
+      "metrics": {
+        "question_accuracy": {
+          "numerator": 9,
+          "denominator": 9,
+          "value": 1.0
+        },
+        "simple_accuracy": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0
+        },
+        "complex_accuracy": {
+          "numerator": 7,
+          "denominator": 7,
+          "value": 1.0
+        },
+        "operational_accuracy": {
+          "numerator": 5,
+          "denominator": 5,
+          "value": 1.0
+        },
+        "citation_resolvability": {
+          "numerator": 9,
+          "denominator": 9,
+          "value": 1.0
+        },
+        "trajectory_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "budget_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "tool_surface_adherence": {
+          "numerator": 14,
+          "denominator": 14,
+          "value": 1.0
+        },
+        "fabricated_source_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "fabricated_accession_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "fabricated_number_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "fabricated_formula_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "future_leakage_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "cross_workspace_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "unauthorized_write_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "duplicate_effect_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "verified_false_support_rate": {
+          "numerator": 0,
+          "denominator": 14,
+          "value": 0.0
+        },
+        "recovery_success": {
+          "numerator": 4,
+          "denominator": 4,
+          "value": 1.0
+        }
+      },
+      "total_steps": 53,
+      "total_tokens": 9900,
+      "total_cost_micro_usd": 2020,
+      "total_latency_ms": 3050
+    }
+  },
+  "layer_metrics": {
+    "deterministic": {
+      "numerator": 9,
+      "denominator": 9,
+      "value": 1.0
+    },
+    "security": {
+      "numerator": 7,
+      "denominator": 7,
+      "value": 1.0
+    },
+    "fault": {
+      "numerator": 6,
+      "denominator": 6,
+      "value": 1.0
+    }
+  },
+  "comparison": {
+    "a3_complex_gain_over_a2": 0.714286,
+    "a3_simple_degradation_from_a2": 0.0,
+    "a3_cost_increase_micro_usd": 340,
+    "a3_latency_increase_ms": 400
+  },
+  "deterministic_gate_passed": true,
+  "deterministic_blockers": [],
+  "security_gate_passed": true,
+  "security_blockers": [],
+  "fault_gate_passed": true,
+  "fault_blockers": [],
+  "schema_version": 1,
+  "report_version": "v1",
+  "dataset_id": "sec-verification-v1",
+  "dataset_version": "v1",
+  "scorer_version": "sec-verification-scorer-v1",
+  "manifest_sha256": "3cf99c06957858ad5ec2f7db1e147b52524f8cda9d9488b79f0f0740383d8a3e",
+  "case_count": 14,
+  "run_count": 42,
+  "execution_boundary": {
+    "evidence_layer": "frozen_replay_with_executable_contract_refs",
+    "deterministic_contract_executed": true,
+    "supporting_real_dependencies_executed": true,
+    "live_sec_executed": false,
+    "live_model_executed": false,
+    "browser_regression_executed": true,
+    "dedicated_monitor_browser_executed": false,
+    "monitor_fault_injection_executed": false,
+    "branch_ci_passed": false,
+    "pr_ci_passed": false,
+    "main_ci_passed": false,
+    "owner_reviewed": false,
+    "limitations": [
+      "Frozen observations exercise an independent scorer and bind executable contracts; they do not measure a current live model.",
+      "The existing browser regression is not a dedicated Monitor allow, deny, timeout, and hard-stop journey.",
+      "Remote branch, PR, main CI and owner review remain external closeout evidence."
+    ]
+  },
+  "day8_closeout_ready": false,
+  "closeout_blockers": [
+    "live_sec_not_executed",
+    "live_model_not_executed",
+    "dedicated_monitor_browser_not_executed",
+    "monitor_fault_injection_not_executed",
+    "branch_ci_not_passed",
+    "pr_ci_not_passed",
+    "main_ci_not_passed",
+    "owner_review_missing"
+  ]
+}

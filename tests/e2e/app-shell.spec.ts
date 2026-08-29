@@ -162,13 +162,16 @@ async function executeBrowserCreatedResearchRun(receipt: StartResearchReceipt): 
   });
   const result = requireRecord(JSON.parse(stdout.trim()) as unknown, "Research driver result");
   if (
-    result.schema_version !== 1 ||
+    result.schema_version !== 2 ||
     result.run_id !== receipt.agentRunId ||
     result.research_run_id !== receipt.researchRunId ||
     result.job_id !== receipt.jobId ||
     result.disposition !== "succeeded" ||
+    result.graph_version !== "research-l5-graph-v1" ||
+    result.state_schema_version !== 2 ||
+    result.current_node !== "finalize" ||
     result.provider_calls !== 2 ||
-    result.completed_node_count !== 8 ||
+    result.completed_node_count !== 10 ||
     result.draft_status !== "uncertain_draft" ||
     typeof result.draft_sha256 !== "string" ||
     !/^[0-9a-f]{64}$/u.test(result.draft_sha256)

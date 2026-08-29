@@ -10,6 +10,7 @@ from sqlalchemy import and_, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from industry_platform.core.database import AsyncSessionFactory, safe_sqlstate
 from industry_platform.modules.agent_runtime.context import (
@@ -1387,6 +1388,9 @@ async def _append_locked_agent_event(
     await SqlAlchemyAgentEventCommitter._project(session, run, event)
     run.event_count = event.sequence
     run.updated_at = event.occurred_at
+    # Consecutive Events may legitimately share a timestamp. Force the Event time into
+    # the UPDATE so TimestampMixin.onupdate cannot replace it with the database wall clock.
+    flag_modified(run, "updated_at")
 
 
 def _cancel_unstarted_job(

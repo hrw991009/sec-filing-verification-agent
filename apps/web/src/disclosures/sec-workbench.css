@@ -638,9 +638,119 @@
   text-align: center;
 }
 
+.sec-monitor-workspace {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 2fr);
+  min-height: 28rem;
+}
+
+.sec-monitor-list {
+  padding: 1rem;
+  border-right: 1px solid #dce3de;
+}
+
+.sec-monitor-row {
+  display: grid;
+  width: 100%;
+  min-height: 4.5rem;
+  margin-top: 0.45rem;
+  padding: 0.7rem;
+  border: 1px solid #dce3de;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #26342d;
+  text-align: left;
+}
+
+.sec-monitor-row[aria-pressed="true"] {
+  border-color: #24835d;
+  box-shadow: inset 3px 0 #24835d;
+}
+
+.sec-monitor-row span,
+.sec-monitor-row small,
+.sec-monitor-detail > header span,
+.sec-case-timeline small {
+  color: #68766f;
+  font-size: 0.68rem;
+}
+
+.sec-monitor-detail {
+  min-width: 0;
+  padding: 1.1rem;
+}
+
+.sec-monitor-detail > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sec-monitor-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.sec-monitor-detail h2 {
+  margin: 0.15rem 0;
+  font-size: 1rem;
+}
+
+.sec-monitor-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 1rem 0;
+  border-block: 1px solid #dce3de;
+}
+
+.sec-monitor-summary > div {
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+.sec-monitor-summary dt {
+  color: #68766f;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sec-monitor-summary dd {
+  overflow-wrap: anywhere;
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+}
+
+.sec-case-timeline ol {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sec-case-timeline li {
+  padding: 0.75rem;
+  border-left: 3px solid #24835d;
+  background: #f7faf8;
+}
+
+.sec-case-timeline li header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sec-case-timeline li p {
+  overflow-wrap: anywhere;
+  margin: 0.4rem 0;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 980px) {
   .sec-workbench__layout,
-  .sec-workbench__results {
+  .sec-workbench__results,
+  .sec-monitor-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -690,6 +800,11 @@
   .sec-fact-reader {
     padding-left: 0;
   }
+
+  .sec-monitor-list {
+    border-right: 0;
+    border-bottom: 1px solid #dce3de;
+  }
 }
 
 @media (max-width: 620px) {
@@ -718,7 +833,8 @@
   .sec-diff-summary,
   .sec-diff-columns,
   .sec-diff-facts > div:last-child,
-  .sec-diff-facts dl {
+  .sec-diff-facts dl,
+  .sec-monitor-summary {
     grid-template-columns: 1fr;
   }
 

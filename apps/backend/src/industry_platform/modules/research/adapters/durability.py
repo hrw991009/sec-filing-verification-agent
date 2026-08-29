@@ -38,6 +38,7 @@ from industry_platform.modules.research.domain import (
     ResearchSideEffectStatus,
 )
 from industry_platform.modules.research.durability import (
+    ApprovalToolRequest,
     DecideResearchApproval,
     ResearchApprovalConflictError,
     ResearchApprovalNotFoundError,
@@ -56,6 +57,7 @@ from industry_platform.modules.research.models import (
     ResearchSideEffectRecord,
 )
 from industry_platform.modules.research.service import ResearchNotFoundError
+from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 
@@ -126,6 +128,7 @@ class SqlAlchemyResearchDurabilityRepository:
         resume_token_hash: bytes,
         requested_at: datetime,
         expires_at: datetime,
+        tool_request: ApprovalToolRequest | None = None,
     ) -> ResearchApprovalRequest:
         try:
             async with self.session_factory.begin() as session:
@@ -148,6 +151,7 @@ class SqlAlchemyResearchDurabilityRepository:
                         existing.id != approval_request_id
                         or existing.reason is not reason
                         or not hmac.compare_digest(existing.resume_token_hash, resume_token_hash)
+                        or _stored_tool_request(existing) != tool_request
                     ):
                         raise ResearchApprovalConflictError
                     return _approval(existing)
@@ -167,6 +171,13 @@ class SqlAlchemyResearchDurabilityRepository:
                     resume_claimed=False,
                     resume_job_id=None,
                     resumed_at=None,
+                    tool_call_id=None if tool_request is None else tool_request.call_id,
+                    tool_name=None if tool_request is None else tool_request.tool.name,
+                    tool_version=None if tool_request is None else tool_request.tool.version,
+                    tool_arguments=(None if tool_request is None else dict(tool_request.arguments)),
+                    tool_arguments_sha256=(
+                        None if tool_request is None else tool_request.arguments_sha256
+                    ),
                     created_at=requested_at,
                     updated_at=requested_at,
                 )
@@ -198,6 +209,8 @@ class SqlAlchemyResearchDurabilityRepository:
                 if request is None or research is None or request.run_id != research.agent_run_id:
                     raise ResearchApprovalNotFoundError
                 if request.checkpoint_revision != command.checkpoint_revision:
+                    raise ResearchApprovalConflictError
+                if request.reason is ResearchApprovalReason.MONITOR_SUBSCRIPTION:
                     raise ResearchApprovalConflictError
                 if request.status is not ResearchApprovalStatus.PENDING:
                     expected = _status_for_outcome(command.outcome)
@@ -286,6 +299,8 @@ class SqlAlchemyResearchDurabilityRepository:
                 if request is None or research is None or request.run_id != research.agent_run_id:
                     raise ResearchApprovalNotFoundError
                 if request.checkpoint_revision != command.checkpoint_revision:
+                    raise ResearchApprovalConflictError
+                if request.reason is ResearchApprovalReason.MONITOR_SUBSCRIPTION:
                     raise ResearchApprovalConflictError
                 if not hmac.compare_digest(request.resume_token_hash, resume_token_hash):
                     raise ResearchResumeTokenError
@@ -556,6 +571,27 @@ def _approval(record: ResearchApprovalRequestRecord) -> ResearchApprovalRequest:
         resume_claimed=record.resume_claimed,
         resume_job_id=record.resume_job_id,
         resumed_at=record.resumed_at,
+        tool_request=_stored_tool_request(record),
+    )
+
+
+def _stored_tool_request(record: ResearchApprovalRequestRecord) -> ApprovalToolRequest | None:
+    values = (
+        record.tool_call_id,
+        record.tool_name,
+        record.tool_version,
+        record.tool_arguments,
+        record.tool_arguments_sha256,
+    )
+    if all(value is None for value in values):
+        return None
+    if any(value is None for value in values):
+        raise ResearchDurabilityPersistenceError()
+    return ApprovalToolRequest(
+        call_id=cast(UUID, record.tool_call_id),
+        tool=ToolReference(cast(str, record.tool_name), cast(str, record.tool_version)),
+        arguments=cast(dict[str, object], record.tool_arguments),
+        arguments_sha256=cast(str, record.tool_arguments_sha256),
     )
 
 

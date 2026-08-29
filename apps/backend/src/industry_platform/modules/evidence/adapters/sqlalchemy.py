@@ -372,6 +372,23 @@ class SqlAlchemyEvidenceRepository:
         except SQLAlchemyError as error:
             raise EvidencePersistenceError(sqlstate=safe_sqlstate(error)) from error
 
+    async def is_evidence_available(self, scope: WorkspaceScope, evidence_id: UUID) -> bool:
+        try:
+            async with self._session_factory() as session:
+                record = await session.scalar(
+                    select(EvidenceRecord).where(
+                        EvidenceRecord.id == evidence_id,
+                        EvidenceRecord.workspace_id == scope.workspace_id,
+                    )
+                )
+                if record is None:
+                    raise EvidenceNotFoundError
+                return await self.is_evidence_record_available(session, record)
+        except EvidenceNotFoundError:
+            raise
+        except SQLAlchemyError as error:
+            raise EvidencePersistenceError(sqlstate=safe_sqlstate(error)) from error
+
     async def invalidate_evidence(
         self,
         scope: WorkspaceScope,
@@ -531,6 +548,31 @@ class SqlAlchemyEvidenceRepository:
                 if origin_step is None:
                     raise ResearchRunNotFoundError
 
+                if command.claim_id is not None:
+                    existing_claim = await session.scalar(
+                        select(ResearchClaimRecord).where(
+                            ResearchClaimRecord.id == command.claim_id,
+                            ResearchClaimRecord.workspace_id == scope.workspace_id,
+                            ResearchClaimRecord.research_run_id == research_run.id,
+                        )
+                    )
+                    if existing_claim is not None:
+                        snapshot = await self._claim_snapshot(session, existing_claim)
+                        existing_relations = tuple(
+                            ClaimEvidenceInput(
+                                evidence_id=link.evidence.evidence_id,
+                                relation=link.relation,
+                            )
+                            for link in snapshot.relations
+                        )
+                        if (
+                            snapshot.statement != command.statement
+                            or snapshot.confidence != command.confidence
+                            or existing_relations != command.relations
+                        ):
+                            raise EvidenceConflictError
+                        return snapshot
+
                 evidence_by_id: dict[UUID, EvidenceRecord] = {}
                 if command.relations:
                     records = (
@@ -557,7 +599,7 @@ class SqlAlchemyEvidenceRepository:
 
                 verification = claim_verification_status(command.relations)
                 claim = ResearchClaimRecord(
-                    id=uuid4(),
+                    id=command.claim_id or uuid4(),
                     workspace_id=scope.workspace_id,
                     research_run_id=research_run.id,
                     statement=command.statement,
@@ -2003,6 +2045,11 @@ class SqlAlchemyEvidenceRepository:
             items=tuple(items),
         )
 
+    async def is_evidence_record_available(
+        self, session: AsyncSession, record: EvidenceRecord
+    ) -> bool:
+        return record.status is EvidenceStatus.ACTIVE and await self._is_available(session, record)
+
     async def _is_available(self, session: AsyncSession, record: EvidenceRecord) -> bool:
         if record.source_item_id is not None:
             item = await session.scalar(
@@ -2494,6 +2541,7 @@ class SqlAlchemyEvidenceRepository:
             origin_run_id=record.origin_run_id,
             origin_step_id=record.origin_step_id,
             origin_tool_call_id=record.origin_tool_call_id,
+            origin_case_id=record.origin_case_id,
             origin_observation_id=record.origin_observation_id,
             origin_source_ordinal=record.origin_source_ordinal,
             normalizer_version=record.normalizer_version,

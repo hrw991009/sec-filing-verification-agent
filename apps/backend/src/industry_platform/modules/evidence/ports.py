@@ -41,6 +41,8 @@ class EvidenceRepository(Protocol):
 
     async def get_evidence(self, scope: WorkspaceScope, evidence_id: UUID) -> Evidence: ...
 
+    async def is_evidence_available(self, scope: WorkspaceScope, evidence_id: UUID) -> bool: ...
+
     async def invalidate_evidence(
         self,
         scope: WorkspaceScope,
@@ -107,6 +109,8 @@ class EvidenceUseCase(Protocol):
     ) -> tuple[Evidence, ...]: ...
 
     async def get_evidence(self, scope: WorkspaceScope, evidence_id: UUID) -> Evidence: ...
+
+    async def is_evidence_available(self, scope: WorkspaceScope, evidence_id: UUID) -> bool: ...
 
     async def invalidate_evidence(
         self,

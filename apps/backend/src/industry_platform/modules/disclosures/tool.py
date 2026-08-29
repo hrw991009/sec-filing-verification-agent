@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from industry_platform.modules.agent_runtime.context import TrustedRuntimeContext
 from industry_platform.modules.agent_runtime.domain import AGENT_RUNTIME_SCHEMA_VERSION
@@ -28,6 +28,11 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSourceKind,
 )
 from industry_platform.modules.disclosures.filing_content_service import SecFilingContentService
+from industry_platform.modules.disclosures.monitor import (
+    SEC_MONITOR_RULE_SET_VERSION,
+    SecMonitorRule,
+    SecMonitorRuleKind,
+)
 from industry_platform.modules.disclosures.schemas import (
     SecFilingDiffResponse,
     SecFilingSelectionResponse,
@@ -40,6 +45,7 @@ from industry_platform.modules.disclosures.service import (
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.financial_verification.domain import sec_xbrl_evidence_ref
 from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
+from industry_platform.modules.jobs.domain import ExecutionScope, ScheduleDefinition
 from industry_platform.modules.tools.domain import (
     MAX_TOOL_SOURCES,
     TOOL_OBSERVATION_NORMALIZER_VERSION,
@@ -254,6 +260,226 @@ class SecResolveFilerTool(PydanticToolAdapter[SecResolveFilerInput, SecResolveFi
             observed_at=observed_at,
             content_sha256=content_sha256,
         )
+
+
+SEC_MONITOR_SUBSCRIBE_TOOL_NAME = "sec.monitor.subscribe"
+SEC_MONITOR_SUBSCRIBE_TOOL_VERSION = "v1"
+_MONITOR_VALIDATION_WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
+
+
+class SecMonitorSubscribeRuleInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal[
+        "new_filing",
+        "amendment",
+        "fact_absolute_change",
+        "section_change",
+    ]
+    section_query: str = Field(min_length=1, max_length=500)
+    taxonomy: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,127}$",
+    )
+    concept: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+    )
+    unit: str | None = Field(default=None, min_length=1, max_length=255)
+    threshold: str | None = Field(default=None, min_length=1, max_length=200)
+    comparator: Literal["absolute_delta_gte"] | None = None
+
+    @model_validator(mode="after")
+    def validate_rule(self) -> "SecMonitorSubscribeRuleInput":
+        SecMonitorRule(
+            rule_id=uuid5(NAMESPACE_URL, f"monitor-rule-validation:{self.model_dump_json()}"),
+            kind=SecMonitorRuleKind(self.kind),
+            rule_version=SEC_MONITOR_RULE_SET_VERSION,
+            section_query=self.section_query,
+            taxonomy=self.taxonomy,
+            concept=self.concept,
+            unit=self.unit,
+            threshold=self.threshold,
+            comparator=self.comparator,
+        )
+        return self
+
+
+class SecMonitorSubscribeInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    cik: str = Field(pattern=r"^[0-9]{10}$")
+    knowledge_base_id: str = Field(
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    )
+    allowed_forms: list[Literal["10-K", "10-K/A", "10-Q", "10-Q/A"]] = Field(
+        min_length=1,
+        max_length=4,
+    )
+    cron_expression: str = Field(min_length=1, max_length=120)
+    timezone_name: str = Field(min_length=1, max_length=64)
+    rules: list[SecMonitorSubscribeRuleInput] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def validate_subscription(self) -> "SecMonitorSubscribeInput":
+        if self.cik == "0000000000" or len(set(self.allowed_forms)) != len(self.allowed_forms):
+            raise ValueError("SEC Monitor subscription scope is invalid")
+        ScheduleDefinition(
+            scope=ExecutionScope(workspace_id=_MONITOR_VALIDATION_WORKSPACE_ID),
+            name="sec-monitor-validation",
+            task_name="industry_platform.disclosures.monitor.execute",
+            cron_expression=self.cron_expression,
+            timezone_name=self.timezone_name,
+            payload={"schema_version": 1, "monitor_id": str(_MONITOR_VALIDATION_WORKSPACE_ID)},
+        )
+        return self
+
+
+class SecMonitorSubscribeOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["approval_required"]
+    approval_request_id: UUID
+
+
+def sec_monitor_subscribe_definition() -> ToolDefinition:
+    return ToolDefinition(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        name=SEC_MONITOR_SUBSCRIBE_TOOL_NAME,
+        version=SEC_MONITOR_SUBSCRIBE_TOOL_VERSION,
+        description="Request a durable, human-approved SEC filing Monitor subscription.",
+        input_schema_version="sec-monitor-subscribe-input-v1",
+        output_schema_version="sec-monitor-subscribe-output-v1",
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "cik",
+                "knowledge_base_id",
+                "allowed_forms",
+                "cron_expression",
+                "timezone_name",
+                "rules",
+            ],
+            "properties": {
+                "cik": {"type": "string", "pattern": r"^[0-9]{10}$"},
+                "knowledge_base_id": {
+                    "type": "string",
+                    "pattern": (
+                        r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
+                        r"[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    ),
+                },
+                "allowed_forms": {
+                    "type": "array",
+                    "items": {"type": "string", "enum": ["10-K", "10-K/A", "10-Q", "10-Q/A"]},
+                    "minItems": 1,
+                    "maxItems": 4,
+                },
+                "cron_expression": {"type": "string", "minLength": 1, "maxLength": 120},
+                "timezone_name": {"type": "string", "minLength": 1, "maxLength": 64},
+                "rules": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": [
+                            "kind",
+                            "section_query",
+                            "taxonomy",
+                            "concept",
+                            "unit",
+                            "threshold",
+                            "comparator",
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "new_filing",
+                                    "amendment",
+                                    "fact_absolute_change",
+                                    "section_change",
+                                ],
+                            },
+                            "section_query": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500,
+                            },
+                            "taxonomy": {
+                                "type": ["string", "null"],
+                                "pattern": r"^[A-Za-z_][A-Za-z0-9._-]{0,127}$",
+                            },
+                            "concept": {
+                                "type": ["string", "null"],
+                                "pattern": r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+                            },
+                            "unit": {"type": ["string", "null"]},
+                            "threshold": {"type": ["string", "null"]},
+                            "comparator": {
+                                "type": ["string", "null"],
+                                "enum": ["absolute_delta_gte", None],
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        output_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["status", "approval_request_id"],
+            "properties": {
+                "status": {"type": "string"},
+                "approval_request_id": {"type": "string"},
+            },
+        },
+        capability=WorkspaceAction.RUN_RESEARCH,
+        timeout_ms=5_000,
+        max_result_bytes=10_000,
+        max_cost_micro_usd=1,
+        cost_class=ToolCostClass.LOW,
+        side_effect_class=ToolSideEffectClass.IDEMPOTENT_WRITE,
+        retry_classification=ToolRetryClassification.IDEMPOTENT_WRITE,
+        approval_policy=ToolApprovalPolicy.REQUIRE_APPROVAL,
+        policy_version="sec-monitor-subscription-hitl-v1",
+    )
+
+
+class SecMonitorSubscribeTool(
+    PydanticToolAdapter[SecMonitorSubscribeInput, SecMonitorSubscribeOutput]
+):
+    def __init__(self) -> None:
+        super().__init__(
+            definition=sec_monitor_subscribe_definition(),
+            input_model=SecMonitorSubscribeInput,
+            output_model=SecMonitorSubscribeOutput,
+        )
+
+    async def invoke(
+        self,
+        value: SecMonitorSubscribeInput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        idempotency_key: str | None,
+    ) -> tuple[SecMonitorSubscribeOutput, int]:
+        del value, runtime_context, idempotency_key
+        raise ToolExecutionError("monitor_approval_bypass_rejected")
+
+    def normalize(
+        self,
+        value: SecMonitorSubscribeOutput,
+        runtime_context: TrustedRuntimeContext,
+        *,
+        call_id: UUID,
+        run_id: UUID,
+        observed_at: datetime,
+    ) -> ToolObservation:
+        del value, runtime_context, call_id, run_id, observed_at
+        raise ToolExecutionError("monitor_approval_bypass_rejected")
 
 
 SEC_LIST_FILINGS_TOOL_NAME = "sec.list_filings"

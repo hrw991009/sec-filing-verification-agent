@@ -51,6 +51,7 @@ const researchRun: ResearchRun = {
     evidence_refs: [],
     id: "77777777-7777-4777-8777-777777777777",
     outline: ["Finding", "Limitations"],
+    revision: 1,
     status: "uncertain_draft",
     uncertainty_summary: "No source passed the immutable snapshot gate.",
     updated_at: "2026-08-22T08:00:05Z",
@@ -172,6 +173,7 @@ const durability: ResearchDurability = {
 };
 
 const researchMocks = vi.hoisted(() => ({
+  decideMonitorSubscription: vi.fn(),
   decideResearchApproval: vi.fn(),
   getResearchDurability: vi.fn(),
   getResearchRun: vi.fn(),
@@ -585,5 +587,92 @@ describe("ResearchWorkspace", () => {
     expect(researchMocks.decideResearchApproval.mock.invocationCallOrder[0]).toBeLessThan(
       researchMocks.resumeResearch.mock.invocationCallOrder[0] ?? -1,
     );
+  });
+
+  it("uses the atomic monitor decision endpoint without a client-side resume", async () => {
+    const user = userEvent.setup();
+    const checkpoint = durability.checkpoints[0];
+    if (checkpoint === undefined) throw new Error("Test durability fixture is incomplete");
+    const pausedRun: ResearchRun = {
+      ...researchRun,
+      agent_status: "paused",
+      current_node: "research_loop",
+      draft: null,
+      status: "paused",
+      stop_reason: "approval_required",
+    };
+    const pendingApproval = {
+      approval_request_id: "abababab-abab-4bab-8bab-abababababab",
+      checkpoint_id: checkpoint.checkpoint_id,
+      checkpoint_revision: 3,
+      created_at: "2026-08-22T08:00:03Z",
+      decided_at: null,
+      decided_by_user_id: null,
+      expires_at: "2026-08-22T08:15:03Z",
+      reason: "monitor_subscription" as const,
+      requested_by_user_id: researchRun.owner_user_id,
+      resume_claimed: false,
+      resume_job_id: null,
+      resume_token: null,
+      resumed_at: null,
+      run_id: agentRunId,
+      status: "pending" as const,
+      tool_arguments: {
+        allowed_forms: ["10-K", "10-K/A"],
+        cik: "0000320193",
+        cron_expression: "0 3 * * *",
+        knowledge_base_id: knowledgeBaseId,
+        rules: [],
+        timezone_name: "Asia/Shanghai",
+      },
+      tool_arguments_sha256: "a".repeat(64),
+      tool_call_id: "cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+      tool_name: "sec.monitor.subscribe",
+      tool_version: "v1",
+    };
+    researchMocks.listResearchRuns.mockResolvedValue([pausedRun]);
+    researchMocks.getResearchRun.mockResolvedValue(pausedRun);
+    researchMocks.getResearchDurability.mockResolvedValue({
+      ...durability,
+      approvals: [pendingApproval],
+    });
+    researchMocks.decideMonitorSubscription.mockResolvedValue({
+      approval: { ...pendingApproval, status: "allowed" },
+      created: true,
+      monitor: null,
+      resume_job_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    });
+
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={researchRunId}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    expect(await screen.findByText("SEC Monitor 订阅审批")).toBeInTheDocument();
+    expect(screen.getByText("sec.monitor.subscribe@v1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "允许并继续" }));
+
+    await waitFor(() => {
+      expect(researchMocks.decideMonitorSubscription).toHaveBeenCalledTimes(1);
+    });
+    expect(researchMocks.decideMonitorSubscription).toHaveBeenCalledWith(
+      workspaceId,
+      researchRunId,
+      {
+        approval_request_id: pendingApproval.approval_request_id,
+        checkpoint_revision: 3,
+        outcome: "allow",
+      },
+    );
+    expect(researchMocks.decideResearchApproval).not.toHaveBeenCalled();
+    expect(researchMocks.resumeResearch).not.toHaveBeenCalled();
   });
 });

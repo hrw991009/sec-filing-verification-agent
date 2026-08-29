@@ -27,6 +27,12 @@ from industry_platform.modules.data_explorer.models import (
 )
 from industry_platform.modules.disclosures.models import (
     SecCatalogSyncRecord,
+    SecDisclosureCaseEvidenceRecord,
+    SecDisclosureCaseRecord,
+    SecDisclosureMonitorRecord,
+    SecDisclosureMonitorRuleRecord,
+    SecDisclosureMonitorRunRecord,
+    SecDisclosureMonitorWatermarkRecord,
     SecFilerAliasRecord,
     SecFilerRecord,
     SecFilingCoverageRecord,
@@ -105,6 +111,9 @@ from industry_platform.modules.research.models import (
     ResearchDraftRecord,
     ResearchPlanRecord,
     ResearchRunRecord,
+    ResearchVerificationClaimRecord,
+    ResearchVerificationIssueRecord,
+    ResearchVerificationReportRecord,
 )
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
@@ -175,11 +184,20 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     SecXbrlSourceRecord,
     SecXbrlContextRecord,
     SecXbrlFactRecord,
+    SecDisclosureMonitorRecord,
+    SecDisclosureMonitorRuleRecord,
+    SecDisclosureMonitorWatermarkRecord,
+    SecDisclosureMonitorRunRecord,
+    SecDisclosureCaseRecord,
     ResearchRunRecord,
     ResearchBriefRecord,
     ResearchPlanRecord,
     ResearchDraftRecord,
+    ResearchVerificationReportRecord,
+    ResearchVerificationClaimRecord,
+    ResearchVerificationIssueRecord,
     EvidenceRecord,
+    SecDisclosureCaseEvidenceRecord,
     EvidenceNormalizationDecisionRecord,
     ResearchClaimRecord,
     ClaimEvidenceRecord,

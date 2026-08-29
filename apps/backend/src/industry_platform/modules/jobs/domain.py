@@ -106,6 +106,8 @@ class JobExecutionErrorCode(StrEnum):
     INGESTION_CANCELLED = "ingestion_cancelled"
     INGESTION_UNAVAILABLE = "ingestion_unavailable"
     AGENT_RECOVERY_RETRYABLE = "agent_recovery_retryable"
+    SEC_MONITOR_DEPENDENCY_RETRYABLE = "sec_monitor_dependency_retryable"
+    SEC_MONITOR_STATE_INVALID = "sec_monitor_state_invalid"
 
 
 class JobRetryDisposition(StrEnum):

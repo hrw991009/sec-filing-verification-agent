@@ -476,23 +476,29 @@ def test_web_turn_executes_through_production_loader_unified_runtime_and_trace(
             assert accepted_evidence.origin_tool_call_id == call.id
             assert repeated_normalization.items[0].evidence == accepted_evidence
 
-            claim = await evidence_service.create_claim(
-                WorkspaceScope(workspace_id, user_id, "owner"),
-                CreateClaim(
-                    research_run_id=research_run_id,
-                    statement="Public transport is transitioning.",
-                    confidence=0.8,
-                    relations=(
-                        ClaimEvidenceInput(
-                            evidence_id=accepted_evidence.evidence_id,
-                            relation=ClaimEvidenceRelation.SUPPORTS,
-                        ),
+            claim_id = uuid4()
+            claim_command = CreateClaim(
+                research_run_id=research_run_id,
+                statement="Public transport is transitioning.",
+                confidence=0.8,
+                relations=(
+                    ClaimEvidenceInput(
+                        evidence_id=accepted_evidence.evidence_id,
+                        relation=ClaimEvidenceRelation.SUPPORTS,
                     ),
-                    origin_run_id=receipt.run_id,
-                    origin_step_id=final_step.id,
-                    trace_id=TraceId("day4-claim-create"),
                 ),
+                origin_run_id=receipt.run_id,
+                origin_step_id=final_step.id,
+                trace_id=TraceId("day4-claim-create"),
+                claim_id=claim_id,
             )
+            claim = await evidence_service.create_claim(
+                WorkspaceScope(workspace_id, user_id, "owner"), claim_command
+            )
+            repeated_claim = await evidence_service.create_claim(
+                WorkspaceScope(workspace_id, user_id, "owner"), claim_command
+            )
+            assert repeated_claim == claim
             assert claim.verification_status is ClaimVerificationStatus.SUPPORTED
             assert claim.coverage == 1
             graph = await evidence_service.get_claim_graph(
@@ -776,7 +782,7 @@ def test_research_l3_executes_one_postgres_run_into_an_uncertain_draft(
             assert assistant is not None
             assert research_run.status is ResearchRunStatus.COMPLETED
             assert research_run.current_node is not None
-            assert research_run.current_node.value == "draft"
+            assert research_run.current_node.value == "finalize"
             assert research_run.state["status"] == "completed"
             assert research_run.state["step_count"] == 4
             assert research_run.state["input_tokens_used"] == 40

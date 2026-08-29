@@ -49,6 +49,7 @@ class AgentEventType(StrEnum):
     RESEARCH_NODE_STARTED = "agent.research.node_started"
     RESEARCH_NODE_COMPLETED = "agent.research.node_completed"
     RESEARCH_NODE_FAILED = "agent.research.node_failed"
+    VERIFICATION_COMPLETED = "agent.research.verification_completed"
 
 
 TERMINAL_AGENT_EVENT_TYPES: Final = frozenset(

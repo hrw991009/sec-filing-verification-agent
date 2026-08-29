@@ -56,6 +56,7 @@ async def test_milvus_search_pins_workspace_knowledge_base_and_version_filters()
     assert str(WORKSPACE_ID) in payload["filter"]
     assert str(KNOWLEDGE_BASE_ID) in payload["filter"]
     assert str(VERSION_ID) in payload["filter"]
+    assert payload["consistencyLevel"] == "Strong"
     assert requests[0].headers["authorization"] == "Bearer internal-token"
     assert result[0].chunk_id == CHUNK_ID
     assert result[0].score == pytest.approx(0.9)
