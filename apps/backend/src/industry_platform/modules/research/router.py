@@ -39,11 +39,21 @@ from industry_platform.modules.research.schemas import (
     ResumeResearchResponse,
     StartResearchRequest,
     StartResearchResponse,
+    VerificationClaimResponse,
+    VerificationEvidenceSnapshotResponse,
+    VerificationIssueResponse,
+    VerificationReportResponse,
 )
 from industry_platform.modules.research.service import (
+    ResearchNotFoundError,
     ResearchQueryService,
     ResearchSubmissionService,
     StartResearch,
+)
+from industry_platform.modules.research.verification import (
+    ResearchVerificationService,
+    VerificationIssue,
+    VerificationReport,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceAccessDeniedError, WorkspaceScope
 
@@ -79,6 +89,12 @@ def get_durability_service(
     resources: Annotated[ResearchResources, Depends(get_research_resources)],
 ) -> ResearchDurabilityService:
     return resources.durability_service
+
+
+def get_verification_service(
+    resources: Annotated[ResearchResources, Depends(get_research_resources)],
+) -> ResearchVerificationService:
+    return resources.verification_service
 
 
 @router.post(
@@ -155,6 +171,25 @@ async def get_research(
     view = await service.get(_workspace_scope(principal, workspace_id), research_run_id)
     set_no_store_headers(response)
     return _view_response(view)
+
+
+@router.get(
+    "/{research_run_id}/verification-report",
+    response_model=VerificationReportResponse,
+    responses=_RESPONSES,
+)
+async def get_latest_verification_report(
+    workspace_id: UUID,
+    research_run_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[ResearchVerificationService, Depends(get_verification_service)],
+) -> VerificationReportResponse:
+    report = await service.latest(_workspace_scope(principal, workspace_id), research_run_id)
+    if report is None:
+        raise ResearchNotFoundError
+    set_no_store_headers(response)
+    return _verification_response(report)
 
 
 @router.get(
@@ -354,6 +389,68 @@ def _approval_response(
         resume_job_id=approval.resume_job_id,
         resumed_at=approval.resumed_at,
         resume_token=token,
+    )
+
+
+def _verification_response(report: VerificationReport) -> VerificationReportResponse:
+    issue_responses = {
+        issue.issue_id: _verification_issue_response(issue) for issue in report.issues
+    }
+    return VerificationReportResponse(
+        report_id=report.report_id,
+        research_run_id=report.research_run_id,
+        agent_run_id=report.agent_run_id,
+        workspace_id=report.workspace_id,
+        draft_id=report.draft_id,
+        revision=report.revision,
+        schema_version=report.schema_version,
+        checker_version=report.checker_version,
+        graph_version=report.graph_version,
+        financial_scope=FinancialScopePayload.from_domain(report.financial_scope),
+        verification_status=report.status,
+        coverage=report.coverage,
+        required_claim_ids=list(report.required_claim_ids),
+        claims=[
+            VerificationClaimResponse(
+                claim_id=claim.claim_id,
+                claim_revision=claim.claim_revision,
+                required=claim.required,
+                verdict=claim.verdict,
+                coverage=claim.coverage,
+                evidence_refs=list(claim.evidence_refs),
+                citation_refs=list(claim.citation_refs),
+                calculation_refs=list(claim.calculation_refs),
+                issues=[issue_responses[issue.issue_id] for issue in claim.issues],
+            )
+            for claim in report.claims
+        ],
+        evidence_snapshots=[
+            VerificationEvidenceSnapshotResponse(
+                evidence_id=item.evidence_id,
+                revision=item.revision,
+                status=item.status,
+                content_sha256=item.content_sha256,
+                available=item.available,
+            )
+            for item in report.evidence_snapshots
+        ],
+        issues=[issue_responses[issue.issue_id] for issue in report.issues],
+        runtime_stop_reason=report.runtime_stop_reason,
+        created_at=report.created_at,
+    )
+
+
+def _verification_issue_response(issue: VerificationIssue) -> VerificationIssueResponse:
+    return VerificationIssueResponse(
+        issue_id=issue.issue_id,
+        code=issue.code,
+        severity=issue.severity,
+        claim_id=issue.claim_id,
+        expected_refs=list(issue.expected_refs),
+        observed_refs=list(issue.observed_refs),
+        repairability=issue.repairability,
+        allowed_action=issue.allowed_action,
+        details_digest=issue.details_digest,
     )
 
 

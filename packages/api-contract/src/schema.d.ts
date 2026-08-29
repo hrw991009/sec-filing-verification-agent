@@ -1341,6 +1341,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/verification-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Latest Verification Report */
+        get: operations["get_latest_verification_report_api_v1_workspaces__workspace_id__research_runs__research_run_id__verification_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -1395,7 +1412,7 @@ export interface components {
          * @description Versioned Event vocabulary shared by persistence, SSE, and Trace.
          * @enum {string}
          */
-        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.tool.requested" | "agent.tool.approval_required" | "agent.tool.denied" | "agent.tool.started" | "agent.tool.completed" | "agent.tool.failed" | "agent.tool.cancelled" | "agent.artifact.created" | "agent.checkpoint.saved" | "agent.approval.requested" | "agent.approval.decided" | "agent.research.node_started" | "agent.research.node_completed" | "agent.research.node_failed";
+        AgentEventType: "agent.run.queued" | "agent.run.started" | "agent.run.paused" | "agent.run.resumed" | "agent.run.completed" | "agent.run.failed" | "agent.run.cancelled" | "agent.step.started" | "agent.step.completed" | "agent.step.failed" | "agent.model.started" | "agent.model.delta" | "agent.model.completed" | "agent.tool.requested" | "agent.tool.approval_required" | "agent.tool.denied" | "agent.tool.started" | "agent.tool.completed" | "agent.tool.failed" | "agent.tool.cancelled" | "agent.artifact.created" | "agent.checkpoint.saved" | "agent.approval.requested" | "agent.approval.decided" | "agent.research.node_started" | "agent.research.node_completed" | "agent.research.node_failed" | "agent.research.verification_completed";
         /**
          * AgentRunStatus
          * @description Persisted lifecycle of one logical Agent run.
@@ -5173,6 +5190,148 @@ export interface components {
             kind: components["schemas"]["MemoryKind"];
             scope: components["schemas"]["MemoryScope"];
         };
+        /**
+         * VerificationAllowedAction
+         * @enum {string}
+         */
+        VerificationAllowedAction: "targeted_retrieve" | "recalculate";
+        /** VerificationClaimResponse */
+        VerificationClaimResponse: {
+            /** Calculation Refs */
+            calculation_refs: string[];
+            /** Citation Refs */
+            citation_refs: string[];
+            /**
+             * Claim Id
+             * Format: uuid
+             */
+            claim_id: string;
+            /** Claim Revision */
+            claim_revision: number | null;
+            /** Coverage */
+            coverage: number;
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /** Issues */
+            issues: components["schemas"]["VerificationIssueResponse"][];
+            /** Required */
+            required: boolean;
+            verdict: components["schemas"]["VerificationClaimVerdict"];
+        };
+        /**
+         * VerificationClaimVerdict
+         * @enum {string}
+         */
+        VerificationClaimVerdict: "supported" | "refuted" | "conflicting" | "insufficient";
+        /** VerificationEvidenceSnapshotResponse */
+        VerificationEvidenceSnapshotResponse: {
+            /** Available */
+            available: boolean;
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Revision */
+            revision: number;
+            status: components["schemas"]["EvidenceStatus"];
+        };
+        /**
+         * VerificationIssueCode
+         * @enum {string}
+         */
+        VerificationIssueCode: "claim_not_found" | "relation_invalidated" | "evidence_inactive" | "authorization_mismatch" | "citation_unresolvable" | "scope_identity_mismatch" | "future_source" | "source_hash_mismatch" | "calculation_input_missing" | "calculation_mismatch" | "claim_conflict" | "claim_refuted" | "missing_evidence" | "coverage_incomplete";
+        /** VerificationIssueResponse */
+        VerificationIssueResponse: {
+            allowed_action: components["schemas"]["VerificationAllowedAction"] | null;
+            /** Claim Id */
+            claim_id: string | null;
+            code: components["schemas"]["VerificationIssueCode"];
+            /** Details Digest */
+            details_digest: string;
+            /** Expected Refs */
+            expected_refs: string[];
+            /**
+             * Issue Id
+             * Format: uuid
+             */
+            issue_id: string;
+            /** Observed Refs */
+            observed_refs: string[];
+            repairability: components["schemas"]["VerificationRepairability"];
+            severity: components["schemas"]["VerificationIssueSeverity"];
+        };
+        /**
+         * VerificationIssueSeverity
+         * @enum {string}
+         */
+        VerificationIssueSeverity: "error" | "warning";
+        /**
+         * VerificationRepairability
+         * @enum {string}
+         */
+        VerificationRepairability: "repairable" | "terminal";
+        /** VerificationReportResponse */
+        VerificationReportResponse: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+            /** Checker Version */
+            checker_version: string;
+            /** Claims */
+            claims: components["schemas"]["VerificationClaimResponse"][];
+            /** Coverage */
+            coverage: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Draft Id
+             * Format: uuid
+             */
+            draft_id: string;
+            /** Evidence Snapshots */
+            evidence_snapshots: components["schemas"]["VerificationEvidenceSnapshotResponse"][];
+            financial_scope: components["schemas"]["FinancialScopePayload"];
+            /** Graph Version */
+            graph_version: string;
+            /** Issues */
+            issues: components["schemas"]["VerificationIssueResponse"][];
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+            /** Required Claim Ids */
+            required_claim_ids: string[];
+            /**
+             * Research Run Id
+             * Format: uuid
+             */
+            research_run_id: string;
+            /** Revision */
+            revision: number;
+            runtime_stop_reason: components["schemas"]["RunStopReason"] | null;
+            /** Schema Version */
+            schema_version: number;
+            verification_status: components["schemas"]["VerificationStatus"];
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /**
+         * VerificationStatus
+         * @enum {string}
+         */
+        VerificationStatus: "verified" | "partial" | "conflict" | "insufficient_evidence";
         /** WorkspaceCollectionResponse */
         WorkspaceCollectionResponse: {
             /** Workspaces */
@@ -19789,6 +19948,183 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResumeResearchResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research service temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_latest_verification_report_api_v1_workspaces__workspace_id__research_runs__research_run_id__verification_report_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationReportResponse"];
                 };
             };
             /** @description Invalid authenticated session */

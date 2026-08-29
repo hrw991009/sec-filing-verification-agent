@@ -666,8 +666,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     args.json_output.write_text(
         json.dumps(report.model_dump(mode="json"), ensure_ascii=True, indent=2) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
-    args.markdown_output.write_text(render_sec_tool_markdown(report), encoding="utf-8")
+    args.markdown_output.write_text(
+        render_sec_tool_markdown(report),
+        encoding="utf-8",
+        newline="\n",
+    )
     return 0
 
 

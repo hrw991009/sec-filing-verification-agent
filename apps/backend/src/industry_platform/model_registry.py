@@ -105,6 +105,9 @@ from industry_platform.modules.research.models import (
     ResearchDraftRecord,
     ResearchPlanRecord,
     ResearchRunRecord,
+    ResearchVerificationClaimRecord,
+    ResearchVerificationIssueRecord,
+    ResearchVerificationReportRecord,
 )
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 
@@ -179,6 +182,9 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     ResearchBriefRecord,
     ResearchPlanRecord,
     ResearchDraftRecord,
+    ResearchVerificationReportRecord,
+    ResearchVerificationClaimRecord,
+    ResearchVerificationIssueRecord,
     EvidenceRecord,
     EvidenceNormalizationDecisionRecord,
     ResearchClaimRecord,

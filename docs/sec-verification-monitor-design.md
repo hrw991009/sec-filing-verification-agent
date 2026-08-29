@@ -1,10 +1,10 @@
 # SEC Verifier、Monitor 与恢复设计
 
-> 版本：`0.1.0`
+> 版本：`0.2.0`
 >
-> 日期：2026-08-28
+> 日期：2026-08-29
 >
-> 状态：Day 8 设计已冻结，代码未开始
+> 状态：Step 1 已本地实现并等待远端验证；Step 2～5 仍为规划
 >
 > 适用范围：D8-01～D8-08
 
@@ -40,6 +40,8 @@ approved monitor
 | Notification receipt | side-effect ledger/对应 Adapter | request/destination/payload hash 唯一；迟到结果不能覆盖终态 |
 
 Milvus、Elasticsearch、Redis、浏览器状态和 OpenTelemetry 都不是上述业务事实源。
+
+Step 1 已按上述所有权落入既有 `research` bounded context：正式 PostgreSQL 保存 report/Claim/issue 的 append-only revision，Verifier 通过现有 Evidence service 重载实际 availability，并通过只读 API 暴露最新报告。当前只注册 verification Event/Trace contract；Event 发射和 graph/checkpoint 连接属于 Step 2，不能由 API 手动伪造。
 
 ## 3. Verifier contract
 
@@ -198,4 +200,4 @@ Day 8 硬门：
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1 先冻结 domain contract 和状态决策表；未完成前不建 Monitor 表或页面。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。
+实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1 已完成本地实现与 PostgreSQL/迁移聚焦验证；下一步只接入 one-revise graph 与不可信输入防线，不建 Monitor 表或页面。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。

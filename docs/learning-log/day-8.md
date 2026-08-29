@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)
 >
-> 当前状态：Day 8 仅完成规划，D8-01～D8-08 均为 `planned`，尚未修改 Day 8 代码。Day 7 已由 PR #11 合入 `main`；两组 PR 检查通过，但合并提交 CI `33156337673` 最终为 6/7 Job 通过、Browser E2E 失败，因此不能把 Day 7 写成已完成或已通过 main 门禁。项目所有者明确先完成 Day 8～Day 9 代码、Day 10 再统一查漏补缺；该排期只允许继续实施，不删除任何既有评测分母、失败记录或发布硬门。
+> 当前状态（2026-08-29）：Step 1 已在 `feat/day-8` 工作树实现，D8-01、D8-02 为 `implemented_pending_verification`；Step 2～5 与 D8-03～D8-08 仍为 `planned`。本地规则/API 测试、真实 PostgreSQL append-only 持久化测试和完整迁移往返已通过，OpenAPI 已生成；尚无提交、分支/PR/main CI、graph 节点、正式浏览器或所有者复核，不能把 Day 8 写成完成。Day 7 合并提交 CI `33156337673` 的 Browser E2E 失败及既有评测债务继续保留到 Day 10。
 
 ## 1. 进入基线与本日边界
 
@@ -78,7 +78,17 @@ Monitor 由 Workspace、filer、forms、规则版本、schedule/timezone 和 wat
 
 `sec-verification-v1` 不复用模型自报标签作为 gold。确定性规则从 frozen Evidence、calculation program、expected state 和最终数据库事实重算。A3 只测 mandatory verifier + one revise 对 A2 的增益；A4 测 Monitor/HITL/恢复正确性，不把简单问答分数作为其主要收益。
 
-## 5. Day 8 完成定义
+## 5. Step 1 实现与证据
+
+当前工作树已经落地 `research` 所有的确定性 `sec-claim-verifier-v1`：从正式 Research draft、Claim relation、Evidence availability、SEC locator/hash、`FinancialScope` 和 Calculation lineage 重新判定，不相信 draft 自报状态。输出包含 append-only report revision、逐 Claim verdict、typed issue、Evidence snapshot、coverage、`verification_status` 与独立的 `runtime_stop_reason`。
+
+PostgreSQL 新增 `research_verification_reports`、`research_verification_claims`、`research_verification_issues` 三张正式表；仓库在同一事务中先落父报告再落 Claim/Issue，并在写入前校验 run/draft/graph、Claim revision、Evidence revision/status/hash。迁移同时修复既有 `research_runs.current_node` 模型为 40、数据库仍为 32 的 schema 漂移，upgrade/downgrade 均有明确类型转换。
+
+正式只读 API 为 `GET /api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/verification-report`。Event/Trace 注册了安全的 verification 完成投影字段，但本步不伪造 graph 事件；事件产生、one-revise 和 finalize 由 Step 2 接入唯一 Research graph。
+
+本地证据包括 14 条聚焦规则/API 测试、真实 PostgreSQL append-only/stale-revision 测试、完整 Alembic upgrade→downgrade→upgrade 与 autogenerate drift 检查、确定性 OpenAPI 生成，以及 `1089 passed, 85 skipped` 的完整 Python 回归。回归同时暴露并修复 `sec-tool-v1` Markdown 在 Windows 写 CRLF、仓库基线为 LF 的跨平台字节漂移；只固定输出换行，不修改报告内容或评测分母。以上证据只支持 D8-01/D8-02 的 `implemented_pending_verification`，不替代远端 CI、正式浏览器、frozen eval 或 owner review。
+
+## 6. Day 8 完成定义
 
 Day 8 只有同时满足以下条件才可关闭：
 
@@ -89,4 +99,4 @@ Day 8 只有同时满足以下条件才可关闭：
 - 分支、PR、合并提交 CI 均通过，正式浏览器旅程和所有者复核完成；
 - Day 5～7 遗留项仍在 Day 10 台账中逐项可见，没有被 Day 8 报告删除、改分母或伪写完成。
 
-当前只满足“计划已冻结”，不满足上述代码、评测和验收条件。下一步从 Step 1 开始，不提前实现 Monitor 或 UI 占位。
+当前仅 Step 1 达到本地 `implemented_pending_verification`，不满足 Day 8 总完成条件。下一步进入 Step 2，把 Verifier 接入唯一 Research graph 并实现 one-revise 与不可信输入防线；不提前实现 Monitor 或 UI 占位。

@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.6`
+> 版本：`2.1.7`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1011,7 +1011,7 @@ Filing Hybrid Retrieval、SEC locator、Financial Context Compiler、typed calcu
 
 ## 15. Day 8：SEC Verified Agent L5、监控与 Durable HITL
 
-> 执行状态（2026-08-28）：Day 7 已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败，不能据此关闭 Day 7。项目所有者明确先继续 Day 8～Day 9 代码、Day 10 再统一查漏补缺；该授权只改变执行顺序，Day 4～Day 7 的 coverage、浏览器、bulk/live、ranking/Citation、中英 paired、main CI 和 owner review 债务仍是 Day 10 硬门。Day 8 当前只完成不超过五步的文档规划，D8-01～D8-08 均为 `planned`。详细顺序见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
+> 执行状态（2026-08-29）：Day 8 Step 1 已在 `feat/day-8` 工作树落地确定性 SEC Claim Verifier、四种独立业务状态、append-only PostgreSQL report/Claim/issue、只读 API、Event/Trace contract 与 OpenAPI；聚焦规则/API、真实 PostgreSQL 持久化和完整迁移往返均已通过。D8-01/D8-02 为 `implemented_pending_verification`，D8-03～D8-08 仍为 `planned`。尚无提交、分支/PR/main CI、graph/one-revise、正式浏览器、frozen eval 或 owner review，Day 7 main Browser E2E 失败及 Day 4～7 债务继续作为 Day 10 硬门。详细事实见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
 
 ### 学习主题
 
@@ -1335,3 +1335,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.1.4 | 2026-08-28 | 同步 Day 7 Step 4 当前工作树：新增 fail-closed filing diff、`sec.diff_filings@v1`、exact six-Tool 中文 `sec-l4-v1`、SEC/Research Workbench 审计链和完整 Evidence HTTP locator；修复分支 CI `33149285431` 暴露的 ready/active PostgreSQL 测试夹具。D7-06/D7-07 为 `implemented_pending_verification`，保留真实依赖、正式浏览器、中英 paired run、新分支/PR/main CI 与既有评测缺口 | 用户授权继续 Day 7 下一步 |
 | 2.1.5 | 2026-08-28 | 同步 Day 7 Step 5 当前工作树：新增可重算 10-case/30-run `sec-tool-v1` manifest、独立 observations、严格 scorer 与 JSON/Markdown；deterministic A2 对 A1 复杂题净增益 `0.833333`、简单题退化 `0`，但报告明确不是 live/model/public benchmark 且 Day 7 未收口。同步修复 `e5fb75c` CI 暴露的 XBRL unit 边界、过期 Hybrid E2E selector 与版本常量 Secret 误报；本地 Python `1081 passed, 84 skipped`、Python/Web/OpenAPI/报告生成/Gitleaks 门禁通过。D7-08 为 `implemented_pending_verification`，保留真实依赖、浏览器、中英 paired、三层 CI、owner review 和既有债务 | 用户授权继续 Day 7 下一步 |
 | 2.1.6 | 2026-08-28 | 记录 PR #11、功能 head、两组通过的 PR 检查与合并提交 main CI 最终 6/7 Job 通过、Browser E2E 失败，Day 7 状态不升级。按项目所有者“先完成后续代码、Day 10 统一查漏补缺”的排期授权，将 Day 8 收敛为五个纵向步骤，新增 Day 8 执行计划和 Verifier/Monitor/恢复设计；D8-01～D8-08 保持 `planned`，Day 4～7 原债务继续作为 Day 10 发布硬门 | 用户授权进入 Day 8 文档规划 |
+| 2.1.7 | 2026-08-29 | 同步 Day 8 Step 1 当前工作树：复用正式 Evidence/SEC/Calculation 链实现确定性 Claim Verifier、四种业务状态、typed issue 与 append-only PostgreSQL 报告，增加只读 API、Event/Trace/OpenAPI 和真实迁移/持久化测试；D8-01/D8-02 为 `implemented_pending_verification`。明确 graph 发射、one-revise、Workbench、frozen eval、提交/远端 CI 和 owner review 尚未完成 | 用户授权继续 Day 8 |

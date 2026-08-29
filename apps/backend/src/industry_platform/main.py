@@ -194,6 +194,11 @@ from industry_platform.modules.research.durability import (
 from industry_platform.modules.research.resources import create_research_resources
 from industry_platform.modules.research.router import router as research_router
 from industry_platform.modules.research.service import ResearchNotFoundError
+from industry_platform.modules.research.verification import (
+    VerificationConflictError,
+    VerificationInputError,
+    VerificationPersistenceError,
+)
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
     WorkspaceAccessDeniedError,
@@ -457,9 +462,14 @@ def create_app(
 
     @application.exception_handler(ResearchPersistenceError)
     @application.exception_handler(ResearchDurabilityPersistenceError)
+    @application.exception_handler(VerificationPersistenceError)
     async def handle_research_unavailable(
         request: Request,
-        _error: ResearchPersistenceError | ResearchDurabilityPersistenceError,
+        _error: (
+            ResearchPersistenceError
+            | ResearchDurabilityPersistenceError
+            | VerificationPersistenceError
+        ),
     ) -> JSONResponse:
         return problem_response(
             trace_id=get_trace_id(request),
@@ -468,6 +478,34 @@ def create_app(
             code="RESEARCH_UNAVAILABLE",
             detail="Research facts could not be loaded safely.",
             problem_type="urn:iip:problem:research-unavailable",
+        )
+
+    @application.exception_handler(VerificationConflictError)
+    async def handle_verification_conflict(
+        request: Request,
+        _error: VerificationConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="Verification snapshot conflict",
+            code="VERIFICATION_SNAPSHOT_CONFLICT",
+            detail="The Research facts changed while verification was running.",
+            problem_type="urn:iip:problem:verification-snapshot-conflict",
+        )
+
+    @application.exception_handler(VerificationInputError)
+    async def handle_verification_input_rejected(
+        request: Request,
+        _error: VerificationInputError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            title="Verification input rejected",
+            code="VERIFICATION_INPUT_REJECTED",
+            detail="A scoped SEC Research Draft is required for verification.",
+            problem_type="urn:iip:problem:verification-input-rejected",
         )
 
     @application.exception_handler(ResearchApprovalNotFoundError)

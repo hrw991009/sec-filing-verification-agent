@@ -31,6 +31,9 @@ EXPECTED_BUSINESS_TABLES = {
     "sec_filings",
     "sec_filing_coverage_manifests",
     "sec_filing_coverage_sources",
+    "research_verification_reports",
+    "research_verification_claims",
+    "research_verification_issues",
 }
 
 pytestmark = pytest.mark.migration_smoke

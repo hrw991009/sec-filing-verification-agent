@@ -16,6 +16,7 @@ from industry_platform.modules.agent_runtime.domain import (
     RunBudget,
     RunStopReason,
 )
+from industry_platform.modules.evidence.domain import EvidenceStatus
 from industry_platform.modules.financial_verification.domain import (
     FinancialForm,
     FinancialScope,
@@ -58,11 +59,20 @@ from industry_platform.modules.research.router import (
     get_durability_service,
     get_query_service,
     get_submission_service,
+    get_verification_service,
 )
 from industry_platform.modules.research.service import (
     ResearchQueryService,
     ResearchSubmissionService,
     StartResearch,
+)
+from industry_platform.modules.research.verification import (
+    ResearchVerificationService,
+    VerificationClaimResult,
+    VerificationClaimVerdict,
+    VerificationEvidenceSnapshot,
+    VerificationReport,
+    VerificationStatus,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
@@ -175,6 +185,17 @@ class StubDurabilityService:
 
     def token_for(self, _approval: ResearchApprovalRequest) -> str:
         return TEST_RESUME_PROOF
+
+
+@dataclass
+class StubVerificationService:
+    calls: list[tuple[WorkspaceScope, UUID]] = field(default_factory=list)
+
+    async def latest(
+        self, scope: WorkspaceScope, research_run_id: UUID
+    ) -> VerificationReport | None:
+        self.calls.append((scope, research_run_id))
+        return verification_report()
 
 
 def approval(
@@ -290,6 +311,7 @@ def research_client(
     submission: StubSubmissionService,
     query: StubQueryService,
     durability: StubDurabilityService | None = None,
+    verification: StubVerificationService | None = None,
 ) -> Iterator[TestClient]:
     application = create_app(settings=settings)
     application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
@@ -302,6 +324,10 @@ def research_client(
     if durability is not None:
         application.dependency_overrides[get_durability_service] = lambda: cast(
             ResearchDurabilityService, durability
+        )
+    if verification is not None:
+        application.dependency_overrides[get_verification_service] = lambda: cast(
+            ResearchVerificationService, verification
         )
     with TestClient(application, base_url="https://localhost") as client:
         yield client
@@ -334,6 +360,46 @@ def financial_scope() -> FinancialScope:
         as_of=datetime(2023, 11, 3, 12, tzinfo=UTC),
         unit="USD",
         scale=6,
+    )
+
+
+def verification_report() -> VerificationReport:
+    claim = VerificationClaimResult(
+        claim_id=CLAIM_ID,
+        claim_revision=1,
+        required=True,
+        verdict=VerificationClaimVerdict.SUPPORTED,
+        coverage=1,
+        evidence_refs=(EVIDENCE_ID,),
+        citation_refs=(EVIDENCE_ID,),
+        calculation_refs=(),
+        issues=(),
+    )
+    return VerificationReport(
+        report_id=UUID("30000000-0000-4000-8000-000000000020"),
+        research_run_id=RESEARCH_RUN_ID,
+        agent_run_id=RUN_ID,
+        workspace_id=WORKSPACE_ID,
+        draft_id=DRAFT_ID,
+        revision=1,
+        graph_version=RESEARCH_GRAPH_VERSION,
+        financial_scope=financial_scope(),
+        status=VerificationStatus.VERIFIED,
+        coverage=1,
+        required_claim_ids=(CLAIM_ID,),
+        claims=(claim,),
+        evidence_snapshots=(
+            VerificationEvidenceSnapshot(
+                evidence_id=EVIDENCE_ID,
+                revision=1,
+                status=EvidenceStatus.ACTIVE,
+                content_sha256="a" * 64,
+                available=True,
+            ),
+        ),
+        issues=(),
+        runtime_stop_reason=RunStopReason.FINAL,
+        created_at=NOW,
     )
 
 
@@ -437,6 +503,31 @@ def test_get_exposes_brief_plan_draft_and_runtime_budget(test_settings: Settings
     assert document["draft"]["evidence_refs"] == [str(EVIDENCE_ID)]
     assert query.calls == [
         ("get", WorkspaceScope(WORKSPACE_ID, USER_ID, "member"), RESEARCH_RUN_ID)
+    ]
+
+
+def test_verification_report_keeps_business_status_separate_from_runtime_stop_reason(
+    test_settings: Settings,
+) -> None:
+    submission = StubSubmissionService()
+    query = StubQueryService()
+    verification = StubVerificationService()
+    with research_client(test_settings, submission, query, verification=verification) as client:
+        response = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs/"
+            f"{RESEARCH_RUN_ID}/verification-report",
+            headers=headers(),
+        )
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    document = response.json()
+    assert document["verification_status"] == "verified"
+    assert document["runtime_stop_reason"] == "final"
+    assert document["claims"][0]["verdict"] == "supported"
+    assert document["evidence_snapshots"][0]["available"] is True
+    assert verification.calls == [
+        (WorkspaceScope(WORKSPACE_ID, USER_ID, "member"), RESEARCH_RUN_ID)
     ]
 
 

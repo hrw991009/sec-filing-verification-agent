@@ -372,6 +372,23 @@ class SqlAlchemyEvidenceRepository:
         except SQLAlchemyError as error:
             raise EvidencePersistenceError(sqlstate=safe_sqlstate(error)) from error
 
+    async def is_evidence_available(self, scope: WorkspaceScope, evidence_id: UUID) -> bool:
+        try:
+            async with self._session_factory() as session:
+                record = await session.scalar(
+                    select(EvidenceRecord).where(
+                        EvidenceRecord.id == evidence_id,
+                        EvidenceRecord.workspace_id == scope.workspace_id,
+                    )
+                )
+                if record is None:
+                    raise EvidenceNotFoundError
+                return await self.is_evidence_record_available(session, record)
+        except EvidenceNotFoundError:
+            raise
+        except SQLAlchemyError as error:
+            raise EvidencePersistenceError(sqlstate=safe_sqlstate(error)) from error
+
     async def invalidate_evidence(
         self,
         scope: WorkspaceScope,
@@ -2002,6 +2019,11 @@ class SqlAlchemyEvidenceRepository:
             normalizer_version=EVIDENCE_NORMALIZER_VERSION,
             items=tuple(items),
         )
+
+    async def is_evidence_record_available(
+        self, session: AsyncSession, record: EvidenceRecord
+    ) -> bool:
+        return record.status is EvidenceStatus.ACTIVE and await self._is_available(session, record)
 
     async def _is_available(self, session: AsyncSession, record: EvidenceRecord) -> bool:
         if record.source_item_id is not None:

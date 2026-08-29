@@ -197,6 +197,14 @@ _SAFE_EVENT_FIELDS: Mapping[AgentEventType, tuple[str, ...]] = {
         "graph_version",
         "state_revision",
     ),
+    AgentEventType.VERIFICATION_COMPLETED: (
+        "report_id",
+        "revision",
+        "verification_status",
+        "coverage",
+        "issue_count",
+        "checker_version",
+    ),
 }
 
 if frozenset(_SAFE_EVENT_FIELDS) != frozenset(AgentEventType):
