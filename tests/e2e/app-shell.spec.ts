@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const execFileAsync = promisify(execFile);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -9,6 +9,7 @@ const BROWSER_SUCCESS_ANSWER_PREFIX = "Day 2 浏览器流式片段已到达。Ru
 const BROWSER_SUCCESS_ANSWER_SUFFIX = "; 第二段完成, 最终回答已持久化。";
 const ANSWER_PREFIX_DAY3 = "Day 3 Web Tool 已完成。Run: ";
 const ANSWER_SUFFIX_DAY3 = "; 公共来源结果已引用 [S1]。";
+const STOPPED_ANSWER_PATTERN = /本次回答已停止，已经生成的片段仍然保留/u;
 
 interface StartTurnReceipt {
   readonly agentRunId: string;
@@ -52,6 +53,17 @@ function parseStartResearchReceipt(value: unknown): StartResearchReceipt {
     jobId: requireUuid(receipt, "job_id"),
     researchRunId: requireUuid(receipt, "research_run_id"),
   };
+}
+
+async function cancelActiveRunAndWaitForTerminal(page: Page): Promise<void> {
+  const terminalMessages = page.getByText(STOPPED_ANSWER_PATTERN);
+  const previousTerminalCount = await terminalMessages.count();
+
+  await page.getByRole("button", { exact: true, name: "停止" }).click();
+  await expect(page.getByRole("button", { name: /^(?:停止|正在停止)$/u })).toHaveCount(0, {
+    timeout: 15_000,
+  });
+  await expect(terminalMessages).toHaveCount(previousTerminalCount + 1);
 }
 
 async function executeBrowserCreatedRun(receipt: StartTurnReceipt): Promise<void> {
@@ -597,7 +609,7 @@ test.describe("browser identity lifecycle", () => {
   });
 
   test("creates, stops, and restores a real Day 2 conversation", async ({ page }) => {
-    test.setTimeout(45_000);
+    test.setTimeout(75_000);
     const uniquePart = [Date.now(), test.info().workerIndex].join("-");
     const email = `chat-${uniquePart}@example.com`;
     const password = "Browser!Pass123";
@@ -628,9 +640,7 @@ test.describe("browser identity lifecycle", () => {
 
     await expect(page.getByText(question, { exact: true }).last()).toBeVisible();
     await expect(page.getByRole("button", { exact: true, name: "停止" })).toBeVisible();
-    await page.getByRole("button", { exact: true, name: "停止" }).click();
-    await expect(page.getByText(/本次回答已停止，已经生成的片段仍然保留/u)).toBeVisible();
-    await expect(page.getByRole("button", { exact: true, name: "停止" })).toHaveCount(0);
+    await cancelActiveRunAndWaitForTerminal(page);
 
     await page.reload();
     await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
@@ -643,8 +653,7 @@ test.describe("browser identity lifecycle", () => {
     await expect(page.getByLabel("输入问题")).toHaveValue(question);
     await page.getByRole("button", { name: "发送问题" }).click();
     await expect(page.getByRole("button", { exact: true, name: "停止" })).toBeVisible();
-    await page.getByRole("button", { exact: true, name: "停止" }).click();
-    await expect(page.getByText(/本次回答已停止，已经生成的片段仍然保留/u)).toBeVisible();
+    await cancelActiveRunAndWaitForTerminal(page);
 
     await attachmentPicker.setInputFiles({
       name: attachedDocument,
@@ -658,8 +667,7 @@ test.describe("browser identity lifecycle", () => {
     await page.getByLabel("输入问题").fill(attachmentQuestion);
     await page.getByRole("button", { name: "发送问题" }).click();
     await expect(page.getByRole("button", { exact: true, name: "停止" })).toBeVisible();
-    await page.getByRole("button", { exact: true, name: "停止" }).click();
-    await expect(page.getByText(/本次回答已停止，已经生成的片段仍然保留/u)).toBeVisible();
+    await cancelActiveRunAndWaitForTerminal(page);
 
     await page.reload();
     await expect(page.getByRole("heading", { name: "Agent 工作台" })).toBeVisible();
