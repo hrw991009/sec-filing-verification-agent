@@ -124,6 +124,85 @@ def test_agent_event_batch_rolls_back_every_projection_when_one_event_is_invalid
         runner.run(exercise())
 
 
+def test_equal_event_times_do_not_let_model_onupdate_advance_run_clock(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            receipt = await ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            ).start_direct_answer(
+                replace(
+                    command(),
+                    idempotency_key="postgres-equal-event-time",
+                    question="Keep the event clock authoritative.",
+                )
+            )
+            async with session_factory() as session:
+                run = await session.get(AgentRunRecord, receipt.run_id)
+            assert run is not None
+            occurred_at = NOW + timedelta(seconds=1)
+            step_id = uuid4()
+            committer = SqlAlchemyAgentEventCommitter(session_factory)
+            await committer.append(
+                AgentEvent(
+                    schema_version=1,
+                    stream_id=run.event_stream_id,
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    sequence=2,
+                    occurred_at=occurred_at,
+                    trace_id=TraceId(run.trace_id),
+                    event_type=AgentEventType.RUN_STARTED,
+                    payload={"state_revision": 1},
+                )
+            )
+            await committer.append(
+                AgentEvent(
+                    schema_version=1,
+                    stream_id=run.event_stream_id,
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    sequence=3,
+                    occurred_at=occurred_at,
+                    trace_id=TraceId(run.trace_id),
+                    event_type=AgentEventType.STEP_STARTED,
+                    payload={
+                        "step_id": str(step_id),
+                        "step_sequence": 1,
+                        "step_kind": "model",
+                    },
+                )
+            )
+            await committer.append(
+                AgentEvent(
+                    schema_version=1,
+                    stream_id=run.event_stream_id,
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    sequence=4,
+                    occurred_at=occurred_at,
+                    trace_id=TraceId(run.trace_id),
+                    event_type=AgentEventType.CHECKPOINT_SAVED,
+                )
+            )
+
+            async with session_factory() as session:
+                persisted = await session.get(AgentRunRecord, run.id)
+            assert persisted is not None
+            assert persisted.event_count == 4
+            assert persisted.updated_at == occurred_at
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
 def test_cancelled_completed_model_usage_is_preserved_in_run_and_step(
     migrated_postgres_probe: PostgresProbe,
 ) -> None:

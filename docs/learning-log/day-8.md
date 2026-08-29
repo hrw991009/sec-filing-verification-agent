@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)
 >
-> 当前状态（2026-08-29）：Step 1～4 已在 `feat/day-8` 工作树实现，D8-01～D8-07 为 `implemented_pending_verification`，D8-08 为 `thin_slice`，Step 5 仍为 `planned`。Step 4 新增版本化 `sec-l5-v1` 七工具 Profile、严格 `sec.monitor.subscribe@v1`、工具级持久中断、原子 allow/deny/timeout、Research 同 Run 恢复、正式 Monitor/Case API 和刷新可恢复的 Workbench。CI 同款真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 回归为 `1197 passed`，总体 branch coverage `80.11%`、核心合集 `86%`；Ruff、mypy、迁移往返/drift、OpenAPI 确定性、Web `89 passed`/关键状态覆盖率 `100%`/build 和现有 Chromium `8 passed` 均通过。完整 fault/security、A2/A3/A4、专用 Monitor 审批浏览器旅程、PR/main CI 与所有者复核仍缺，不能把 Step 4 或 Day 8 写成完成。
+> 当前状态（2026-08-29）：Step 1～5 已在 `feat/day-8` 工作树实现，D8-01～D8-08 均为 `implemented_pending_verification`。Step 5 新增 14-case/42-run 的 `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 与可重生成 JSON/Markdown；deterministic/security/fault 三层合同门均通过，A3 对 A2 的复杂场景净增益为 `0.714286`、简单题退化为 `0`，A4 操作正确率和恢复率分列为 `1.0`。CI 同款五个真实依赖下 `1207 passed`，总体/核心分支覆盖率为 `80.21%`/`86%`，现有 Chromium `8 passed`，Python/Node 依赖审计与完整 Git 历史 Gitleaks 扫描通过。这仍是 frozen replay + executable contract refs，不是 live SEC/model 结果；专用 Monitor 审批浏览器旅程、Monitor hard-stop 故障注入、branch/PR/main CI、所有者复核与 Day 4～7 遗留债务仍缺，不能把 Day 8 写成完成。
 
 ## 1. 进入基线与本日边界
 
@@ -116,7 +116,17 @@ Research Runtime 遇到该 Tool 时保存包含 call/tool/arguments digest 的 A
 
 正式 API 已覆盖原子审批决定、Monitor 列表/详情/暂停/恢复/删除和 Case 列表/详情。SEC Workbench 从这些 API 重载规则、水位、审批、Case 时间线与双侧 Evidence ID；Research 审批面板调用原子端点，不再先 generic allow 再单独创建订阅。聚焦测试验证 allow 单写、重复 allow 幂等、冲突、deny/timeout 零业务写、取消/CAS 竞态、状态 revision、已批准 Observation 重建、Research 暂停后同 Run 继续，以及前端刷新恢复。CI 同款五个真实依赖下 `1197 passed`，总体/核心覆盖率 `80.11%`/`86%`；现有 Chromium 8 条旅程全部通过，包括此前 merge 后失败的会话创建/停止/刷新恢复。远端 CI、专用 Monitor 审批 Playwright 旅程、Worker hard-stop/lease/notification unknown 的完整组合和 Step 5 frozen eval 仍待验证。
 
-## 9. Day 8 完成定义
+## 9. Step 5 实现与证据
+
+`sec-verification-v1` 冻结 14 个 case，并让 A2/A3/A4 在同一 source fixture hash、Workspace/FinancialScope 和预算上产生 42 个显式 run。覆盖标签包含 support/refute/conflict/no-answer、missing Citation、wrong accession/period/unit、不可重算数字、one-revise success/no-progress、indirect injection/cross-workspace、approval allow/deny/timeout、重复 decision/resume/tick、Worker hard stop、amendment Case 与重复通知意图。场景绑定现有 Verifier、Research Runtime、PostgreSQL HITL 和 Monitor/Case 测试；scorer 不相信 `verified` 标签，而是重新比较 Evidence/Citation、answer/program、scope identity、point-in-time、Tool surface、trajectory、Runtime stop reason 和最终数据库计数。
+
+冻结报告的 A2 question/simple/complex 为 `0.444444/1.0/0.285714`，A3 为 `1.0/1.0/1.0`，因此复杂题净增益 `0.714286`、简单题退化 `0`。A4 普通问答仍单列为 `1.0`，不与 Monitor 收益混算；其 operational accuracy 与 recovery success 均为 `1.0`，duplicate effect、unauthorized write、verified false support 均为 `0`。三层合同报告通过只证明冻结 observation 与生产合同一致，不能替代 live model、专用 Monitor browser 或真实 Worker hard-stop 故障演练。
+
+机器报告位于 `evals/reports/sec-verification-v1.json`，复盘报告位于同名 Markdown；`test_verification_eval.py` 会重算报告、校验 14/42 覆盖与真实测试引用，并负向证明缺跑、伪 verified、越权 trajectory 和重复 Case/通知计数会阻断门禁。CI readiness 同时恢复为与正式 Elasticsearch Adapter 一致的 `refresh=true`，避免新索引在没有周期 refresh 时因 `refresh=wait_for` 卡住。远端 branch/PR/main CI、专用浏览器与 owner review 未执行，因此报告的 `day8_closeout_ready` 必须为 `false`。
+
+最终本地门禁使用 CI 同款 PostgreSQL、Redis、MinIO、Milvus 与 Elasticsearch，共 `1207 passed`；总体分支覆盖率 `80.21%`，核心模块分支覆盖率 `86%`。全量测试还暴露并修复了 Agent Event 的真实时钟缺陷：连续合法事件使用相同逻辑时间时，SQLAlchemy 的通用 `onupdate=now()` 曾把 `AgentRun.updated_at` 推进到数据库墙钟，导致下一事件被误判为倒序；持久层现显式标记逻辑时间字段为已修改，并以真实 PostgreSQL 回归锁定。Web 的格式、lint、typecheck、`89 tests`、关键状态 `100%` coverage 和 build 均通过；仓库 Chromium `8 passed`，Python 锁文件 `115` 个包与 Node 高危依赖审计无已知漏洞，Gitleaks `8.30.1` 扫描完整 `91` 个提交无泄漏。上述均为本地证据，不替代远端 CI，也不补足专用 Monitor allow/deny/timeout 浏览器旅程。
+
+## 10. Day 8 完成定义
 
 Day 8 只有同时满足以下条件才可关闭：
 
@@ -127,4 +137,4 @@ Day 8 只有同时满足以下条件才可关闭：
 - 分支、PR、合并提交 CI 均通过，正式浏览器旅程和所有者复核完成；
 - Day 5～7 遗留项仍在 Day 10 台账中逐项可见，没有被 Day 8 报告删除、改分母或伪写完成。
 
-当前 Step 1～4 达到本地实现或薄切片状态，不满足 Day 8 总完成条件。下一步进入 Step 5，冻结 `sec-verification-v1`、A2/A3/A4、fault/security 报告并执行 Day 8 收口；不得把聚焦测试或当前 Workbench 代替正式浏览器、远端 CI 与 owner review。
+当前 Step 1～5 均已有正式实现与本地合同证据，但仍不满足 Day 8 总完成条件。下一阶段按项目所有者安排进入 Day 9；Day 10 回收专用浏览器、完整 Monitor 故障演练、三层远端 CI、owner review 与既有遗留债务，不得用 frozen report 或当前 Workbench 代替这些证据。

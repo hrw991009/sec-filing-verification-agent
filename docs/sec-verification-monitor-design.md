@@ -1,10 +1,10 @@
 # SEC Verifier、Monitor 与恢复设计
 
-> 版本：`0.4.0`
+> 版本：`0.5.0`
 >
 > 日期：2026-08-29
 >
-> 状态：Step 1～4 已本地实现并等待新远端验证；Step 5 仍为规划
+> 状态：Step 1～5 已本地实现；Day 8 等待专用浏览器、完整故障注入、远端 CI 与 owner review
 >
 > 适用范围：D8-01～D8-08
 
@@ -210,4 +210,6 @@ Day 8 硬门：
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1～4 已完成本地实现和聚焦 PostgreSQL/迁移/Web 验证；修复后的远端 CI、正式 security frozen set、完整 Monitor 故障演练、浏览器旅程和 owner review 尚缺。下一步只冻结 `sec-verification-v1`、A2/A3/A4 与 Day 8 收口证据，不回写或改分母来伪造 Step 5 结果。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。
+实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 5 已冻结 14-case/42-run `sec-verification-v1`，以 A3 作为六只读 Tool + mandatory verifier/one-revise，以 A4 作为 A3 + `sec.monitor.subscribe@v1`/HITL；A4 的 operational/recovery 指标与普通 question quality 分列。独立 scorer 从 Evidence/Citation、answer/program、Scope、trajectory、stop reason 和最终数据库计数重算，deterministic/security/fault JSON 与 Markdown 由同一 manifest 生成。
+
+当前 frozen replay 三层合同门通过，A3 复杂场景相对 A2 净增益 `0.714286`、简单题退化 `0`，A4 操作正确率/恢复率 `1.0/1.0`。报告不是 live SEC/model 质量结果；专用 Monitor allow/deny/timeout 浏览器旅程、真实 Monitor hard-stop 故障注入、branch/PR/main CI 和 owner review 尚缺，`day8_closeout_ready=false`。不得回写 observation 或修改分母来掩盖这些边界。

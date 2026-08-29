@@ -895,6 +895,8 @@ Day 8 Step 1～2 随后在同一 `research`/`agent_runtime`/`evidence` 边界内
 
 Day 8 Step 4 没有原地改写 Day 7 已冻结的 `sec-l4-v1` 六工具面，而是新增 `sec-l5-v1`/`sec-l5-toolset-v1` 七工具 Profile 承载唯一写 Tool `sec.monitor.subscribe@v1`。Tool Runtime 在审批边界提交 `TOOL_APPROVAL_REQUIRED` 并保存 call/tool/arguments digest；Research graph 以同节点 Checkpoint 暂停。认证 API 的 allow 事务同时写 Approval Decision、Monitor/rule/watermark、Schedule、completed side-effect ledger、resume Job/Outbox，deny/timeout 不产生业务行；重复决定返回既有事实，冲突、旧 revision、取消或非 paused Run fail closed。Worker 重启后从 Approval 与 ledger 重建已批准 Observation 并继续同一 Research Run，Monitor write 结果不进入 Evidence normalizer。Monitor/Case API 与 Workbench 都从 PostgreSQL 正式事实恢复，不依赖浏览器内存或 Trace。D8-06/D8-07 当前为 `implemented_pending_verification`、D8-08 为 `thin_slice`；完整 fault/security、正式浏览器和 A2/A3/A4 仍属于后续门禁。
 
+Day 8 Step 5 复用 Day 7 的 manifest/observation/scorer 模式，但不改写 `sec-tool-v1`。新的 `sec-verification-v1` 在同一 source fixture hash、Scope 和预算下比较 A2（L4 六只读 Tool）、A3（同 Tool surface + mandatory verifier/one-revise）和 A4（A3 + Monitor HITL），并由独立规则重新比较 Evidence/Citation、answer/program、point-in-time identity、trajectory、stop reason 与最终数据库计数。14 case/42 run 的 frozen deterministic/security/fault 报告通过，A3 复杂题净增益 `0.714286`、简单题退化 `0`；A4 的 ordinary question、operational 和 recovery 分开报告，避免 Monitor 能力抬高普通问答分数。该报告是 frozen replay，不是 live/model 或专用浏览器证据；D8-01～D8-08 因远端 CI、完整 fault injection、Monitor 浏览器旅程和 owner review 保持 `implemented_pending_verification`。
+
 ## 21. 初学者术语表
 
 | 术语 | 在本项目中的简单含义 |

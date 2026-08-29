@@ -266,7 +266,7 @@ jobs:
               >/dev/null \
               && curl --fail --silent --show-error --connect-timeout 2 --max-time 10 \
                 --request POST \
-                'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=wait_for' \
+                'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=true' \
                 --header 'Content-Type: application/json' \
                 --data '{"ready":true}' \
                 >/dev/null \
