@@ -63,6 +63,7 @@ class MilvusDenseIndex:
                     json={
                         "collectionName": self.collection,
                         "annsField": "vector",
+                        "consistencyLevel": "Strong",
                         "data": [list(vector)],
                         "filter": " and ".join(filters),
                         "limit": limit,
