@@ -64,6 +64,7 @@ RESEARCH_NODE_ORDER: Final = tuple(node for node in ResearchNode if node is not 
 
 class ResearchApprovalReason(StrEnum):
     COMPANY_OR_PERIOD_AMBIGUITY = "company_or_period_ambiguity"
+    MONITOR_SUBSCRIPTION = "monitor_subscription"
 
 
 class ResearchApprovalStatus(StrEnum):
@@ -203,8 +204,11 @@ class ResearchBriefInput:
                 required=True,
             ),
         )
-        if self.approval_reason is not None and self.financial_scope is None:
-            raise ValueError("Research approval reason requires a Financial Scope")
+        if self.approval_reason is not None:
+            if self.approval_reason is not ResearchApprovalReason.COMPANY_OR_PERIOD_AMBIGUITY:
+                raise ValueError("Research Brief approval reason is unsupported")
+            if self.financial_scope is None:
+                raise ValueError("Research approval reason requires a Financial Scope")
 
 
 @dataclass(frozen=True, slots=True)

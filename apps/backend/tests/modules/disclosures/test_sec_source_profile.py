@@ -24,6 +24,9 @@ from industry_platform.modules.disclosures.profile import (
     SEC_L4_MAX_TOOL_CALLS,
     SEC_L4_PROFILE_VERSION,
     SEC_L4_TOOL_REFERENCES,
+    SEC_L5_MAX_TOOL_CALLS,
+    SEC_L5_PROFILE_VERSION,
+    SEC_L5_TOOL_REFERENCES,
     SEC_SOURCE_HARNESS_VERSION,
     SEC_SOURCE_MODEL_FIXTURE_VERSION,
     SEC_SOURCE_PROFILE_VERSION,
@@ -31,8 +34,10 @@ from industry_platform.modules.disclosures.profile import (
     SEC_SOURCE_TOOL_REFERENCES,
     SEC_SOURCE_TOOLSET_VERSION,
     create_sec_l4_profile,
+    create_sec_l5_profile,
     create_sec_source_profile,
     require_sec_l4_tool_adapters,
+    require_sec_l5_tool_adapters,
     require_sec_source_profile,
     require_sec_source_tool_adapters,
 )
@@ -40,6 +45,7 @@ from industry_platform.modules.disclosures.tool import (
     sec_diff_filings_definition,
     sec_get_xbrl_facts_definition,
     sec_list_filings_definition,
+    sec_monitor_subscribe_definition,
     sec_read_filing_section_definition,
     sec_resolve_filer_definition,
     sec_search_filing_definition,
@@ -109,6 +115,35 @@ def test_sec_l4_adapter_surface_uses_existing_runtime_tools_plus_diff() -> None:
     assert (
         tuple(adapter.definition.reference for adapter in require_sec_l4_tool_adapters(adapters))
         == SEC_L4_TOOL_REFERENCES
+    )
+
+
+def test_sec_l5_profile_versions_the_approval_gated_monitor_tool_surface() -> None:
+    profile = create_sec_l5_profile(model="sec-l5-model-v1")
+    policy = profile.to_runtime_policy()
+    definitions = (
+        knowledge_search_definition(),
+        finance_calculate_definition(),
+        sec_search_filing_definition(),
+        sec_read_filing_section_definition(),
+        sec_get_xbrl_facts_definition(),
+        sec_diff_filings_definition(),
+        sec_monitor_subscribe_definition(),
+    )
+    adapters = tuple(
+        cast(RegisteredToolAdapter, SimpleNamespace(definition=definition))
+        for definition in definitions
+    )
+
+    assert policy.profile_version == SEC_L5_PROFILE_VERSION
+    assert policy.available_tools == SEC_L5_TOOL_REFERENCES
+    assert policy.max_tool_calls == SEC_L5_MAX_TOOL_CALLS
+    assert "仅产生待审批请求" in policy.system_instructions
+    assert "冻结 Tool surface" in policy.system_instructions
+    assert "与只读 Tool" not in policy.system_instructions
+    assert (
+        tuple(adapter.definition.reference for adapter in require_sec_l5_tool_adapters(adapters))
+        == SEC_L5_TOOL_REFERENCES
     )
 
 

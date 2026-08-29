@@ -1,10 +1,10 @@
 # SEC Verifier、Monitor 与恢复设计
 
-> 版本：`0.3.0`
+> 版本：`0.4.0`
 >
 > 日期：2026-08-29
 >
-> 状态：Step 1～3 已本地实现并等待新远端验证；Step 4～5 仍为规划
+> 状态：Step 1～4 已本地实现并等待新远端验证；Step 5 仍为规划
 >
 > 适用范围：D8-01～D8-08
 
@@ -176,6 +176,8 @@ Case 幂等键至少由 `workspace + monitor + trigger source version + rule ver
 4. `deny/timeout` 写 Decision 和终态 Event，不创建 Monitor/Schedule/Outbox；
 5. 重复 decision 返回既有结果，冲突 decision 明确拒绝；迟到 Worker 受 checkpoint revision/run epoch/fence 阻止。
 
+Step 4 已把该协议接入唯一 Tool/Research Runtime。Day 7 的 `sec-l4-v1` 六个只读 Tool 保持冻结，新的 `sec-l5-v1` 才增加 `sec.monitor.subscribe@v1`；审批记录持久化 call ID、Tool reference、严格参数与 canonical digest。allow 在同一 PostgreSQL 事务写 Monitor/rule/初始 watermark/Schedule、Decision、completed side-effect ledger 和 resume Job/Outbox；deny/timeout 不写 Monitor、Schedule 或 resume Outbox。恢复加载器从 Approval 与 ledger 重建同一 Tool Observation，回到暂停的 Research loop，而不是调用第二套恢复服务。
+
 恢复测试必须覆盖 API 刷新、Worker hard stop、lease 过期、决定与取消竞态、Tool/Calculation 已完成但 Event 未投影、Case 已写但通知未知等阶段。恢复前先读账本和最终业务表，不能依据内存或 Trace 猜测。
 
 ## 8. API、Event 与 Workbench
@@ -188,6 +190,8 @@ Case 幂等键至少由 `workspace + monitor + trigger source version + rule ver
 - Case 列表、详情及 base/current filing、diff、Evidence/Citation 导航。
 
 SSE/Event 增加版本化 verification/approval/monitor/case 事件，但继续使用统一 envelope 和单调 sequence。Workbench 只从正式 API/Event/Trace 重建，刷新后能恢复相同状态；四种业务状态使用文字与语义图标，不只依赖颜色。
+
+Step 4 的正式 HTTP 面已提供原子 Monitor 审批决定、Monitor 列表/详情/暂停/恢复/删除和 Case 列表/详情。Research 审批面板只调用原子决定端点；SEC Workbench 从 API 展示 schedule、rules、watermark、来源 Approval、Case diff 和双侧 Evidence ID。现有 Chromium 8 条回归已通过，但没有专用 Monitor allow/deny/timeout 页面旅程；当前仍是可恢复的正式薄切片，不能据此关闭 D8-08。
 
 ## 9. `sec-verification-v1` 与门禁
 
@@ -206,4 +210,4 @@ Day 8 硬门：
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1～3 已完成本地实现、真实依赖测试与 PostgreSQL/迁移验证；修复后的远端 CI、正式 security frozen set、完整 Monitor 故障演练和 owner review 尚缺。下一步只实现 `monitor.subscribe@v1`、持久 HITL、恢复和正式 Workbench，不提前伪造 Step 5 评测结果。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。
+实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1～4 已完成本地实现和聚焦 PostgreSQL/迁移/Web 验证；修复后的远端 CI、正式 security frozen set、完整 Monitor 故障演练、浏览器旅程和 owner review 尚缺。下一步只冻结 `sec-verification-v1`、A2/A3/A4 与 Day 8 收口证据，不回写或改分母来伪造 Step 5 结果。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。

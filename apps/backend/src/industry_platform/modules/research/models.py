@@ -303,6 +303,15 @@ class ResearchApprovalRequestRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "(resume_claimed = true AND resume_job_id IS NOT NULL AND resumed_at IS NOT NULL)",
             name="resume_claim_consistent",
         ),
+        CheckConstraint(
+            "(reason = 'monitor_subscription' AND tool_call_id IS NOT NULL "
+            "AND tool_name IS NOT NULL AND tool_version IS NOT NULL "
+            "AND tool_arguments IS NOT NULL AND tool_arguments_sha256 IS NOT NULL) OR "
+            "(reason <> 'monitor_subscription' AND tool_call_id IS NULL "
+            "AND tool_name IS NULL AND tool_version IS NULL "
+            "AND tool_arguments IS NULL AND tool_arguments_sha256 IS NULL)",
+            name="tool_request_consistent",
+        ),
         Index(None, "workspace_id", "run_id", "created_at"),
     )
 
@@ -344,6 +353,13 @@ class ResearchApprovalRequestRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     resume_job_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    tool_call_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    tool_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    tool_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tool_arguments: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
+    tool_arguments_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ResearchApprovalDecisionRecord(UUIDPrimaryKeyMixin, Base):

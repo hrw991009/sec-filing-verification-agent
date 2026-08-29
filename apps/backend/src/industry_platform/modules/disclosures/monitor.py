@@ -53,6 +53,7 @@ class SecMonitorRuleKind(StrEnum):
 class SecMonitorStatus(StrEnum):
     ACTIVE = "active"
     PAUSED = "paused"
+    DELETED = "deleted"
 
 
 class SecMonitorRunStatus(StrEnum):

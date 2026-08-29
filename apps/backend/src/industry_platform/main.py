@@ -89,6 +89,9 @@ from industry_platform.modules.data_explorer.router import router as data_explor
 from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
     sec_monitor_occurrence_observer,
 )
+from industry_platform.modules.disclosures.adapters.subscription_sqlalchemy import (
+    SecMonitorSubscriptionPersistenceError,
+)
 from industry_platform.modules.disclosures.domain import (
     SecDisclosurePersistenceError,
     SecFilingContentError,
@@ -97,6 +100,10 @@ from industry_platform.modules.disclosures.domain import (
 )
 from industry_platform.modules.disclosures.resources import create_disclosure_resources
 from industry_platform.modules.disclosures.router import router as disclosure_router
+from industry_platform.modules.disclosures.subscription import (
+    SecMonitorNotFoundError,
+    SecMonitorRevisionConflictError,
+)
 from industry_platform.modules.evidence.domain import (
     ClaimNotFoundError,
     EvidenceConflictError,
@@ -545,6 +552,53 @@ def create_app(
             code=error.code.upper(),
             detail="Reload the durability timeline before retrying this operation.",
             problem_type="urn:iip:problem:research-resume-conflict",
+        )
+
+    @application.exception_handler(SecMonitorNotFoundError)
+    async def handle_sec_monitor_not_found(
+        request: Request,
+        _error: SecMonitorNotFoundError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="SEC Monitor not found",
+            code="SEC_MONITOR_NOT_FOUND",
+            detail="The requested Monitor or Case is not available in this workspace.",
+            problem_type="urn:iip:problem:sec-monitor-not-found",
+        )
+
+    @application.exception_handler(SecMonitorRevisionConflictError)
+    async def handle_sec_monitor_conflict(
+        request: Request,
+        _error: SecMonitorRevisionConflictError,
+    ) -> JSONResponse:
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_409_CONFLICT,
+            title="SEC Monitor revision conflict",
+            code="SEC_MONITOR_REVISION_CONFLICT",
+            detail="Reload the Monitor before retrying this operation.",
+            problem_type="urn:iip:problem:sec-monitor-revision-conflict",
+        )
+
+    @application.exception_handler(SecMonitorSubscriptionPersistenceError)
+    async def handle_sec_monitor_unavailable(
+        request: Request,
+        error: SecMonitorSubscriptionPersistenceError,
+    ) -> JSONResponse:
+        logger.error(
+            "SEC Monitor persistence unavailable trace_id=%s sqlstate=%s",
+            get_trace_id(request),
+            error.sqlstate or "unknown",
+        )
+        return problem_response(
+            trace_id=get_trace_id(request),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            title="SEC Monitor service unavailable",
+            code="SEC_MONITOR_UNAVAILABLE",
+            detail="Monitor facts could not be loaded safely.",
+            problem_type="urn:iip:problem:sec-monitor-unavailable",
         )
 
     @application.exception_handler(EvidenceNotFoundError)

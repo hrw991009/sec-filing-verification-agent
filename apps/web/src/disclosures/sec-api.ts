@@ -11,6 +11,8 @@ export type SecXbrlFact = components["schemas"]["SecXbrlFactResponse"];
 export type SecXbrlFactCollection = components["schemas"]["SecXbrlFactCollectionResponse"];
 export type SecXbrlSourceKind = components["schemas"]["SecXbrlSourceKind"];
 export type SecXbrlSync = components["schemas"]["SecXbrlSyncResponse"];
+export type SecMonitor = components["schemas"]["SecMonitorResponse"];
+export type SecDisclosureCase = components["schemas"]["SecDisclosureCaseResponse"];
 
 export interface FilingSelection {
   readonly cik: string;
@@ -227,4 +229,74 @@ export function diffSecFilings(
       ),
     ),
   );
+}
+
+export function listSecMonitors(workspaceId: string): Promise<SecMonitor[]> {
+  return withAccessToken(async (accessToken) => {
+    const response = unwrapData<components["schemas"]["SecMonitorCollectionResponse"]>(
+      await apiClient.GET("/api/v1/workspaces/{workspace_id}/disclosures/monitors", {
+        headers: authorization(accessToken),
+        params: { path: { workspace_id: workspaceId } },
+      }),
+    );
+    return response.monitors;
+  });
+}
+
+export function changeSecMonitorStatus(
+  workspaceId: string,
+  monitorId: string,
+  revision: number,
+  status: "active" | "paused",
+): Promise<SecMonitor> {
+  const path =
+    status === "active"
+      ? "/api/v1/workspaces/{workspace_id}/disclosures/monitors/{monitor_id}/resume"
+      : "/api/v1/workspaces/{workspace_id}/disclosures/monitors/{monitor_id}/pause";
+  return withAccessToken(async (accessToken) =>
+    unwrapData<SecMonitor>(
+      await apiClient.POST(path, {
+        body: { expected_revision: revision },
+        headers: authorization(accessToken),
+        params: { path: { monitor_id: monitorId, workspace_id: workspaceId } },
+      }),
+    ),
+  );
+}
+
+export function deleteSecMonitor(
+  workspaceId: string,
+  monitorId: string,
+  revision: number,
+): Promise<SecMonitor> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<SecMonitor>(
+      await apiClient.DELETE(
+        "/api/v1/workspaces/{workspace_id}/disclosures/monitors/{monitor_id}",
+        {
+          body: { expected_revision: revision },
+          headers: authorization(accessToken),
+          params: { path: { monitor_id: monitorId, workspace_id: workspaceId } },
+        },
+      ),
+    ),
+  );
+}
+
+export function listSecDisclosureCases(
+  workspaceId: string,
+  monitorId: string | null = null,
+): Promise<SecDisclosureCase[]> {
+  return withAccessToken(async (accessToken) => {
+    const response = unwrapData<components["schemas"]["SecDisclosureCaseCollectionResponse"]>(
+      await apiClient.GET("/api/v1/workspaces/{workspace_id}/disclosures/cases", {
+        headers: authorization(accessToken),
+        params: {
+          path: { workspace_id: workspaceId },
+          query: { monitor_id: monitorId },
+        },
+      }),
+    );
+    return response.cases;
+  });
 }

@@ -35,10 +35,13 @@ from industry_platform.modules.conversations.domain import TurnSearchMode
 from industry_platform.modules.disclosures.profile import (
     SEC_L4_PROFILE_VERSION,
     SEC_L4_TOOL_REFERENCES,
+    SEC_L5_PROFILE_VERSION,
+    SEC_L5_TOOL_REFERENCES,
 )
 from industry_platform.modules.disclosures.tool import (
     sec_diff_filings_definition,
     sec_get_xbrl_facts_definition,
+    sec_monitor_subscribe_definition,
     sec_read_filing_section_definition,
     sec_search_filing_definition,
 )
@@ -75,6 +78,51 @@ async def test_resources_keep_missing_provider_explicit_and_use_the_unified_runt
         assert resources.model == UNCONFIGURED_AGENT_MODEL
         assert resources.provider_configured is False
         assert "provider-secret" not in repr(resources)
+    finally:
+        await client.aclose()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_resources_select_sec_l5_for_the_versioned_monitor_tool_surface(
+    test_settings: Settings,
+) -> None:
+    engine = create_database_engine(test_settings)
+    client = httpx2.AsyncClient(
+        transport=httpx2.MockTransport(lambda _request: httpx2.Response(500)),
+        trust_env=False,
+        follow_redirects=False,
+    )
+    definitions = (
+        knowledge_search_definition(),
+        finance_calculate_definition(),
+        sec_search_filing_definition(),
+        sec_read_filing_section_definition(),
+        sec_get_xbrl_facts_definition(),
+        sec_diff_filings_definition(),
+        sec_monitor_subscribe_definition(),
+    )
+    adapters = tuple(
+        cast(RegisteredToolAdapter, SimpleNamespace(definition=definition))
+        for definition in definitions
+    )
+    try:
+        resources = create_direct_answer_runtime_resources(
+            test_settings,
+            create_database_session_factory(engine),
+            client,
+            tool_adapters=adapters,
+            tool_surfaces={TurnSearchMode.LOCAL: SEC_L5_TOOL_REFERENCES},
+        )
+
+        assert isinstance(resources.execution_service, DirectAnswerRunExecutionService)
+        loader = resources.execution_service.loader
+        assert isinstance(loader, SqlAlchemyDirectAnswerRunLoader)
+        assert loader.tool_policies is not None
+        policy = loader.tool_policies[TurnSearchMode.LOCAL]
+        assert policy.profile_version == SEC_L5_PROFILE_VERSION
+        assert policy.available_tools == SEC_L5_TOOL_REFERENCES
+        assert policy.max_tool_calls == 8
     finally:
         await client.aclose()
         await engine.dispose()

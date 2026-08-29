@@ -83,6 +83,26 @@ class StubResources:
     filing_content_service: object | None = None
     xbrl_service: object | None = None
     filing_diff_service: object | None = None
+    monitor_subscription_service: object | None = None
+
+
+@dataclass(slots=True)
+class TrackingMonitorSubscriptionService:
+    scopes: list[WorkspaceScope] = field(default_factory=list)
+
+    async def list_monitors(self, scope: WorkspaceScope) -> tuple[object, ...]:
+        self.scopes.append(scope)
+        return ()
+
+    async def list_cases(
+        self,
+        scope: WorkspaceScope,
+        *,
+        monitor_id: UUID | None = None,
+    ) -> tuple[object, ...]:
+        del monitor_id
+        self.scopes.append(scope)
+        return ()
 
 
 @dataclass(slots=True)
@@ -441,3 +461,41 @@ def test_authenticated_workspace_diff_uses_explicit_financial_scope(
     assert service.calls[0][0] == WorkspaceScope(WORKSPACE_ID, USER_ID, "member")
     assert service.calls[0][1].accession == accession
     assert service.calls[0][2:] == (comparison_accession, "risk factors")
+
+
+def test_monitor_and_case_lists_are_rebuilt_only_in_the_authenticated_workspace(
+    test_settings: Settings,
+) -> None:
+    service = TrackingMonitorSubscriptionService()
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources,
+        StubResources(monitor_subscription_service=service),
+    )
+
+    with TestClient(application, base_url="https://localhost") as client:
+        monitors = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/monitors",
+            headers=headers(),
+        )
+        cases = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/cases",
+            headers=headers(),
+        )
+        denied = client.get(
+            f"/api/v1/workspaces/{OTHER_WORKSPACE_ID}/disclosures/monitors",
+            headers=headers(),
+        )
+
+    assert monitors.status_code == 200
+    assert monitors.json() == {"monitors": []}
+    assert cases.status_code == 200
+    assert cases.json() == {"cases": []}
+    assert service.scopes == [
+        WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+        WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+    ]
+    assert denied.status_code == 403

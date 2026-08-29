@@ -8,6 +8,8 @@ export type ResearchDurability = components["schemas"]["ResearchDurabilityTimeli
 export type StartResearchRequest = components["schemas"]["StartResearchRequest"];
 export type StartResearchResponse = components["schemas"]["StartResearchResponse"];
 export type ResumeResearchResponse = components["schemas"]["ResumeResearchResponse"];
+export type MonitorSubscriptionDecision =
+  components["schemas"]["SecMonitorSubscriptionDecisionResponse"];
 
 function authorization(accessToken: string) {
   return { Authorization: `Bearer ${accessToken}` };
@@ -93,6 +95,25 @@ export function decideResearchApproval(
     unwrapData<ResearchApproval>(
       await apiClient.POST(
         "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/approval-decisions",
+        {
+          body: request,
+          headers: authorization(accessToken),
+          params: { path: { research_run_id: researchRunId, workspace_id: workspaceId } },
+        },
+      ),
+    ),
+  );
+}
+
+export function decideMonitorSubscription(
+  workspaceId: string,
+  researchRunId: string,
+  request: components["schemas"]["DecideSecMonitorSubscriptionRequest"],
+): Promise<MonitorSubscriptionDecision> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<MonitorSubscriptionDecision>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/monitor-subscription-decisions",
         {
           body: request,
           headers: authorization(accessToken),

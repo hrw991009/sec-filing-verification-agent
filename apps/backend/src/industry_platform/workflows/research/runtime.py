@@ -44,6 +44,7 @@ from industry_platform.modules.agent_runtime.state import (
 )
 from industry_platform.modules.agent_runtime.tool_runtime import (
     ToolL2Runtime,
+    _PendingToolApproval,
     _ToolLoopSegmentOutcome,
 )
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
@@ -53,6 +54,7 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
     tool_loop_decision_response_schema,
 )
 from industry_platform.modules.disclosures.tool import (
+    SEC_MONITOR_SUBSCRIBE_TOOL_NAME,
     SEC_SEARCH_FILING_TOOL_NAME,
     SEC_SEARCH_FILING_TOOL_VERSION,
 )
@@ -74,6 +76,7 @@ from industry_platform.modules.financial_verification.tool import (
 from industry_platform.modules.research.domain import (
     RESEARCH_GRAPH_VERSION,
     RESEARCH_STATE_SCHEMA_VERSION,
+    ResearchApprovalReason,
     ResearchApprovalStatus,
     ResearchDraft,
     ResearchDraftStatus,
@@ -83,7 +86,10 @@ from industry_platform.modules.research.domain import (
     research_claim_id_for_run,
     research_draft_id_for_run,
 )
-from industry_platform.modules.research.durability import ResearchDurabilityService
+from industry_platform.modules.research.durability import (
+    ApprovalToolRequest,
+    ResearchDurabilityService,
+)
 from industry_platform.modules.research.ports import ResearchWorkflowStore
 from industry_platform.modules.research.verification import (
     ResearchVerificationUseCase,
@@ -393,13 +399,15 @@ class _ResearchExecution:
             )
             await self._node_event(node, AgentEventType.RESEARCH_NODE_COMPLETED)
             checkpoint = await self._save_checkpoint(node)
-            if (
+            if checkpoint is not None and self.graph_state.pending_tool_approval is not None:
+                await self._pause(checkpoint, self.graph_state.pending_tool_approval)
+            elif (
                 checkpoint is not None
                 and node is ResearchNode.PLAN
                 and self.command.resume is None
                 and self.command.brief.input.approval_reason is not None
             ):
-                await self._pause(checkpoint)
+                await self._pause(checkpoint, None)
         except Exception:
             await self._fail_node(node, "research_node_failed")
             return self.graph_state.graph
@@ -411,7 +419,11 @@ class _ResearchExecution:
         store = self.runtime._checkpoint_store
         if store is None:
             return None
-        next_node = next_research_node(node, self.graph_state.graph)
+        next_node = (
+            node
+            if self.graph_state.pending_tool_approval is not None
+            else next_research_node(node, self.graph_state.graph)
+        )
         financial_scope = self.command.brief.input.financial_scope
         payload = {
             "kind": "research_l5_v1",
@@ -503,15 +515,35 @@ class _ResearchExecution:
         self.checkpoint_revision = checkpoint.revision
         return checkpoint
 
-    async def _pause(self, checkpoint: CheckpointEnvelope) -> None:
+    async def _pause(
+        self,
+        checkpoint: CheckpointEnvelope,
+        pending: _PendingToolApproval | None,
+    ) -> None:
         service = self.runtime._durability_service
-        reason = self.command.brief.input.approval_reason
+        reason = (
+            self.command.brief.input.approval_reason
+            if pending is None
+            else ResearchApprovalReason.MONITOR_SUBSCRIPTION
+        )
         if service is None or reason is None:
             raise ValueError("Research approval interrupt is not configured")
+        tool_request = (
+            None
+            if pending is None
+            else ApprovalToolRequest(
+                call_id=pending.request.call_id,
+                tool=pending.request.tool,
+                arguments=pending.action.arguments,
+                arguments_sha256=canonical_mapping_sha256(pending.action.arguments),
+            )
+        )
         request, _token = await service.interrupt(
             self.scope,
             checkpoint=checkpoint,
             reason=reason,
+            tool_request=tool_request,
+            request_id=None if pending is None else pending.request.approval_request_id,
         )
         requested_at = self.runtime._time(not_before=self.events[-1].occurred_at)
         requested = self.runtime._event(
@@ -559,6 +591,7 @@ class _ResearchExecution:
         self.graph_state.graph["status"] = AgentRunStatus.PAUSED.value
         self.graph_state.graph["approval_status"] = ResearchApprovalStatus.PENDING.value
         self.graph_state.graph["stop_reason"] = RunStopReason.APPROVAL_REQUIRED.value
+        self.graph_state.pending_tool_approval = None
         self.graph_state.terminated = True
 
     async def _preflight(self, node: ResearchNode) -> ResearchGraphState | None:
@@ -667,28 +700,51 @@ class _ResearchExecution:
             run=self.run,
             state=self.state,
             steps=self.steps,
-            observations=[],
+            observations=list(self.graph_state.observations),
         )
+        approved_action = (
+            None if self.command.resume is None else self.command.resume.approved_tool_action
+        )
+        seen_actions = (
+            set()
+            if approved_action is None
+            else {
+                (
+                    approved_action.name,
+                    approved_action.version,
+                    canonical_mapping_sha256(approved_action.arguments),
+                )
+            }
+        )
+        seen_observation_content = {
+            (observation.tool_name, observation.tool_version, observation.content_sha256)
+            for observation in outcome.observations
+        }
+        decision_index = sum(step.kind is AgentStepKind.MODEL for step in self.steps)
         async for _event in self.runtime._run_loop_segment(
             command=command,
             runtime_context=self.runtime_context,
             events=self.events,
             definitions=definitions,
             decision_schema=tool_loop_decision_response_schema(definitions),
-            seen_actions=set(),
-            seen_observation_content=set(),
+            seen_actions=seen_actions,
+            seen_observation_content=seen_observation_content,
             outcome=outcome,
+            decision_index_start=decision_index,
         ):
             pass
         self.run, self.state = outcome.run, outcome.state
         self.graph_state.observations = outcome.observations
         self.graph_state.final_decision = outcome.final_decision
         self.graph_state.final_response = outcome.final_response
+        self.graph_state.pending_tool_approval = outcome.approval
         if outcome.terminated:
             terminal = self.events[-1]
             reason = terminal.payload.get("stop_reason")
             self.graph_state.graph["stop_reason"] = reason if isinstance(reason, str) else None
             self.graph_state.terminated = True
+            return
+        if outcome.approval is not None:
             return
         if outcome.final_decision is None or outcome.final_response is None:
             raise ValueError("Research Tool loop did not return a final decision")
@@ -697,6 +753,8 @@ class _ResearchExecution:
     async def _normalize_evidence(self) -> None:
         evidence_refs: list[str] = []
         for observation in self.graph_state.observations:
+            if observation.tool_name == SEC_MONITOR_SUBSCRIBE_TOOL_NAME:
+                continue
             result = await self.runtime._evidence_service.normalize_observation(
                 self.scope,
                 NormalizeObservation(

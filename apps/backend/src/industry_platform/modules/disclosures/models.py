@@ -685,11 +685,17 @@ class SecDisclosureMonitorRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ondelete="RESTRICT",
             use_alter=True,
         ),
-        CheckConstraint("status IN ('active', 'paused')", name="status_supported"),
+        CheckConstraint("status IN ('active', 'paused', 'deleted')", name="status_supported"),
         CheckConstraint("rule_set_version = 'sec-monitor-rules-v1'", name="rules_supported"),
         CheckConstraint("diff_version = 'sec-filing-diff-v1'", name="diff_supported"),
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint("json_array_length(allowed_forms) BETWEEN 1 AND 4", name="forms_bounded"),
+        Index(
+            "uq_sec_disclosure_monitors_created_from_approval",
+            "created_from_approval_id",
+            unique=True,
+            postgresql_where=text("created_from_approval_id IS NOT NULL"),
+        ),
         Index(None, "workspace_id", "status", "updated_at"),
     )
 
@@ -710,7 +716,11 @@ class SecDisclosureMonitorRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     timezone_name: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     current_watermark_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
-    created_from_approval_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    created_from_approval_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("research_approval_requests.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default=text("1")
     )

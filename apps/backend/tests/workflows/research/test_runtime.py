@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field, replace
@@ -42,6 +43,7 @@ from industry_platform.modules.agent_runtime.checkpoints import (
 )
 from industry_platform.modules.agent_runtime.context import (
     ContextManifest,
+    ToolObservationContextSource,
     TrustedRuntimeContext,
 )
 from industry_platform.modules.agent_runtime.context_compiler import ContextCompilerV1
@@ -73,6 +75,7 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
     ToolL2RunCommand,
     ToolL2RuntimePolicy,
 )
+from industry_platform.modules.disclosures.tool import SecMonitorSubscribeTool
 from industry_platform.modules.evidence.domain import (
     AuthorizationSnapshot,
     ClaimVerificationStatus,
@@ -119,6 +122,7 @@ from industry_platform.modules.research.domain import (
     research_draft_id_for_run,
 )
 from industry_platform.modules.research.durability import (
+    ApprovalToolRequest,
     ResearchApprovalRequest,
     ResearchDurabilityRepository,
     ResearchDurabilityService,
@@ -146,7 +150,7 @@ from industry_platform.modules.retrieval.domain import (
 )
 from industry_platform.modules.retrieval.fixtures import load_sec_fixture_catalog
 from industry_platform.modules.retrieval.tool import KnowledgeSearchTool
-from industry_platform.modules.tools.domain import ToolReference
+from industry_platform.modules.tools.domain import ToolAction, ToolReference
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
 from industry_platform.workflows.research.contracts import (
@@ -278,6 +282,7 @@ class RecordingDurabilityRepository:
         resume_token_hash: bytes,
         requested_at: datetime,
         expires_at: datetime,
+        tool_request: ApprovalToolRequest | None = None,
     ) -> ResearchApprovalRequest:
         assert scope.workspace_id == WORKSPACE_ID
         assert resume_token_hash
@@ -291,6 +296,7 @@ class RecordingDurabilityRepository:
             requested_by_user_id=scope.user_id,
             created_at=requested_at,
             expires_at=expires_at,
+            tool_request=tool_request,
         )
         self.approvals.append(request)
         return request
@@ -1187,6 +1193,7 @@ def build_sec_runtime(
     hard_stop_after_node: ResearchNode | None = None,
     runtime_clock: Callable[[], datetime] | None = None,
     verification_service: ResearchVerificationUseCase | None = None,
+    include_monitor_subscription: bool = False,
 ) -> tuple[UnifiedAgentRuntime, SecKnowledgeService, SecOperandRepository]:
     clock = runtime_clock or IncrementingClock()
     manifests = RecordingManifestStore()
@@ -1198,6 +1205,7 @@ def build_sec_runtime(
     tools = (
         KnowledgeSearchTool(selected_knowledge),  # type: ignore[arg-type]
         FinanceCalculateTool(selected_operands, catalog),  # type: ignore[arg-type]
+        *((SecMonitorSubscribeTool(),) if include_monitor_subscription else ()),
     )
     registry = ToolRegistry(tools)
     executor = RegistryToolExecutor(registry, clock=clock)
@@ -1422,6 +1430,204 @@ async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint() -> No
         AgentEventType.APPROVAL_REQUESTED,
         AgentEventType.RUN_PAUSED,
     ]
+
+
+@pytest.mark.asyncio
+async def test_l5_monitor_tool_request_checkpoints_and_pauses_for_durable_approval() -> None:
+    budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    command = sec_research_command(budget)
+    command = replace(
+        command,
+        loop_command=replace(
+            command.loop_command,
+            policy=replace(
+                command.loop_command.policy,
+                available_tools=(
+                    *command.loop_command.policy.available_tools,
+                    ToolReference("sec.monitor.subscribe", "v1"),
+                ),
+            ),
+        ),
+    )
+    provider = QueueModelProvider(
+        (
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"tool_call",'
+                '"name":"sec.monitor.subscribe","version":"v1","arguments":{'
+                '"cik":"0000320193",'
+                f'"knowledge_base_id":"{SEC_KNOWLEDGE_BASE_ID}",'
+                '"allowed_forms":["10-K","10-K/A"],'
+                '"cron_expression":"0 3 * * *",'
+                '"timezone_name":"Asia/Shanghai","rules":[{'
+                '"kind":"new_filing",'
+                '"section_query":"management discussion and analysis",'
+                '"taxonomy":null,"concept":null,"unit":null,"threshold":null,'
+                '"comparator":null}]}}}',
+                "sec-monitor-subscribe-decision",
+            ),
+        )
+    )
+    checkpoints = RecordingCheckpointStore()
+    durability_repository = RecordingDurabilityRepository()
+    durability = ResearchDurabilityService(
+        repository=cast(ResearchDurabilityRepository, durability_repository),
+        token_codec=ResumeTokenCodec(b"r" * 32),
+        clock=IncrementingClock(),
+    )
+    committer = RecordingCommitter()
+    runtime_clock = IncrementingClock()
+    runtime, knowledge, calculator = build_sec_runtime(
+        provider,
+        RecordingWorkflowStore(),
+        SecEvidenceService(),
+        committer=committer,
+        checkpoint_store=checkpoints,
+        durability_service=durability,
+        include_monitor_subscription=True,
+        runtime_clock=runtime_clock,
+    )
+
+    events = [event async for event in runtime.run(command, sec_runtime_context(budget))]
+
+    assert events[-1].event_type is AgentEventType.RUN_PAUSED
+    assert AgentEventType.TOOL_APPROVAL_REQUIRED in [event.event_type for event in events]
+    assert AgentEventType.RUN_FAILED not in [event.event_type for event in events]
+    assert checkpoints.checkpoints[-1].payload["node"] == ResearchNode.RESEARCH_LOOP.value
+    assert checkpoints.checkpoints[-1].payload["next_node"] == ResearchNode.RESEARCH_LOOP.value
+    assert len(durability_repository.approvals) == 1
+    approval = durability_repository.approvals[0]
+    assert approval.approval_request_id == command.loop_command.approval_request_ids[0]
+    assert approval.reason is ResearchApprovalReason.MONITOR_SUBSCRIPTION
+    assert approval.checkpoint_revision == checkpoints.checkpoints[-1].revision
+    assert approval.tool_request is not None
+    assert approval.tool_request.tool == ToolReference("sec.monitor.subscribe", "v1")
+    assert approval.tool_request.arguments["cik"] == "0000320193"
+    assert knowledge.queries == []
+    assert calculator.values == []
+
+    checkpoint = checkpoints.checkpoints[-1]
+    execution = checkpoint.payload["execution"]
+    graph = checkpoint.payload["graph_state"]
+    assert isinstance(execution, Mapping)
+    assert isinstance(graph, Mapping)
+    resource_ref = f"sec-monitor:{stable_id('approved-monitor')}"
+    decision_at = events[-1].occurred_at + timedelta(milliseconds=1)
+    decision_event = AgentEvent(
+        schema_version=command.run.schema_version,
+        stream_id=command.run.event_stream_id,
+        run_id=command.run.run_id,
+        workspace_id=command.run.workspace_id,
+        sequence=len(events) + 1,
+        occurred_at=decision_at,
+        trace_id=command.run.trace_id,
+        event_type=AgentEventType.APPROVAL_DECIDED,
+        payload={
+            "approval_request_id": str(approval.approval_request_id),
+            "checkpoint_revision": checkpoint.revision,
+            "outcome": "allow",
+        },
+    )
+    committer.events.append(decision_event)
+    event_history = (*events, decision_event)
+    pause_revision = cast(int, events[-1].payload["state_revision"])
+    started_at = next(
+        event.occurred_at for event in events if event.event_type is AgentEventType.RUN_STARTED
+    )
+    paused_run = replace(
+        command.run,
+        status=AgentRunStatus.PAUSED,
+        state_revision=pause_revision,
+        started_at=started_at,
+    )
+    paused_state = replace(
+        checkpoint.state,
+        revision=pause_revision,
+        status=AgentRunStatus.PAUSED,
+        event_count=len(event_history),
+        updated_at=decision_at,
+    )
+    raw_outline = execution["outline"]
+    assert isinstance(raw_outline, list)
+    approved_action = ToolAction(
+        schema_version=1,
+        name=approval.tool_request.tool.name,
+        version=approval.tool_request.tool.version,
+        arguments=approval.tool_request.arguments,
+    )
+    approved_observation = ToolObservationContextSource(
+        observation_id=stable_id("approved-monitor-observation"),
+        tool_call_id=approval.tool_request.call_id,
+        workspace_id=WORKSPACE_ID,
+        ordinal=1,
+        tool_name=approval.tool_request.tool.name,
+        tool_version=approval.tool_request.tool.version,
+        source_name="normalized_tool_result",
+        source_version="approved-tool-result-v1",
+        observed_at=decision_at,
+        locator={
+            "approval_request_id": str(approval.approval_request_id),
+            "resource_ref": resource_ref,
+        },
+        content_sha256=hashlib.sha256(resource_ref.encode("ascii")).hexdigest(),
+        model_text=resource_ref,
+    )
+    resumed_command = replace(
+        command,
+        run=paused_run,
+        state=paused_state,
+        loop_command=replace(command.loop_command, run=paused_run, state=paused_state),
+        resume=ResearchResumeSnapshot(
+            kind=ResearchResumeKind.APPROVAL,
+            checkpoint_revision=checkpoint.revision,
+            next_node=ResearchNode.RESEARCH_LOOP,
+            graph=cast(ResearchGraphState, dict(graph)),
+            event_history=event_history,
+            steps=_restore_steps(execution["steps"], RUN_ID, WORKSPACE_ID),
+            observations=(approved_observation,),
+            final_decision=None,
+            final_response=None,
+            final_markdown=None,
+            outline=tuple(cast(list[str], raw_outline)),
+            approved_tool_action=approved_action,
+        ),
+    )
+    resumed_provider = QueueModelProvider(
+        (
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"final",'
+                '"content_markdown":"The requested SEC Monitor subscription was created."}}',
+                "sec-monitor-approved-final",
+            ),
+        )
+    )
+    resumed_evidence = SecEvidenceService()
+    resumed_runtime, _, _ = build_sec_runtime(
+        resumed_provider,
+        RecordingWorkflowStore(),
+        resumed_evidence,
+        committer=committer,
+        checkpoint_store=checkpoints,
+        durability_service=durability,
+        include_monitor_subscription=True,
+        runtime_clock=runtime_clock,
+    )
+
+    resumed_events = [
+        event async for event in resumed_runtime.run(resumed_command, sec_runtime_context(budget))
+    ]
+
+    assert resumed_events[-1].event_type is AgentEventType.RUN_COMPLETED
+    assert [event.event_type for event in committer.events].count(
+        AgentEventType.TOOL_APPROVAL_REQUIRED
+    ) == 1
+    assert len(resumed_provider.requests) == 1
+    assert resumed_evidence.normalizations == []
 
 
 @pytest.mark.asyncio

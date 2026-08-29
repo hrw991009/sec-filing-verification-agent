@@ -47,10 +47,17 @@ from industry_platform.modules.disclosures.domain import (
     normalize_cik,
     sec_xbrl_fact_content_sha256,
 )
+from industry_platform.modules.disclosures.monitor import SecMonitorStatus
+from industry_platform.modules.disclosures.subscription import (
+    SecDisclosureCaseView,
+    SecMonitorView,
+)
 from industry_platform.modules.financial_verification.domain import (
     FinancialForm,
     FinancialScope,
 )
+from industry_platform.modules.research.domain import ResearchApprovalOutcome
+from industry_platform.modules.research.schemas import ResearchApprovalResponse
 
 
 class SecFilerCandidateResponse(BaseModel):
@@ -829,3 +836,167 @@ class SecFilingDiffResponse(BaseModel):
             error_code=value.error_code,
             version=value.version,
         )
+
+
+class SecMonitorRuleResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    rule_id: UUID
+    kind: str
+    rule_version: str
+    section_query: str
+    taxonomy: str | None
+    concept: str | None
+    unit: str | None
+    threshold: str | None
+    comparator: str | None
+
+
+class SecMonitorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    monitor_id: UUID
+    workspace_id: UUID
+    owner_user_id: UUID
+    cik: str
+    canonical_name: str
+    knowledge_base_id: UUID
+    schedule_id: UUID
+    cron_expression: str
+    timezone_name: str
+    allowed_forms: list[str]
+    rules: list[SecMonitorRuleResponse]
+    status: SecMonitorStatus
+    revision: int
+    watermark_revision: int
+    watermark_coverage_version: str
+    watermark_accepted_at: datetime | None
+    watermark_accession: str | None
+    created_from_approval_id: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_domain(cls, value: SecMonitorView) -> Self:
+        return cls(
+            monitor_id=value.monitor_id,
+            workspace_id=value.workspace_id,
+            owner_user_id=value.owner_user_id,
+            cik=value.cik,
+            canonical_name=value.canonical_name,
+            knowledge_base_id=value.knowledge_base_id,
+            schedule_id=value.schedule_id,
+            cron_expression=value.cron_expression,
+            timezone_name=value.timezone_name,
+            allowed_forms=list(value.allowed_forms),
+            rules=[
+                SecMonitorRuleResponse(
+                    rule_id=rule.rule_id,
+                    kind=rule.kind.value,
+                    rule_version=rule.rule_version,
+                    section_query=rule.section_query,
+                    taxonomy=rule.taxonomy,
+                    concept=rule.concept,
+                    unit=rule.unit,
+                    threshold=rule.threshold,
+                    comparator=rule.comparator,
+                )
+                for rule in value.rules
+            ],
+            status=value.status,
+            revision=value.revision,
+            watermark_revision=value.watermark_revision,
+            watermark_coverage_version=value.watermark_coverage_version,
+            watermark_accepted_at=value.watermark_accepted_at,
+            watermark_accession=value.watermark_accession,
+            created_from_approval_id=value.created_from_approval_id,
+            created_at=value.created_at,
+            updated_at=value.updated_at,
+        )
+
+
+class SecMonitorCollectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    monitors: list[SecMonitorResponse]
+
+
+class DecideSecMonitorSubscriptionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    approval_request_id: UUID
+    checkpoint_revision: int = Field(ge=0)
+    outcome: ResearchApprovalOutcome
+
+
+class ChangeSecMonitorStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    expected_revision: int = Field(ge=1)
+
+
+class SecMonitorSubscriptionDecisionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    approval: ResearchApprovalResponse
+    monitor: SecMonitorResponse | None
+    resume_job_id: UUID | None
+    created: bool
+
+
+class SecCaseEvidenceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    side: str
+    evidence_id: UUID
+
+
+class SecDisclosureCaseResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    case_id: UUID
+    monitor_id: UUID
+    monitor_run_id: UUID
+    rule_id: UUID
+    trigger_kind: str
+    source_coverage_version: str
+    baseline_accession: str
+    target_accession: str
+    diff_version: str
+    diff_payload: dict[str, object]
+    diff_sha256: str
+    verification_status: str
+    notification_status: str
+    evidence: list[SecCaseEvidenceResponse]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_domain(cls, value: SecDisclosureCaseView) -> Self:
+        return cls(
+            case_id=value.case_id,
+            monitor_id=value.monitor_id,
+            monitor_run_id=value.monitor_run_id,
+            rule_id=value.rule_id,
+            trigger_kind=value.trigger_kind,
+            source_coverage_version=value.source_coverage_version,
+            baseline_accession=value.baseline_accession,
+            target_accession=value.target_accession,
+            diff_version=value.diff_version,
+            diff_payload=value.diff_payload,
+            diff_sha256=value.diff_sha256,
+            verification_status=value.verification_status,
+            notification_status=value.notification_status,
+            evidence=[
+                SecCaseEvidenceResponse(side=item.side, evidence_id=item.evidence_id)
+                for item in value.evidence
+            ],
+            created_at=value.created_at,
+            updated_at=value.updated_at,
+        )
+
+
+class SecDisclosureCaseCollectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    cases: list[SecDisclosureCaseResponse]

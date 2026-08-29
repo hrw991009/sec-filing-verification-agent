@@ -140,6 +140,7 @@ class _ToolLoopStepOutcome:
     state: RunState
     step: AgentStep | None = None
     observation: ToolObservation | None = field(default=None, repr=False)
+    approval: _PendingToolApproval | None = field(default=None, repr=False)
     terminated: bool = False
 
 
@@ -153,7 +154,16 @@ class _ToolLoopSegmentOutcome:
     observations: list[ToolObservationContextSource]
     final_decision: ToolLoopFinalDecision | None = None
     final_response: ModelResponse | None = None
+    approval: _PendingToolApproval | None = field(default=None, repr=False)
     terminated: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class _PendingToolApproval:
+    """Validated write intent handed to the durable Research checkpoint boundary."""
+
+    request: ApprovalRequest
+    action: ToolAction = field(repr=False)
 
 
 class ToolL1Runtime(RuntimeTransitionSupport):
@@ -2179,6 +2189,9 @@ class ToolL2Runtime(ToolL1Runtime):
                 return
             run, state = tool_outcome.run, tool_outcome.state
             outcome.run, outcome.state = run, state
+            if tool_outcome.approval is not None:
+                outcome.approval = tool_outcome.approval
+                return
             if tool_outcome.step is None or tool_outcome.observation is None:
                 raise AssertionError("Successful L2 Tool transition lost its result")
             outcome.steps.append(tool_outcome.step)
@@ -2331,7 +2344,7 @@ class ToolL2Runtime(ToolL1Runtime):
         except ToolPreparationError as error:
             decision_at = self._time(not_before=events[-1].occurred_at)
             if error.outcome is ToolApprovalOutcome.APPROVAL_REQUIRED:
-                ApprovalRequest(
+                approval = ApprovalRequest(
                     schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
                     approval_request_id=command.approval_request_ids[tool_index],
                     call_id=audit.call_id,
@@ -2370,6 +2383,19 @@ class ToolL2Runtime(ToolL1Runtime):
                     **self._definition_payload(error.definition),
                 },
             )
+            if (
+                error.outcome is ToolApprovalOutcome.APPROVAL_REQUIRED
+                and command.embedded_in_research
+            ):
+                await self._commit(events, rejected)
+                outcome.state = replace(
+                    state,
+                    event_count=len(events),
+                    updated_at=decision_at,
+                )
+                outcome.approval = _PendingToolApproval(request=approval, action=action)
+                yield rejected
+                return
             terminal = self._terminal_event(
                 run=run,
                 state=state,

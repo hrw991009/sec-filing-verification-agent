@@ -44,6 +44,9 @@ from industry_platform.modules.disclosures.adapters.snapshots import (
 from industry_platform.modules.disclosures.adapters.sqlalchemy import (
     SqlAlchemySecFilerCatalogRepository,
 )
+from industry_platform.modules.disclosures.adapters.subscription_sqlalchemy import (
+    SqlAlchemySecMonitorSubscriptionRepository,
+)
 from industry_platform.modules.disclosures.adapters.xbrl import (
     LiveSecCompanyFactsAdapter,
     UnavailableSecCompanyFactsAdapter,
@@ -74,10 +77,12 @@ from industry_platform.modules.disclosures.service import (
     SecFilerResolutionService,
     SecFilingSelectionService,
 )
+from industry_platform.modules.disclosures.subscription import SecMonitorSubscriptionService
 from industry_platform.modules.disclosures.tool import (
     SecDiffFilingsTool,
     SecGetXbrlFactsTool,
     SecListFilingsTool,
+    SecMonitorSubscribeTool,
     SecReadFilingSectionTool,
     SecResolveFilerTool,
     SecSearchFilingTool,
@@ -109,6 +114,7 @@ class DisclosureResources:
     filing_diff_service: SecFilingDiffService
     diff_filings_tool: SecDiffFilingsTool
     monitor_service: SecMonitorApplicationService
+    monitor_subscription_service: SecMonitorSubscriptionService
 
     @property
     def sec_source_tool_adapters(self) -> tuple[RegisteredToolAdapter, ...]:
@@ -325,6 +331,9 @@ def create_disclosure_resources(
                 diff=filing_diff_service,
             ),
         ),
+        monitor_subscription_service=SecMonitorSubscriptionService(
+            repository=SqlAlchemySecMonitorSubscriptionRepository(session_factory)
+        ),
     )
     # Fail application composition if profile references drift from concrete Tool definitions.
     _ = resources.sec_source_tool_adapters
@@ -340,6 +349,7 @@ def create_sec_filing_tools(
     SecReadFilingSectionTool,
     SecGetXbrlFactsTool,
     SecDiffFilingsTool,
+    SecMonitorSubscribeTool,
 ]:
     repository = SqlAlchemySecFilingContentRepository(
         session_factory,
@@ -387,6 +397,7 @@ def create_sec_filing_tools(
         SecReadFilingSectionTool(service),
         SecGetXbrlFactsTool(xbrl_service),
         SecDiffFilingsTool(diff_service),
+        SecMonitorSubscribeTool(),
     )
 
 

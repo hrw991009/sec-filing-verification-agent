@@ -207,6 +207,11 @@ class ResearchApprovalResponse(StrictResearchModel):
     resume_claimed: bool
     resume_job_id: UUID | None
     resumed_at: datetime | None
+    tool_call_id: UUID | None
+    tool_name: str | None
+    tool_version: str | None
+    tool_arguments: dict[str, object] | None
+    tool_arguments_sha256: str | None
     resume_token: str | None = Field(default=None, min_length=40, max_length=100)
 
 

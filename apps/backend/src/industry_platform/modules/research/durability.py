@@ -1,5 +1,7 @@
 """Typed durable Research L4 checkpoint, approval, and resume contracts."""
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import hmac
@@ -20,6 +22,7 @@ from industry_platform.modules.research.domain import (
     ResearchApprovalStatus,
     ResearchNode,
 )
+from industry_platform.modules.tools.domain import ToolReference, canonical_mapping_sha256
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -79,6 +82,22 @@ class ResearchApprovalRequest:
     resume_claimed: bool = False
     resume_job_id: UUID | None = None
     resumed_at: datetime | None = None
+    tool_request: ApprovalToolRequest | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalToolRequest:
+    """Server-validated Tool intent frozen into the approval checkpoint."""
+
+    call_id: UUID
+    tool: ToolReference
+    arguments: Mapping[str, object] = field(repr=False)
+    arguments_sha256: str
+
+    def __post_init__(self) -> None:
+        require_non_nil_uuid(self.call_id, field_name="Approval Tool Call ID")
+        if canonical_mapping_sha256(self.arguments) != self.arguments_sha256:
+            raise ValueError("Approval Tool request fingerprint is invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +150,7 @@ class ResearchDurabilityRepository(Protocol):
         resume_token_hash: bytes,
         requested_at: datetime,
         expires_at: datetime,
+        tool_request: ApprovalToolRequest | None = None,
     ) -> ResearchApprovalRequest: ...
 
     async def decide(
@@ -207,26 +227,49 @@ class ResearchDurabilityService:
         *,
         checkpoint: CheckpointEnvelope,
         reason: ResearchApprovalReason,
+        tool_request: ApprovalToolRequest | None = None,
+        request_id: UUID | None = None,
     ) -> tuple[ResearchApprovalRequest, str]:
         self._authorize(scope)
         if checkpoint.workspace_id != scope.workspace_id:
             raise WorkspaceAccessDeniedError
+        if (reason is ResearchApprovalReason.MONITOR_SUBSCRIPTION) != (tool_request is not None):
+            raise ValueError("Research approval Tool request is inconsistent")
         now = self._now()
-        request_id = approval_request_id(checkpoint.run_id, checkpoint.revision)
+        if tool_request is None:
+            if request_id is not None:
+                raise ValueError("Brief approval cannot override its request ID")
+            request_id = approval_request_id(checkpoint.run_id, checkpoint.revision)
+        elif request_id is None:
+            raise ValueError("Tool approval requires its Runtime request ID")
+        else:
+            require_non_nil_uuid(request_id, field_name="Tool approval request ID")
         token = self.token_codec.issue(
             request_id=request_id,
             run_id=checkpoint.run_id,
             checkpoint_revision=checkpoint.revision,
         )
-        request = await self.repository.create_approval(
-            scope,
-            checkpoint=checkpoint,
-            reason=reason,
-            approval_request_id=request_id,
-            resume_token_hash=self.token_codec.digest(token),
-            requested_at=now,
-            expires_at=now + timedelta(seconds=APPROVAL_TTL_SECONDS),
-        )
+        if tool_request is None:
+            request = await self.repository.create_approval(
+                scope,
+                checkpoint=checkpoint,
+                reason=reason,
+                approval_request_id=request_id,
+                resume_token_hash=self.token_codec.digest(token),
+                requested_at=now,
+                expires_at=now + timedelta(seconds=APPROVAL_TTL_SECONDS),
+            )
+        else:
+            request = await self.repository.create_approval(
+                scope,
+                checkpoint=checkpoint,
+                reason=reason,
+                approval_request_id=request_id,
+                resume_token_hash=self.token_codec.digest(token),
+                requested_at=now,
+                expires_at=now + timedelta(seconds=APPROVAL_TTL_SECONDS),
+                tool_request=tool_request,
+            )
         return request, token
 
     async def record_completed_effects(

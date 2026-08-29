@@ -12,6 +12,7 @@ from industry_platform.modules.financial_verification.schemas import FinancialSc
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.research.domain import (
+    ResearchApprovalReason,
     ResearchApprovalStatus,
     ResearchBriefInput,
     ResearchRunView,
@@ -372,6 +373,7 @@ def _approval_response(
         service.token_for(approval)
         if approval.status in {ResearchApprovalStatus.PENDING, ResearchApprovalStatus.ALLOWED}
         and not approval.resume_claimed
+        and approval.reason is not ResearchApprovalReason.MONITOR_SUBSCRIPTION
         else None
     )
     return ResearchApprovalResponse(
@@ -389,6 +391,17 @@ def _approval_response(
         resume_claimed=approval.resume_claimed,
         resume_job_id=approval.resume_job_id,
         resumed_at=approval.resumed_at,
+        tool_call_id=(None if approval.tool_request is None else approval.tool_request.call_id),
+        tool_name=(None if approval.tool_request is None else approval.tool_request.tool.name),
+        tool_version=(
+            None if approval.tool_request is None else approval.tool_request.tool.version
+        ),
+        tool_arguments=(
+            None if approval.tool_request is None else dict(approval.tool_request.arguments)
+        ),
+        tool_arguments_sha256=(
+            None if approval.tool_request is None else approval.tool_request.arguments_sha256
+        ),
         resume_token=token,
     )
 

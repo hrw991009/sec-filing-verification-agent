@@ -58,7 +58,10 @@ from industry_platform.modules.conversations.domain import (
     CONVERSATION_WEB_TOOL_CALL_LIMIT,
     TurnSearchMode,
 )
-from industry_platform.modules.disclosures.profile import create_sec_l4_profile
+from industry_platform.modules.disclosures.profile import (
+    create_sec_l4_profile,
+    create_sec_l5_profile,
+)
 from industry_platform.modules.evidence.adapters.sqlalchemy import SqlAlchemyEvidenceRepository
 from industry_platform.modules.evidence.service import EvidenceApplicationService
 from industry_platform.modules.files.resources import create_private_file_object_store
@@ -219,14 +222,23 @@ def create_direct_answer_runtime_resources(
                 raise ValueError("Runtime Tool surface contains an unregistered Tool")
             local_mode = mode is TurnSearchMode.LOCAL
             sec_l4_candidate = create_sec_l4_profile(model=model) if local_mode else None
+            sec_l5_candidate = create_sec_l5_profile(model=model) if local_mode else None
             sec_l4_profile = (
                 sec_l4_candidate
                 if sec_l4_candidate is not None
                 and tuple(references) == sec_l4_candidate.available_tools
                 else None
             )
+            sec_l5_profile = (
+                sec_l5_candidate
+                if sec_l5_candidate is not None
+                and tuple(references) == sec_l5_candidate.available_tools
+                else None
+            )
             tool_policies[mode] = (
-                sec_l4_profile.to_runtime_policy()
+                sec_l5_profile.to_runtime_policy()
+                if sec_l5_profile is not None
+                else sec_l4_profile.to_runtime_policy()
                 if sec_l4_profile is not None
                 else ToolL2RuntimePolicy(
                     schema_version=1,
