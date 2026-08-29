@@ -7,6 +7,8 @@ import type { ResearchRun } from "../research/research-api";
 
 const evidenceId = "11111111-1111-4111-8111-111111111111";
 const researchRunId = "22222222-2222-4222-8222-222222222222";
+const originRunId = "77777777-7777-4777-8777-777777777777";
+const originStepId = "88888888-8888-4888-8888-888888888888";
 
 const evidence: Evidence = {
   authorization_snapshot: {
@@ -35,10 +37,11 @@ const evidence: Evidence = {
     source_version: "api-v2-2026-08",
   },
   normalizer_version: "evidence-normalizer-v1",
+  origin_case_id: null,
   origin_observation_id: "66666666-6666-4666-8666-666666666666",
-  origin_run_id: "77777777-7777-4777-8777-777777777777",
+  origin_run_id: originRunId,
   origin_source_ordinal: 1,
-  origin_step_id: "88888888-8888-4888-8888-888888888888",
+  origin_step_id: originStepId,
   origin_tool_call_id: "99999999-9999-4999-8999-999999999999",
   retrieved_at: "2026-08-21T08:00:00Z",
   revision: 1,
@@ -51,7 +54,7 @@ const evidence: Evidence = {
 };
 
 const researchRun: ResearchRun = {
-  agent_run_id: evidence.origin_run_id,
+  agent_run_id: originRunId,
   agent_status: "running",
   brief: {
     approval_reason: null,
@@ -101,8 +104,8 @@ const claim: ResearchClaim = {
     {
       evidence,
       ordinal: 1,
-      origin_run_id: evidence.origin_run_id,
-      origin_step_id: evidence.origin_step_id,
+      origin_run_id: originRunId,
+      origin_step_id: originStepId,
       relation: "supports",
       relation_version: 1,
       status: "active",

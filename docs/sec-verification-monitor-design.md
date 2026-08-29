@@ -4,7 +4,7 @@
 >
 > 日期：2026-08-29
 >
-> 状态：Step 1～2 已本地实现并等待新远端验证；Step 3～5 仍为规划
+> 状态：Step 1～3 已本地实现并等待新远端验证；Step 4～5 仍为规划
 >
 > 适用范围：D8-01～D8-08
 
@@ -160,6 +160,8 @@ Beat tick
 
 部分覆盖、429、dependency failure 或 dead-letter 时不越过缺口推进 watermark。misfire 按既有 Schedule policy 补跑或合并 occurrence，但不得以当前 snapshot 冒充错过时点的数据。
 
+Step 3 已按该边界落地：Monitor occurrence observer 与既有行业 observer 通过通用组合器进入同一调度事务；Worker 固定注册表调用正式 disclosure composition，不在 Beat 或 handler 内另写 SEC client。分析先读取完整 point-in-time coverage，再复用 filing import、XBRL sync 与 filing diff；repository 仅在分析完整时原子写入 Case/Evidence 和下一 revision watermark。Job 在业务提交后重投时先读取 completed result，避免重复推进水位。
+
 ### 6.3 Case 幂等
 
 Case 幂等键至少由 `workspace + monitor + trigger source version + rule version + comparison pair` 组成。Case 保存 base/current accession、source snapshot/version、diff artifact、matched rule、Evidence refs、verification status 和通知状态。重复 Worker、手动重放或 amendment 重现返回现有 Case；不同规则或新 source version 可以产生新 Case。
@@ -204,4 +206,4 @@ Day 8 硬门：
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1～2 已完成本地实现、真实依赖全量测试与 PostgreSQL/迁移验证；修复后的远端 CI、正式 security frozen set 和 owner review 尚缺。下一步只实现 Monitor、watermark 与幂等 Case，不提前创建订阅 HITL 或页面。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。
+实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 1～3 已完成本地实现、真实依赖测试与 PostgreSQL/迁移验证；修复后的远端 CI、正式 security frozen set、完整 Monitor 故障演练和 owner review 尚缺。下一步只实现 `monitor.subscribe@v1`、持久 HITL、恢复和正式 Workbench，不提前伪造 Step 5 评测结果。每步结束同步主计划、能力矩阵、评测报告边界和实际 CI/验证证据。

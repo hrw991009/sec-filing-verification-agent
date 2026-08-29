@@ -250,7 +250,7 @@ class ElasticsearchLexicalIndexWriter:
         _status, result = await _json_request(
             self.client,
             "POST",
-            f"{endpoint.rstrip('/')}/{self.index}/_bulk?refresh=wait_for",
+            f"{endpoint.rstrip('/')}/{self.index}/_bulk?refresh=true",
             timeout_seconds=self.timeout_seconds,
             headers=self._headers(ndjson=True),
             content=("\n".join(lines) + "\n").encode("utf-8"),
@@ -284,7 +284,7 @@ class ElasticsearchLexicalIndexWriter:
         _status, result = await _json_request(
             self.client,
             "POST",
-            f"{endpoint.rstrip('/')}/{self.index}/_bulk?refresh=wait_for",
+            f"{endpoint.rstrip('/')}/{self.index}/_bulk?refresh=true",
             timeout_seconds=self.timeout_seconds,
             headers=self._headers(ndjson=True),
             content=("\n".join(lines) + "\n").encode("utf-8"),

@@ -1088,9 +1088,9 @@ class Evidence:
     revision: int
     invalidated_at: datetime | None
     invalidation_reason: str | None
-    origin_run_id: UUID
-    origin_step_id: UUID
-    origin_tool_call_id: UUID
+    origin_run_id: UUID | None
+    origin_step_id: UUID | None
+    origin_tool_call_id: UUID | None
     origin_observation_id: UUID
     origin_source_ordinal: int
     normalizer_version: str
@@ -1098,17 +1098,27 @@ class Evidence:
     source_resource_version: str
     created_at: datetime
     updated_at: datetime
+    origin_case_id: UUID | None = None
 
     def __post_init__(self) -> None:
         for identifier, field_name in (
             (self.evidence_id, "Evidence ID"),
             (self.workspace_id, "Evidence Workspace ID"),
-            (self.origin_run_id, "Evidence origin Run ID"),
-            (self.origin_step_id, "Evidence origin Step ID"),
-            (self.origin_tool_call_id, "Evidence origin Tool Call ID"),
             (self.origin_observation_id, "Evidence origin Observation ID"),
         ):
             require_non_nil_uuid(identifier, field_name=field_name)
+        agent_origin = (self.origin_run_id, self.origin_step_id, self.origin_tool_call_id)
+        if (self.origin_case_id is None) != all(value is not None for value in agent_origin):
+            raise ValueError("Evidence origin is incomplete")
+        if self.origin_case_id is not None:
+            require_non_nil_uuid(self.origin_case_id, field_name="Evidence origin Case ID")
+        for origin_identifier, origin_field_name in zip(
+            agent_origin,
+            ("Evidence origin Run ID", "Evidence origin Step ID", "Evidence origin Tool Call ID"),
+            strict=True,
+        ):
+            if origin_identifier is not None:
+                require_non_nil_uuid(origin_identifier, field_name=origin_field_name)
         _bounded_text(self.title, field_name="Evidence title", maximum=MAX_EVIDENCE_TITLE_LENGTH)
         if self.canonical_url is not None:
             parsed = urlsplit(self.canonical_url)

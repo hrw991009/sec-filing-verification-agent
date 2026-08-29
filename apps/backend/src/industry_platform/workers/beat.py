@@ -14,11 +14,15 @@ from industry_platform.core.database import (
     create_database_engine,
     create_database_session_factory,
 )
+from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
+    sec_monitor_occurrence_observer,
+)
 from industry_platform.modules.industry.adapters.sqlalchemy import (
     industry_collection_occurrence_observer,
 )
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyScheduleTransactionFactory,
+    compose_schedule_occurrence_observers,
 )
 from industry_platform.modules.jobs.domain import (
     ExecutionScope,
@@ -73,7 +77,10 @@ async def _create_schedule_resources(settings: Settings) -> _ScheduleResources:
         service = ScheduleApplicationService(
             transaction_factory=SqlAlchemyScheduleTransactionFactory(
                 session_factory,
-                occurrence_observer=industry_collection_occurrence_observer,
+                occurrence_observer=compose_schedule_occurrence_observers(
+                    industry_collection_occurrence_observer,
+                    sec_monitor_occurrence_observer,
+                ),
             ),
             batch_size=SCHEDULE_BATCH_SIZE,
         )

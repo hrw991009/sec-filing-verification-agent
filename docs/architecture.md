@@ -4,13 +4,13 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-28
+> 更新日期：2026-08-29
 >
-> 权威来源：`docs/master-plan.md` 2.1.8
+> 权威来源：`docs/master-plan.md` 2.1.9
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 7 已合入 `main`，但各自登记的浏览器、ranking/table/Citation、bulk watermark、live SEC 与发布证据债务仍留到 Day 10。Day 8 Step 1～2 当前在 `feat/day-8` 工作树实现：确定性 SEC Claim Verifier 与四种业务状态已进入 PostgreSQL/API/Event/Trace，唯一 Research graph 已升级为 L5 并增加最多一次、服务端 exact-action 驱动的 retrieve/recalculate revise。D8-01～D8-04 均为 `implemented_pending_verification`；Monitor、持久订阅 HITL、Workbench 与 A2/A3/A4 仍未实现，修复后的远端 CI 也尚未取得。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 7 已合入 `main`，但各自登记的浏览器、ranking/table/Citation、bulk watermark、live SEC 与发布证据债务仍留到 Day 10。Day 8 Step 1～3 当前在 `feat/day-8` 工作树实现：确定性 SEC Claim Verifier 与四种业务状态已进入 PostgreSQL/API/Event/Trace，唯一 Research graph 已升级为 L5 并增加最多一次、服务端 exact-action 驱动的 retrieve/recalculate revise；版本化 Monitor/rule、append-only watermark、幂等 Case 与双侧 Evidence 已复用既有 Schedule/Job/Outbox、SEC sync 和 filing diff 链接入 Beat/Worker。D8-01～D8-05 均为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵与 A2/A3/A4 仍未实现，修复后的远端 CI 也尚未取得。
 
 架构需要同时满足：
 
@@ -891,7 +891,7 @@ Day 6 已实现 filer/filing point-in-time、不可变 filing/XBRL source snapsh
 
 Day 7 五步代码随后由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。该合并没有关闭 Day 7 的 ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 与 owner review 门禁；D7-01/D7-03～D7-08 仍为 `implemented_pending_verification`，D7-02 仍为 `thin_slice`。项目所有者允许继续后续实现、Day 10 统一查漏补缺，因此 Day 8 先冻结五步计划和 Verifier/Monitor/恢复设计；当前没有 Day 8 migration、domain model、graph node、Tool、API 或 UI，D8-01～D8-08 全部为 `planned`。
 
-Day 8 Step 1～2 随后在同一 `research`/`agent_runtime`/`evidence` 边界内实现 Verifier 与 L5 graph。`research-l5-graph-v1` 只在 typed repairable issue、剩余预算/期限/取消允许且原 Tool allowlist 可满足时进入一次 revise；Tool 名称、版本和参数 digest 由服务端固定，模型偏离即在执行前 `TOOL_DENIED`。成功节点保存 verification report/action/observation digest，Draft revision append-only，Claim 稳定 ID 使 hard-stop 重试不产生第二条业务事实。真实依赖全量为 `1180 passed`、总体分支覆盖率 `80.27%`、核心合集 `85%`，迁移往返/drift 与现有 Chromium `8 passed`；远端 CI `33229040121` 的 Elasticsearch 冷启动失败已在工作树增加真实写读预热与 Job 级 30 秒索引超时，Web fixture 和浏览器驱动也已同步 L5 契约，仍待 push 后验证。Monitor/HITL/Workbench/eval 未提前实现，D8-01～D8-04 仅为 `implemented_pending_verification`。
+Day 8 Step 1～2 随后在同一 `research`/`agent_runtime`/`evidence` 边界内实现 Verifier 与 L5 graph。`research-l5-graph-v1` 只在 typed repairable issue、剩余预算/期限/取消允许且原 Tool allowlist 可满足时进入一次 revise；Tool 名称、版本和参数 digest 由服务端固定，模型偏离即在执行前 `TOOL_DENIED`。成功节点保存 verification report/action/observation digest，Draft revision append-only，Claim 稳定 ID 使 hard-stop 重试不产生第二条业务事实。Step 3 在既有 `disclosures`、Schedule/Job/Outbox、SEC sync、filing diff 与 Evidence ledger 边界内增加版本化 Monitor/rule、append-only watermark、run、幂等 Case 和双侧 Case Evidence；Beat 只投递 occurrence，Worker 在同一 PostgreSQL 事务内提交 Case/Evidence/watermark/run，已完成 Job 重投不会再次分析或推进 watermark。远端 CI `33232061055` 暴露的根因是 Elasticsearch 新索引上的 `refresh=wait_for` 无法自行触发 refresh；当前工作树已将正式写入和 CI readiness 改为显式 `refresh=true` 并补回归测试，而不是继续放宽超时。本地真实依赖主门为 `1186 passed`，其中因本机端口配置失败的 3 个索引集成用实际 Compose endpoint 重跑后全部通过；总体分支覆盖率 `80.15%`、核心合集 `85%`，迁移往返/drift、Web 质量与构建均通过。D8-01～D8-05 为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵、A2/A3/A4、远端 CI 和 owner review 仍待后续步骤关闭。
 
 ## 21. 初学者术语表
 

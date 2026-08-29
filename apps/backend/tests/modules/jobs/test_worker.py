@@ -3,6 +3,7 @@
 import asyncio
 import inspect
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import UUID
@@ -19,6 +20,13 @@ from industry_platform.modules.agent_runtime.execution import (
     DirectAnswerRunExecutionUseCase,
 )
 from industry_platform.modules.conversations.domain import DIRECT_ANSWER_TASK_NAME
+from industry_platform.modules.disclosures.monitor import (
+    SEC_MONITOR_TASK_NAME,
+    SecMonitorApplicationService,
+    SecMonitorDependencyError,
+    SecMonitorExecutionResult,
+    SecMonitorStateError,
+)
 from industry_platform.modules.identity.domain import (
     RefreshRecoveryCleanupCommand,
     RefreshRecoveryCleanupResult,
@@ -59,6 +67,7 @@ from industry_platform.workers.runtime import (
     KnowledgeIngestionJobHandler,
     PermanentJobHandlerError,
     RetryableJobHandlerError,
+    SecMonitorJobHandler,
     create_job_delivery_runtime,
 )
 from industry_platform.workers.tasks import register_job_execution_task
@@ -70,6 +79,9 @@ RETRY_OUTBOX_ID = UUID("44444444-4444-4444-8444-444444444444")
 NOW = datetime(2026, 8, 12, 0, 0, tzinfo=UTC)
 TRACE_ID = TraceId("worker-unit-trace")
 SENSITIVE_VALUE = "private-cleanup-control-value"
+WORKSPACE_ID = UUID("55555555-5555-4555-8555-555555555555")
+MONITOR_ID = UUID("66666666-6666-4666-8666-666666666666")
+WATERMARK_ID = UUID("77777777-7777-4777-8777-777777777777")
 
 
 class RecordingCleanupUseCase:
@@ -122,6 +134,24 @@ class FailingIngestionUseCase:
     async def execute(self, job: AcquiredJob) -> object:
         del job
         raise DocumentParserError(self.code)
+
+
+class RecordingMonitorUseCase:
+    def __init__(self, failure: Exception | None = None) -> None:
+        self.failure = failure
+        self.calls: list[tuple[UUID, UUID]] = []
+
+    async def execute_job(self, *, job_id: UUID, workspace_id: UUID) -> SecMonitorExecutionResult:
+        self.calls.append((job_id, workspace_id))
+        if self.failure is not None:
+            raise self.failure
+        return SecMonitorExecutionResult(
+            run_id=JOB_ID,
+            monitor_id=MONITOR_ID,
+            watermark_id=WATERMARK_ID,
+            watermark_revision=2,
+            case_ids=(),
+        )
 
 
 class RecordingJobUseCase:
@@ -267,6 +297,69 @@ async def test_knowledge_handler_maps_parser_retryability_to_stable_job_errors(
 
     error = cast(RetryableJobHandlerError | PermanentJobHandlerError, captured.value)
     assert error.error_code is job_error
+
+
+@pytest.mark.asyncio
+async def test_sec_monitor_handler_validates_workspace_payload_and_returns_stable_result() -> None:
+    monitor = RecordingMonitorUseCase()
+    handler = SecMonitorJobHandler(cast(SecMonitorApplicationService, monitor))
+    job = replace(
+        acquired_job(
+            task_name=SEC_MONITOR_TASK_NAME,
+            payload={"schema_version": 1, "monitor_id": str(MONITOR_ID)},
+        ),
+        scope=ExecutionScope(workspace_id=WORKSPACE_ID),
+    )
+
+    result = await handler.execute(job)
+
+    assert monitor.calls == [(JOB_ID, WORKSPACE_ID)]
+    assert result == {
+        "case_ids": [],
+        "monitor_id": str(MONITOR_ID),
+        "monitor_run_id": str(JOB_ID),
+        "watermark_id": str(WATERMARK_ID),
+        "watermark_revision": 2,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("failure", "exception_type", "error_code"),
+    [
+        (
+            SecMonitorDependencyError("sec_timeout"),
+            RetryableJobHandlerError,
+            JobExecutionErrorCode.SEC_MONITOR_DEPENDENCY_RETRYABLE,
+        ),
+        (
+            SecMonitorStateError("monitor_state_invalid"),
+            PermanentJobHandlerError,
+            JobExecutionErrorCode.SEC_MONITOR_STATE_INVALID,
+        ),
+    ],
+)
+async def test_sec_monitor_handler_maps_failure_class_without_leaking_source_details(
+    failure: Exception,
+    exception_type: type[RetryableJobHandlerError | PermanentJobHandlerError],
+    error_code: JobExecutionErrorCode,
+) -> None:
+    handler = SecMonitorJobHandler(
+        cast(SecMonitorApplicationService, RecordingMonitorUseCase(failure))
+    )
+    job = replace(
+        acquired_job(
+            task_name=SEC_MONITOR_TASK_NAME,
+            payload={"schema_version": 1, "monitor_id": str(MONITOR_ID)},
+        ),
+        scope=ExecutionScope(workspace_id=WORKSPACE_ID),
+    )
+
+    with pytest.raises(exception_type) as captured:
+        await handler.execute(job)
+
+    error = cast(RetryableJobHandlerError | PermanentJobHandlerError, captured.value)
+    assert error.error_code is error_code
 
 
 @pytest.mark.asyncio

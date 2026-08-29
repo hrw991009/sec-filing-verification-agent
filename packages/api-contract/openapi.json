@@ -2579,29 +2579,62 @@
             "title": "Normalizer Version",
             "type": "string"
           },
+          "origin_case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Case Id"
+          },
           "origin_observation_id": {
             "format": "uuid",
             "title": "Origin Observation Id",
             "type": "string"
           },
           "origin_run_id": {
-            "format": "uuid",
-            "title": "Origin Run Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Run Id"
           },
           "origin_source_ordinal": {
             "title": "Origin Source Ordinal",
             "type": "integer"
           },
           "origin_step_id": {
-            "format": "uuid",
-            "title": "Origin Step Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Step Id"
           },
           "origin_tool_call_id": {
-            "format": "uuid",
-            "title": "Origin Tool Call Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Tool Call Id"
           },
           "retrieved_at": {
             "format": "date-time",
@@ -2665,6 +2698,7 @@
           "origin_run_id",
           "origin_step_id",
           "origin_tool_call_id",
+          "origin_case_id",
           "origin_observation_id",
           "origin_source_ordinal",
           "normalizer_version",

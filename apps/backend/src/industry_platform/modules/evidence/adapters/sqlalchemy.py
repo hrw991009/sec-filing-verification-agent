@@ -2541,6 +2541,7 @@ class SqlAlchemyEvidenceRepository:
             origin_run_id=record.origin_run_id,
             origin_step_id=record.origin_step_id,
             origin_tool_call_id=record.origin_tool_call_id,
+            origin_case_id=record.origin_case_id,
             origin_observation_id=record.origin_observation_id,
             origin_source_ordinal=record.origin_source_ordinal,
             normalizer_version=record.normalizer_version,

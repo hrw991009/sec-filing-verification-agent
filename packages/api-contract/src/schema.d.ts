@@ -2501,28 +2501,21 @@ export interface components {
             locator: components["schemas"]["IndustrySourceLocatorResponse"] | components["schemas"]["SqlResultLocatorResponse"] | components["schemas"]["SecFilingChunkLocatorResponse"] | components["schemas"]["SecFilingTextLocatorResponse"] | components["schemas"]["industry_platform__modules__evidence__schemas__SecXbrlFactLocatorResponse"] | components["schemas"]["FinancialCalculationLocatorResponse"];
             /** Normalizer Version */
             normalizer_version: string;
+            /** Origin Case Id */
+            origin_case_id: string | null;
             /**
              * Origin Observation Id
              * Format: uuid
              */
             origin_observation_id: string;
-            /**
-             * Origin Run Id
-             * Format: uuid
-             */
-            origin_run_id: string;
+            /** Origin Run Id */
+            origin_run_id: string | null;
             /** Origin Source Ordinal */
             origin_source_ordinal: number;
-            /**
-             * Origin Step Id
-             * Format: uuid
-             */
-            origin_step_id: string;
-            /**
-             * Origin Tool Call Id
-             * Format: uuid
-             */
-            origin_tool_call_id: string;
+            /** Origin Step Id */
+            origin_step_id: string | null;
+            /** Origin Tool Call Id */
+            origin_tool_call_id: string | null;
             /**
              * Retrieved At
              * Format: date-time

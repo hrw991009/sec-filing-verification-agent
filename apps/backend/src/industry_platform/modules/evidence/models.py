@@ -60,6 +60,12 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
+            ["origin_case_id", "workspace_id"],
+            ["sec_disclosure_cases.id", "sec_disclosure_cases.workspace_id"],
+            name="fk_evidence_origin_case_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["source_item_id"],
             ["source_items.id"],
             name="fk_evidence_source_item",
@@ -113,6 +119,13 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("length(btrim(license_or_terms)) > 0", name="terms_not_blank"),
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint(
+            "(origin_case_id IS NULL AND origin_run_id IS NOT NULL "
+            "AND origin_step_id IS NOT NULL AND origin_tool_call_id IS NOT NULL) OR "
+            "(origin_case_id IS NOT NULL AND origin_run_id IS NULL "
+            "AND origin_step_id IS NULL AND origin_tool_call_id IS NULL)",
+            name="origin_exactly_one",
+        ),
+        CheckConstraint(
             "(locator_type = 'industry_source_v1' AND source_item_id IS NOT NULL "
             "AND query_run_id IS NULL AND document_version_id IS NULL AND chunk_id IS NULL) OR "
             "(locator_type = 'sql_result_v1' AND query_run_id IS NOT NULL "
@@ -138,6 +151,7 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index(None, "workspace_id", "status", "created_at"),
         Index(None, "workspace_id", "origin_run_id", "origin_tool_call_id"),
+        Index(None, "workspace_id", "origin_case_id"),
     )
 
     workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
@@ -197,9 +211,10 @@ class EvidenceRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     invalidation_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    origin_run_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    origin_step_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    origin_tool_call_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    origin_run_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    origin_step_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    origin_tool_call_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    origin_case_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     origin_observation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     origin_source_ordinal: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     normalizer_version: Mapped[str] = mapped_column(String(128), nullable=False)

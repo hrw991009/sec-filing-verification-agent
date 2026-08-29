@@ -15,6 +15,9 @@ from industry_platform.modules.disclosures.adapters.filing_content_sqlalchemy im
 from industry_platform.modules.disclosures.adapters.filings_sqlalchemy import (
     SqlAlchemySecFilingRepository,
 )
+from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
+    SqlAlchemySecMonitorRepository,
+)
 from industry_platform.modules.disclosures.adapters.sec_archives import (
     LiveSecFilingArchiveAdapter,
     UnavailableSecFilingArchiveAdapter,
@@ -52,6 +55,10 @@ from industry_platform.modules.disclosures.diff import SecFilingDiffService
 from industry_platform.modules.disclosures.filing_content_service import (
     SecFilingContentService,
     SecFilingImportService,
+)
+from industry_platform.modules.disclosures.monitor import (
+    SecMonitorAnalysisService,
+    SecMonitorApplicationService,
 )
 from industry_platform.modules.disclosures.ports import (
     SecCompanyFactsPort,
@@ -101,6 +108,7 @@ class DisclosureResources:
     get_xbrl_facts_tool: SecGetXbrlFactsTool
     filing_diff_service: SecFilingDiffService
     diff_filings_tool: SecDiffFilingsTool
+    monitor_service: SecMonitorApplicationService
 
     @property
     def sec_source_tool_adapters(self) -> tuple[RegisteredToolAdapter, ...]:
@@ -308,6 +316,15 @@ def create_disclosure_resources(
         get_xbrl_facts_tool=SecGetXbrlFactsTool(xbrl_service),
         filing_diff_service=filing_diff_service,
         diff_filings_tool=SecDiffFilingsTool(filing_diff_service),
+        monitor_service=SecMonitorApplicationService(
+            repository=SqlAlchemySecMonitorRepository(session_factory),
+            analyzer=SecMonitorAnalysisService(
+                selection=filing_selection_service,
+                imports=filing_import_service,
+                xbrl=xbrl_service,
+                diff=filing_diff_service,
+            ),
+        ),
     )
     # Fail application composition if profile references drift from concrete Tool definitions.
     _ = resources.sec_source_tool_adapters

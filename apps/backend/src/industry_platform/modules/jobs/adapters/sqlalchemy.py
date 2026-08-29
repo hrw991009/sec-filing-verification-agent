@@ -103,6 +103,21 @@ async def ignore_schedule_occurrence(
     del session, materialization
 
 
+def compose_schedule_occurrence_observers(
+    *observers: ScheduleOccurrenceObserver,
+) -> ScheduleOccurrenceObserver:
+    """Run each registered projection inside the materialization transaction."""
+
+    async def observe(
+        session: AsyncSession,
+        materialization: ScheduleOccurrenceMaterialization,
+    ) -> None:
+        for observer in observers:
+            await observer(session, materialization)
+
+    return observe
+
+
 @dataclass(slots=True)
 class SqlAlchemyJobWriter:
     """Perform every job transition through one explicit database session."""

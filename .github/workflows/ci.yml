@@ -256,7 +256,7 @@ jobs:
             --data '{"settings":{"number_of_shards":1,"number_of_replicas":0}}' \
             >/dev/null
           curl --fail --silent --request POST \
-            'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=wait_for' \
+            'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=true' \
             --header 'Content-Type: application/json' \
             --data '{"ready":true}' \
             >/dev/null

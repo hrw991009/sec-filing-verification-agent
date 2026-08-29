@@ -208,9 +208,10 @@ class EvidenceResponse(StrictLedgerModel):
     revision: int
     invalidated_at: datetime | None
     invalidation_reason: str | None
-    origin_run_id: UUID
-    origin_step_id: UUID
-    origin_tool_call_id: UUID
+    origin_run_id: UUID | None
+    origin_step_id: UUID | None
+    origin_tool_call_id: UUID | None
+    origin_case_id: UUID | None
     origin_observation_id: UUID
     origin_source_ordinal: int
     normalizer_version: str

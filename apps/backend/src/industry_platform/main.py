@@ -86,6 +86,9 @@ from industry_platform.modules.data_explorer.resources import (
     create_data_explorer_resources,
 )
 from industry_platform.modules.data_explorer.router import router as data_explorer_router
+from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
+    sec_monitor_occurrence_observer,
+)
 from industry_platform.modules.disclosures.domain import (
     SecDisclosurePersistenceError,
     SecFilingContentError,
@@ -156,6 +159,9 @@ from industry_platform.modules.industry.domain import (
 )
 from industry_platform.modules.industry.resources import create_industry_resources
 from industry_platform.modules.industry.router import router as industry_router
+from industry_platform.modules.jobs.adapters.sqlalchemy import (
+    compose_schedule_occurrence_observers,
+)
 from industry_platform.modules.jobs.domain import (
     ScheduleDefinitionConflictError,
     ScheduleNotFoundError,
@@ -289,7 +295,10 @@ def create_app(
             job_resources = create_job_resources(
                 active_settings,
                 database_session_factory,
-                occurrence_observer=industry_collection_occurrence_observer,
+                occurrence_observer=compose_schedule_occurrence_observers(
+                    industry_collection_occurrence_observer,
+                    sec_monitor_occurrence_observer,
+                ),
             )
             industry_resources = create_industry_resources(
                 active_settings,

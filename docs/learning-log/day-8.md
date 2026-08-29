@@ -10,7 +10,7 @@
 >
 > 详细设计：[SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)
 >
-> 当前状态（2026-08-29）：Step 1～2 已在 `feat/day-8` 工作树实现，D8-01～D8-04 为 `implemented_pending_verification`；Step 3～5 与 D8-05～D8-08 仍为 `planned`。本机完整真实依赖门禁为 `1180 passed`、总体分支覆盖率 `80.27%`、核心合集 `85%`，完整迁移往返/drift、OpenAPI 确定生成与现有真实 Chromium `8 passed`。提交 `3a46220` 的 push CI `33229040121` 中 PostgreSQL Job 曾因 Elasticsearch 冷启动索引操作超过 10 秒失败；当前工作树已加入实际写读 readiness probe，并仅在该 Job 将索引超时设为 30 秒，尚无修复后的远端 CI。D8 专属 Workbench 浏览器链、frozen eval、PR/main CI 与所有者复核仍缺，不能把 Step 2 或 Day 8 写成完成。
+> 当前状态（2026-08-29）：Step 1～3 已在 `feat/day-8` 工作树实现，D8-01～D8-05 为 `implemented_pending_verification`；Step 4～5 与 D8-06～D8-08 仍为 `planned`。Step 3 新增正式 Monitor/rule/watermark/run/Case/Evidence 模型、迁移、Schedule/Worker 接线和幂等完成短路。本机 CI 等价测试主运行 `1186 passed, 3 failed`，三项失败均由本机 Compose Elasticsearch 端口配置错误导致，改为实际映射端口后 `3 passed`；合并覆盖数据达到总体分支覆盖率 `80.15%`、核心合集 `85%`，完整迁移往返/drift、Web 格式/lint/typecheck/test/build 均通过。此前远端 PostgreSQL CI 的真实根因是 Elasticsearch `refresh=wait_for` 首次写入可能无限等待，当前工作树已把实际 bulk 写/删与 readiness probe 改为 `refresh=true`，尚无修复后的远端 CI。D8 专属 Workbench、frozen eval、完整故障演练、PR/main CI 与所有者复核仍缺，不能把 Step 3 或 Day 8 写成完成。
 
 ## 1. 进入基线与本日边界
 
@@ -98,7 +98,17 @@ Research Draft 改为 `(research_run_id, revision)` append-only；revision 2 的
 
 聚焦测试覆盖成功 retrieve→reverify、targeted retrieve/recalculate no-progress、预算不足不 revise、最多一次 revise、filing 注入诱导未注册写 Tool、L4 hard-stop 恢复与 Claim PostgreSQL 重试幂等。CI 查漏同时补齐 `ResearchDraftResponse.revision` 的 Web fixture，并把浏览器 Research 驱动升级为显式校验 L5 graph/state/finalize 与 10 个正常路径节点；现有 8 条 Chromium 旅程全量通过。完整真实依赖门禁、迁移和覆盖率数字见本页顶部；新的远端分支 CI、D8 专属 security frozen set、A2/A3 对照和 owner review 尚缺，因此 D8-03/D8-04 只能是 `implemented_pending_verification`。
 
-## 7. Day 8 完成定义
+## 7. Step 3 实现与证据
+
+`disclosures` 已新增 Workspace scoped 的 Monitor、typed rule、append-only watermark、Schedule occurrence run、幂等 Case 和 Case→Evidence 双侧关联。规则只接受冻结版本和显式 comparator/threshold；模型 prose 不进入执行字段。Evidence 继续使用统一表和 API，但来源约束改为 Agent Tool 三元组或 Monitor Case 二选一，Case 不复制一套私有 citation 数据。
+
+FastAPI 与 Beat 通过同一个 observer 组合器，在既有 Schedule/Occurrence/Job/Outbox 事务内同时支持行业采集与 SEC Monitor 投影。固定 Worker registry 新增 Monitor handler，并复用完整 disclosure resources；官方 point-in-time selection、Workspace filing import、XBRL sync 和 `sec-filing-diff-v1` 完成后才执行 typed rule。部分覆盖、官方源/索引依赖失败不会进入 commit；Case/Evidence 与新 watermark 在一个 PostgreSQL 事务中写入。若业务提交成功而 Job 结算前中断，同一 Job 重投会读取已完成结果，不再次分析或推进 watermark。
+
+本地证据覆盖 amendment/base 选择、覆盖不完整时零 import/diff、缺 baseline fail closed、Worker retryable/permanent 错误映射、真实 PostgreSQL occurrence→run→watermark 原子链和完成后重投幂等。数据库测试还验证 Case 绑定两个 filing，并能通过 `baseline/target` Evidence locator 反查两个 accession。完整 Alembic `upgrade→check→downgrade→upgrade→check` 通过；生成 OpenAPI 连续稳定，Web 因 Agent 来源字段可空而更新 fixture 后格式/lint/typecheck、87 tests、关键状态 coverage 和 build 通过。
+
+CI 修复没有继续放宽业务超时：Elasticsearch bulk 写入和删除从 `refresh=wait_for` 改为 `refresh=true`，因为前者在新索引没有周期 refresh 时可能一直等待；CI readiness probe 使用相同真实写读语义。当前仍缺修复后的远端 CI、合法 live SEC、429/dead-letter/lease 的完整组合故障演练、正式 Monitor API/Workbench 和 Step 4 的持久订阅审批，因此 D8-05 只能是 `implemented_pending_verification`。
+
+## 8. Day 8 完成定义
 
 Day 8 只有同时满足以下条件才可关闭：
 
@@ -109,4 +119,4 @@ Day 8 只有同时满足以下条件才可关闭：
 - 分支、PR、合并提交 CI 均通过，正式浏览器旅程和所有者复核完成；
 - Day 5～7 遗留项仍在 Day 10 台账中逐项可见，没有被 Day 8 报告删除、改分母或伪写完成。
 
-当前 Step 1～2 达到本地 `implemented_pending_verification`，不满足 Day 8 总完成条件。下一步进入 Step 3，建立 Monitor、watermark 与幂等 Case；不提前实现订阅 HITL 或 UI 占位。
+当前 Step 1～3 达到本地 `implemented_pending_verification`，不满足 Day 8 总完成条件。下一步进入 Step 4，接入 `monitor.subscribe@v1`、持久 HITL、恢复和正式 Workbench；不得用当前数据库模型替代用户审批或 UI/API 验收。

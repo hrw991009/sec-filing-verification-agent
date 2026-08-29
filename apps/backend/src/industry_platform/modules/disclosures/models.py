@@ -13,7 +13,9 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     LargeBinary,
+    SmallInteger,
     String,
     UniqueConstraint,
     Uuid,
@@ -652,3 +654,315 @@ class WorkspaceSecImportRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     document_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     document_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     ingestion_job_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+
+
+class SecDisclosureMonitorRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Workspace-owned immutable-rule Monitor with one append-only watermark head."""
+
+    __tablename__ = "sec_disclosure_monitors"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
+        ForeignKeyConstraint(
+            ["workspace_id", "owner_user_id"],
+            ["workspace_members.workspace_id", "workspace_members.user_id"],
+            name="fk_sec_disclosure_monitors_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["knowledge_base_id", "workspace_id"],
+            ["knowledge_bases.id", "knowledge_bases.workspace_id"],
+            name="fk_sec_disclosure_monitors_knowledge_base",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["current_watermark_id", "id", "workspace_id"],
+            [
+                "sec_disclosure_monitor_watermarks.id",
+                "sec_disclosure_monitor_watermarks.monitor_id",
+                "sec_disclosure_monitor_watermarks.workspace_id",
+            ],
+            name="fk_sec_disclosure_monitors_watermark_head",
+            ondelete="RESTRICT",
+            use_alter=True,
+        ),
+        CheckConstraint("status IN ('active', 'paused')", name="status_supported"),
+        CheckConstraint("rule_set_version = 'sec-monitor-rules-v1'", name="rules_supported"),
+        CheckConstraint("diff_version = 'sec-filing-diff-v1'", name="diff_supported"),
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        CheckConstraint("json_array_length(allowed_forms) BETWEEN 1 AND 4", name="forms_bounded"),
+        Index(None, "workspace_id", "status", "updated_at"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
+    )
+    owner_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    filer_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sec_filers.id", ondelete="RESTRICT"), nullable=False
+    )
+    knowledge_base_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    schedule_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("schedules.id", ondelete="RESTRICT"), nullable=False
+    )
+    allowed_forms: Mapped[list[str]] = mapped_column(JSON(), nullable=False)
+    rule_set_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    diff_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    timezone_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    current_watermark_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    created_from_approval_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+
+
+class SecDisclosureMonitorRuleRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Typed executable rule; prose model output is never stored as executable policy."""
+
+    __tablename__ = "sec_disclosure_monitor_rules"
+    __table_args__ = (
+        UniqueConstraint("id", "monitor_id", "workspace_id"),
+        UniqueConstraint("monitor_id", "ordinal"),
+        ForeignKeyConstraint(
+            ["monitor_id", "workspace_id"],
+            ["sec_disclosure_monitors.id", "sec_disclosure_monitors.workspace_id"],
+            name="fk_sec_disclosure_monitor_rules_monitor",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "kind IN ('new_filing', 'amendment', 'fact_absolute_change', 'section_change')",
+            name="kind_supported",
+        ),
+        CheckConstraint("rule_version = 'sec-monitor-rules-v1'", name="version_supported"),
+        CheckConstraint("ordinal BETWEEN 1 AND 16", name="ordinal_bounded"),
+        CheckConstraint(
+            "length(btrim(section_query)) BETWEEN 1 AND 500", name="section_query_valid"
+        ),
+        CheckConstraint(
+            "(kind = 'fact_absolute_change' AND taxonomy IS NOT NULL AND concept IS NOT NULL "
+            "AND unit IS NOT NULL AND threshold IS NOT NULL "
+            "AND comparator = 'absolute_delta_gte') OR "
+            "(kind <> 'fact_absolute_change' AND taxonomy IS NULL AND concept IS NULL "
+            "AND unit IS NULL AND threshold IS NULL AND comparator IS NULL)",
+            name="fact_configuration_consistent",
+        ),
+        Index(None, "workspace_id", "monitor_id", "ordinal"),
+    )
+
+    monitor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    ordinal: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    section_query: Mapped[str] = mapped_column(String(500), nullable=False)
+    taxonomy: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    concept: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    threshold: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    comparator: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class SecDisclosureMonitorWatermarkRecord(UUIDPrimaryKeyMixin, Base):
+    """Append-only proof that one complete official-source coverage set was processed."""
+
+    __tablename__ = "sec_disclosure_monitor_watermarks"
+    __table_args__ = (
+        UniqueConstraint("id", "monitor_id", "workspace_id"),
+        UniqueConstraint("monitor_id", "revision"),
+        ForeignKeyConstraint(
+            ["monitor_id", "workspace_id"],
+            ["sec_disclosure_monitors.id", "sec_disclosure_monitors.workspace_id"],
+            name="fk_sec_disclosure_monitor_watermarks_monitor",
+            ondelete="RESTRICT",
+            use_alter=True,
+        ),
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        CheckConstraint("length(btrim(coverage_version)) > 0", name="coverage_version_not_blank"),
+        CheckConstraint(
+            "(accepted_at IS NULL AND accession IS NULL) OR "
+            "(accepted_at IS NOT NULL AND accession ~ '^[0-9]{10}-[0-9]{2}-[0-9]{6}$')",
+            name="cursor_complete",
+        ),
+        Index(None, "workspace_id", "monitor_id", "revision"),
+    )
+
+    monitor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    coverage_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    accession: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    monitor_run_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecDisclosureMonitorRunRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One Schedule occurrence projection and its exact source watermark fence."""
+
+    __tablename__ = "sec_disclosure_monitor_runs"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
+        UniqueConstraint("schedule_occurrence_id"),
+        UniqueConstraint("job_id"),
+        ForeignKeyConstraint(
+            ["monitor_id", "workspace_id"],
+            ["sec_disclosure_monitors.id", "sec_disclosure_monitors.workspace_id"],
+            name="fk_sec_disclosure_monitor_runs_monitor",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["source_watermark_id", "monitor_id", "workspace_id"],
+            [
+                "sec_disclosure_monitor_watermarks.id",
+                "sec_disclosure_monitor_watermarks.monitor_id",
+                "sec_disclosure_monitor_watermarks.workspace_id",
+            ],
+            name="fk_sec_disclosure_monitor_runs_source_watermark",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["result_watermark_id", "monitor_id", "workspace_id"],
+            [
+                "sec_disclosure_monitor_watermarks.id",
+                "sec_disclosure_monitor_watermarks.monitor_id",
+                "sec_disclosure_monitor_watermarks.workspace_id",
+            ],
+            name="fk_sec_disclosure_monitor_runs_result_watermark",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("status IN ('queued', 'running', 'succeeded')", name="status_supported"),
+        CheckConstraint("coalesced_count >= 1", name="coalesced_count_positive"),
+        CheckConstraint("window_end >= window_start", name="window_order"),
+        CheckConstraint(
+            "(status = 'succeeded' AND result_watermark_id IS NOT NULL "
+            "AND completed_at IS NOT NULL) "
+            "OR (status <> 'succeeded' AND result_watermark_id IS NULL AND completed_at IS NULL)",
+            name="terminal_state_consistent",
+        ),
+        Index(None, "workspace_id", "monitor_id", "created_at"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    monitor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    schedule_occurrence_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("schedule_occurrences.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    job_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("jobs.id", ondelete="RESTRICT"), nullable=False
+    )
+    source_watermark_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    result_watermark_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    coalesced_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SecDisclosureCaseRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Idempotent verified alert generated from one comparison pair and executable rule."""
+
+    __tablename__ = "sec_disclosure_cases"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
+        UniqueConstraint("workspace_id", "idempotency_key"),
+        ForeignKeyConstraint(
+            ["monitor_id", "workspace_id"],
+            ["sec_disclosure_monitors.id", "sec_disclosure_monitors.workspace_id"],
+            name="fk_sec_disclosure_cases_monitor",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["monitor_run_id", "workspace_id"],
+            ["sec_disclosure_monitor_runs.id", "sec_disclosure_monitor_runs.workspace_id"],
+            name="fk_sec_disclosure_cases_run",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["rule_id", "monitor_id", "workspace_id"],
+            [
+                "sec_disclosure_monitor_rules.id",
+                "sec_disclosure_monitor_rules.monitor_id",
+                "sec_disclosure_monitor_rules.workspace_id",
+            ],
+            name="fk_sec_disclosure_cases_rule",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "trigger_kind IN ('new_filing', 'amendment', 'fact_absolute_change', 'section_change')",
+            name="trigger_supported",
+        ),
+        CheckConstraint("rule_version = 'sec-monitor-rules-v1'", name="rule_version_supported"),
+        CheckConstraint("diff_version = 'sec-filing-diff-v1'", name="diff_version_supported"),
+        CheckConstraint("octet_length(diff_sha256) = 32", name="diff_hash_length"),
+        CheckConstraint("length(idempotency_key) = 64", name="idempotency_key_length"),
+        CheckConstraint("verification_status = 'verified'", name="verification_status_supported"),
+        CheckConstraint("notification_status = 'pending'", name="notification_status_supported"),
+        CheckConstraint(
+            "baseline_accession ~ '^[0-9]{10}-[0-9]{2}-[0-9]{6}$' AND "
+            "target_accession ~ '^[0-9]{10}-[0-9]{2}-[0-9]{6}$' AND "
+            "baseline_accession <> target_accession",
+            name="comparison_accessions_valid",
+        ),
+        Index(None, "workspace_id", "monitor_id", "created_at"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    monitor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    monitor_run_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    rule_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    trigger_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_coverage_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    baseline_filing_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sec_filings.id", ondelete="RESTRICT"), nullable=False
+    )
+    target_filing_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sec_filings.id", ondelete="RESTRICT"), nullable=False
+    )
+    baseline_accession: Mapped[str] = mapped_column(String(20), nullable=False)
+    target_accession: Mapped[str] = mapped_column(String(20), nullable=False)
+    diff_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    diff_payload: Mapped[dict[str, object]] = mapped_column(JSON(), nullable=False)
+    diff_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    verification_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    notification_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class SecDisclosureCaseEvidenceRecord(UUIDPrimaryKeyMixin, Base):
+    """Ordered Case-to-Evidence links preserving both comparison sides."""
+
+    __tablename__ = "sec_disclosure_case_evidence"
+    __table_args__ = (
+        UniqueConstraint("case_id", "side"),
+        UniqueConstraint("case_id", "evidence_id"),
+        ForeignKeyConstraint(
+            ["case_id", "workspace_id"],
+            ["sec_disclosure_cases.id", "sec_disclosure_cases.workspace_id"],
+            name="fk_sec_disclosure_case_evidence_case",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["evidence_id", "workspace_id"],
+            ["evidence.id", "evidence.workspace_id"],
+            name="fk_sec_disclosure_case_evidence_evidence",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("side IN ('baseline', 'target')", name="side_supported"),
+        Index(None, "workspace_id", "case_id", "side"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    evidence_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    side: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
