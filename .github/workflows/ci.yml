@@ -223,9 +223,12 @@ jobs:
             --env MINIO_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY" \
             --env MINIO_REGION=us-east-1 \
             milvusdb/milvus:v3.0.0 milvus run standalone
+          # The ephemeral cluster stores only test fixtures, while hosted runners can
+          # exceed Elasticsearch disk watermarks after pulling the service images.
           docker run --detach --rm --name day5-elasticsearch --network host \
             --env discovery.type=single-node \
             --env xpack.security.enabled=false \
+            --env cluster.routing.allocation.disk.threshold_enabled=false \
             --env ES_JAVA_OPTS='-Xms512m -Xmx512m' \
             docker.elastic.co/elasticsearch/elasticsearch:9.5.1
           for attempt in $(seq 1 60); do
@@ -263,7 +266,7 @@ jobs:
               >/dev/null \
               && curl --fail --silent --show-error --connect-timeout 2 --max-time 10 \
                 --request POST \
-                'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=true' \
+                'http://127.0.0.1:9200/ci-readiness-probe/_doc/ready?refresh=wait_for' \
                 --header 'Content-Type: application/json' \
                 --data '{"ready":true}' \
                 >/dev/null \
