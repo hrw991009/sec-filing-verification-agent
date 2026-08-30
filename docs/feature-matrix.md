@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-30
 >
-> 权威来源：`docs/master-plan.md` 2.2.5
+> 权威来源：`docs/master-plan.md` 2.2.7
 
 ## 1. 使用规则
 
@@ -275,7 +275,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D9-05 | `sec-temporal-v1` | SEC + NEW | ≥60 固定 case：事实/表格/计算/跨期/amendment/custom/无答案/安全恢复 | point-in-time gold、source/program/result/status 与 holdout | `implemented_pending_verification` | `complete` |
 | D9-06 | 中英配对验证 | NEW | ≥30 pair 共享 filer/accession/Evidence/program/result/status | 事实链一致率 100%，中文质量人工抽样 | `implemented_pending_verification` | `complete` |
 | D9-07 | Agent trajectory/state/security suite | BFCL/ToolSandbox/tau-bench/AgentDojo 方法 | required/allowed/forbidden Tool、partial order、final DB state、pass^k、injection | 固定版本/许可、未授权写/重复副作用/攻击指标 | `implemented_pending_verification` | `complete` |
-| D9-08 | A0～A4 release ablation | NEW | trajectory/result/evidence/runtime/point-in-time/security/cost/latency 分层 | deterministic/offline/live 分报、live≥3 次、策略回退决定 | `planned` | `complete` |
+| D9-08 | A0～A4 release ablation | NEW | trajectory/result/evidence/runtime/point-in-time/security/cost/latency 分层 | deterministic/offline/live 分报、live≥3 次、策略回退决定 | `thin_slice` | `complete` |
 
 2026-08-29 Step 1 映射：当前 `feat/day-9` 工作树已在正式 `evaluation` bounded context 建立严格 Dataset Registry、release Eval manifest 和由同一 Pydantic 模型生成的版本化 JSON Schema。registry 固定 FinQA、TAT-QA、FinanceBench、FinSearchComp 的 upstream revision、11 个 artifact byte size/SHA-256、数据/代码许可、允许用途和 gold 可见性；四项均 fail closed 为 `registered_only`/`release_eligible=false`。19 条聚焦测试覆盖确定性生成、重复 key/NaN、浮动 revision、许可越权、gold 泄漏、跨 split/future source、registry/case/run/trace/Evidence 引用边界，模块 branch coverage `86.18%`；Ruff/mypy/Web、现有 Chromium `8 passed`、依赖审计、历史 Gitleaks 和五个真实依赖下 `1226 passed` 均通过，总体/既有核心 coverage `80.29%`/`86%`。当前未下载 payload、未实现 Adapter、未运行真实 case 或产生成绩，也没有 branch/PR/main CI 和 owner review，因此只有 D9-01 更新为 `implemented_pending_verification`，D9-02～D9-08 保持 `planned`。
 
@@ -284,6 +284,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 2026-08-30 Step 3 映射：新增内部 `sec-temporal-v1` 严格 manifest、可复现生成器、JSON Schema、dataset card、contract-only 报告和人工语言抽样清单，直接复用 release Budget/Trajectory/SEC/Answer gold，不新建 Agent loop。11 个真实 accession 的 22 个 SEC HTML/XBRL artifact 均固定 URL/size/SHA-256；30 个单 gold 中英 pair 展开为 60 case，construction/development/release-holdout 分母为 `14/20/26`，八类覆盖为 `10/8/10/8/6/6/6/6`。本地 22/22 artifact、35/35 Evidence、pair identity 100% 和 future leakage 0 已通过严格验证，表格/文本包含真实 HTML 锚点并与 XBRL 交叉核验。报告明确未执行模型或 Runtime；10 组中文抽样尚未签字，真实 Run/Trace/Evidence binding、远端 CI 和 owner review 仍缺，因此 D9-05/D9-06 为 `implemented_pending_verification`。
 
 2026-08-30 Step 4 映射：FinanceBench/FinSearchComp 均通过固定 artifact size/SHA-256 和严格 gold 隔离 Adapter，升级为 `adapter_ready` 但继续 `release_eligible=false`。FinanceBench 转换 150 题/84 引用文档/189 Evidence，保留一个未引用 metadata id 的上游 period 冲突，且不下载或提交独立受权的 PDF；FinSearchComp 将 391 个 historical case 与 244 个 dynamic case 分报，dynamic 再分为 203 个 AkShare-compatible 和 41 个专业依赖，并单列 203 个共同动态 case 的 timestamp drift。另从 temporal 安全 pair 派生 6-case/18-trial `agent-security-v1`，复用 release trajectory/budget，以规则 scorer 重算参数、偏序、stop reason、final state、注入/越权/重复副作用、恢复与经验 `pass^3`。当前 18/18 contract trials 和 6/6 all-k intersection 仅证明 scorer/冻结回放；没有真实 Runtime/model/database final state、官方 judge、远端 CI 或 owner review，因此 D9-04/D9-07 为 `implemented_pending_verification`。
+
+2026-08-30 Step 5 映射：新增 `release-suite-v1`，严格校验 Step 1 registry/空 release manifest 与九份上游报告并绑定 SHA-256，生成 deterministic/offline/live/failure-taxonomy 四组 JSON+Markdown 和 schema。只在原共同 case 内保留 A1→A2、A2→A3 与 A3→A4 operational 三段决策；拒绝把 10-case `sec-tool-v1` 和 14-case `sec-verification-v1` 拼成全局 A0～A4 总分，生产默认策略保持 null。offline 四项公开集 prediction 为 0，live 三项目标完成重复数为 0/3，Recall@5、真实 Runtime/Run/Trace/Evidence、许可/中文复核、三层 CI 和 owner review 仍缺，因此 D9-08 仅为 `thin_slice`。
 
 ## 12. Day 10：SEC 工作台、质量与可发布版本
 

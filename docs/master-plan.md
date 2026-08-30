@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.6`
+> 版本：`2.2.7`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1056,7 +1056,7 @@ SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fa
 
 ## 16. Day 9：公开 Benchmark、SEC Temporal Eval 与中文验证链
 
-> 执行状态（2026-08-30）：Day 8 已由 PR #14 合入 `main`，功能 head `227eeb4`、合并提交 `ae1f50b`，push/PR/main 三层 CI 的 7 个适用 Job 均通过。项目所有者已授权进入 Day 9；执行顺序收敛为五步：[Day 9 执行计划](learning-log/day-9.md)。Step 1～Step 4 已在 `feat/day-9` 工作树实现：四个外部数据集均为 `adapter_ready`/`release_eligible=false`，`sec-temporal-v1` 固定 60 个中英 case，受限外部报告严格分离 FinanceBench 非商用/source-PDF 边界与 FinSearchComp historical/dynamic 依赖，`agent-security-v1` 以 6-case/18-trial 冻结 observation 验证 trajectory/final-state/injection/经验 `pass^3` scorer。当前结果仍未执行真实 Runtime/model/database final state、官方 LLM judge、case→Run/Trace/Evidence 反查或远端 CI，中文抽样与 owner review 亦未签字。因此 D9-01～D9-07 为 `implemented_pending_verification`，D9-08 保持 `planned`。
+> 执行状态（2026-08-30）：Day 8 已由 PR #14 合入 `main`，功能 head `227eeb4`、合并提交 `ae1f50b`，push/PR/main 三层 CI 的 7 个适用 Job 均通过。项目所有者已授权进入 Day 9；执行顺序收敛为五步：[Day 9 执行计划](learning-log/day-9.md)。Step 1～Step 5 已在 `feat/day-9` 工作树实现：四个外部数据集均为 `adapter_ready`/`release_eligible=false`，`sec-temporal-v1` 固定 60 个中英 case，受限外部报告严格分离 FinanceBench 非商用/source-PDF 边界与 FinSearchComp historical/dynamic 依赖，`agent-security-v1` 以 6-case/18-trial 冻结 observation 验证 trajectory/final-state/injection/经验 `pass^3` scorer。Step 5 的 `release-suite-v1` 分别输出 deterministic/offline/live/failure taxonomy，只保留同集 A1→A2、A2→A3、A3→A4 operational pairwise 决策，并拒绝把不同 case suite 拼成全局 A0～A4 分数。统一 common-case manifest、Recall@5、真实 Runtime/model/database、公开集 prediction、live≥3 次、官方 judge、case→Run/Trace/Evidence、远端 CI、中文抽样和 owner review 仍缺。因此 D9-01～D9-07 为 `implemented_pending_verification`，D9-08 为 `thin_slice`。
 
 ### 学习主题
 
@@ -1347,3 +1347,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.4 | 2026-08-30 | 同步 Day 9 Step 2：复用正式 `evaluation` 和受控公网 egress，实现 registry 驱动的 FinQA/TAT-QA materializer、统一 sanitized case、两个独立官方口径 scorer、dataset card 与 contract-only 分报。全量 split/hash/case digest 通过；FinQA 1147 test program 与官方执行器、TAT-QA 200 oracle case 与官方 scorer 均 0 mismatch。明确 TAT pinned test input/gold UID 零重合，使用 released gold 自带 context 安全拆分而不强连；两个数据集升为 `adapter_ready` 但继续 `release_eligible=false`。聚焦测试 29 passed，全量无强制真实依赖 pytest `1148 passed, 88 skipped`，Ruff/mypy、构建、OpenAPI/Web、依赖审计与现有 Chromium `8 passed` 均通过；真实依赖强制重跑、真实模型 run、远端 CI、Run/Trace/Evidence binding 与 owner review 仍缺，D9-02/D9-03 为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |
 | 2.2.5 | 2026-08-30 | 同步 Day 9 Step 3：新增内部 `sec-temporal-v1` manifest/生成器/schema/dataset card/contract-only 报告，复用 release Budget/Trajectory/SEC/Answer gold，将 30 个单 gold 中英 pair 展开为 60 case。11 个真实 accession 的 22 个 HTML/XBRL artifact 固定 SEC URL/size/SHA-256 并按 filing 隔离 split；八类分母为 `10/8/10/8/6/6/6/6`，本地 22/22 artifact、35/35 Evidence、pair identity 100%、future leakage 0。明确没有模型/Runtime 执行、真实 Run/Trace/Evidence binding 或 capability score，10 组中文抽样尚未签字，远端 CI/owner review 亦缺，故 D9-05/D9-06 仅为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |
 | 2.2.6 | 2026-08-30 | 同步 Day 9 Step 4：沿正式 registry/受控物化实现 FinanceBench 与 FinSearchComp 严格 Adapter/dataset card/schema/contract report；前者冻结 150 题/84 引用文档/189 Evidence 并保留未引用 metadata period 冲突，后者将 391 historical 与 244 dynamic 分报，单列 203 AkShare-compatible、41 专业依赖和 203 timestamp drift。新增复用 release Budget/Trajectory 的 6-case/18-trial `agent-security-v1`，规则 scorer 重算 argument/partial-order/stop/final-state、注入、跨 Workspace、越权、重复副作用、恢复和经验 `pass^3`。本地 evaluation `50 passed`、两套新增模块 branch coverage `84%`、全量无强制外部服务 pytest `1169 passed, 88 skipped`，Ruff/mypy 通过；四个外部数据集均为 `adapter_ready` 但 `release_eligible=false`，真实依赖总体 coverage、Runtime/model/database/judge、远端 CI 和 owner review 未完成，D9-04/D9-07 仅为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |
+| 2.2.7 | 2026-08-30 | 同步 Day 9 Step 5：新增严格 `release-suite-v1` 聚合器，校验 registry/release manifest 与九份受检报告身份/hash，生成 deterministic/offline/live/failure-taxonomy JSON+Markdown/schema。保留同一 source-suite 内 A1→A2、A2→A3、A3→A4 operational 决策，但全局 A0～A4 分数与生产默认策略为 null；公开集 prediction、live 3 次、Recall@5、Runtime/Trace/Evidence、远端 CI 与 owner review 缺失均为机器 blocker。本地 evaluation `57 passed`、新增模块 branch coverage `91%`、全量无强制服务 pytest `1176 passed, 88 skipped`，Ruff/mypy/Web `89 passed`/build/OpenAPI/Chromium `8 passed`、依赖审计与 96-commit Gitleaks 通过；真实依赖总体 coverage 与远端 CI 尚缺。D9-08 为 `thin_slice`，不把聚合报告冒充模型能力或 Day 9 完成 | 用户授权继续 Day 9 下一步 |

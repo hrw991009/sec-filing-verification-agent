@@ -1,0 +1,107 @@
+{
+  "category_counts": {
+    "comparability": 1,
+    "governance": 3,
+    "live_execution": 2,
+    "offline_execution": 1,
+    "quality": 1,
+    "runtime_evidence": 1
+  },
+  "items": [
+    {
+      "affected_case_count": 24,
+      "category": "comparability",
+      "detail": "A0/A1/A2 and A2/A3/A4 use different frozen case suites.",
+      "evidence_layer": "deterministic_contract",
+      "failure_id": "global-a0-a4-common-cases-missing",
+      "release_blocking": true,
+      "source_report_ids": ["sec-tool-v1", "sec-verification-v1"]
+    },
+    {
+      "affected_case_count": 10,
+      "category": "quality",
+      "detail": "Ranked retrieval candidates are absent, so Recall@5 cannot be computed.",
+      "evidence_layer": "deterministic_contract",
+      "failure_id": "retrieval-recall-at-5-missing",
+      "release_blocking": true,
+      "source_report_ids": ["sec-tool-v1"]
+    },
+    {
+      "affected_case_count": 66,
+      "category": "runtime_evidence",
+      "detail": "Cases are not bound to UnifiedAgentRuntime Run, Trace, Evidence, or database final state.",
+      "evidence_layer": "deterministic_contract",
+      "failure_id": "runtime-binding-missing",
+      "release_blocking": true,
+      "source_report_ids": ["sec-temporal-v1", "agent-security-v1"]
+    },
+    {
+      "affected_case_count": 3351,
+      "category": "offline_execution",
+      "detail": "Adapters exist, but no fixed-provider A0-A4 predictions were executed.",
+      "evidence_layer": "offline_capability",
+      "failure_id": "offline-predictions-missing",
+      "release_blocking": true,
+      "source_report_ids": [
+        "finqa-adapter-v1",
+        "tatqa-adapter-v1",
+        "financebench-adapter-v1",
+        "finsearchcomp-historical-v1"
+      ]
+    },
+    {
+      "affected_case_count": 541,
+      "category": "governance",
+      "detail": "Owner license review and FinanceBench source-document rights remain open.",
+      "evidence_layer": "offline_capability",
+      "failure_id": "external-license-review-missing",
+      "release_blocking": true,
+      "source_report_ids": ["financebench-adapter-v1", "finsearchcomp-historical-v1"]
+    },
+    {
+      "affected_case_count": 244,
+      "category": "live_execution",
+      "detail": "Dynamic data, professional dependencies, and the official judge were not executed.",
+      "evidence_layer": "live_model",
+      "failure_id": "live-dependencies-not-executed",
+      "release_blocking": true,
+      "source_report_ids": ["finsearchcomp-live-v1"]
+    },
+    {
+      "affected_case_count": 310,
+      "category": "live_execution",
+      "detail": "Fixed provider/model/version runs have zero of three required repetitions.",
+      "evidence_layer": "live_model",
+      "failure_id": "live-repetitions-missing",
+      "release_blocking": true,
+      "source_report_ids": ["finsearchcomp-live-v1", "sec-temporal-v1", "agent-security-v1"]
+    },
+    {
+      "affected_case_count": 10,
+      "category": "governance",
+      "detail": "The frozen Chinese language sample has not been signed off.",
+      "evidence_layer": "deterministic_contract",
+      "failure_id": "language-owner-review-missing",
+      "release_blocking": true,
+      "source_report_ids": ["sec-temporal-v1"]
+    },
+    {
+      "affected_case_count": 0,
+      "category": "governance",
+      "detail": "Branch, PR, main CI and final owner review are external evidence still pending.",
+      "evidence_layer": "deterministic_contract",
+      "failure_id": "remote-ci-owner-closeout-missing",
+      "release_blocking": true,
+      "source_report_ids": ["sec-tool-v1", "sec-verification-v1", "agent-security-v1"]
+    }
+  ],
+  "limitations": [
+    "Counts describe cases affected by missing evidence and may overlap across blockers.",
+    "No live runtime was executed, so observed runtime failure count remains zero."
+  ],
+  "observed_runtime_failure_count": 0,
+  "release_blocking_count": 9,
+  "report_id": "sec-release-failure-taxonomy-v1",
+  "report_version": "v1",
+  "schema_version": 1
+}

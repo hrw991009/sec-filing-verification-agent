@@ -67,6 +67,14 @@ evals/reports/*
 !evals/reports/finsearchcomp-live-v1.md
 !evals/reports/agent-security-v1.json
 !evals/reports/agent-security-v1.md
+!evals/reports/sec-release-deterministic-v1.json
+!evals/reports/sec-release-deterministic-v1.md
+!evals/reports/sec-release-offline-v1.json
+!evals/reports/sec-release-offline-v1.md
+!evals/reports/sec-release-live-v1.json
+!evals/reports/sec-release-live-v1.md
+!evals/reports/sec-release-failure-taxonomy-v1.json
+!evals/reports/sec-release-failure-taxonomy-v1.md
 
 # Runtime and infrastructure state
 *.log

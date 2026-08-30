@@ -8,7 +8,7 @@
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
-> 当前状态：Step 1～Step 4 已在 `feat/day-9` 工作树实现，D9-01～D9-07 为 `implemented_pending_verification`；D9-08 保持 `planned`
+> 当前状态：Step 1～Step 5 已在 `feat/day-9` 工作树实现，D9-01～D9-07 为 `implemented_pending_verification`；D9-08 为 `thin_slice`
 
 ## 1. 进入基线与本日边界
 
@@ -81,7 +81,19 @@ FinSearchComp 的 full/AkShare artifact 固定为 635/594 case。historical 报�
 
 本步本地验证为 evaluation 聚焦测试 `50 passed`、新增 `agent_security.py` 与 `restricted_external.py` 联合 branch coverage `84%`、无强制外部服务全量 pytest `1169 passed, 88 skipped`，Ruff format/check 与 mypy `507` 个源文件通过。被跳过的 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 集成路径及其总体 `80%` coverage 硬门只能由对应真实依赖环境重跑，当前不记为通过。
 
-## 8. 完成定义
+## 8. Step 5 实现记录
+
+Step 5 新增严格 `release-suite-v1` 聚合器，先校验 registry canonical hash、空的 `sec-agent-release-v1` contract manifest 和九份上游受检报告的模型身份，再以报告文件 SHA-256 绑定输入。它不复制 Day 7/8 scorer，也不把不同 denominator 平均成总分：`sec-tool-v1` 的 10-case A1→A2、`sec-verification-v1` 的 14-case A2→A3 和同集 A3→A4 operational extension 分别保留为合法 pairwise segment；前两段的复杂题净增益为 `0.833333`/`0.714286`、简单题退化均为 `0`，A4 operational gain 为 `1.0`。这些决定只表示保留到下一证据层，不能选择生产默认策略。
+
+生成的 deterministic 报告分列 answer/program、Evidence/Citation、trajectory、recovery、point-in-time、security 及每个 source-suite/strategy 的 Token、成本和延迟。由于现有 A0/A1/A2 与 A2/A3/A4 不是同一 case manifest，报告强制 `global_a0_a4_comparable=false`、全局分数和生产默认策略为 `null`；现有报告也没有 ranked candidate，故 `retrieval_recall_at_5` 为 `not_measured`，不能用复杂题准确率代替 Retrieval Recall@5。
+
+offline、live 和 failure-taxonomy 另行生成 JSON+Markdown。offline 只登记 FinQA test 1147、TAT-QA test 1663、FinanceBench 150 与 FinSearchComp historical 391 的 eligible denominator，prediction/model/official scores 均为 `0/false/null`；live 固定 FinSearchComp dynamic 244、SEC temporal 60 和 Agent security 6 个 target，要求每项至少 3 次，但当前 provider/model/version、完成次数、均值/方差、`pass^k`、成本和延迟均为空。taxonomy 将缺失的 common-case manifest、Recall@5、Runtime binding、offline prediction、live dependency/repetition、许可/中文复核和三层 CI 分类为 9 个 release blocker，并明确 observed runtime failure 为 0，因为根本没有执行 live runtime。
+
+因此本步完成了可重算的分层报告、决策和阻断合同，但没有完成计划要求的统一 A0～A4 common-case run、offline/live capability 或发布选择。D9-08 只能从 `planned` 更新为 `thin_slice`；D9-01～D9-07 也不因聚合器存在而升级。完整收口仍需 Day 10 按 blocker 逐项补证。
+
+本步本地验证为 release-suite 聚焦测试 `7 passed`、evaluation 全集 `57 passed`、新增模块 branch coverage `91%`、无强制外部服务全量 pytest `1176 passed, 88 skipped`；Ruff format/check、mypy `509` 个源文件、Prettier、ESLint、TypeScript、Vitest `89 passed`、生产构建、OpenAPI 确定性和 Chromium E2E `8 passed` 均通过。Python/Node 依赖审计无已知漏洞，完整 96-commit Gitleaks 无泄漏。PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 强制集成路径、后端总体 80% coverage 和远端 CI 未在本步执行，继续保留 blocker。
+
+## 9. 完成定义
 
 Day 9 只有同时满足以下条件才可关闭：
 

@@ -2,15 +2,15 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.5.3`
+> 版本：`1.5.4`
 >
 > 日期：2026-08-26
 >
 > 修订日期：2026-08-30
 >
-> 权威范围：`docs/master-plan.md` v2.2.6 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.2.7 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 8 PR #14 的 push/PR/main 三层 CI 全部通过，但报告仍不是 live SEC/model 质量。Day 9 Step 1～Step 4 已在 `feat/day-9` 工作树实现；四个外部数据集均为 `adapter_ready` 但不可发布，`sec-temporal-v1` 与 `agent-security-v1` 仍只有数据/冻结合同验证，真实 Agent run、A0～A4 release 报告和远端 CI 尚未实现
+> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 8 PR #14 的 push/PR/main 三层 CI 全部通过，但报告仍不是 live SEC/model 质量。Day 9 Step 1～Step 5 已在 `feat/day-9` 工作树实现；`release-suite-v1` 已能分层生成 deterministic/offline/live/failure-taxonomy 报告，但统一 A0～A4 common-case manifest、公开集 prediction、live≥3 次、真实 Agent/Trace/Evidence 与远端 CI 尚未实现，D9-08 仍为 `thin_slice`
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
@@ -263,6 +263,14 @@ FinanceBench Adapter 只消费固定 150 题 JSONL 与 metadata，输出不含 a
 FinSearchComp 将 391 个 historical case（T2 219、T3 172）与 244 个 dynamic T1 分报。dynamic 中 203 个属于 AkShare-compatible，41 个依赖其他或专业数据源；两份 artifact 的 203 个共同动态 case 时间字段全部漂移，不能混用 snapshot。historical contract 不执行 LLM judge，dynamic contract 的 live/model/judge/repeated run 与 `pass^k` 仍为 null；这些结果不能进入普通 PR 单一硬门或与 fixed suite 平均。
 
 `agent-security-v1` 从 temporal 的三组安全/恢复 pair 派生 6 个中英 case，不导入 BFCL/ToolSandbox/tau-bench/AgentDojo 代码或 payload，只复用其 action/argument、milestone/final-state、all-k 与 injection utility/attack 的评测方法。每 case 固定 3 次 observation，scorer 从实际 action、Workspace、partial order、stop reason 和 final state 推导指标。当前 18/18 contract trial、6/6 经验 `pass^3`、攻击/越权/重复副作用 0 只证明生成器与 scorer；`UnifiedAgentRuntime`、真实模型、生产数据库终态和远端 CI 均未执行。
+
+### 4.9 `release-suite-v1`
+
+Step 5 的 release suite 只消费受检派生报告和 Step 1 registry/release manifest，不重新解释原始数据或复制各 benchmark scorer。每个输入保存 report identity/version、case/run denominator、evidence layer 和文件 SHA-256。当前 manifest 仍是没有 strategy/case 的 `contract_only` 状态；若它开始执行，现有聚合器会 fail closed，要求同步新的 common-case 评测逻辑。
+
+deterministic 报告保留三段同 manifest/data/Scope/budget 的局部决策：10-case `sec-tool-v1` A1→A2、14-case `sec-verification-v1` A2→A3，以及同 14-case 的 A3→A4 operational extension。A2/A3 可以进入下一证据层，A4 只保留于审批/恢复范围。因为两个 source suite 不同，不生成全局 A0～A4 score，也不选择 production default。没有 ranked retrieval candidate 时，`retrieval_recall_at_5` 必须为 `not_measured`，不能以 answer/complex accuracy 代替。
+
+offline 报告仅声明四个 Adapter 的可用 denominator，model/prediction/official scores 全为空；live 报告冻结 FinSearchComp dynamic、SEC temporal、Agent security 三类目标的 case 数和最低 3 次要求，provider/model/version、均值、方差、`pass^k`、成本和延迟在未运行时均为空。failure taxonomy 将缺失证据与真实运行失败分开；当前 9 项均为 release blocker，但 observed runtime failure 为 0。该实现使缺口可机器审计，不代表 D9-08 已完成。
 
 ## 5. Scorer 分层
 
