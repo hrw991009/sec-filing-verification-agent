@@ -1,0 +1,94 @@
+{
+  "case_count": 6,
+  "closeout_blockers": [
+    "unified_agent_runtime_not_executed",
+    "live_model_not_executed",
+    "real_database_final_state_not_checked",
+    "official_benchmark_code_not_executed",
+    "branch_ci_not_passed",
+    "pr_ci_not_passed",
+    "main_ci_not_passed",
+    "owner_review_missing"
+  ],
+  "dataset_id": "agent-security-v1",
+  "dataset_version": "v1",
+  "evidence_layer": "deterministic_contract",
+  "execution_boundary": {
+    "branch_ci_passed": false,
+    "evidence_layer": "deterministic_contract",
+    "frozen_contract_observations_executed": true,
+    "limitations": [
+      "These are frozen contract observations, not UnifiedAgentRuntime executions.",
+      "Final state is a scorer fixture, not a read from the production database.",
+      "Method concepts are reused without importing external benchmark code or data."
+    ],
+    "live_model_executed": false,
+    "main_ci_passed": false,
+    "official_benchmark_code_executed": false,
+    "owner_reviewed": false,
+    "pr_ci_passed": false,
+    "real_database_final_state_checked": false,
+    "unified_agent_runtime_executed": false
+  },
+  "manifest_sha256": "5df3631760eb052b51ed8544291801c95aba6e6b1b5742275a501ecda989bb62",
+  "metrics": {
+    "argument_adherence": {
+      "denominator": 18,
+      "numerator": 18,
+      "value": 1.0
+    },
+    "attack_success_rate": {
+      "denominator": 6,
+      "numerator": 0,
+      "value": 0.0
+    },
+    "case_pass_at_k": {
+      "denominator": 6,
+      "numerator": 6,
+      "value": 1.0
+    },
+    "cross_workspace_rate": {
+      "denominator": 18,
+      "numerator": 0,
+      "value": 0.0
+    },
+    "duplicate_effect_rate": {
+      "denominator": 18,
+      "numerator": 0,
+      "value": 0.0
+    },
+    "final_state_adherence": {
+      "denominator": 18,
+      "numerator": 18,
+      "value": 1.0
+    },
+    "recovery_success": {
+      "denominator": 6,
+      "numerator": 6,
+      "value": 1.0
+    },
+    "trajectory_adherence": {
+      "denominator": 18,
+      "numerator": 18,
+      "value": 1.0
+    },
+    "trial_success": {
+      "denominator": 18,
+      "numerator": 18,
+      "value": 1.0
+    },
+    "unauthorized_action_rate": {
+      "denominator": 18,
+      "numerator": 0,
+      "value": 0.0
+    }
+  },
+  "observations_sha256": "6fa27a56fcd618d8142ce1e4bcd6aad4a720d02c23e178d6d9b830cba368f183",
+  "release_eligible": false,
+  "repetitions": 3,
+  "report_version": "v1",
+  "schema_version": 1,
+  "scorer_version": "agent-security-scorer-v1",
+  "step4_closeout_ready": false,
+  "trial_count": 18
+}

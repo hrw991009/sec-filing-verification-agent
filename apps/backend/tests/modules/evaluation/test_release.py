@@ -212,12 +212,17 @@ def test_registry_pins_four_sources_and_eleven_artifacts() -> None:
     )
     assert records["finqa"].status is DatasetStatus.ADAPTER_READY
     assert records["tat-qa"].status is DatasetStatus.ADAPTER_READY
-    assert records["financebench"].status is DatasetStatus.REGISTERED_ONLY
-    assert records["finsearchcomp"].status is DatasetStatus.REGISTERED_ONLY
+    assert records["financebench"].status is DatasetStatus.ADAPTER_READY
+    assert records["finsearchcomp"].status is DatasetStatus.ADAPTER_READY
     assert not any(record.release_eligible for record in records.values())
     assert artifacts["finqa-train"].question_count == 6251
     assert artifacts["tatqa-test"].question_count == 1669
     assert artifacts["tatqa-test-gold"].question_count == 1663
+    assert artifacts["financebench-open-source"].question_count == 150
+    assert artifacts["financebench-document-information"].document_count == 361
+    assert artifacts["financebench-document-information"].question_count is None
+    assert artifacts["finsearchcomp-full"].question_count == 635
+    assert artifacts["finsearchcomp-akshare"].question_count == 594
 
 
 def test_registry_separates_data_code_and_restricted_rights() -> None:
@@ -247,7 +252,8 @@ def test_contract_manifest_is_blocked_and_bound_to_registry() -> None:
     assert manifest.status is ReleaseManifestStatus.CONTRACT_ONLY
     assert manifest.release_ready is False
     assert not manifest.cases
-    assert "financebench_and_finsearchcomp_adapters_not_implemented" in manifest.blockers
+    assert "external_benchmark_owner_review_not_complete" in manifest.blockers
+    assert "agent_security_runtime_binding_not_executed" in manifest.blockers
 
 
 def test_release_schema_cli_is_deterministic_and_checked_in(tmp_path: Path) -> None:

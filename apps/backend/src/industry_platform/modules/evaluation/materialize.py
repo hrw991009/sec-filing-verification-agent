@@ -55,24 +55,39 @@ async def materialize_fixed_context_datasets(
     try:
         materialized: dict[str, tuple[VerifiedArtifact, ...]] = {}
         for record in selected:
-            verified = []
-            for artifact in record.artifacts:
-                verified.append(
-                    await _materialize_artifact(
-                        record,
-                        artifact,
-                        root=root,
-                        client=active_client,
-                    )
-                )
-            materialized[record.dataset_id] = tuple(verified)
+            materialized[record.dataset_id] = await materialize_registered_artifacts(
+                record,
+                root=root,
+                client=active_client,
+            )
         return materialized
     finally:
         if owned_client:
             await active_client.aclose()
 
 
-async def _materialize_artifact(
+async def materialize_registered_artifacts(
+    record: DatasetRecord,
+    *,
+    root: Path,
+    client: httpx2.AsyncClient,
+) -> tuple[VerifiedArtifact, ...]:
+    """Materialize every registered artifact with the shared integrity contract."""
+
+    verified = []
+    for artifact in record.artifacts:
+        verified.append(
+            await materialize_registered_artifact(
+                record,
+                artifact,
+                root=root,
+                client=client,
+            )
+        )
+    return tuple(verified)
+
+
+async def materialize_registered_artifact(
     record: DatasetRecord,
     artifact: DatasetArtifact,
     *,

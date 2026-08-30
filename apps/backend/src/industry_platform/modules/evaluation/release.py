@@ -152,7 +152,10 @@ class DatasetArtifact(_FrozenModel):
             raise ValueError("Raw artifacts containing gold cannot enter model context")
         if self.role is ArtifactRole.GOLD and not self.contains_gold:
             raise ValueError("Gold artifact must declare that it contains gold")
-        if (self.document_count is None) != (self.question_count is None):
+        if self.role is ArtifactRole.METADATA:
+            if self.question_count is not None:
+                raise ValueError("Metadata artifact cannot declare question counts")
+        elif (self.document_count is None) != (self.question_count is None):
             raise ValueError(
                 "Dataset artifact document and question counts must be provided together"
             )
@@ -216,10 +219,14 @@ class DatasetRecord(_FrozenModel):
                 )
         elif self.status is DatasetStatus.ADAPTER_READY:
             if not self.artifacts or any(
-                artifact.document_count is None or artifact.question_count is None
-                for artifact in self.artifacts
+                artifact.document_count is None for artifact in self.artifacts
             ):
                 raise ValueError("Adapter-ready dataset must freeze artifact split counts")
+            if any(
+                artifact.role is not ArtifactRole.METADATA and artifact.question_count is None
+                for artifact in self.artifacts
+            ):
+                raise ValueError("Adapter-ready question artifacts must freeze question counts")
             if not self.blockers:
                 raise ValueError("Adapter-ready dataset must retain release blockers")
         elif self.release_eligible:
@@ -581,14 +588,20 @@ def _load_json(path: Path) -> str:
     return raw
 
 
-def load_strict_json(path: Path) -> object:
-    """Load an evaluation artifact while rejecting duplicate keys and non-finite numbers."""
+def loads_strict_json(raw: str) -> object:
+    """Parse evaluation JSON while rejecting duplicate keys and non-finite numbers."""
 
     return json.loads(
-        path.read_text(encoding="utf-8"),
+        raw,
         object_pairs_hook=_reject_duplicate_json_pairs,
         parse_constant=_reject_non_finite_json,
     )
+
+
+def load_strict_json(path: Path) -> object:
+    """Load an evaluation artifact while rejecting duplicate keys and non-finite numbers."""
+
+    return loads_strict_json(path.read_text(encoding="utf-8"))
 
 
 def canonical_sha256(model: BaseModel) -> str:

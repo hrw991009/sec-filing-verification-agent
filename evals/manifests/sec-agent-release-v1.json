@@ -4,14 +4,14 @@
   "manifest_version": "v1-contract",
   "registry_id": "sec-agent-datasets-v1",
   "registry_version": "v1",
-  "registry_sha256": "18b7cc41cde1d7f891b1744c8f7dc779cdd4a3abe569a5b6eef98fe01c728147",
+  "registry_sha256": "738d54bcc5858291e05854bcc2ce26b0e4f27976150d8dbf7ac97c6d8069437d",
   "status": "contract_only",
   "strategies": [],
   "cases": [],
   "release_ready": false,
   "blockers": [
-    "financebench_and_finsearchcomp_adapters_not_implemented",
-    "sec_temporal_cases_not_frozen",
+    "external_benchmark_owner_review_not_complete",
+    "agent_security_runtime_binding_not_executed",
     "release_runtime_profiles_not_bound",
     "offline_and_live_runs_not_executed"
   ]

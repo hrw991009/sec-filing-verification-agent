@@ -8,7 +8,7 @@
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
-> 当前状态：Step 1～Step 3 已在 `feat/day-9` 工作树实现，D9-01～D9-03、D9-05、D9-06 为 `implemented_pending_verification`；D9-04、D9-07、D9-08 保持 `planned`
+> 当前状态：Step 1～Step 4 已在 `feat/day-9` 工作树实现，D9-01～D9-07 为 `implemented_pending_verification`；D9-08 保持 `planned`
 
 ## 1. 进入基线与本日边界
 
@@ -51,7 +51,7 @@ Release `EvalCase` 必须同时固定 dataset/split/document group、输入语�
 
 当前工作树在正式 `industry_platform.modules.evaluation` 中新增冻结 Pydantic 合同及唯一 CLI 生成入口；`evals/registry/sec-agent-datasets-v1.json` 登记 FinQA、TAT-QA、FinanceBench 和 FinSearchComp 的精确 upstream revision、11 个 artifact 的 byte size/SHA-256、数据/代码许可和允许用途，`evals/manifests/sec-agent-release-v1.json` 通过 registry canonical hash 绑定该快照。两个版本化 JSON Schema 由同一模型确定生成，后续 Adapter 必须消费这些合同。
 
-加载器拒绝重复 JSON key、NaN/Infinity、浮动 revision、未固定 URL、gold 进入模型 Context、许可权利升级、不安全路径和非法 release-ready 状态；Release manifest 进一步约束 document group 不跨 split、case/artifact split 一致、完整 runtime/tool/context/scorer version、Budget、trajectory partial order、point-in-time source、case→run/trace/Evidence/Calculation identity 与 registry 引用。聚焦测试为 19 passed，模块 branch coverage 为 86.18%；Ruff、mypy、Web quality、现有 Chromium `8 passed`、依赖审计、完整历史 Gitleaks 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch `1226 passed` 均通过，总体/既有核心 coverage 为 80.29%/86%。这是 Step 1 当时的历史状态；Step 2 已将 FinQA/TAT-QA 升为 `adapter_ready`，FinanceBench/FinSearchComp 仍为 `registered_only`，四项继续 `release_eligible=false`。
+加载器拒绝重复 JSON key、NaN/Infinity、浮动 revision、未固定 URL、gold 进入模型 Context、许可权利升级、不安全路径和非法 release-ready 状态；Release manifest 进一步约束 document group 不跨 split、case/artifact split 一致、完整 runtime/tool/context/scorer version、Budget、trajectory partial order、point-in-time source、case→run→trace→Evidence/Calculation identity 与 registry 引用。聚焦测试为 19 passed，模块 branch coverage 为 86.18%；Ruff、mypy、Web quality、现有 Chromium `8 passed`、依赖审计、完整历史 Gitleaks 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch `1226 passed` 均通过，总体/既有核心 coverage 为 80.29%/86%。这是 Step 1 当时的历史状态；Step 2 与 Step 4 后四个外部数据集均已升为 `adapter_ready`，但继续 `release_eligible=false`。
 
 ## 5. Step 2 实现记录
 
@@ -71,7 +71,17 @@ Step 3 新增独立的内部 `sec-temporal-v1` manifest，不把自建语料伪�
 
 `sec-temporal-validator-v1` 复用 Step 2 的受控公网下载与 size/SHA-256 原子发布，额外验证 canonical SEC Archive URL、split/CIK/cutoff、gold 只引用可见 Evidence、无孤立 source/Evidence/gold/scenario，并在受限 XML 解析器中拒绝 DTD/entity 和超预算文档。当前本地 22/22 artifact 与 35/35 Evidence 可解析，future leakage 为 `0`，contract-only 报告明确 `model_executed=false`、`runtime_bound=false`、`offline_capability_scored=false`。10 组中文人工抽样清单已冻结但尚未签字，真实 Run/Trace/Evidence binding、模型成绩、远端 branch/PR/main CI 和 owner review 仍缺，因此 D9-05/D9-06 只能是 `implemented_pending_verification`。
 
-## 7. 完成定义
+## 7. Step 4 实现记录
+
+Step 4 沿用 registry、受控下载和严格 gold 隔离，新增 `restricted-external-adapter-v1`。FinanceBench 的两个固定 artifact 已按 size/SHA-256 核验并转换 150 个 sanitized case，覆盖 84 个引用文档和 189 条 Evidence；回答、justification、Evidence/full-page gold 不进入 Agent input。361 条 metadata 覆盖 360 个 document id，其中一个未被 150 题引用的 id 有两条不同财年，报告保留冲突且不猜测；若冲突文档被题目引用则 fail closed。数据仍限内部非商用，源 PDF 未下载或提交，人工 answer review、文档权利与 owner license review 均未完成。
+
+FinSearchComp 的 full/AkShare artifact 固定为 635/594 case。historical 报告只含 219 个 T2 与 172 个 T3，391 个 case 在两份 artifact 中一致；dynamic live 报告单列 244 个 T1，其中 203 个 AkShare-compatible、41 个依赖其他或专业数据源。两份 artifact 的 203 个共同动态 case 虽共享题目、reference、judge prompt 与 ground truth，但时间字段全部不同，Adapter 保留各自时间并将 drift 单列。当前未取 live 数据、未运行模型/官方 LLM judge 或重复试验，故 official score 与 live `pass^k` 均为 `null`，不能成为普通 PR 单一硬门。
+
+`agent-security-v1` 从 `sec-temporal-v1` 的三组安全/恢复 pair 确定性派生 6 个中英 case，复用 release Budget 与 `ReleaseTrajectoryContract`，增加 action argument、partial order、stop reason、Workspace、final state 和 bounded retry 检查。独立 scorer 对每 case 的 3 次冻结 observation 计算 trial success 与经验 `pass^3`，并从实际 action/final state 推导 injection attack、跨 Workspace、未授权 action、重复副作用和 recovery 指标；当前合同回放为 18/18、6/6、攻击/越权/重复副作用为 0。该结果没有执行 `UnifiedAgentRuntime`、真实模型或生产数据库终态，也未运行外部 benchmark 代码；远端 CI 与 owner review 仍缺。因此 D9-04/D9-07 只能是 `implemented_pending_verification`，D9-08 继续 `planned`。
+
+本步本地验证为 evaluation 聚焦测试 `50 passed`、新增 `agent_security.py` 与 `restricted_external.py` 联合 branch coverage `84%`、无强制外部服务全量 pytest `1169 passed, 88 skipped`，Ruff format/check 与 mypy `507` 个源文件通过。被跳过的 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 集成路径及其总体 `80%` coverage 硬门只能由对应真实依赖环境重跑，当前不记为通过。
+
+## 8. 完成定义
 
 Day 9 只有同时满足以下条件才可关闭：
 

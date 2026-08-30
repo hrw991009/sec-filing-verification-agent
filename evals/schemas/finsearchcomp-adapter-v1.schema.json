@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "FinSearchDependency": {
+      "enum": ["historical_web", "dynamic_akshare", "dynamic_professional"],
+      "title": "FinSearchDependency",
+      "type": "string"
+    },
+    "FinSearchGold": {
+      "additionalProperties": false,
+      "properties": {
+        "frozen_ground_truth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frozen Ground Truth"
+        },
+        "ground_truth_as_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ground Truth As Of"
+        },
+        "judge_prompt_template": {
+          "minLength": 1,
+          "title": "Judge Prompt Template",
+          "type": "string"
+        },
+        "judge_system_prompt": {
+          "minLength": 1,
+          "title": "Judge System Prompt",
+          "type": "string"
+        },
+        "reference_answer": {
+          "minLength": 1,
+          "title": "Reference Answer",
+          "type": "string"
+        }
+      },
+      "required": ["reference_answer", "judge_system_prompt", "judge_prompt_template"],
+      "title": "FinSearchGold",
+      "type": "object"
+    },
+    "FinSearchInput": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_version": {
+          "default": "restricted-external-adapter-v1",
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "case_id": {
+          "pattern": "^finsearchcomp-[a-f0-9]{20}$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "dataset_id": {
+          "default": "finsearchcomp",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "dataset_version": {
+          "title": "Dataset Version",
+          "type": "string"
+        },
+        "dependency": {
+          "$ref": "#/$defs/FinSearchDependency"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "source_artifact_id": {
+          "title": "Source Artifact Id",
+          "type": "string"
+        },
+        "task": {
+          "$ref": "#/$defs/FinSearchTask"
+        },
+        "upstream_prompt_id": {
+          "minLength": 1,
+          "title": "Upstream Prompt Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset_version",
+        "case_id",
+        "upstream_prompt_id",
+        "task",
+        "prompt",
+        "dependency",
+        "source_artifact_id"
+      ],
+      "title": "FinSearchInput",
+      "type": "object"
+    },
+    "FinSearchTask": {
+      "enum": ["T1", "T2", "T3"],
+      "title": "FinSearchTask",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "gold": {
+      "$ref": "#/$defs/FinSearchGold"
+    },
+    "input": {
+      "$ref": "#/$defs/FinSearchInput"
+    }
+  },
+  "required": ["input", "gold"],
+  "title": "FinSearchCase",
+  "type": "object"
+}

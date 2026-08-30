@@ -200,7 +200,7 @@
       "allowed_uses": ["internal_evaluation"],
       "allowed_evidence_layers": ["offline_capability"],
       "official_metrics": ["answer_correctness", "evidence_attribution"],
-      "status": "registered_only",
+      "status": "adapter_ready",
       "release_eligible": false,
       "artifacts": [
         {
@@ -211,6 +211,8 @@
           "download_url": "https://raw.githubusercontent.com/patronus-ai/financebench/cc39aeb4afdf33909ee1412188bf89035950c2eb/data/financebench_open_source.jsonl",
           "byte_size": 929848,
           "sha256": "a5a2aa673e573e55675fc3c0f9aa38c1cf59d2abc91edb077534f71f10a71877",
+          "document_count": 84,
+          "question_count": 150,
           "contains_gold": true,
           "allowed_in_model_context": false,
           "redistribution_allowed": false
@@ -223,6 +225,7 @@
           "download_url": "https://raw.githubusercontent.com/patronus-ai/financebench/cc39aeb4afdf33909ee1412188bf89035950c2eb/data/financebench_document_information.jsonl",
           "byte_size": 88781,
           "sha256": "1c69127783879de8cdadb159d2181f39bc3123b8e0ebf74031c3969d69189575",
+          "document_count": 361,
           "contains_gold": false,
           "allowed_in_model_context": false,
           "redistribution_allowed": false
@@ -231,12 +234,14 @@
       "blockers": [
         "noncommercial_use_only",
         "source_document_rights_not_reviewed",
-        "adapter_not_implemented",
-        "artifacts_not_downloaded_and_verified"
+        "source_documents_not_materialized",
+        "human_answer_review_not_executed",
+        "owner_license_review_not_complete"
       ],
       "limitations": [
         "Only the public 150-case sample is registered.",
         "No official train, development, and test split is provided.",
+        "One unreferenced metadata document id has conflicting upstream period rows.",
         "The benchmark does not measure point-in-time or Agent trajectory."
       ]
     },
@@ -266,7 +271,7 @@
       "allowed_uses": ["internal_evaluation", "publish_aggregate_metrics", "redistribute_payload"],
       "allowed_evidence_layers": ["offline_capability", "live_model"],
       "official_metrics": ["task_accuracy", "judge_score"],
-      "status": "registered_only",
+      "status": "adapter_ready",
       "release_eligible": false,
       "artifacts": [
         {
@@ -277,6 +282,8 @@
           "download_url": "https://raw.githubusercontent.com/randomtutu/FinSearchComp/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/data/finsearchcomp_data.json",
           "byte_size": 5948881,
           "sha256": "6437a6dae907ec81002bd817dafc26c3e46e6b6edfde700f22645b1e2aa208c4",
+          "document_count": 635,
+          "question_count": 635,
           "contains_gold": true,
           "allowed_in_model_context": false,
           "redistribution_allowed": true
@@ -289,20 +296,24 @@
           "download_url": "https://raw.githubusercontent.com/randomtutu/FinSearchComp/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/data/finsearchcomp_akshare_version.json",
           "byte_size": 5592958,
           "sha256": "9a0cf3a319fe3d154d54127f6f9d6bac8bbe5eea34d99167a3eed5add2d540d6",
+          "document_count": 594,
+          "question_count": 594,
           "contains_gold": true,
           "allowed_in_model_context": false,
           "redistribution_allowed": true
         }
       ],
       "blockers": [
-        "historical_replay_policy_not_frozen",
-        "live_dependency_and_judge_policy_not_frozen",
-        "adapter_not_implemented",
-        "artifacts_not_downloaded_and_verified"
+        "dynamic_data_not_fetched",
+        "professional_data_dependencies_unavailable",
+        "model_runs_not_executed",
+        "official_llm_judge_not_executed",
+        "owner_license_review_not_complete"
       ],
       "limitations": [
         "Dynamic questions and answers can drift with date and market close state.",
         "Some gold steps require professional databases or incomplete public substitutes.",
+        "The AkShare subset has a different timestamp field for all 203 shared dynamic cases.",
         "LLM judge results cannot become the only release gate."
       ]
     }
