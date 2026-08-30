@@ -1,0 +1,778 @@
+{
+  "$defs": {
+    "BlockerCategory": {
+      "enum": [
+        "comparability",
+        "quality",
+        "runtime_evidence",
+        "offline_execution",
+        "live_execution",
+        "governance"
+      ],
+      "title": "BlockerCategory",
+      "type": "string"
+    },
+    "CapabilityMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
+        },
+        "limitation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limitation"
+        },
+        "metric_name": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "numerator": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Numerator"
+        },
+        "source_report_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Report Id"
+        },
+        "status": {
+          "$ref": "#/$defs/MetricStatus"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": ["metric_name", "status", "unit"],
+      "title": "CapabilityMetric",
+      "type": "object"
+    },
+    "Decision": {
+      "enum": ["retain_for_next_evidence_layer", "retain_for_operational_scope", "rollback"],
+      "title": "Decision",
+      "type": "string"
+    },
+    "DeterministicReleaseReport": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "capability_metrics": {
+          "items": {
+            "$ref": "#/$defs/CapabilityMetric"
+          },
+          "title": "Capability Metrics",
+          "type": "array"
+        },
+        "deterministic_contract_gate_passed": {
+          "title": "Deterministic Contract Gate Passed",
+          "type": "boolean"
+        },
+        "evidence_layer": {
+          "const": "deterministic_contract",
+          "default": "deterministic_contract",
+          "title": "Evidence Layer",
+          "type": "string"
+        },
+        "global_a0_a4_comparable": {
+          "default": false,
+          "title": "Global A0 A4 Comparable",
+          "type": "boolean"
+        },
+        "global_a0_a4_score": {
+          "default": null,
+          "title": "Global A0 A4 Score",
+          "type": "null"
+        },
+        "pairwise_decisions": {
+          "items": {
+            "$ref": "#/$defs/PairwiseAblationDecision"
+          },
+          "title": "Pairwise Decisions",
+          "type": "array"
+        },
+        "production_default_strategy": {
+          "default": null,
+          "title": "Production Default Strategy",
+          "type": "null"
+        },
+        "release_ready": {
+          "default": false,
+          "title": "Release Ready",
+          "type": "boolean"
+        },
+        "report_id": {
+          "const": "sec-release-deterministic-v1",
+          "default": "sec-release-deterministic-v1",
+          "title": "Report Id",
+          "type": "string"
+        },
+        "report_version": {
+          "const": "v1",
+          "default": "v1",
+          "title": "Report Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_reports": {
+          "items": {
+            "$ref": "#/$defs/SourceReportReference"
+          },
+          "title": "Source Reports",
+          "type": "array"
+        },
+        "strategy_resources": {
+          "items": {
+            "$ref": "#/$defs/StrategyResourceObservation"
+          },
+          "title": "Strategy Resources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_reports",
+        "capability_metrics",
+        "strategy_resources",
+        "pairwise_decisions",
+        "deterministic_contract_gate_passed",
+        "blockers"
+      ],
+      "title": "DeterministicReleaseReport",
+      "type": "object"
+    },
+    "EvidenceLayer": {
+      "enum": ["deterministic_contract", "offline_capability", "live_model"],
+      "title": "EvidenceLayer",
+      "type": "string"
+    },
+    "FailureTaxonomyItem": {
+      "additionalProperties": false,
+      "properties": {
+        "affected_case_count": {
+          "minimum": 0,
+          "title": "Affected Case Count",
+          "type": "integer"
+        },
+        "category": {
+          "$ref": "#/$defs/BlockerCategory"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_layer": {
+          "$ref": "#/$defs/EvidenceLayer"
+        },
+        "failure_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Failure Id",
+          "type": "string"
+        },
+        "release_blocking": {
+          "title": "Release Blocking",
+          "type": "boolean"
+        },
+        "source_report_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Report Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "failure_id",
+        "category",
+        "evidence_layer",
+        "source_report_ids",
+        "affected_case_count",
+        "release_blocking",
+        "detail"
+      ],
+      "title": "FailureTaxonomyItem",
+      "type": "object"
+    },
+    "FailureTaxonomyReport": {
+      "additionalProperties": false,
+      "properties": {
+        "category_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/BlockerCategory"
+          },
+          "title": "Category Counts",
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/FailureTaxonomyItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "observed_runtime_failure_count": {
+          "default": 0,
+          "title": "Observed Runtime Failure Count",
+          "type": "integer"
+        },
+        "release_blocking_count": {
+          "minimum": 1,
+          "title": "Release Blocking Count",
+          "type": "integer"
+        },
+        "report_id": {
+          "const": "sec-release-failure-taxonomy-v1",
+          "default": "sec-release-failure-taxonomy-v1",
+          "title": "Report Id",
+          "type": "string"
+        },
+        "report_version": {
+          "const": "v1",
+          "default": "v1",
+          "title": "Report Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": ["items", "category_counts", "release_blocking_count", "limitations"],
+      "title": "FailureTaxonomyReport",
+      "type": "object"
+    },
+    "LiveReleaseReport": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "evidence_layer": {
+          "const": "live_model",
+          "default": "live_model",
+          "title": "Evidence Layer",
+          "type": "string"
+        },
+        "executed": {
+          "default": false,
+          "title": "Executed",
+          "type": "boolean"
+        },
+        "release_ready": {
+          "default": false,
+          "title": "Release Ready",
+          "type": "boolean"
+        },
+        "report_id": {
+          "const": "sec-release-live-v1",
+          "default": "sec-release-live-v1",
+          "title": "Report Id",
+          "type": "string"
+        },
+        "report_version": {
+          "const": "v1",
+          "default": "v1",
+          "title": "Report Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_reports": {
+          "items": {
+            "$ref": "#/$defs/SourceReportReference"
+          },
+          "title": "Source Reports",
+          "type": "array"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/LiveTarget"
+          },
+          "title": "Targets",
+          "type": "array"
+        }
+      },
+      "required": ["source_reports", "targets", "blockers"],
+      "title": "LiveReleaseReport",
+      "type": "object"
+    },
+    "LiveTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "case_count": {
+          "minimum": 1,
+          "title": "Case Count",
+          "type": "integer"
+        },
+        "completed_repetitions": {
+          "minimum": 0,
+          "title": "Completed Repetitions",
+          "type": "integer"
+        },
+        "mean_score": {
+          "default": null,
+          "title": "Mean Score",
+          "type": "null"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "model_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Version"
+        },
+        "pass_k": {
+          "default": null,
+          "title": "Pass K",
+          "type": "null"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "required_repetitions": {
+          "minimum": 3,
+          "title": "Required Repetitions",
+          "type": "integer"
+        },
+        "score_stddev": {
+          "default": null,
+          "title": "Score Stddev",
+          "type": "null"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id",
+        "case_count",
+        "required_repetitions",
+        "completed_repetitions",
+        "blockers"
+      ],
+      "title": "LiveTarget",
+      "type": "object"
+    },
+    "MetricStatus": {
+      "enum": ["measured_contract", "not_measured"],
+      "title": "MetricStatus",
+      "type": "string"
+    },
+    "OfflineDatasetResult": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "dataset_id": {
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "eligible_case_count": {
+          "minimum": 1,
+          "title": "Eligible Case Count",
+          "type": "integer"
+        },
+        "model_executed": {
+          "title": "Model Executed",
+          "type": "boolean"
+        },
+        "official_metric_scores": {
+          "default": null,
+          "title": "Official Metric Scores",
+          "type": "null"
+        },
+        "prediction_count": {
+          "minimum": 0,
+          "title": "Prediction Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dataset_id",
+        "eligible_case_count",
+        "prediction_count",
+        "model_executed",
+        "blockers"
+      ],
+      "title": "OfflineDatasetResult",
+      "type": "object"
+    },
+    "OfflineReleaseReport": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "datasets": {
+          "items": {
+            "$ref": "#/$defs/OfflineDatasetResult"
+          },
+          "title": "Datasets",
+          "type": "array"
+        },
+        "evidence_layer": {
+          "const": "offline_capability",
+          "default": "offline_capability",
+          "title": "Evidence Layer",
+          "type": "string"
+        },
+        "executed": {
+          "default": false,
+          "title": "Executed",
+          "type": "boolean"
+        },
+        "release_ready": {
+          "default": false,
+          "title": "Release Ready",
+          "type": "boolean"
+        },
+        "report_id": {
+          "const": "sec-release-offline-v1",
+          "default": "sec-release-offline-v1",
+          "title": "Report Id",
+          "type": "string"
+        },
+        "report_version": {
+          "const": "v1",
+          "default": "v1",
+          "title": "Report Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_reports": {
+          "items": {
+            "$ref": "#/$defs/SourceReportReference"
+          },
+          "title": "Source Reports",
+          "type": "array"
+        },
+        "strategy_run_count": {
+          "default": 0,
+          "title": "Strategy Run Count",
+          "type": "integer"
+        }
+      },
+      "required": ["source_reports", "datasets", "blockers"],
+      "title": "OfflineReleaseReport",
+      "type": "object"
+    },
+    "PairwiseAblationDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_strategy": {
+          "pattern": "^a[0-4]$",
+          "title": "Baseline Strategy",
+          "type": "string"
+        },
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "candidate_strategy": {
+          "pattern": "^a[0-4]$",
+          "title": "Candidate Strategy",
+          "type": "string"
+        },
+        "common_case_count": {
+          "minimum": 1,
+          "title": "Common Case Count",
+          "type": "integer"
+        },
+        "cost_increase_micro_usd": {
+          "title": "Cost Increase Micro Usd",
+          "type": "integer"
+        },
+        "decision": {
+          "$ref": "#/$defs/Decision"
+        },
+        "latency_increase_ms": {
+          "title": "Latency Increase Ms",
+          "type": "integer"
+        },
+        "primary_gain": {
+          "title": "Primary Gain",
+          "type": "number"
+        },
+        "primary_metric": {
+          "title": "Primary Metric",
+          "type": "string"
+        },
+        "same_data_scope_budget": {
+          "title": "Same Data Scope Budget",
+          "type": "boolean"
+        },
+        "same_manifest": {
+          "title": "Same Manifest",
+          "type": "boolean"
+        },
+        "segment_id": {
+          "title": "Segment Id",
+          "type": "string"
+        },
+        "simple_degradation": {
+          "title": "Simple Degradation",
+          "type": "number"
+        },
+        "source_gate_passed": {
+          "title": "Source Gate Passed",
+          "type": "boolean"
+        },
+        "source_report_id": {
+          "title": "Source Report Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "segment_id",
+        "source_report_id",
+        "baseline_strategy",
+        "candidate_strategy",
+        "common_case_count",
+        "same_manifest",
+        "same_data_scope_budget",
+        "primary_metric",
+        "primary_gain",
+        "simple_degradation",
+        "cost_increase_micro_usd",
+        "latency_increase_ms",
+        "source_gate_passed",
+        "decision",
+        "blockers"
+      ],
+      "title": "PairwiseAblationDecision",
+      "type": "object"
+    },
+    "SourceReportReference": {
+      "additionalProperties": false,
+      "properties": {
+        "case_count": {
+          "minimum": 0,
+          "title": "Case Count",
+          "type": "integer"
+        },
+        "evidence_layer": {
+          "title": "Evidence Layer",
+          "type": "string"
+        },
+        "report_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Report Id",
+          "type": "string"
+        },
+        "report_version": {
+          "title": "Report Version",
+          "type": "string"
+        },
+        "run_count": {
+          "minimum": 0,
+          "title": "Run Count",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_id",
+        "report_version",
+        "sha256",
+        "evidence_layer",
+        "case_count",
+        "run_count"
+      ],
+      "title": "SourceReportReference",
+      "type": "object"
+    },
+    "StrategyResourceObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "case_count": {
+          "minimum": 1,
+          "title": "Case Count",
+          "type": "integer"
+        },
+        "source_report_id": {
+          "title": "Source Report Id",
+          "type": "string"
+        },
+        "strategy_id": {
+          "pattern": "^a[0-4]$",
+          "title": "Strategy Id",
+          "type": "string"
+        },
+        "total_cost_micro_usd": {
+          "minimum": 0,
+          "title": "Total Cost Micro Usd",
+          "type": "integer"
+        },
+        "total_latency_ms": {
+          "minimum": 0,
+          "title": "Total Latency Ms",
+          "type": "integer"
+        },
+        "total_tokens": {
+          "minimum": 0,
+          "title": "Total Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_report_id",
+        "strategy_id",
+        "case_count",
+        "total_tokens",
+        "total_cost_micro_usd",
+        "total_latency_ms"
+      ],
+      "title": "StrategyResourceObservation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "deterministic": {
+      "$ref": "#/$defs/DeterministicReleaseReport"
+    },
+    "failure_taxonomy": {
+      "$ref": "#/$defs/FailureTaxonomyReport"
+    },
+    "live": {
+      "$ref": "#/$defs/LiveReleaseReport"
+    },
+    "offline": {
+      "$ref": "#/$defs/OfflineReleaseReport"
+    }
+  },
+  "required": ["deterministic", "offline", "live", "failure_taxonomy"],
+  "title": "ReleaseSuiteBundle",
+  "type": "object"
+}

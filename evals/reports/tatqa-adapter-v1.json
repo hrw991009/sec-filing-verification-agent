@@ -1,0 +1,66 @@
+{
+  "adapter_version": "fixed-context-adapter-v1",
+  "artifacts": [
+    {
+      "artifact_id": "tatqa-train",
+      "byte_size": 12845647,
+      "path": "tat-qa/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_train.json",
+      "sha256": "2df6e722cdbaaa37efcbfb280f5c9a15be29a6ec18f618ef936fe63cc6d07c69"
+    },
+    {
+      "artifact_id": "tatqa-dev",
+      "byte_size": 1637431,
+      "path": "tat-qa/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_dev.json",
+      "sha256": "8da095a819af6db3c14877c6df2d4d29960e41d1a63dd1fa853507bd2a616af5"
+    },
+    {
+      "artifact_id": "tatqa-test",
+      "byte_size": 1146306,
+      "path": "tat-qa/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_test.json",
+      "sha256": "6efcf044cedeba3661eb70b1b93595673fd3f3dfcc1f78288ec5115682e7a96c"
+    },
+    {
+      "artifact_id": "tatqa-test-gold",
+      "byte_size": 2167546,
+      "path": "tat-qa/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_test_gold.json",
+      "sha256": "c4d08418359c1d76468dec420ee748a37f48c06b63cb8ec2766f19d5d314b597"
+    }
+  ],
+  "dataset_id": "tat-qa",
+  "dataset_version": "870accc41953dcde885aabeb963d94aabdc0fbc3",
+  "limitations": [
+    "This report validates artifact integrity, conversion, and scorer contracts only.",
+    "It is not an offline-capability or live-model benchmark result.",
+    "The 1669-question test input and 1663-question released gold have no shared UIDs."
+  ],
+  "model_executed": false,
+  "official_metric_scores": null,
+  "report_kind": "adapter_contract",
+  "schema_version": 1,
+  "splits": [
+    {
+      "case_sha256": "e7d2a7705e3ed3b0db488aa70f48c93f6cc3671d07190fa8c8ef391559487cab",
+      "excluded_question_count": 0,
+      "input_document_count": 2201,
+      "input_question_count": 13215,
+      "scorable_case_count": 13215,
+      "split": "train"
+    },
+    {
+      "case_sha256": "bae4aa46d20a9aa99e69411ac8b9b48fc9d80f0957ace6a8a95e24906097f857",
+      "excluded_question_count": 0,
+      "input_document_count": 278,
+      "input_question_count": 1668,
+      "scorable_case_count": 1668,
+      "split": "dev"
+    },
+    {
+      "case_sha256": "1e0389cca8f8bb670cab2b4d69ce8a86dc38be6a3ad4993130eaafe16253d481",
+      "excluded_question_count": 0,
+      "input_document_count": 277,
+      "input_question_count": 1663,
+      "scorable_case_count": 1663,
+      "split": "test"
+    }
+  ]
+}

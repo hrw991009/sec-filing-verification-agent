@@ -1,0 +1,44 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "financebench-open-source",
+      "byte_size": 929848,
+      "path": "financebench/cc39aeb4afdf33909ee1412188bf89035950c2eb/data/financebench_open_source.jsonl",
+      "sha256": "a5a2aa673e573e55675fc3c0f9aa38c1cf59d2abc91edb077534f71f10a71877"
+    },
+    {
+      "artifact_id": "financebench-document-information",
+      "byte_size": 88781,
+      "path": "financebench/cc39aeb4afdf33909ee1412188bf89035950c2eb/data/financebench_document_information.jsonl",
+      "sha256": "1c69127783879de8cdadb159d2181f39bc3123b8e0ebf74031c3969d69189575"
+    }
+  ],
+  "blockers": [
+    "noncommercial_use_only",
+    "source_document_rights_not_reviewed",
+    "source_documents_not_materialized",
+    "human_answer_review_not_executed",
+    "owner_license_review_not_complete"
+  ],
+  "case_sha256": "8157c83eb622403715bf9b25762d226c0f84e4989272d293e297182dcfde7799",
+  "conflicting_unreferenced_document_ids": ["FOOTLOCKER_2023_annualreport"],
+  "dataset_id": "financebench",
+  "dataset_version": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+  "evidence_count": 189,
+  "evidence_layer": "deterministic_contract",
+  "metadata_record_count": 361,
+  "model_executed": false,
+  "official_metric_scores": null,
+  "question_count": 150,
+  "question_type_counts": {
+    "domain-relevant": 50,
+    "metrics-generated": 50,
+    "novel-generated": 50
+  },
+  "referenced_document_count": 84,
+  "release_eligible": false,
+  "report_version": "financebench-adapter-report-v1",
+  "schema_version": 1,
+  "source_documents_materialized": false,
+  "unique_metadata_document_count": 360
+}

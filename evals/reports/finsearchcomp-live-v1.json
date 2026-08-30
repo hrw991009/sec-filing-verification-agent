@@ -1,0 +1,41 @@
+{
+  "akshare_compatible_count": 203,
+  "akshare_timestamp_drift_count": 203,
+  "artifacts": [
+    {
+      "artifact_id": "finsearchcomp-full",
+      "byte_size": 5948881,
+      "path": "finsearchcomp/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/data/finsearchcomp_data.json",
+      "sha256": "6437a6dae907ec81002bd817dafc26c3e46e6b6edfde700f22645b1e2aa208c4"
+    },
+    {
+      "artifact_id": "finsearchcomp-akshare",
+      "byte_size": 5592958,
+      "path": "finsearchcomp/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/data/finsearchcomp_akshare_version.json",
+      "sha256": "9a0cf3a319fe3d154d54127f6f9d6bac8bbe5eea34d99167a3eed5add2d540d6"
+    }
+  ],
+  "blockers": [
+    "dynamic_data_not_fetched",
+    "professional_data_dependencies_unavailable",
+    "model_runs_not_executed",
+    "official_llm_judge_not_executed",
+    "repeated_runs_not_executed"
+  ],
+  "case_sha256": "c5a4e0116f84e73b9598e8ebc1059af55e43879ff8a0632cc1ab1caff0343941",
+  "dataset_id": "finsearchcomp",
+  "dataset_version": "55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf",
+  "dynamic_case_count": 244,
+  "evidence_layer": "deterministic_contract",
+  "live_dependencies_executed": false,
+  "model_executed": false,
+  "official_judge_executed": false,
+  "official_metric_scores": null,
+  "pass_k": null,
+  "professional_dependency_count": 41,
+  "release_eligible": false,
+  "repeated_run_count": 0,
+  "report_scope": "dynamic_live",
+  "report_version": "finsearchcomp-adapter-report-v1",
+  "schema_version": 1
+}

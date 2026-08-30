@@ -1,0 +1,1012 @@
+{
+  "$defs": {
+    "ActionArgumentConstraint": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Action",
+          "type": "string"
+        },
+        "allowed_values": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Values",
+          "type": "array"
+        },
+        "argument": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Argument",
+          "type": "string"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": ["action", "argument", "required"],
+      "title": "ActionArgumentConstraint",
+      "type": "object"
+    },
+    "FinalStateExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expected Value"
+        },
+        "operator": {
+          "pattern": "^(eq|gte|lte|absent)$",
+          "title": "Operator",
+          "type": "string"
+        },
+        "path": {
+          "pattern": "^[a-z][A-Za-z0-9_.]*$",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": ["path", "operator", "expected_value"],
+      "title": "FinalStateExpectation",
+      "type": "object"
+    },
+    "MilestoneOrder": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "After",
+          "type": "string"
+        },
+        "before": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Before",
+          "type": "string"
+        }
+      },
+      "required": ["before", "after"],
+      "title": "MilestoneOrder",
+      "type": "object"
+    },
+    "QuestionLanguage": {
+      "enum": ["en", "zh"],
+      "title": "QuestionLanguage",
+      "type": "string"
+    },
+    "ReleaseAnswerGold": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_answer_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Answer Key"
+        },
+        "expected_business_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Business Status"
+        },
+        "expected_program": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Program"
+        },
+        "expected_result": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Result"
+        },
+        "rounding_places": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rounding Places"
+        },
+        "supporting_fact_keys": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Supporting Fact Keys",
+          "type": "array"
+        },
+        "tolerance": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tolerance"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "title": "ReleaseAnswerGold",
+      "type": "object"
+    },
+    "ReleaseBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "max_cost_micro_usd": {
+          "minimum": 0,
+          "title": "Max Cost Micro Usd",
+          "type": "integer"
+        },
+        "max_latency_ms": {
+          "minimum": 1,
+          "title": "Max Latency Ms",
+          "type": "integer"
+        },
+        "max_revisions": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Max Revisions",
+          "type": "integer"
+        },
+        "max_steps": {
+          "minimum": 1,
+          "title": "Max Steps",
+          "type": "integer"
+        },
+        "max_tool_calls": {
+          "minimum": 0,
+          "title": "Max Tool Calls",
+          "type": "integer"
+        },
+        "max_total_tokens": {
+          "minimum": 1,
+          "title": "Max Total Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_steps",
+        "max_tool_calls",
+        "max_total_tokens",
+        "max_cost_micro_usd",
+        "max_latency_ms",
+        "max_revisions"
+      ],
+      "title": "ReleaseBudget",
+      "type": "object"
+    },
+    "ReleaseQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "$ref": "#/$defs/QuestionLanguage"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": ["language", "text"],
+      "title": "ReleaseQuestion",
+      "type": "object"
+    },
+    "ReleaseTrajectoryContract": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Actions",
+          "type": "array"
+        },
+        "argument_constraints": {
+          "items": {
+            "$ref": "#/$defs/ActionArgumentConstraint"
+          },
+          "title": "Argument Constraints",
+          "type": "array"
+        },
+        "expected_stop_reason": {
+          "$ref": "#/$defs/RunStopReason"
+        },
+        "final_state": {
+          "items": {
+            "$ref": "#/$defs/FinalStateExpectation"
+          },
+          "title": "Final State",
+          "type": "array"
+        },
+        "forbidden_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Actions",
+          "type": "array"
+        },
+        "partial_order": {
+          "items": {
+            "$ref": "#/$defs/MilestoneOrder"
+          },
+          "title": "Partial Order",
+          "type": "array"
+        },
+        "required_milestones": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Milestones",
+          "type": "array"
+        }
+      },
+      "required": [
+        "required_milestones",
+        "allowed_actions",
+        "forbidden_actions",
+        "argument_constraints",
+        "partial_order",
+        "final_state",
+        "expected_stop_reason"
+      ],
+      "title": "ReleaseTrajectoryContract",
+      "type": "object"
+    },
+    "RunStopReason": {
+      "description": "Stable reason explaining why a run will no longer advance.",
+      "enum": [
+        "final",
+        "cancelled",
+        "provider_timeout",
+        "provider_rate_limited",
+        "provider_error",
+        "invalid_provider_response",
+        "incomplete_provider_response",
+        "max_steps",
+        "deadline_exceeded",
+        "token_budget_exceeded",
+        "cost_budget_exceeded",
+        "tool_denied",
+        "tool_error",
+        "no_progress",
+        "approval_required",
+        "approval_denied",
+        "approval_timed_out",
+        "runtime_error"
+      ],
+      "title": "RunStopReason",
+      "type": "string"
+    },
+    "SecTemporalArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "exclusiveMinimum": 0,
+          "maximum": 5242880,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "download_url": {
+          "title": "Download Url",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SecTemporalArtifactKind"
+        },
+        "relative_path": {
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": ["kind", "relative_path", "download_url", "byte_size", "sha256"],
+      "title": "SecTemporalArtifact",
+      "type": "object"
+    },
+    "SecTemporalArtifactKind": {
+      "enum": ["html", "xbrl"],
+      "title": "SecTemporalArtifactKind",
+      "type": "string"
+    },
+    "SecTemporalBudgetProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "budget": {
+          "$ref": "#/$defs/ReleaseBudget"
+        },
+        "profile_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Profile Id",
+          "type": "string"
+        }
+      },
+      "required": ["profile_id", "budget"],
+      "title": "SecTemporalBudgetProfile",
+      "type": "object"
+    },
+    "SecTemporalCategory": {
+      "enum": [
+        "direct_fact",
+        "table_text",
+        "calculation",
+        "cross_period",
+        "amendment",
+        "custom_footnote_conflict",
+        "no_answer_cutoff",
+        "security_recovery"
+      ],
+      "title": "SecTemporalCategory",
+      "type": "string"
+    },
+    "SecTemporalCoverageRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/SecTemporalCategory"
+        },
+        "minimum_cases": {
+          "minimum": 1,
+          "title": "Minimum Cases",
+          "type": "integer"
+        }
+      },
+      "required": ["category", "minimum_cases"],
+      "title": "SecTemporalCoverageRequirement",
+      "type": "object"
+    },
+    "SecTemporalEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Sha256"
+        },
+        "anchor_text": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 4,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Text"
+        },
+        "concept": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Concept"
+        },
+        "evidence_ref": {
+          "pattern": "^[a-z0-9][a-z0-9._:-]*$",
+          "title": "Evidence Ref",
+          "type": "string"
+        },
+        "expected_value": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Value"
+        },
+        "kind": {
+          "$ref": "#/$defs/SecTemporalEvidenceKind"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "period": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecTemporalPeriod"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "taxonomy": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Taxonomy"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": ["evidence_ref", "kind", "locator"],
+      "title": "SecTemporalEvidence",
+      "type": "object"
+    },
+    "SecTemporalEvidenceKind": {
+      "enum": ["xbrl_fact", "html_anchor", "source_snapshot", "policy"],
+      "title": "SecTemporalEvidenceKind",
+      "type": "string"
+    },
+    "SecTemporalGold": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_gold": {
+          "$ref": "#/$defs/ReleaseAnswerGold"
+        },
+        "evidence_keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Keys",
+          "type": "array"
+        },
+        "gold_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Gold Id",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/SecTemporalScope"
+        }
+      },
+      "required": ["gold_id", "scope", "evidence_keys", "answer_gold"],
+      "title": "SecTemporalGold",
+      "type": "object"
+    },
+    "SecTemporalPair": {
+      "additionalProperties": false,
+      "properties": {
+        "budget_profile_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Budget Profile Id",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/SecTemporalCategory"
+        },
+        "gold_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Gold Id",
+          "type": "string"
+        },
+        "human_review_required": {
+          "default": true,
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "pair_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Pair Id",
+          "type": "string"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/$defs/ReleaseQuestion"
+          },
+          "title": "Questions",
+          "type": "array"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scenario Id"
+        },
+        "split": {
+          "$ref": "#/$defs/SecTemporalSplit"
+        },
+        "trajectory_profile_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Trajectory Profile Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pair_id",
+        "split",
+        "category",
+        "questions",
+        "gold_id",
+        "budget_profile_id",
+        "trajectory_profile_id"
+      ],
+      "title": "SecTemporalPair",
+      "type": "object"
+    },
+    "SecTemporalPeriod": {
+      "additionalProperties": false,
+      "properties": {
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "instant": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instant"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Date"
+        }
+      },
+      "title": "SecTemporalPeriod",
+      "type": "object"
+    },
+    "SecTemporalScenario": {
+      "additionalProperties": false,
+      "properties": {
+        "denied_action": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denied Action"
+        },
+        "failure_mode": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Mode"
+        },
+        "kind": {
+          "$ref": "#/$defs/SecTemporalScenarioKind"
+        },
+        "max_attempts": {
+          "default": 1,
+          "maximum": 2,
+          "minimum": 1,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "untrusted_payload": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Untrusted Payload"
+        }
+      },
+      "required": ["scenario_id", "kind"],
+      "title": "SecTemporalScenario",
+      "type": "object"
+    },
+    "SecTemporalScenarioKind": {
+      "enum": ["prompt_injection", "permission_denial", "transient_recovery"],
+      "title": "SecTemporalScenarioKind",
+      "type": "string"
+    },
+    "SecTemporalScope": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "cik": {
+          "pattern": "^[0-9]{10}$",
+          "title": "Cik",
+          "type": "string"
+        },
+        "forbidden_future_source_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Future Source Ids",
+          "type": "array"
+        },
+        "report_period": {
+          "format": "date",
+          "title": "Report Period",
+          "type": "string"
+        },
+        "visible_source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Visible Source Ids",
+          "type": "array"
+        }
+      },
+      "required": ["cik", "report_period", "as_of", "visible_source_ids"],
+      "title": "SecTemporalScope",
+      "type": "object"
+    },
+    "SecTemporalSource": {
+      "additionalProperties": false,
+      "properties": {
+        "accession": {
+          "pattern": "^[0-9]{10}-[0-9]{2}-[0-9]{6}$",
+          "title": "Accession",
+          "type": "string"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/SecTemporalArtifact"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "available_at": {
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "cik": {
+          "pattern": "^[0-9]{10}$",
+          "title": "Cik",
+          "type": "string"
+        },
+        "filed_on": {
+          "format": "date",
+          "title": "Filed On",
+          "type": "string"
+        },
+        "form": {
+          "title": "Form",
+          "type": "string"
+        },
+        "primary_document": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.htm$",
+          "title": "Primary Document",
+          "type": "string"
+        },
+        "report_period": {
+          "format": "date",
+          "title": "Report Period",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "split": {
+          "$ref": "#/$defs/SecTemporalSplit"
+        }
+      },
+      "required": [
+        "source_id",
+        "split",
+        "cik",
+        "accession",
+        "form",
+        "report_period",
+        "filed_on",
+        "available_at",
+        "primary_document",
+        "artifacts"
+      ],
+      "title": "SecTemporalSource",
+      "type": "object"
+    },
+    "SecTemporalSplit": {
+      "enum": ["construction", "development", "release_holdout"],
+      "title": "SecTemporalSplit",
+      "type": "string"
+    },
+    "SecTemporalTrajectoryProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "trajectory": {
+          "$ref": "#/$defs/ReleaseTrajectoryContract"
+        }
+      },
+      "required": ["profile_id", "trajectory"],
+      "title": "SecTemporalTrajectoryProfile",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "budget_profiles": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalBudgetProfile"
+      },
+      "title": "Budget Profiles",
+      "type": "array"
+    },
+    "coverage_requirements": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalCoverageRequirement"
+      },
+      "title": "Coverage Requirements",
+      "type": "array"
+    },
+    "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+    },
+    "dataset_version": {
+      "title": "Dataset Version",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalEvidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "gold": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalGold"
+      },
+      "title": "Gold",
+      "type": "array"
+    },
+    "language_review_sample_pair_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Language Review Sample Pair Ids",
+      "type": "array"
+    },
+    "minimum_case_count": {
+      "title": "Minimum Case Count",
+      "type": "integer"
+    },
+    "minimum_pair_count": {
+      "title": "Minimum Pair Count",
+      "type": "integer"
+    },
+    "pairs": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalPair"
+      },
+      "title": "Pairs",
+      "type": "array"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalScenario"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_adapter_version": {
+      "title": "Source Adapter Version",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalSource"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "trajectory_profiles": {
+      "items": {
+        "$ref": "#/$defs/SecTemporalTrajectoryProfile"
+      },
+      "title": "Trajectory Profiles",
+      "type": "array"
+    },
+    "validator_version": {
+      "title": "Validator Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "dataset_version",
+    "source_adapter_version",
+    "validator_version",
+    "status",
+    "minimum_case_count",
+    "minimum_pair_count",
+    "coverage_requirements",
+    "sources",
+    "evidence",
+    "gold",
+    "scenarios",
+    "budget_profiles",
+    "trajectory_profiles",
+    "pairs",
+    "language_review_sample_pair_ids",
+    "blockers"
+  ],
+  "title": "SecTemporalManifest",
+  "type": "object"
+}

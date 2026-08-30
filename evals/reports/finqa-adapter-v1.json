@@ -1,0 +1,60 @@
+{
+  "adapter_version": "fixed-context-adapter-v1",
+  "artifacts": [
+    {
+      "artifact_id": "finqa-train",
+      "byte_size": 78216616,
+      "path": "finqa/0f16e2867befa6840783e58be38c9efb9229d742/dataset/train.json",
+      "sha256": "49f237eb9779b569473b26b08048867d04635a7cc39ad6a7a5664c55bb428db6"
+    },
+    {
+      "artifact_id": "finqa-dev",
+      "byte_size": 10954658,
+      "path": "finqa/0f16e2867befa6840783e58be38c9efb9229d742/dataset/dev.json",
+      "sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51"
+    },
+    {
+      "artifact_id": "finqa-test",
+      "byte_size": 14395143,
+      "path": "finqa/0f16e2867befa6840783e58be38c9efb9229d742/dataset/test.json",
+      "sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc"
+    }
+  ],
+  "dataset_id": "finqa",
+  "dataset_version": "0f16e2867befa6840783e58be38c9efb9229d742",
+  "limitations": [
+    "This report validates artifact integrity, conversion, and scorer contracts only.",
+    "It is not an offline-capability or live-model benchmark result.",
+    "One FinQA train case has an unresolvable text_-1 supporting-fact sentinel."
+  ],
+  "model_executed": false,
+  "official_metric_scores": null,
+  "report_kind": "adapter_contract",
+  "schema_version": 1,
+  "splits": [
+    {
+      "case_sha256": "9b548d1f4b6bdee33b6db0979424883e93194205a5a54009ec7e95c32b293430",
+      "excluded_question_count": 0,
+      "input_document_count": 6251,
+      "input_question_count": 6251,
+      "scorable_case_count": 6251,
+      "split": "train"
+    },
+    {
+      "case_sha256": "eb098f705995b3cec78769dece13bd212525cb928b46ccfaeabfa2c311b1e78c",
+      "excluded_question_count": 0,
+      "input_document_count": 883,
+      "input_question_count": 883,
+      "scorable_case_count": 883,
+      "split": "dev"
+    },
+    {
+      "case_sha256": "b59e6ba65adc08ee3689c30b157f349189d1a9f31898efb63c8f4acdcc3ceae0",
+      "excluded_question_count": 0,
+      "input_document_count": 1147,
+      "input_question_count": 1147,
+      "scorable_case_count": 1147,
+      "split": "test"
+    }
+  ]
+}

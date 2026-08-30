@@ -1,0 +1,279 @@
+{
+  "blockers": [
+    "global_a0_a4_common_case_manifest_missing",
+    "retrieval_recall_at_5_not_measured",
+    "offline_capability_runs_not_executed",
+    "live_model_runs_below_three_repetitions",
+    "case_run_trace_evidence_binding_missing",
+    "external_dataset_owner_review_missing",
+    "language_review_missing",
+    "remote_ci_not_passed",
+    "owner_review_missing"
+  ],
+  "capability_metrics": [
+    {
+      "denominator": null,
+      "limitation": "Existing deterministic reports do not expose ranked retrieval candidates.",
+      "metric_name": "retrieval_recall_at_5",
+      "numerator": null,
+      "source_report_id": null,
+      "status": "not_measured",
+      "unit": "ratio",
+      "value": null
+    },
+    {
+      "denominator": 9,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "answer_accuracy",
+      "numerator": 9,
+      "source_report_id": "sec-verification-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 1.0
+    },
+    {
+      "denominator": 2,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "program_lineage",
+      "numerator": 2,
+      "source_report_id": "sec-tool-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 1.0
+    },
+    {
+      "denominator": 9,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "citation_resolvability",
+      "numerator": 9,
+      "source_report_id": "sec-verification-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 1.0
+    },
+    {
+      "denominator": 14,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "trajectory_adherence",
+      "numerator": 14,
+      "source_report_id": "sec-verification-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 1.0
+    },
+    {
+      "denominator": 4,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "recovery_success",
+      "numerator": 4,
+      "source_report_id": "sec-verification-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 1.0
+    },
+    {
+      "denominator": 60,
+      "limitation": "Contract validation only; no runtime source selection was executed.",
+      "metric_name": "point_in_time_violation_rate",
+      "numerator": 0,
+      "source_report_id": "sec-temporal-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 0.0
+    },
+    {
+      "denominator": 6,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "injection_attack_success_rate",
+      "numerator": 0,
+      "source_report_id": "agent-security-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 0.0
+    },
+    {
+      "denominator": 18,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "cross_workspace_rate",
+      "numerator": 0,
+      "source_report_id": "agent-security-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 0.0
+    },
+    {
+      "denominator": 18,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "unauthorized_action_rate",
+      "numerator": 0,
+      "source_report_id": "agent-security-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 0.0
+    },
+    {
+      "denominator": 18,
+      "limitation": "Frozen deterministic observation; not a live model capability result.",
+      "metric_name": "duplicate_effect_rate",
+      "numerator": 0,
+      "source_report_id": "agent-security-v1",
+      "status": "measured_contract",
+      "unit": "ratio",
+      "value": 0.0
+    }
+  ],
+  "deterministic_contract_gate_passed": true,
+  "evidence_layer": "deterministic_contract",
+  "global_a0_a4_comparable": false,
+  "global_a0_a4_score": null,
+  "pairwise_decisions": [
+    {
+      "baseline_strategy": "a1",
+      "blockers": [],
+      "candidate_strategy": "a2",
+      "common_case_count": 10,
+      "cost_increase_micro_usd": 73,
+      "decision": "retain_for_next_evidence_layer",
+      "latency_increase_ms": 43,
+      "primary_gain": 0.833333,
+      "primary_metric": "complex_accuracy",
+      "same_data_scope_budget": true,
+      "same_manifest": true,
+      "segment_id": "sec-tool-a1-to-a2",
+      "simple_degradation": 0.0,
+      "source_gate_passed": true,
+      "source_report_id": "sec-tool-v1"
+    },
+    {
+      "baseline_strategy": "a2",
+      "blockers": [],
+      "candidate_strategy": "a3",
+      "common_case_count": 14,
+      "cost_increase_micro_usd": 340,
+      "decision": "retain_for_next_evidence_layer",
+      "latency_increase_ms": 400,
+      "primary_gain": 0.714286,
+      "primary_metric": "complex_accuracy",
+      "same_data_scope_budget": true,
+      "same_manifest": true,
+      "segment_id": "sec-verification-a2-to-a3",
+      "simple_degradation": 0.0,
+      "source_gate_passed": true,
+      "source_report_id": "sec-verification-v1"
+    },
+    {
+      "baseline_strategy": "a3",
+      "blockers": [],
+      "candidate_strategy": "a4",
+      "common_case_count": 14,
+      "cost_increase_micro_usd": 320,
+      "decision": "retain_for_operational_scope",
+      "latency_increase_ms": 1010,
+      "primary_gain": 1.0,
+      "primary_metric": "operational_accuracy",
+      "same_data_scope_budget": true,
+      "same_manifest": true,
+      "segment_id": "sec-verification-a3-to-a4-operational",
+      "simple_degradation": 0.0,
+      "source_gate_passed": true,
+      "source_report_id": "sec-verification-v1"
+    }
+  ],
+  "production_default_strategy": null,
+  "release_ready": false,
+  "report_id": "sec-release-deterministic-v1",
+  "report_version": "v1",
+  "schema_version": 1,
+  "source_reports": [
+    {
+      "case_count": 0,
+      "evidence_layer": "governance_contract",
+      "report_id": "sec-agent-release-v1",
+      "report_version": "v1-contract",
+      "run_count": 0,
+      "sha256": "d9de6d5179c64c14d4ee6b920ce50766fc2ec776daa4149b39faa1aed635be6d"
+    },
+    {
+      "case_count": 10,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "sec-tool-v1",
+      "report_version": "v1",
+      "run_count": 30,
+      "sha256": "269b1822dbe1dc226fd70d3a30463985eafc0b847e90d83d4c1739986f327e75"
+    },
+    {
+      "case_count": 14,
+      "evidence_layer": "frozen_replay_with_executable_contract_refs",
+      "report_id": "sec-verification-v1",
+      "report_version": "v1",
+      "run_count": 42,
+      "sha256": "0019b1f32be2c4d83d51ce4bee4acdceefed1a83a49f10038eff9e39d5a36af5"
+    },
+    {
+      "case_count": 60,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "sec-temporal-v1",
+      "report_version": "sec-temporal-validator-v1",
+      "run_count": 0,
+      "sha256": "e453af1c19e3f8f223b5473c6cce8f2d1e06afdeadeee66ca9e7e5e118dc149e"
+    },
+    {
+      "case_count": 6,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "agent-security-v1",
+      "report_version": "v1",
+      "run_count": 18,
+      "sha256": "5eb996f650516dd00779b43945012fa35398536c7e470e9f170ee6f42d341a23"
+    }
+  ],
+  "strategy_resources": [
+    {
+      "case_count": 10,
+      "source_report_id": "sec-tool-v1",
+      "strategy_id": "a0",
+      "total_cost_micro_usd": 252,
+      "total_latency_ms": 342,
+      "total_tokens": 2200
+    },
+    {
+      "case_count": 10,
+      "source_report_id": "sec-tool-v1",
+      "strategy_id": "a1",
+      "total_cost_micro_usd": 1047,
+      "total_latency_ms": 1171,
+      "total_tokens": 5725
+    },
+    {
+      "case_count": 10,
+      "source_report_id": "sec-tool-v1",
+      "strategy_id": "a2",
+      "total_cost_micro_usd": 1120,
+      "total_latency_ms": 1214,
+      "total_tokens": 5935
+    },
+    {
+      "case_count": 14,
+      "source_report_id": "sec-verification-v1",
+      "strategy_id": "a2",
+      "total_cost_micro_usd": 1360,
+      "total_latency_ms": 1640,
+      "total_tokens": 6800
+    },
+    {
+      "case_count": 14,
+      "source_report_id": "sec-verification-v1",
+      "strategy_id": "a3",
+      "total_cost_micro_usd": 1700,
+      "total_latency_ms": 2040,
+      "total_tokens": 8350
+    },
+    {
+      "case_count": 14,
+      "source_report_id": "sec-verification-v1",
+      "strategy_id": "a4",
+      "total_cost_micro_usd": 2020,
+      "total_latency_ms": 3050,
+      "total_tokens": 9900
+    }
+  ]
+}

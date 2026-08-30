@@ -1,0 +1,96 @@
+{
+  "blockers": [
+    "fixed_provider_model_version_not_configured",
+    "a0_a4_common_case_observations_missing",
+    "public_benchmark_predictions_missing",
+    "official_metrics_not_computed",
+    "run_trace_evidence_bindings_missing",
+    "external_dataset_owner_review_missing"
+  ],
+  "datasets": [
+    {
+      "blockers": ["model_predictions_missing", "owner_license_review_missing"],
+      "dataset_id": "finqa",
+      "eligible_case_count": 1147,
+      "model_executed": false,
+      "official_metric_scores": null,
+      "prediction_count": 0
+    },
+    {
+      "blockers": ["model_predictions_missing", "owner_license_review_missing"],
+      "dataset_id": "tat-qa",
+      "eligible_case_count": 1663,
+      "model_executed": false,
+      "official_metric_scores": null,
+      "prediction_count": 0
+    },
+    {
+      "blockers": [
+        "noncommercial_use_only",
+        "source_document_rights_not_reviewed",
+        "source_documents_not_materialized",
+        "human_answer_review_not_executed",
+        "owner_license_review_not_complete"
+      ],
+      "dataset_id": "financebench",
+      "eligible_case_count": 150,
+      "model_executed": false,
+      "official_metric_scores": null,
+      "prediction_count": 0
+    },
+    {
+      "blockers": [
+        "model_runs_not_executed",
+        "official_llm_judge_not_executed",
+        "judge_variance_not_measured",
+        "owner_review_not_complete"
+      ],
+      "dataset_id": "finsearchcomp-historical",
+      "eligible_case_count": 391,
+      "model_executed": false,
+      "official_metric_scores": null,
+      "prediction_count": 0
+    }
+  ],
+  "evidence_layer": "offline_capability",
+  "executed": false,
+  "release_ready": false,
+  "report_id": "sec-release-offline-v1",
+  "report_version": "v1",
+  "schema_version": 1,
+  "source_reports": [
+    {
+      "case_count": 8281,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "finqa-adapter-v1",
+      "report_version": "fixed-context-adapter-v1",
+      "run_count": 0,
+      "sha256": "dc7a8ede87fe2074e675b9dbb7cdda20a4c012aeb0f6ca0b81d1c7771b0ead30"
+    },
+    {
+      "case_count": 16546,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "tatqa-adapter-v1",
+      "report_version": "fixed-context-adapter-v1",
+      "run_count": 0,
+      "sha256": "ee8592749858771d0f76a88d9157628a5d8b03bf06a0c0bc8e5e80731ca344a7"
+    },
+    {
+      "case_count": 150,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "financebench-adapter-v1",
+      "report_version": "financebench-adapter-report-v1",
+      "run_count": 0,
+      "sha256": "5bc69a1cd6978cf90b9cf953b9ac9fddd37bc360bbddc43a06eade1a4b867b1c"
+    },
+    {
+      "case_count": 391,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "finsearchcomp-historical-v1",
+      "report_version": "finsearchcomp-adapter-report-v1",
+      "run_count": 0,
+      "sha256": "f24497b5289bf678c4548a472ce3142ea716a5ea05eeacc2d814d71835941cce"
+    }
+  ],
+  "strategy_run_count": 0
+}

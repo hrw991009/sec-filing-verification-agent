@@ -1,0 +1,53 @@
+{
+  "artifact_count": 22,
+  "blockers": [
+    "The bilingual language sample is awaiting independent owner review.",
+    "No UnifiedAgentRuntime execution or Run/Trace/Evidence binding exists yet.",
+    "No offline capability score, live SEC run, branch CI, or owner release approval exists yet."
+  ],
+  "category_case_counts": {
+    "amendment": 6,
+    "calculation": 10,
+    "cross_period": 8,
+    "custom_footnote_conflict": 6,
+    "direct_fact": 10,
+    "no_answer_cutoff": 6,
+    "security_recovery": 6,
+    "table_text": 8
+  },
+  "dataset_id": "sec-temporal-v1",
+  "dataset_version": "v1",
+  "evidence_count": 35,
+  "evidence_layer": "deterministic_contract",
+  "expanded_case_count": 60,
+  "future_leakage_violations": 0,
+  "language_review_completed": false,
+  "language_review_sample_pair_ids": [
+    "p01-revenue-2020",
+    "p03-cash-2022",
+    "p06-lease-liability-2023",
+    "p08-americas-segment-table-2024",
+    "p10-gross-margin-2020",
+    "p16-revenue-growth-2022-2023",
+    "p20-quest-restatement-reason",
+    "p24-cash-scope-conflict-2024",
+    "p26-quest-before-amendment",
+    "p28-prompt-injection-denial"
+  ],
+  "manifest_sha256": "58c00c98b5eb10e0d466dc9a9e359bf71e6b2f912ad9fc6d44fb2738d5cc7948",
+  "model_executed": false,
+  "official_metric_scores": null,
+  "offline_capability_scored": false,
+  "pair_count": 30,
+  "pair_gold_identity_rate": 1.0,
+  "resolved_evidence_count": 35,
+  "runtime_bound": false,
+  "source_count": 11,
+  "split_case_counts": {
+    "construction": 14,
+    "development": 20,
+    "release_holdout": 26
+  },
+  "validator_version": "sec-temporal-validator-v1",
+  "verified_artifact_count": 22
+}

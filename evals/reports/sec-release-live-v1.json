@@ -1,0 +1,102 @@
+{
+  "blockers": [
+    "provider_model_version_not_configured",
+    "live_dependencies_not_executed",
+    "minimum_three_repetitions_not_met",
+    "pass_k_mean_stddev_not_computed",
+    "official_judge_not_executed",
+    "cost_latency_not_measured"
+  ],
+  "evidence_layer": "live_model",
+  "executed": false,
+  "release_ready": false,
+  "report_id": "sec-release-live-v1",
+  "report_version": "v1",
+  "schema_version": 1,
+  "source_reports": [
+    {
+      "case_count": 244,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "finsearchcomp-live-v1",
+      "report_version": "finsearchcomp-adapter-report-v1",
+      "run_count": 0,
+      "sha256": "04413308962e6b28a5273d4eab8df175a2b80485b787e9d844f167673ba1b110"
+    },
+    {
+      "case_count": 60,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "sec-temporal-v1",
+      "report_version": "sec-temporal-validator-v1",
+      "run_count": 0,
+      "sha256": "e453af1c19e3f8f223b5473c6cce8f2d1e06afdeadeee66ca9e7e5e118dc149e"
+    },
+    {
+      "case_count": 6,
+      "evidence_layer": "deterministic_contract",
+      "report_id": "agent-security-v1",
+      "report_version": "v1",
+      "run_count": 18,
+      "sha256": "5eb996f650516dd00779b43945012fa35398536c7e470e9f170ee6f42d341a23"
+    }
+  ],
+  "targets": [
+    {
+      "blockers": [
+        "dynamic_data_not_fetched",
+        "professional_data_dependencies_unavailable",
+        "model_runs_not_executed",
+        "official_llm_judge_not_executed",
+        "repeated_runs_not_executed"
+      ],
+      "case_count": 244,
+      "completed_repetitions": 0,
+      "mean_score": null,
+      "model": null,
+      "model_version": null,
+      "pass_k": null,
+      "provider": null,
+      "required_repetitions": 3,
+      "score_stddev": null,
+      "target_id": "finsearchcomp-dynamic"
+    },
+    {
+      "blockers": [
+        "unified_agent_runtime_not_executed",
+        "live_sec_not_executed",
+        "live_model_not_executed"
+      ],
+      "case_count": 60,
+      "completed_repetitions": 0,
+      "mean_score": null,
+      "model": null,
+      "model_version": null,
+      "pass_k": null,
+      "provider": null,
+      "required_repetitions": 3,
+      "score_stddev": null,
+      "target_id": "sec-temporal-v1"
+    },
+    {
+      "blockers": [
+        "unified_agent_runtime_not_executed",
+        "live_model_not_executed",
+        "real_database_final_state_not_checked",
+        "official_benchmark_code_not_executed",
+        "branch_ci_not_passed",
+        "pr_ci_not_passed",
+        "main_ci_not_passed",
+        "owner_review_missing"
+      ],
+      "case_count": 6,
+      "completed_repetitions": 0,
+      "mean_score": null,
+      "model": null,
+      "model_version": null,
+      "pass_k": null,
+      "provider": null,
+      "required_repetitions": 3,
+      "score_stddev": null,
+      "target_id": "agent-security-v1"
+    }
+  ]
+}

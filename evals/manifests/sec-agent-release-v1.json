@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "manifest_id": "sec-agent-release-v1",
+  "manifest_version": "v1-contract",
+  "registry_id": "sec-agent-datasets-v1",
+  "registry_version": "v1",
+  "registry_sha256": "738d54bcc5858291e05854bcc2ce26b0e4f27976150d8dbf7ac97c6d8069437d",
+  "status": "contract_only",
+  "strategies": [],
+  "cases": [],
+  "release_ready": false,
+  "blockers": [
+    "external_benchmark_owner_review_not_complete",
+    "global_a0_a4_common_case_manifest_missing",
+    "retrieval_recall_at_5_not_measured",
+    "agent_security_runtime_binding_not_executed",
+    "release_runtime_profiles_not_bound",
+    "offline_and_live_runs_not_executed",
+    "language_owner_review_not_complete",
+    "remote_ci_and_owner_review_not_complete"
+  ]
+}

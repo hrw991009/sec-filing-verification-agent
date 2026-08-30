@@ -1,0 +1,193 @@
+{
+  "$defs": {
+    "FinanceBenchDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "company": {
+          "minLength": 1,
+          "title": "Company",
+          "type": "string"
+        },
+        "document_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Document Id",
+          "type": "string"
+        },
+        "document_period": {
+          "maximum": 2200,
+          "minimum": 1900,
+          "title": "Document Period",
+          "type": "integer"
+        },
+        "document_type": {
+          "minLength": 1,
+          "title": "Document Type",
+          "type": "string"
+        },
+        "document_url": {
+          "pattern": "^https://\\S+$",
+          "title": "Document Url",
+          "type": "string"
+        },
+        "gics_sector": {
+          "minLength": 1,
+          "title": "Gics Sector",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_id",
+        "company",
+        "document_type",
+        "document_period",
+        "document_url",
+        "gics_sector"
+      ],
+      "title": "FinanceBenchDocument",
+      "type": "object"
+    },
+    "FinanceBenchEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Document Id",
+          "type": "string"
+        },
+        "evidence_text": {
+          "minLength": 1,
+          "title": "Evidence Text",
+          "type": "string"
+        },
+        "full_page_text": {
+          "minLength": 1,
+          "title": "Full Page Text",
+          "type": "string"
+        },
+        "page_index": {
+          "minimum": 0,
+          "title": "Page Index",
+          "type": "integer"
+        }
+      },
+      "required": ["document_id", "page_index", "evidence_text", "full_page_text"],
+      "title": "FinanceBenchEvidence",
+      "type": "object"
+    },
+    "FinanceBenchGold": {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/FinanceBenchEvidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "justification": {
+          "title": "Justification",
+          "type": "string"
+        }
+      },
+      "required": ["answer", "justification", "evidence"],
+      "title": "FinanceBenchGold",
+      "type": "object"
+    },
+    "FinanceBenchInput": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_version": {
+          "default": "restricted-external-adapter-v1",
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "case_id": {
+          "pattern": "^financebench_id_[0-9]+$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "company": {
+          "minLength": 1,
+          "title": "Company",
+          "type": "string"
+        },
+        "dataset_id": {
+          "default": "financebench",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "dataset_version": {
+          "title": "Dataset Version",
+          "type": "string"
+        },
+        "document": {
+          "$ref": "#/$defs/FinanceBenchDocument"
+        },
+        "question": {
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "question_type": {
+          "minLength": 1,
+          "title": "Question Type",
+          "type": "string"
+        },
+        "reasoning_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reasoning Type"
+        },
+        "source_artifact_ids": {
+          "default": ["financebench-open-source"],
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Artifact Ids",
+          "type": "array"
+        },
+        "split": {
+          "default": "open-sample",
+          "title": "Split",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset_version",
+        "case_id",
+        "question",
+        "question_type",
+        "reasoning_type",
+        "company",
+        "document"
+      ],
+      "title": "FinanceBenchInput",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "gold": {
+      "$ref": "#/$defs/FinanceBenchGold"
+    },
+    "input": {
+      "$ref": "#/$defs/FinanceBenchInput"
+    }
+  },
+  "required": ["input", "gold"],
+  "title": "FinanceBenchCase",
+  "type": "object"
+}

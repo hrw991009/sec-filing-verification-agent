@@ -44,10 +44,10 @@ jobs:
           uv run --locked python --version
 
       - name: Check Python formatting
-        run: uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend
+        run: uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend evals/generators
 
       - name: Lint Python
-        run: uv run --locked --all-packages ruff check --config pyproject.toml apps/backend
+        run: uv run --locked --all-packages ruff check --config pyproject.toml apps/backend evals/generators
 
       - name: Type-check Python
         run: uv run --locked --all-packages mypy --config-file pyproject.toml

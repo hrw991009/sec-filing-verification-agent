@@ -2,15 +2,15 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.4.0`
+> 版本：`1.5.4`
 >
 > 日期：2026-08-26
 >
-> 修订日期：2026-08-28
+> 修订日期：2026-08-30
 >
-> 权威范围：`docs/master-plan.md` v2.1.6 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.2.7 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 已由 PR #10 合入 `main`，当前报告 22/24；Day 7 `sec-tool-v1` deterministic contract 已由 PR #11 合入 `main`，两组 PR 检查通过，但合并提交 main CI 的 Browser E2E 失败，Day 7 未收口；Day 8 仅冻结 `sec-verification-v1` 评测合同，尚无 D8 代码或结果
+> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 8 PR #14 的 push/PR/main 三层 CI 全部通过，但报告仍不是 live SEC/model 质量。Day 9 Step 1～Step 5 已在 `feat/day-9` 工作树实现；`release-suite-v1` 已能分层生成 deterministic/offline/live/failure-taxonomy 报告，但统一 A0～A4 common-case manifest、公开集 prediction、live≥3 次、真实 Agent/Trace/Evidence 与远端 CI 尚未实现，D9-08 仍为 `thin_slice`
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
@@ -182,9 +182,24 @@ Day 8 在不改写 `sec-tool-v1` 的前提下新增独立 manifest/observation/r
 
 Day 8 deterministic 硬门为：verified false support=0、Citation/source identity resolvability=100%、fabricated source/accession/number/formula=0、future leakage=0、跨 Workspace=0、未授权写=0、重复副作用=0、恢复成功率=100%。A3 只有在复杂检索/计算/冲突类相对 A2 有净收益、简单题退化不超过 2pp 且成本/延迟未越界时保留 mandatory verifier/one-revise；A4 主要以审批、最终数据库状态和恢复正确性验收。
 
-当前仅冻结以上 schema、case 类别与门禁，不能生成占位高分或把 Day 7 observation 当作 Day 8 结果。Day 8 代码完成后再写实际 case 数、报告 hash、CI 和限制。
+Day 8 已冻结 14-case/42-run `sec-verification-v1`，独立 scorer 重算 deterministic/security/fault 三层合同；A3 复杂题相对 A2 净增益为 `0.714286`、简单题退化为 `0`，A4 operational/recovery 为 `1.0/1.0`。PR #14 的 push/PR/main CI 均通过。该结果仍是 frozen replay + executable contract refs；专用 Monitor 浏览器旅程、真实 hard-stop 故障注入、live SEC/model 和 owner closeout 仍留在 Day 10，不能平均进 Day 9 offline score。
 
-### 4.5 `sec-temporal-v1`
+### 4.5 Day 9 pinned registry baseline
+
+Day 9 Step 1 只固定来源元数据，不提交外部数据 payload。以下 revision 与原始 artifact SHA-256 于 2026-08-29 从官方 GitHub/Hugging Face 来源核验；后续 Adapter 必须下载精确 revision 后按 byte size 与 hash 校验，禁止使用浮动 `main`：
+
+| Dataset | Source revision | Frozen artifacts | 许可与接入边界 |
+|---|---|---|---|
+| FinQA | GitHub `0f16e2867befa6840783e58be38c9efb9229d742` | `train.json` `49f237…28db6` / 78,216,616 B；`dev.json` `a847fb…eee51` / 10,954,658 B；`test.json` `831dbf…30dc` / 14,395,143 B | 数据站声明 CC BY 4.0；仓库代码 LICENSE 为 MIT。只测固定上下文 supporting facts/program/execution，不测开放 SEC 检索 |
+| TAT-QA | GitHub `870accc41953dcde885aabeb963d94aabdc0fbc3` | train `2df6e7…7c69` / 12,845,647 B；dev `8da095…16af5` / 1,637,431 B；test `6efcf0…a96c` / 1,146,306 B；test gold `c4d084…4b597` / 2,167,546 B | README 声明数据 CC BY 4.0，仓库代码 LICENSE 为 MIT。test input/gold 分开登记，防止 gold 进入模型 Context |
+| FinanceBench | GitHub `cc39aeb4afdf33909ee1412188bf89035950c2eb`；HF card `e04404e3a97f69f79c14d42f24981a1c9c3bcd18` | open source `a5a2aa…71877` / 929,848 B；document info `1c6912…89575` / 88,781 B | HF 官方 dataset card 标 CC BY-NC 4.0；仅内部非商用补充评测。源 PDF 权利独立，payload/PDF 默认不进入本仓库或商业发布物 |
+| FinSearchComp | GitHub `55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf`；HF card `1fd1beea75482e2dd5e2be8f618195d9c6aff176` | full `6437a6…08c4` / 5,948,881 B；AkShare `9a0cf3…40d6` / 5,592,958 B | HF 官方 dataset card 标 CC BY 4.0。historical/AkShare 与动态 live 分报；专业数据库依赖与 LLM judge 不进入普通 PR 硬门 |
+
+表中短 hash 仅用于文档阅读，机器 registry 必须保存完整 64 位 SHA-256。Step 1 建立该 `registered_only` 基线；Step 2 与 Step 4 已完成四项 Adapter、转换测试、许可约束和本地 artifact 校验，因此当前四项均为 `adapter_ready`，但仍因 owner/license、源文档、模型 run 或 live 依赖 blocker 保持 `release_eligible=false`。
+
+机器合同位于 `evals/registry/sec-agent-datasets-v1.json` 与 `evals/manifests/sec-agent-release-v1.json`，并由正式 `evaluation` 模块生成 `evals/schemas/` 下两个 JSON Schema。manifest 保存 registry canonical SHA-256；严格加载器拒绝重复 key、NaN/Infinity、浮动 revision、许可权利升级、gold Context 暴露、跨 split document group、future SEC source 和不完整执行引用。该实现只有本地合同测试证据，不代表外部 payload 已下载、Adapter 已执行、case 已绑定真实 Run/Trace/Evidence 或任何 benchmark 分数成立。
+
+### 4.6 `sec-temporal-v1`
 
 Day 9 冻结至少 60 个 release cases。所有 case 必须来自 `as_of` 前可见的官方 filing snapshot，并锁定：
 
@@ -225,7 +240,7 @@ expected_runtime_stop_reason
 
 同一 case 可以覆盖多个标签，但主类别计数只记一次。case 构造、dev 和 release holdout 必须按 accession/filing 分离，不能把同一表述轻微改写后跨 split。
 
-### 4.6 中英配对集
+### 4.7 中英配对集
 
 至少 30 个 `sec-temporal-v1` case 提供中文/英文配对问题，共享同一 gold scope、accession、Evidence、program、result 和 business status。
 
@@ -238,6 +253,24 @@ expected_runtime_stop_reason
 - Citation resolvability。
 
 中文自然度、术语和说明完整性使用人工抽样。翻译模型或 LLM judge 不能覆盖事实链不一致。
+
+实现位置为 `evals/scenarios/sec-temporal-v1.json`、`evals/datasets/sec-temporal-v1.md` 和 `evals/reviews/sec-temporal-v1-language-sample.md`。30 个 pair 共享单一 gold 并展开为 60 个语言 case，11 个真实 accession 按 filing 隔离 split；验证报告已证明 22/22 source artifact 与 35/35 Evidence 可解析、future leakage 为 0。该报告没有执行模型或绑定 Runtime，且中文抽样清单尚未签字，所以不能据此填写本节后续 capability 指标或宣称 D9-06 完成。
+
+### 4.8 受限外部补充与 `agent-security-v1`
+
+FinanceBench Adapter 只消费固定 150 题 JSONL 与 metadata，输出不含 answer/justification/Evidence gold 的 sanitized input；源 PDF 不物化、不提交。当前 150 题引用 84 个文档并包含 189 条 Evidence，metadata 的一个未引用 document id 存在 period 冲突并被显式报告。数据仅限内部非商用，官方 answer correctness 需要人工审查，因此本地转换成功不产生官方成绩。
+
+FinSearchComp 将 391 个 historical case（T2 219、T3 172）与 244 个 dynamic T1 分报。dynamic 中 203 个属于 AkShare-compatible，41 个依赖其他或专业数据源；两份 artifact 的 203 个共同动态 case 时间字段全部漂移，不能混用 snapshot。historical contract 不执行 LLM judge，dynamic contract 的 live/model/judge/repeated run 与 `pass^k` 仍为 null；这些结果不能进入普通 PR 单一硬门或与 fixed suite 平均。
+
+`agent-security-v1` 从 temporal 的三组安全/恢复 pair 派生 6 个中英 case，不导入 BFCL/ToolSandbox/tau-bench/AgentDojo 代码或 payload，只复用其 action/argument、milestone/final-state、all-k 与 injection utility/attack 的评测方法。每 case 固定 3 次 observation，scorer 从实际 action、Workspace、partial order、stop reason 和 final state 推导指标。当前 18/18 contract trial、6/6 经验 `pass^3`、攻击/越权/重复副作用 0 只证明生成器与 scorer；`UnifiedAgentRuntime`、真实模型、生产数据库终态和远端 CI 均未执行。
+
+### 4.9 `release-suite-v1`
+
+Step 5 的 release suite 只消费受检派生报告和 Step 1 registry/release manifest，不重新解释原始数据或复制各 benchmark scorer。每个输入保存 report identity/version、case/run denominator、evidence layer 和文件 SHA-256。当前 manifest 仍是没有 strategy/case 的 `contract_only` 状态；若它开始执行，现有聚合器会 fail closed，要求同步新的 common-case 评测逻辑。
+
+deterministic 报告保留三段同 manifest/data/Scope/budget 的局部决策：10-case `sec-tool-v1` A1→A2、14-case `sec-verification-v1` A2→A3，以及同 14-case 的 A3→A4 operational extension。A2/A3 可以进入下一证据层，A4 只保留于审批/恢复范围。因为两个 source suite 不同，不生成全局 A0～A4 score，也不选择 production default。没有 ranked retrieval candidate 时，`retrieval_recall_at_5` 必须为 `not_measured`，不能以 answer/complex accuracy 代替。
+
+offline 报告仅声明四个 Adapter 的可用 denominator，model/prediction/official scores 全为空；live 报告冻结 FinSearchComp dynamic、SEC temporal、Agent security 三类目标的 case 数和最低 3 次要求，provider/model/version、均值、方差、`pass^k`、成本和延迟在未运行时均为空。failure taxonomy 将缺失证据与真实运行失败分开；当前 9 项均为 release blocker，但 observed runtime failure 为 0。该实现使缺口可机器审计，不代表 D9-08 已完成。
 
 ## 5. Scorer 分层
 

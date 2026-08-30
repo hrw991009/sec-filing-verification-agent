@@ -1,0 +1,330 @@
+{
+  "$defs": {
+    "ArtifactRole": {
+      "enum": ["input", "gold", "mixed_input_gold", "metadata"],
+      "title": "ArtifactRole",
+      "type": "string"
+    },
+    "DatasetArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_in_model_context": {
+          "default": false,
+          "title": "Allowed In Model Context",
+          "type": "boolean"
+        },
+        "artifact_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "byte_size": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "contains_gold": {
+          "title": "Contains Gold",
+          "type": "boolean"
+        },
+        "document_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Count"
+        },
+        "download_url": {
+          "title": "Download Url",
+          "type": "string"
+        },
+        "question_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Question Count"
+        },
+        "redistribution_allowed": {
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "relative_path": {
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ArtifactRole"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "split": {
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Split",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "split",
+        "role",
+        "relative_path",
+        "download_url",
+        "byte_size",
+        "sha256",
+        "contains_gold",
+        "redistribution_allowed"
+      ],
+      "title": "DatasetArtifact",
+      "type": "object"
+    },
+    "DatasetLicense": {
+      "additionalProperties": false,
+      "properties": {
+        "attribution_required": {
+          "title": "Attribution Required",
+          "type": "boolean"
+        },
+        "code_license_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code License Id"
+        },
+        "code_license_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code License Url"
+        },
+        "commercial_use_allowed": {
+          "title": "Commercial Use Allowed",
+          "type": "boolean"
+        },
+        "data_license_id": {
+          "minLength": 1,
+          "title": "Data License Id",
+          "type": "string"
+        },
+        "data_license_url": {
+          "title": "Data License Url",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "redistribution_allowed": {
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "review_status": {
+          "$ref": "#/$defs/LicenseReviewStatus"
+        },
+        "reviewed_on": {
+          "format": "date",
+          "title": "Reviewed On",
+          "type": "string"
+        },
+        "source_documents_separately_governed": {
+          "title": "Source Documents Separately Governed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "data_license_id",
+        "data_license_url",
+        "attribution_required",
+        "commercial_use_allowed",
+        "redistribution_allowed",
+        "source_documents_separately_governed",
+        "review_status",
+        "reviewed_on",
+        "notes"
+      ],
+      "title": "DatasetLicense",
+      "type": "object"
+    },
+    "DatasetRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_evidence_layers": {
+          "items": {
+            "$ref": "#/$defs/EvidenceLayer"
+          },
+          "title": "Allowed Evidence Layers",
+          "type": "array"
+        },
+        "allowed_uses": {
+          "items": {
+            "$ref": "#/$defs/DatasetUse"
+          },
+          "title": "Allowed Uses",
+          "type": "array"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/DatasetArtifact"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "dataset_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "dataset_version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Dataset Version",
+          "type": "string"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "license": {
+          "$ref": "#/$defs/DatasetLicense"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "official_metrics": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Official Metrics",
+          "type": "array"
+        },
+        "release_eligible": {
+          "title": "Release Eligible",
+          "type": "boolean"
+        },
+        "source_repository_url": {
+          "title": "Source Repository Url",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/DatasetStatus"
+        },
+        "upstream_revision": {
+          "pattern": "^[a-f0-9]{40}$",
+          "title": "Upstream Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset_id",
+        "display_name",
+        "dataset_version",
+        "source_repository_url",
+        "upstream_revision",
+        "license",
+        "allowed_uses",
+        "allowed_evidence_layers",
+        "official_metrics",
+        "status",
+        "release_eligible",
+        "artifacts",
+        "blockers",
+        "limitations"
+      ],
+      "title": "DatasetRecord",
+      "type": "object"
+    },
+    "DatasetStatus": {
+      "enum": ["registered_only", "adapter_ready", "release_ready", "blocked"],
+      "title": "DatasetStatus",
+      "type": "string"
+    },
+    "DatasetUse": {
+      "enum": ["internal_evaluation", "publish_aggregate_metrics", "redistribute_payload"],
+      "title": "DatasetUse",
+      "type": "string"
+    },
+    "EvidenceLayer": {
+      "enum": ["deterministic_contract", "offline_capability", "live_model"],
+      "title": "EvidenceLayer",
+      "type": "string"
+    },
+    "LicenseReviewStatus": {
+      "enum": ["metadata_verified", "owner_reviewed"],
+      "title": "LicenseReviewStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "records": {
+      "items": {
+        "$ref": "#/$defs/DatasetRecord"
+      },
+      "title": "Records",
+      "type": "array"
+    },
+    "registry_id": {
+      "title": "Registry Id",
+      "type": "string"
+    },
+    "registry_version": {
+      "title": "Registry Version",
+      "type": "string"
+    },
+    "reviewed_on": {
+      "format": "date",
+      "title": "Reviewed On",
+      "type": "string"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": ["schema_version", "registry_id", "registry_version", "reviewed_on", "records"],
+  "title": "DatasetRegistry",
+  "type": "object"
+}
