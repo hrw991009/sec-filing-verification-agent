@@ -268,7 +268,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
-| D9-01 | Release Eval manifest/schema | NEW | dataset/split/license/hash、CIK/accession/as_of、runtime/model/tool/context/budget/scorer | schema/compatibility、case→run→trace→Evidence 可反查 | `planned` | `complete` |
+| D9-01 | Release Eval manifest/schema | NEW | dataset/split/license/hash、CIK/accession/as_of、runtime/model/tool/context/budget/scorer | schema/compatibility、case→run→trace→Evidence 可反查 | `implemented_pending_verification` | `complete` |
 | D9-02 | FinQA adapter | BENCH | supporting facts、program/execution answer；固定上下文数值推理 | 官方指标、固定 commit/hash、数据/代码许可卡 | `planned` | `complete` |
 | D9-03 | TAT-QA adapter | BENCH | table+text、answer、scale、derivation/source | 官方 EM/F1、固定 commit/hash、许可卡 | `planned` | `complete` |
 | D9-04 | FinanceBench/FinSearchComp 补充 | BENCH | 公开 150 题非商用审查；historical/live search 分报 | dataset cards、许可/动态/judge 限制、无单一硬门 | `planned` | `complete` |
@@ -276,6 +276,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D9-06 | 中英配对验证 | NEW | ≥30 pair 共享 filer/accession/Evidence/program/result/status | 事实链一致率 100%，中文质量人工抽样 | `planned` | `complete` |
 | D9-07 | Agent trajectory/state/security suite | BFCL/ToolSandbox/tau-bench/AgentDojo 方法 | required/allowed/forbidden Tool、partial order、final DB state、pass^k、injection | 固定版本/许可、未授权写/重复副作用/攻击指标 | `planned` | `complete` |
 | D9-08 | A0～A4 release ablation | NEW | trajectory/result/evidence/runtime/point-in-time/security/cost/latency 分层 | deterministic/offline/live 分报、live≥3 次、策略回退决定 | `planned` | `complete` |
+
+2026-08-29 Step 1 映射：当前 `feat/day-9` 工作树已在正式 `evaluation` bounded context 建立严格 Dataset Registry、release Eval manifest 和由同一 Pydantic 模型生成的版本化 JSON Schema。registry 固定 FinQA、TAT-QA、FinanceBench、FinSearchComp 的 upstream revision、11 个 artifact byte size/SHA-256、数据/代码许可、允许用途和 gold 可见性；四项均 fail closed 为 `registered_only`/`release_eligible=false`。19 条聚焦测试覆盖确定性生成、重复 key/NaN、浮动 revision、许可越权、gold 泄漏、跨 split/future source、registry/case/run/trace/Evidence 引用边界，模块 branch coverage `86.18%`；Ruff/mypy/Web、现有 Chromium `8 passed`、依赖审计、历史 Gitleaks 和五个真实依赖下 `1226 passed` 均通过，总体/既有核心 coverage `80.29%`/`86%`。当前未下载 payload、未实现 Adapter、未运行真实 case 或产生成绩，也没有 branch/PR/main CI 和 owner review，因此只有 D9-01 更新为 `implemented_pending_verification`，D9-02～D9-08 保持 `planned`。
 
 ## 12. Day 10：SEC 工作台、质量与可发布版本
 

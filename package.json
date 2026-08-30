@@ -10,6 +10,7 @@
     "build": "pnpm --recursive --if-present run build",
     "dev:web": "pnpm --filter @industry-platform/web run dev",
     "eval:sec-tool": "uv run --locked --package industry-platform-backend python -m industry_platform.modules.disclosures.tool_eval --dataset evals/scenarios/sec-tool-v1.json --observations evals/observations/sec-tool-v1.json --json-output evals/reports/sec-tool-v1.json --markdown-output evals/reports/sec-tool-v1.md && prettier --write evals/reports/sec-tool-v1.json evals/reports/sec-tool-v1.md",
+    "eval:release-contract": "uv run --locked --package industry-platform-backend python -m industry_platform.modules.evaluation.release --registry evals/registry/sec-agent-datasets-v1.json --manifest evals/manifests/sec-agent-release-v1.json --registry-schema-output evals/schemas/dataset-registry-v1.schema.json --manifest-schema-output evals/schemas/release-eval-manifest-v1.schema.json && prettier --write evals/registry/sec-agent-datasets-v1.json evals/manifests/sec-agent-release-v1.json evals/schemas/dataset-registry-v1.schema.json evals/schemas/release-eval-manifest-v1.schema.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",

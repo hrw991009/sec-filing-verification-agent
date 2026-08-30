@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "manifest_id": "sec-agent-release-v1",
+  "manifest_version": "v1-contract",
+  "registry_id": "sec-agent-datasets-v1",
+  "registry_version": "v1",
+  "registry_sha256": "6130289f9cb193199ee1695a1f90cd76b68eb111cc3925e32bd89ce435301889",
+  "status": "contract_only",
+  "strategies": [],
+  "cases": [],
+  "release_ready": false,
+  "blockers": [
+    "dataset_adapters_not_implemented",
+    "sec_temporal_cases_not_frozen",
+    "release_runtime_profiles_not_bound",
+    "offline_and_live_runs_not_executed"
+  ]
+}

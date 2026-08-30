@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.1.9`
+> 版本：`2.2.3`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1056,6 +1056,8 @@ SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fa
 
 ## 16. Day 9：公开 Benchmark、SEC Temporal Eval 与中文验证链
 
+> 执行状态（2026-08-29）：Day 8 已由 PR #14 合入 `main`，功能 head `227eeb4`、合并提交 `ae1f50b`，push/PR/main 三层 CI 的 7 个适用 Job 均通过。项目所有者已授权进入 Day 9；执行顺序收敛为五步：[Day 9 执行计划](learning-log/day-9.md)。Step 1 已在 `feat/day-9` 工作树实现严格 Dataset Registry、release manifest、版本化 JSON Schema 与 fail-closed 合同测试，四个公开数据集仍全部为 `registered_only`/`release_eligible=false`。没有 payload 下载、Adapter、真实 case→Run/Trace/Evidence 反查、benchmark 分数或远端 CI，因此 D9-01 为 `implemented_pending_verification`，D9-02～D9-08 保持 `planned`。
+
 ### 学习主题
 
 - Benchmark coverage、产品验收、数据许可、污染和时效漂移的区别。
@@ -1340,3 +1342,5 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.1.9 | 2026-08-29 | 同步 Day 8 Step 3：复用 Schedule/Job/Outbox、SEC sync、filing diff 与 Evidence ledger，实现版本化 Monitor/rule、append-only watermark/run、幂等 Case、双侧 Evidence 反查和 Beat/Worker 装配；将 CI 真实根因从放宽超时修正为 Elasticsearch 写入显式 `refresh=true`。本机真实依赖主门 `1186 passed`，3 个本机 endpoint 配置失败用实际 Compose endpoint 重跑通过，总体/核心覆盖率为 `80.15%`/`85%`。D8-05 为 `implemented_pending_verification`，持久订阅 HITL、Workbench、完整 fault/security suite、A2/A3/A4、远端 CI 和 owner review 仍待关闭 | 用户授权继续 Day 8 并要求解决 CI |
 | 2.2.0 | 2026-08-29 | 同步 Day 8 Step 4：新增版本化 `sec-l5-v1` 七工具 Profile 和严格 `sec.monitor.subscribe@v1`，复用唯一 Research Runtime/Approval/Checkpoint/side-effect ledger，原子完成 allow 后 Monitor/Schedule 与同 Run resume，deny/timeout 零业务写；增加正式 Monitor/Case API 与刷新恢复 Workbench。保留 `sec-l4-v1` 六工具 benchmark 契约，修复 JSONB SQL NULL 兼容并验证旧审批、迁移和 `sec-tool-v1` 可复算。真实依赖 `1197 passed`，总体/核心 coverage `80.11%`/`86%`，Web `89 passed`、现有 Chromium `8 passed`。D8-06/D8-07 为 `implemented_pending_verification`，D8-08 为 `thin_slice`；Step 5、远端 CI、专用 Monitor 浏览器旅程和 owner review 仍待关闭 | 用户授权继续 Day 8 |
 | 2.2.1 | 2026-08-29 | 同步 Day 8 Step 5：新增 14-case/42-run `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 与 deterministic/security/fault JSON+Markdown；scorer 重算 Evidence/Citation、Scope、trajectory、stop reason 和最终数据库计数，并以负向测试拒绝伪 verified、越权动作、缺跑与重复副作用。A3 复杂题净增益 `0.714286`、简单题退化 `0`，A4 operational/recovery 为 `1.0/1.0`。修复相同逻辑事件时间触发数据库墙钟 `onupdate` 的 Runtime 顺序误判，并以 PostgreSQL 回归锁定；最终本地门禁为真实依赖 `1207 passed`、总体/核心 coverage `80.21%`/`86%`、Web `89 passed`、Chromium `8 passed`，依赖审计和完整历史 Gitleaks 通过。报告明确不是 live SEC/model，Day 8 因专用浏览器、真实 Monitor hard-stop 注入、三层远端 CI 与 owner review 保持未完成 | 用户授权继续 Day 8 最后一步 |
+| 2.2.2 | 2026-08-29 | 记录 Day 8 PR #14 与功能 head、push/PR/main 三层 CI 全绿；按项目所有者指令进入 Day 9，新增不超过五步的执行计划。Step 1 先建立正式 `evaluation` registry/release manifest/schema 和许可/hash fail-closed 合同，再依次接入固定 benchmark、SEC temporal/中英配对、受限与动态数据、A0～A4 收口；文档阶段 D9-01～D9-08 仍为 `planned` | 用户授权进入 Day 9 并开始 Step 1 |
+| 2.2.3 | 2026-08-29 | 同步 Day 9 Step 1 当前工作树：在正式 `evaluation` bounded context 新增严格 Dataset Registry、release manifest、版本化 JSON Schema 和唯一生成入口；固定四个公开数据集 revision、11 个 artifact byte size/SHA-256、数据/代码许可与允许用途，并以负例拒绝浮动版本、gold 泄漏、许可越权、跨 split/future source 和不完整引用。聚焦测试 19 passed、模块 branch coverage `86.18%`；Ruff/mypy/Web、现有 Chromium `8 passed`、依赖审计、历史 Gitleaks 和五个真实依赖下 `1226 passed` 均通过，总体/既有核心 coverage `80.29%`/`86%`。四项仍为 `registered_only`，无 payload/Adapter/分数/远端 CI，故仅 D9-01 为 `implemented_pending_verification` | 用户授权开始 Day 9 Step 1 |

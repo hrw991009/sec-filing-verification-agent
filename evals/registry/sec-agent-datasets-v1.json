@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "registry_id": "sec-agent-datasets-v1",
+  "registry_version": "v1",
+  "reviewed_on": "2026-08-29",
+  "records": [
+    {
+      "dataset_id": "finqa",
+      "display_name": "FinQA",
+      "dataset_version": "0f16e2867befa6840783e58be38c9efb9229d742",
+      "source_repository_url": "https://github.com/czyssrs/FinQA",
+      "upstream_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+      "license": {
+        "data_license_id": "CC-BY-4.0",
+        "data_license_url": "https://finqasite.github.io/",
+        "code_license_id": "MIT",
+        "code_license_url": "https://github.com/czyssrs/FinQA/blob/0f16e2867befa6840783e58be38c9efb9229d742/LICENSE",
+        "attribution_required": true,
+        "commercial_use_allowed": true,
+        "redistribution_allowed": true,
+        "source_documents_separately_governed": true,
+        "review_status": "metadata_verified",
+        "reviewed_on": "2026-08-29",
+        "notes": [
+          "The official dataset site states CC BY 4.0 for the data.",
+          "The GitHub MIT license is recorded separately for code.",
+          "Underlying financial reports retain their own source rights."
+        ]
+      },
+      "allowed_uses": ["internal_evaluation", "publish_aggregate_metrics", "redistribute_payload"],
+      "allowed_evidence_layers": ["offline_capability"],
+      "official_metrics": ["execution_accuracy", "program_accuracy"],
+      "status": "registered_only",
+      "release_eligible": false,
+      "artifacts": [
+        {
+          "artifact_id": "finqa-train",
+          "split": "train",
+          "role": "mixed_input_gold",
+          "relative_path": "dataset/train.json",
+          "download_url": "https://raw.githubusercontent.com/czyssrs/FinQA/0f16e2867befa6840783e58be38c9efb9229d742/dataset/train.json",
+          "byte_size": 78216616,
+          "sha256": "49f237eb9779b569473b26b08048867d04635a7cc39ad6a7a5664c55bb428db6",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        },
+        {
+          "artifact_id": "finqa-dev",
+          "split": "dev",
+          "role": "mixed_input_gold",
+          "relative_path": "dataset/dev.json",
+          "download_url": "https://raw.githubusercontent.com/czyssrs/FinQA/0f16e2867befa6840783e58be38c9efb9229d742/dataset/dev.json",
+          "byte_size": 10954658,
+          "sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        },
+        {
+          "artifact_id": "finqa-test",
+          "split": "test",
+          "role": "mixed_input_gold",
+          "relative_path": "dataset/test.json",
+          "download_url": "https://raw.githubusercontent.com/czyssrs/FinQA/0f16e2867befa6840783e58be38c9efb9229d742/dataset/test.json",
+          "byte_size": 14395143,
+          "sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        }
+      ],
+      "blockers": ["adapter_not_implemented", "artifacts_not_downloaded_and_verified"],
+      "limitations": [
+        "Fixed-context numerical reasoning only.",
+        "Does not measure EDGAR retrieval, accession selection, or point-in-time behavior."
+      ]
+    },
+    {
+      "dataset_id": "tat-qa",
+      "display_name": "TAT-QA",
+      "dataset_version": "870accc41953dcde885aabeb963d94aabdc0fbc3",
+      "source_repository_url": "https://github.com/NExTplusplus/TAT-QA",
+      "upstream_revision": "870accc41953dcde885aabeb963d94aabdc0fbc3",
+      "license": {
+        "data_license_id": "CC-BY-4.0",
+        "data_license_url": "https://github.com/NExTplusplus/TAT-QA/blob/870accc41953dcde885aabeb963d94aabdc0fbc3/README.md#license",
+        "code_license_id": "MIT",
+        "code_license_url": "https://github.com/NExTplusplus/TAT-QA/blob/870accc41953dcde885aabeb963d94aabdc0fbc3/LICENSE",
+        "attribution_required": true,
+        "commercial_use_allowed": true,
+        "redistribution_allowed": true,
+        "source_documents_separately_governed": true,
+        "review_status": "metadata_verified",
+        "reviewed_on": "2026-08-29",
+        "notes": [
+          "The official README states CC BY 4.0 for the dataset.",
+          "The repository MIT license is recorded separately for code.",
+          "Test input and released test gold remain separate artifacts."
+        ]
+      },
+      "allowed_uses": ["internal_evaluation", "publish_aggregate_metrics", "redistribute_payload"],
+      "allowed_evidence_layers": ["offline_capability"],
+      "official_metrics": ["exact_match", "numeracy_aware_f1"],
+      "status": "registered_only",
+      "release_eligible": false,
+      "artifacts": [
+        {
+          "artifact_id": "tatqa-train",
+          "split": "train",
+          "role": "mixed_input_gold",
+          "relative_path": "dataset_raw/tatqa_dataset_train.json",
+          "download_url": "https://raw.githubusercontent.com/NExTplusplus/TAT-QA/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_train.json",
+          "byte_size": 12845647,
+          "sha256": "2df6e722cdbaaa37efcbfb280f5c9a15be29a6ec18f618ef936fe63cc6d07c69",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        },
+        {
+          "artifact_id": "tatqa-dev",
+          "split": "dev",
+          "role": "mixed_input_gold",
+          "relative_path": "dataset_raw/tatqa_dataset_dev.json",
+          "download_url": "https://raw.githubusercontent.com/NExTplusplus/TAT-QA/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_dev.json",
+          "byte_size": 1637431,
+          "sha256": "8da095a819af6db3c14877c6df2d4d29960e41d1a63dd1fa853507bd2a616af5",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        },
+        {
+          "artifact_id": "tatqa-test",
+          "split": "test",
+          "role": "input",
+          "relative_path": "dataset_raw/tatqa_dataset_test.json",
+          "download_url": "https://raw.githubusercontent.com/NExTplusplus/TAT-QA/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_test.json",
+          "byte_size": 1146306,
+          "sha256": "6efcf044cedeba3661eb70b1b93595673fd3f3dfcc1f78288ec5115682e7a96c",
+          "contains_gold": false,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        },
+        {
+          "artifact_id": "tatqa-test-gold",
+          "split": "test",
+          "role": "gold",
+          "relative_path": "dataset_raw/tatqa_dataset_test_gold.json",
+          "download_url": "https://raw.githubusercontent.com/NExTplusplus/TAT-QA/870accc41953dcde885aabeb963d94aabdc0fbc3/dataset_raw/tatqa_dataset_test_gold.json",
+          "byte_size": 2167546,
+          "sha256": "c4d08418359c1d76468dec420ee748a37f48c06b63cb8ec2766f19d5d314b597",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        }
+      ],
+      "blockers": ["adapter_not_implemented", "artifacts_not_downloaded_and_verified"],
+      "limitations": [
+        "Selected table-text context is provided by the benchmark.",
+        "Does not measure open retrieval, EDGAR identity, or durable Agent state."
+      ]
+    },
+    {
+      "dataset_id": "financebench",
+      "display_name": "FinanceBench open sample",
+      "dataset_version": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+      "source_repository_url": "https://github.com/patronus-ai/financebench",
+      "upstream_revision": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+      "license": {
+        "data_license_id": "CC-BY-NC-4.0",
+        "data_license_url": "https://huggingface.co/datasets/PatronusAI/financebench/blob/e04404e3a97f69f79c14d42f24981a1c9c3bcd18/README.md",
+        "code_license_id": null,
+        "code_license_url": null,
+        "attribution_required": true,
+        "commercial_use_allowed": false,
+        "redistribution_allowed": false,
+        "source_documents_separately_governed": true,
+        "review_status": "metadata_verified",
+        "reviewed_on": "2026-08-29",
+        "notes": [
+          "The official Hugging Face dataset card marks the open 150-case sample CC BY-NC 4.0.",
+          "The GitHub source repository does not provide a separate code license record.",
+          "Linked filing PDFs and source documents require separate rights review."
+        ]
+      },
+      "allowed_uses": ["internal_evaluation"],
+      "allowed_evidence_layers": ["offline_capability"],
+      "official_metrics": ["answer_correctness", "evidence_attribution"],
+      "status": "registered_only",
+      "release_eligible": false,
+      "artifacts": [
+        {
+          "artifact_id": "financebench-open-source",
+          "split": "open-sample",
+          "role": "mixed_input_gold",
+          "relative_path": "data/financebench_open_source.jsonl",
+          "download_url": "https://raw.githubusercontent.com/patronus-ai/financebench/cc39aeb4afdf33909ee1412188bf89035950c2eb/data/financebench_open_source.jsonl",
+          "byte_size": 929848,
+          "sha256": "a5a2aa673e573e55675fc3c0f9aa38c1cf59d2abc91edb077534f71f10a71877",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": false
+        },
+        {
+          "artifact_id": "financebench-document-information",
+          "split": "metadata",
+          "role": "metadata",
+          "relative_path": "data/financebench_document_information.jsonl",
+          "download_url": "https://raw.githubusercontent.com/patronus-ai/financebench/cc39aeb4afdf33909ee1412188bf89035950c2eb/data/financebench_document_information.jsonl",
+          "byte_size": 88781,
+          "sha256": "1c69127783879de8cdadb159d2181f39bc3123b8e0ebf74031c3969d69189575",
+          "contains_gold": false,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": false
+        }
+      ],
+      "blockers": [
+        "noncommercial_use_only",
+        "source_document_rights_not_reviewed",
+        "adapter_not_implemented",
+        "artifacts_not_downloaded_and_verified"
+      ],
+      "limitations": [
+        "Only the public 150-case sample is registered.",
+        "No official train, development, and test split is provided.",
+        "The benchmark does not measure point-in-time or Agent trajectory."
+      ]
+    },
+    {
+      "dataset_id": "finsearchcomp",
+      "display_name": "FinSearchComp",
+      "dataset_version": "55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf",
+      "source_repository_url": "https://github.com/randomtutu/FinSearchComp",
+      "upstream_revision": "55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf",
+      "license": {
+        "data_license_id": "CC-BY-4.0",
+        "data_license_url": "https://huggingface.co/datasets/ByteSeedXpert/FinSearchComp/blob/1fd1beea75482e2dd5e2be8f618195d9c6aff176/README.md",
+        "code_license_id": "MIT",
+        "code_license_url": "https://github.com/randomtutu/FinSearchComp/blob/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/LICENSE",
+        "attribution_required": true,
+        "commercial_use_allowed": true,
+        "redistribution_allowed": true,
+        "source_documents_separately_governed": true,
+        "review_status": "metadata_verified",
+        "reviewed_on": "2026-08-29",
+        "notes": [
+          "The official Hugging Face dataset card marks the data CC BY 4.0.",
+          "The GitHub MIT license is recorded separately for code.",
+          "Dynamic answers and third-party data providers remain separately governed."
+        ]
+      },
+      "allowed_uses": ["internal_evaluation", "publish_aggregate_metrics", "redistribute_payload"],
+      "allowed_evidence_layers": ["offline_capability", "live_model"],
+      "official_metrics": ["task_accuracy", "judge_score"],
+      "status": "registered_only",
+      "release_eligible": false,
+      "artifacts": [
+        {
+          "artifact_id": "finsearchcomp-full",
+          "split": "full",
+          "role": "mixed_input_gold",
+          "relative_path": "data/finsearchcomp_data.json",
+          "download_url": "https://raw.githubusercontent.com/randomtutu/FinSearchComp/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/data/finsearchcomp_data.json",
+          "byte_size": 5948881,
+          "sha256": "6437a6dae907ec81002bd817dafc26c3e46e6b6edfde700f22645b1e2aa208c4",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        },
+        {
+          "artifact_id": "finsearchcomp-akshare",
+          "split": "akshare",
+          "role": "mixed_input_gold",
+          "relative_path": "data/finsearchcomp_akshare_version.json",
+          "download_url": "https://raw.githubusercontent.com/randomtutu/FinSearchComp/55b6393fcf3c8f749ba5a69a70b20d4ef6f67caf/data/finsearchcomp_akshare_version.json",
+          "byte_size": 5592958,
+          "sha256": "9a0cf3a319fe3d154d54127f6f9d6bac8bbe5eea34d99167a3eed5add2d540d6",
+          "contains_gold": true,
+          "allowed_in_model_context": false,
+          "redistribution_allowed": true
+        }
+      ],
+      "blockers": [
+        "historical_replay_policy_not_frozen",
+        "live_dependency_and_judge_policy_not_frozen",
+        "adapter_not_implemented",
+        "artifacts_not_downloaded_and_verified"
+      ],
+      "limitations": [
+        "Dynamic questions and answers can drift with date and market close state.",
+        "Some gold steps require professional databases or incomplete public substitutes.",
+        "LLM judge results cannot become the only release gate."
+      ]
+    }
+  ]
+}

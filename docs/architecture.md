@@ -759,6 +759,8 @@ Evaluation Harness 与生产流量调用同一个 Agent Runtime/Harness；测试
 
 Day 2～Day 4 已有 50 条通用 Scenario 继续作为 Runtime/Memory/Evidence/L3 回归集，但不能证明金融能力。Day 5 建立 `sec-fixture-v1`，Day 6 建立 `sec-source-v1`；Day 9 汇总并冻结这些已有数据集，新增不少于 60 条的 `sec-temporal-v1`、不少于 30 组成对中英案例和公开 benchmark manifests。FinQA、TAT-QA、FinanceBench、FinSearchComp 只按各自公开范围补充能力证据。评分分为 source/identity、retrieval、calculation/result、evidence/citation、trajectory/tool、runtime recovery/security 与成本延迟层；LLM judge 只能作为辅助。
 
+Day 9 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context 建立唯一 release 治理入口：严格 Dataset Registry 负责 upstream revision、artifact byte size/SHA-256、split、数据/代码许可、允许用途和 release eligibility；Release Eval manifest 通过 registry canonical hash 固定 Runtime/Harness/model/Prompt/Tool/Context/Retrieval/Graph/Verifier/Scorer version、Budget、trajectory、SEC point-in-time gold 与 Run/Trace/Evidence/Calculation identity。Git 只保存 registry、manifest、JSON Schema 和小型派生产物，外部 payload 由后续 Adapter 按 registry 下载校验，不因登记元数据进入产品 RAG。四个公开数据集在 Adapter、artifact 校验和权利复核完成前均为 `registered_only` 且 fail closed，不能进入 release claim。
+
 Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
 
 1. Run/Context：Run/Step 时间线、Context source、裁剪原因、Budget、usage、stop reason；
