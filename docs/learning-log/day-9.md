@@ -8,7 +8,7 @@
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
-> 当前状态：Step 1～Step 5 已在 `feat/day-9` 工作树实现，D9-01～D9-07 为 `implemented_pending_verification`；D9-08 为 `thin_slice`
+> 当前状态：Step 1～Step 5 已由 PR #15 合入 `main`，push/PR/main 三层 CI 均通过；D9-01～D9-07 仍为 `implemented_pending_verification`，D9-08 仍为 `thin_slice`
 
 ## 1. 进入基线与本日边界
 

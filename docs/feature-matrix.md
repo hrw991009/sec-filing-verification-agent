@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-30
 >
-> 权威来源：`docs/master-plan.md` 2.2.7
+> 权威来源：`docs/master-plan.md` 2.2.8
 
 ## 1. 使用规则
 
@@ -299,6 +299,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D10-06 | 环境、恢复与回滚 | NEW | fresh startup、备份恢复、Filing 索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障、上一镜像 | Runbook 演练、正式 Scenario 继续且零重复副作用 | `planned` | `complete` |
 | D10-07 | Release Eval 与完整性审计 | BENCH + NEW | 全矩阵、A0～A4、fixed/public/live、D1-09、Day4 90% 债务、DoD/owner acceptance | 每项证据齐全，无未关闭阻断项和重复正式链路 | `planned` | `complete` |
 | D10-08 | 文档、限制与发布候选 | NEW | README/ADR/架构/评测/Runbook/rollback、非投资建议边界、`v0.2.0-sec-disclosure-verifier` | 链接/格式/diff/secret scan、main merge CI 与所有者复核 | `planned` | `complete` |
+
+2026-08-30 规划映射：Day 9 已由 PR #15 合入 `main`，功能 head `6a79e4a` 与合并提交 `4500505` 的 push/PR/main 三层 CI 均通过 7 个适用 Job。该工程证据不关闭 `release-suite-v1` 的 9 个机器 blocker，也不升级 D9 状态。Day 10 按 [五步执行计划](learning-log/day-10.md) 依次建立发布台账、真实中文闭环、评测/可观测/安全、工程恢复门禁和最终审计；发布判定与初始跨 Day 阻断台账见 [发布就绪合同](release-readiness.md)。文档阶段没有新增实现证据，D10-01～D10-08 均保持 `planned`。
 
 ## 13. 明确不继承的参考项目行为
 
