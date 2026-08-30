@@ -2,15 +2,15 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.5.1`
+> 版本：`1.5.2`
 >
 > 日期：2026-08-26
 >
 > 修订日期：2026-08-29
 >
-> 权威范围：`docs/master-plan.md` v2.2.3 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.2.5 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 8 PR #14 的 push/PR/main 三层 CI 全部通过，但报告仍不是 live SEC/model 质量。Day 9 Step 1 registry/manifest/schema 已在工作树实现；公开 benchmark Adapter、`sec-temporal-v1`、中英配对和 release 报告尚未实现
+> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 8 PR #14 的 push/PR/main 三层 CI 全部通过，但报告仍不是 live SEC/model 质量。Day 9 Step 1～Step 3 已在 `feat/day-9` 工作树实现；`sec-temporal-v1` 只有数据/证据合同验证，受限补充、真实 Agent run、A0～A4 release 报告和远端 CI 尚未实现
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
@@ -253,6 +253,8 @@ expected_runtime_stop_reason
 - Citation resolvability。
 
 中文自然度、术语和说明完整性使用人工抽样。翻译模型或 LLM judge 不能覆盖事实链不一致。
+
+实现位置为 `evals/scenarios/sec-temporal-v1.json`、`evals/datasets/sec-temporal-v1.md` 和 `evals/reviews/sec-temporal-v1-language-sample.md`。30 个 pair 共享单一 gold 并展开为 60 个语言 case，11 个真实 accession 按 filing 隔离 split；验证报告已证明 22/22 source artifact 与 35/35 Evidence 可解析、future leakage 为 0。该报告没有执行模型或绑定 Runtime，且中文抽样清单尚未签字，所以不能据此填写本节后续 capability 指标或宣称 D9-06 完成。
 
 ## 5. Scorer 分层
 

@@ -84,50 +84,70 @@ async def _materialize_artifact(
     if target.exists():
         return store.verify(record, artifact)
 
+    await materialize_verified_download(
+        artifact_id=artifact.artifact_id,
+        download_url=artifact.download_url,
+        byte_size=artifact.byte_size,
+        sha256=artifact.sha256,
+        target=target,
+        client=client,
+        accept="application/json",
+        error_prefix="Dataset artifact",
+    )
+    return store.verify(record, artifact)
+
+
+async def materialize_verified_download(
+    *,
+    artifact_id: str,
+    download_url: str,
+    byte_size: int,
+    sha256: str,
+    target: Path,
+    client: httpx2.AsyncClient,
+    accept: str,
+    error_prefix: str,
+) -> None:
+    """Download a pinned public artifact without publishing partial or unverified bytes."""
+
     target.parent.mkdir(parents=True, exist_ok=True)
-    partial = target.with_name(f".{target.name}.{artifact.sha256[:12]}.partial")
+    partial = target.with_name(f".{target.name}.{sha256[:12]}.partial")
     partial.unlink(missing_ok=True)
     received = 0
     digest = hashlib.sha256()
     try:
         async with client.stream(
             "GET",
-            artifact.download_url,
-            headers={"Accept": "application/json", "Accept-Encoding": "identity"},
+            download_url,
+            headers={"Accept": accept, "Accept-Encoding": "identity"},
         ) as response:
             if response.status_code != 200:
                 raise ValueError(
-                    f"Dataset artifact download failed: {artifact.artifact_id} "
-                    f"(status={response.status_code})"
+                    f"{error_prefix} download failed: {artifact_id} (status={response.status_code})"
                 )
             content_length = response.headers.get("content-length")
             if content_length is not None and (
-                not content_length.isdigit() or int(content_length) != artifact.byte_size
+                not content_length.isdigit() or int(content_length) != byte_size
             ):
-                raise ValueError(
-                    f"Dataset artifact Content-Length mismatch: {artifact.artifact_id}"
-                )
+                raise ValueError(f"{error_prefix} Content-Length mismatch: {artifact_id}")
             with partial.open("xb") as handle:
                 async for chunk in response.aiter_raw(chunk_size=_CHUNK_SIZE):
                     received += len(chunk)
-                    if received > artifact.byte_size:
-                        raise ValueError(
-                            f"Dataset artifact exceeds registered size: {artifact.artifact_id}"
-                        )
+                    if received > byte_size:
+                        raise ValueError(f"{error_prefix} exceeds registered size: {artifact_id}")
                     handle.write(chunk)
                     digest.update(chunk)
                 handle.flush()
                 os.fsync(handle.fileno())
-        if received != artifact.byte_size:
-            raise ValueError(f"Dataset artifact size mismatch: {artifact.artifact_id}")
-        if digest.hexdigest() != artifact.sha256:
-            raise ValueError(f"Dataset artifact checksum mismatch: {artifact.artifact_id}")
+        if received != byte_size:
+            raise ValueError(f"{error_prefix} size mismatch: {artifact_id}")
+        if digest.hexdigest() != sha256:
+            raise ValueError(f"{error_prefix} checksum mismatch: {artifact_id}")
         os.replace(partial, target)
     except (httpx2.HTTPError, OSError) as error:
-        raise ValueError(f"Dataset artifact download failed: {artifact.artifact_id}") from error
+        raise ValueError(f"{error_prefix} download failed: {artifact_id}") from error
     finally:
         partial.unlink(missing_ok=True)
-    return store.verify(record, artifact)
 
 
 def build_adapter_report(

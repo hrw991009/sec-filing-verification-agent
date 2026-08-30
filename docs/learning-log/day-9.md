@@ -8,7 +8,7 @@
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
-> 当前状态：Step 1、Step 2 已在 `feat/day-9` 工作树实现，D9-01～D9-03 为 `implemented_pending_verification`；D9-04～D9-08 保持 `planned`
+> 当前状态：Step 1～Step 3 已在 `feat/day-9` 工作树实现，D9-01～D9-03、D9-05、D9-06 为 `implemented_pending_verification`；D9-04、D9-07、D9-08 保持 `planned`
 
 ## 1. 进入基线与本日边界
 
@@ -63,7 +63,15 @@ TAT-QA 全量转换为 train/dev/released-test-gold `13215/1668/1663` case，cas
 
 `evals/reports/finqa-adapter-v1.*` 与 `tatqa-adapter-v1.*` 分别记录 artifact/case hash 和 split 分母，明确 `model_executed=false`、`official_metric_scores=null`；原始公开数据未提交。两张 dataset card 固定数据/代码许可、官方 scorer source hash 和长尾限制。当前聚焦回归为 `29 passed`；全量无强制真实依赖 pytest 为 `1148 passed, 88 skipped`，Ruff、mypy、wheel/sdist、OpenAPI 确定性、Web format/lint/typecheck、`89 passed`、生产构建、Python/Node 依赖审计及现有 Chromium `8 passed` 均通过。真实依赖强制重跑、真实模型 benchmark、Run/Trace/Evidence binding、远端 branch/PR/main CI 与 owner license review 尚未完成，因此 D9-02/D9-03 仅为 `implemented_pending_verification`。
 
-## 6. 完成定义
+## 6. Step 3 实现记录
+
+Step 3 新增独立的内部 `sec-temporal-v1` manifest，不把自建语料伪装成外部许可 registry 记录。manifest 与展开 case 直接复用 Step 1 的 `ReleaseBudget`、`ReleaseTrajectoryContract`、`ReleaseSecGold`、`ReleaseAnswerGold` 和双语 `ReleaseQuestion`；30 个 pair 各自只保存一份 gold，确定性展开为 60 个 `en`/`zh` case，因此 Scope、accession、Evidence、program/result/status、Budget 和 trajectory 的语言间一致性由结构保证，而不是运行后抽样猜测。未新增 benchmark 专用 Agent loop。
+
+语料固定 11 个真实 SEC accession、22 个 primary HTML/extracted XBRL artifact 的 URL、byte size 与 SHA-256，并按 accession 隔离为 construction `14`、development `20`、release holdout `26` 个 case。主类别分母为直接事实 `10`、表格/文本 `8`、计算 `10`、跨期间 `8`、amendment `6`、custom/footnote/conflict `6`、no-answer/cutoff `6`、security/recovery `6`。表格/文本题使用真实 HTML 表格锚点，其中三组再与 XBRL 精确值交叉核验；amendment 保留 base/amendment，no-answer 同时固定最后可见来源和严格未来来源，未用伪 accession 或跨 split 改写凑数。
+
+`sec-temporal-validator-v1` 复用 Step 2 的受控公网下载与 size/SHA-256 原子发布，额外验证 canonical SEC Archive URL、split/CIK/cutoff、gold 只引用可见 Evidence、无孤立 source/Evidence/gold/scenario，并在受限 XML 解析器中拒绝 DTD/entity 和超预算文档。当前本地 22/22 artifact 与 35/35 Evidence 可解析，future leakage 为 `0`，contract-only 报告明确 `model_executed=false`、`runtime_bound=false`、`offline_capability_scored=false`。10 组中文人工抽样清单已冻结但尚未签字，真实 Run/Trace/Evidence binding、模型成绩、远端 branch/PR/main CI 和 owner review 仍缺，因此 D9-05/D9-06 只能是 `implemented_pending_verification`。
+
+## 7. 完成定义
 
 Day 9 只有同时满足以下条件才可关闭：
 

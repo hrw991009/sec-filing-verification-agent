@@ -63,6 +63,7 @@ explicit_package_bases = true
 files = [
   "apps/backend/src",
   "apps/backend/tests",
+  "evals/generators",
 ]
 strict = true
 warn_unreachable = true
