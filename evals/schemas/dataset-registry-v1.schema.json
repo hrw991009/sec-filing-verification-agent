@@ -27,9 +27,35 @@
           "title": "Contains Gold",
           "type": "boolean"
         },
+        "document_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Count"
+        },
         "download_url": {
           "title": "Download Url",
           "type": "string"
+        },
+        "question_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Question Count"
         },
         "redistribution_allowed": {
           "title": "Redistribution Allowed",

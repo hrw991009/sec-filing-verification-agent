@@ -133,6 +133,8 @@ class DatasetArtifact(_FrozenModel):
     download_url: str
     byte_size: int = Field(gt=0)
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    document_count: int | None = Field(default=None, ge=1)
+    question_count: int | None = Field(default=None, ge=1)
     contains_gold: bool
     allowed_in_model_context: bool = False
     redistribution_allowed: bool
@@ -150,6 +152,10 @@ class DatasetArtifact(_FrozenModel):
             raise ValueError("Raw artifacts containing gold cannot enter model context")
         if self.role is ArtifactRole.GOLD and not self.contains_gold:
             raise ValueError("Gold artifact must declare that it contains gold")
+        if (self.document_count is None) != (self.question_count is None):
+            raise ValueError(
+                "Dataset artifact document and question counts must be provided together"
+            )
         return self
 
 
@@ -208,6 +214,14 @@ class DatasetRecord(_FrozenModel):
                     "Release-ready dataset must have owner-reviewed rights, "
                     "artifacts, and no blockers"
                 )
+        elif self.status is DatasetStatus.ADAPTER_READY:
+            if not self.artifacts or any(
+                artifact.document_count is None or artifact.question_count is None
+                for artifact in self.artifacts
+            ):
+                raise ValueError("Adapter-ready dataset must freeze artifact split counts")
+            if not self.blockers:
+                raise ValueError("Adapter-ready dataset must retain release blockers")
         elif self.release_eligible:
             raise ValueError("Only a release-ready dataset may be release eligible")
         elif not self.blockers:
@@ -565,6 +579,16 @@ def _load_json(path: Path) -> str:
         parse_constant=_reject_non_finite_json,
     )
     return raw
+
+
+def load_strict_json(path: Path) -> object:
+    """Load an evaluation artifact while rejecting duplicate keys and non-finite numbers."""
+
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_json_pairs,
+        parse_constant=_reject_non_finite_json,
+    )
 
 
 def canonical_sha256(model: BaseModel) -> str:

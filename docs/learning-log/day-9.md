@@ -8,7 +8,7 @@
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
-> 当前状态：Step 1 已在 `feat/day-9` 工作树实现，D9-01 为 `implemented_pending_verification`；D9-02～D9-08 保持 `planned`
+> 当前状态：Step 1、Step 2 已在 `feat/day-9` 工作树实现，D9-01～D9-03 为 `implemented_pending_verification`；D9-04～D9-08 保持 `planned`
 
 ## 1. 进入基线与本日边界
 
@@ -51,9 +51,19 @@ Release `EvalCase` 必须同时固定 dataset/split/document group、输入语�
 
 当前工作树在正式 `industry_platform.modules.evaluation` 中新增冻结 Pydantic 合同及唯一 CLI 生成入口；`evals/registry/sec-agent-datasets-v1.json` 登记 FinQA、TAT-QA、FinanceBench 和 FinSearchComp 的精确 upstream revision、11 个 artifact 的 byte size/SHA-256、数据/代码许可和允许用途，`evals/manifests/sec-agent-release-v1.json` 通过 registry canonical hash 绑定该快照。两个版本化 JSON Schema 由同一模型确定生成，后续 Adapter 必须消费这些合同。
 
-加载器拒绝重复 JSON key、NaN/Infinity、浮动 revision、未固定 URL、gold 进入模型 Context、许可权利升级、不安全路径和非法 release-ready 状态；Release manifest 进一步约束 document group 不跨 split、case/artifact split 一致、完整 runtime/tool/context/scorer version、Budget、trajectory partial order、point-in-time source、case→run/trace/Evidence/Calculation identity 与 registry 引用。聚焦测试为 19 passed，模块 branch coverage 为 86.18%；Ruff、mypy、Web quality、现有 Chromium `8 passed`、依赖审计、完整历史 Gitleaks 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch `1226 passed` 均通过，总体/既有核心 coverage 为 80.29%/86%。四个数据集仍全部是 `registered_only`/`release_eligible=false`，没有下载 payload、执行 Adapter、真实 Run 反查或 benchmark 得分；远端 branch/PR/main CI 与 owner review 也尚未发生。
+加载器拒绝重复 JSON key、NaN/Infinity、浮动 revision、未固定 URL、gold 进入模型 Context、许可权利升级、不安全路径和非法 release-ready 状态；Release manifest 进一步约束 document group 不跨 split、case/artifact split 一致、完整 runtime/tool/context/scorer version、Budget、trajectory partial order、point-in-time source、case→run/trace/Evidence/Calculation identity 与 registry 引用。聚焦测试为 19 passed，模块 branch coverage 为 86.18%；Ruff、mypy、Web quality、现有 Chromium `8 passed`、依赖审计、完整历史 Gitleaks 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch `1226 passed` 均通过，总体/既有核心 coverage 为 80.29%/86%。这是 Step 1 当时的历史状态；Step 2 已将 FinQA/TAT-QA 升为 `adapter_ready`，FinanceBench/FinSearchComp 仍为 `registered_only`，四项继续 `release_eligible=false`。
 
-## 5. 完成定义
+## 5. Step 2 实现记录
+
+Step 2 在同一 `industry_platform.modules.evaluation` bounded context 中新增统一 `FixedContextInput/Gold/Prediction`、registry 驱动的 materializer、FinQA/TAT-QA 独立 Adapter 与 scorer。materializer 复用既有受控公网 egress，只接受 registry 中固定 revision 的 HTTPS URL，流式执行 byte budget 与 SHA-256 校验，通过后才原子发布到忽略版本控制的 `.data/evals`；已存在文件也必须重新通过 size/hash。统一 input 只包含 question、text/table 与 artifact identity，gold answer/program/scale/derivation/source 不进入 model input。
+
+FinQA 全量固定数据转换为 train/dev/test `6251/883/1147` case，case digest 分别为 `9b548d1f...9430`、`eb098f70...e78c`、`b59e6ba6...eae0`。scorer 按 pinned `evaluate.py` 重算 execution 与 symbolic program accuracy，并单列 supporting-fact exact/F1；test 的 1147 个官方 gold program 与原 scorer 执行结果逐题对照为 0 mismatch。上游 74 个空 display answer 使用仍存在的 `exe_ans` 作为显示 fallback；唯一 `text_-1` train sentinel 保留在官方 execution/program 分母，但不进入 supporting-fact 辅助分母。
+
+TAT-QA 全量转换为 train/dev/released-test-gold `13215/1668/1663` case，case digest 分别为 `e7d2a770...7cab`、`bae4aa46...f857`、`1e0389cc...d481`。scorer 按 pinned `tatqa_metric.py`/`tatqa_utils.py` 实现 answer EM、numeracy-aware F1 与 scale accuracy，derivation/source 仅作为独立辅助指标；200 个 released-test oracle 样本与官方 scorer 对照为 0 mismatch。固定 revision 的 1669-question `test.json` 与 1663-question released gold UID 重合为 0，禁止按顺序或模糊题文强连；released gold 自带完整 context，registry 因此将其登记为 `mixed_input_gold` 并由 Adapter 安全拆分，原 test input 只做 integrity/结构/数量校验。三条空 mapping 和 train/dev 部分 relevance 不进入完整 source 分母。
+
+`evals/reports/finqa-adapter-v1.*` 与 `tatqa-adapter-v1.*` 分别记录 artifact/case hash 和 split 分母，明确 `model_executed=false`、`official_metric_scores=null`；原始公开数据未提交。两张 dataset card 固定数据/代码许可、官方 scorer source hash 和长尾限制。当前聚焦回归为 `29 passed`；全量无强制真实依赖 pytest 为 `1148 passed, 88 skipped`，Ruff、mypy、wheel/sdist、OpenAPI 确定性、Web format/lint/typecheck、`89 passed`、生产构建、Python/Node 依赖审计及现有 Chromium `8 passed` 均通过。真实依赖强制重跑、真实模型 benchmark、Run/Trace/Evidence binding、远端 branch/PR/main CI 与 owner license review 尚未完成，因此 D9-02/D9-03 仅为 `implemented_pending_verification`。
+
+## 6. 完成定义
 
 Day 9 只有同时满足以下条件才可关闭：
 

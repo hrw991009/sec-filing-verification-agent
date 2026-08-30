@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.3`
+> 版本：`2.2.4`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-29`
+> 修订日期：`2026-08-30`
 >
 > 状态：SEC 财务事实核验 Agent 执行基线
 >
@@ -1056,7 +1056,7 @@ SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fa
 
 ## 16. Day 9：公开 Benchmark、SEC Temporal Eval 与中文验证链
 
-> 执行状态（2026-08-29）：Day 8 已由 PR #14 合入 `main`，功能 head `227eeb4`、合并提交 `ae1f50b`，push/PR/main 三层 CI 的 7 个适用 Job 均通过。项目所有者已授权进入 Day 9；执行顺序收敛为五步：[Day 9 执行计划](learning-log/day-9.md)。Step 1 已在 `feat/day-9` 工作树实现严格 Dataset Registry、release manifest、版本化 JSON Schema 与 fail-closed 合同测试，四个公开数据集仍全部为 `registered_only`/`release_eligible=false`。没有 payload 下载、Adapter、真实 case→Run/Trace/Evidence 反查、benchmark 分数或远端 CI，因此 D9-01 为 `implemented_pending_verification`，D9-02～D9-08 保持 `planned`。
+> 执行状态（2026-08-30）：Day 8 已由 PR #14 合入 `main`，功能 head `227eeb4`、合并提交 `ae1f50b`，push/PR/main 三层 CI 的 7 个适用 Job 均通过。项目所有者已授权进入 Day 9；执行顺序收敛为五步：[Day 9 执行计划](learning-log/day-9.md)。Step 1 的严格 Dataset Registry/release manifest/schema 与 Step 2 的 FinQA/TAT-QA materializer、统一 sanitized case、独立 scorer、dataset card 和 contract-only 分报已在 `feat/day-9` 工作树实现。两个 fixed-context 数据集为 `adapter_ready`，FinanceBench/FinSearchComp 仍为 `registered_only`，四项均 `release_eligible=false`；本地无强制真实依赖 pytest `1148 passed, 88 skipped`，现有 Chromium `8 passed`，但当前无真实依赖强制重跑、真实模型 benchmark、case→Run/Trace/Evidence 反查或远端 CI。因此 D9-01～D9-03 为 `implemented_pending_verification`，D9-04～D9-08 保持 `planned`。
 
 ### 学习主题
 
@@ -1344,3 +1344,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.1 | 2026-08-29 | 同步 Day 8 Step 5：新增 14-case/42-run `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 与 deterministic/security/fault JSON+Markdown；scorer 重算 Evidence/Citation、Scope、trajectory、stop reason 和最终数据库计数，并以负向测试拒绝伪 verified、越权动作、缺跑与重复副作用。A3 复杂题净增益 `0.714286`、简单题退化 `0`，A4 operational/recovery 为 `1.0/1.0`。修复相同逻辑事件时间触发数据库墙钟 `onupdate` 的 Runtime 顺序误判，并以 PostgreSQL 回归锁定；最终本地门禁为真实依赖 `1207 passed`、总体/核心 coverage `80.21%`/`86%`、Web `89 passed`、Chromium `8 passed`，依赖审计和完整历史 Gitleaks 通过。报告明确不是 live SEC/model，Day 8 因专用浏览器、真实 Monitor hard-stop 注入、三层远端 CI 与 owner review 保持未完成 | 用户授权继续 Day 8 最后一步 |
 | 2.2.2 | 2026-08-29 | 记录 Day 8 PR #14 与功能 head、push/PR/main 三层 CI 全绿；按项目所有者指令进入 Day 9，新增不超过五步的执行计划。Step 1 先建立正式 `evaluation` registry/release manifest/schema 和许可/hash fail-closed 合同，再依次接入固定 benchmark、SEC temporal/中英配对、受限与动态数据、A0～A4 收口；文档阶段 D9-01～D9-08 仍为 `planned` | 用户授权进入 Day 9 并开始 Step 1 |
 | 2.2.3 | 2026-08-29 | 同步 Day 9 Step 1 当前工作树：在正式 `evaluation` bounded context 新增严格 Dataset Registry、release manifest、版本化 JSON Schema 和唯一生成入口；固定四个公开数据集 revision、11 个 artifact byte size/SHA-256、数据/代码许可与允许用途，并以负例拒绝浮动版本、gold 泄漏、许可越权、跨 split/future source 和不完整引用。聚焦测试 19 passed、模块 branch coverage `86.18%`；Ruff/mypy/Web、现有 Chromium `8 passed`、依赖审计、历史 Gitleaks 和五个真实依赖下 `1226 passed` 均通过，总体/既有核心 coverage `80.29%`/`86%`。四项仍为 `registered_only`，无 payload/Adapter/分数/远端 CI，故仅 D9-01 为 `implemented_pending_verification` | 用户授权开始 Day 9 Step 1 |
+| 2.2.4 | 2026-08-30 | 同步 Day 9 Step 2：复用正式 `evaluation` 和受控公网 egress，实现 registry 驱动的 FinQA/TAT-QA materializer、统一 sanitized case、两个独立官方口径 scorer、dataset card 与 contract-only 分报。全量 split/hash/case digest 通过；FinQA 1147 test program 与官方执行器、TAT-QA 200 oracle case 与官方 scorer 均 0 mismatch。明确 TAT pinned test input/gold UID 零重合，使用 released gold 自带 context 安全拆分而不强连；两个数据集升为 `adapter_ready` 但继续 `release_eligible=false`。聚焦测试 29 passed，全量无强制真实依赖 pytest `1148 passed, 88 skipped`，Ruff/mypy、构建、OpenAPI/Web、依赖审计与现有 Chromium `8 passed` 均通过；真实依赖强制重跑、真实模型 run、远端 CI、Run/Trace/Evidence binding 与 owner review 仍缺，D9-02/D9-03 为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |

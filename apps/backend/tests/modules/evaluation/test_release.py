@@ -210,8 +210,14 @@ def test_registry_pins_four_sources_and_eleven_artifacts() -> None:
     assert artifacts["finsearchcomp-full"].sha256 == (
         "6437a6dae907ec81002bd817dafc26c3e46e6b6edfde700f22645b1e2aa208c4"
     )
-    assert all(record.status is DatasetStatus.REGISTERED_ONLY for record in records.values())
+    assert records["finqa"].status is DatasetStatus.ADAPTER_READY
+    assert records["tat-qa"].status is DatasetStatus.ADAPTER_READY
+    assert records["financebench"].status is DatasetStatus.REGISTERED_ONLY
+    assert records["finsearchcomp"].status is DatasetStatus.REGISTERED_ONLY
     assert not any(record.release_eligible for record in records.values())
+    assert artifacts["finqa-train"].question_count == 6251
+    assert artifacts["tatqa-test"].question_count == 1669
+    assert artifacts["tatqa-test-gold"].question_count == 1663
 
 
 def test_registry_separates_data_code_and_restricted_rights() -> None:
@@ -241,7 +247,7 @@ def test_contract_manifest_is_blocked_and_bound_to_registry() -> None:
     assert manifest.status is ReleaseManifestStatus.CONTRACT_ONLY
     assert manifest.release_ready is False
     assert not manifest.cases
-    assert "dataset_adapters_not_implemented" in manifest.blockers
+    assert "financebench_and_finsearchcomp_adapters_not_implemented" in manifest.blockers
 
 
 def test_release_schema_cli_is_deterministic_and_checked_in(tmp_path: Path) -> None:

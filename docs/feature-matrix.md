@@ -269,8 +269,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
 | D9-01 | Release Eval manifest/schema | NEW | dataset/split/license/hash、CIK/accession/as_of、runtime/model/tool/context/budget/scorer | schema/compatibility、case→run→trace→Evidence 可反查 | `implemented_pending_verification` | `complete` |
-| D9-02 | FinQA adapter | BENCH | supporting facts、program/execution answer；固定上下文数值推理 | 官方指标、固定 commit/hash、数据/代码许可卡 | `planned` | `complete` |
-| D9-03 | TAT-QA adapter | BENCH | table+text、answer、scale、derivation/source | 官方 EM/F1、固定 commit/hash、许可卡 | `planned` | `complete` |
+| D9-02 | FinQA adapter | BENCH | supporting facts、program/execution answer；固定上下文数值推理 | 官方指标、固定 commit/hash、数据/代码许可卡 | `implemented_pending_verification` | `complete` |
+| D9-03 | TAT-QA adapter | BENCH | table+text、answer、scale、derivation/source | 官方 EM/F1、固定 commit/hash、许可卡 | `implemented_pending_verification` | `complete` |
 | D9-04 | FinanceBench/FinSearchComp 补充 | BENCH | 公开 150 题非商用审查；historical/live search 分报 | dataset cards、许可/动态/judge 限制、无单一硬门 | `planned` | `complete` |
 | D9-05 | `sec-temporal-v1` | SEC + NEW | ≥60 固定 case：事实/表格/计算/跨期/amendment/custom/无答案/安全恢复 | point-in-time gold、source/program/result/status 与 holdout | `planned` | `complete` |
 | D9-06 | 中英配对验证 | NEW | ≥30 pair 共享 filer/accession/Evidence/program/result/status | 事实链一致率 100%，中文质量人工抽样 | `planned` | `complete` |
@@ -278,6 +278,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D9-08 | A0～A4 release ablation | NEW | trajectory/result/evidence/runtime/point-in-time/security/cost/latency 分层 | deterministic/offline/live 分报、live≥3 次、策略回退决定 | `planned` | `complete` |
 
 2026-08-29 Step 1 映射：当前 `feat/day-9` 工作树已在正式 `evaluation` bounded context 建立严格 Dataset Registry、release Eval manifest 和由同一 Pydantic 模型生成的版本化 JSON Schema。registry 固定 FinQA、TAT-QA、FinanceBench、FinSearchComp 的 upstream revision、11 个 artifact byte size/SHA-256、数据/代码许可、允许用途和 gold 可见性；四项均 fail closed 为 `registered_only`/`release_eligible=false`。19 条聚焦测试覆盖确定性生成、重复 key/NaN、浮动 revision、许可越权、gold 泄漏、跨 split/future source、registry/case/run/trace/Evidence 引用边界，模块 branch coverage `86.18%`；Ruff/mypy/Web、现有 Chromium `8 passed`、依赖审计、历史 Gitleaks 和五个真实依赖下 `1226 passed` 均通过，总体/既有核心 coverage `80.29%`/`86%`。当前未下载 payload、未实现 Adapter、未运行真实 case 或产生成绩，也没有 branch/PR/main CI 和 owner review，因此只有 D9-01 更新为 `implemented_pending_verification`，D9-02～D9-08 保持 `planned`。
+
+2026-08-30 Step 2 映射：沿唯一 `evaluation` bounded context 新增 registry 驱动的受控下载/size/SHA-256/原子发布、统一 sanitized fixed-context case，以及 FinQA/TAT-QA 独立官方口径 scorer；未建立 benchmark 专用 Agent loop。全量 FinQA `6251/883/1147` 与 TAT-QA `13215/1668/1663` 完成确定性转换并分别生成 contract-only 报告；FinQA test 1147 program 与 pinned 官方执行器、TAT-QA 200 个 oracle case 与 pinned 官方 scorer 均为 0 mismatch。TAT pinned test input/gold UID 重合为 0，released gold 作为 `mixed_input_gold` 安全拆分，禁止顺序强连。29 条聚焦测试覆盖 hash 不符不发布、gold 隔离、split/转换、错误 program/scale/derivation/source 与缺 prediction；全量无强制真实依赖 pytest `1148 passed, 88 skipped`，Ruff/mypy、构建、OpenAPI/Web、依赖审计与现有 Chromium `8 passed` 均通过。当前没有真实依赖强制重跑、模型 run、Run/Trace/Evidence binding、远端 CI 或 owner review，两个数据集仅为 `adapter_ready`/`release_eligible=false`，故 D9-02/D9-03 为 `implemented_pending_verification`。
 
 ## 12. Day 10：SEC 工作台、质量与可发布版本
 
