@@ -36,6 +36,46 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py"
     },
     {
+      "artifact_id": "release-evidence-generator",
+      "description": "Checked A0 through A4 common-case Run evidence, observability, and security scorer.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_evidence.py"
+    },
+    {
+      "artifact_id": "release-evidence-tests",
+      "description": "Focused missing-evidence, full-binding, metric, and security alert tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_evidence.py"
+    },
+    {
+      "artifact_id": "release-evidence-manifest",
+      "description": "Frozen ten-case A0 through A4 scope, repetitions, and hard thresholds.",
+      "relative_path": "evals/manifests/sec-release-evidence-v1.json"
+    },
+    {
+      "artifact_id": "release-evidence-observations",
+      "description": "Explicitly unexecuted production Run evidence input with no inferred success.",
+      "relative_path": "evals/observations/sec-release-evidence-v1.json"
+    },
+    {
+      "artifact_id": "release-evidence-report",
+      "description": "Checked common-case metrics, alert states, and execution blockers.",
+      "relative_path": "evals/reports/sec-release-evidence-v1.json"
+    },
+    {
+      "artifact_id": "release-evidence-schema",
+      "description": "Validation schema for the checked common-case Run evidence report.",
+      "relative_path": "evals/schemas/release-evidence-v1.schema.json"
+    },
+    {
+      "artifact_id": "release-suite-generator",
+      "description": "Existing separated deterministic, offline, live, and taxonomy aggregator.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_suite.py"
+    },
+    {
+      "artifact_id": "release-suite-tests",
+      "description": "Checked release layer aggregation and source hash regression tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_suite.py"
+    },
+    {
       "artifact_id": "sec-workbench-ui",
       "description": "SEC filing, verification launch, diff, Monitor, and Case product surface.",
       "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx"
@@ -324,9 +364,9 @@
       "status": "open"
     },
     {
-      "blocker_id": "global-a0-a4-common-cases-missing",
+      "blocker_id": "global-a0-a4-common-runs-missing",
       "closure_artifact_ids": [],
-      "detail": "A versioned common-case manifest is required before selecting a production strategy.",
+      "detail": "The versioned common-case manifest exists, but 50 production Runtime runs are absent.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D9-08", "D10-07"],
@@ -430,11 +470,11 @@
     "complete": 45,
     "contract_only": 0,
     "implemented_pending_verification": 32,
-    "planned": 4,
-    "thin_slice": 7
+    "planned": 3,
+    "thin_slice": 8
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "2637756f61b72813f8c7f9007191877b17f0ef33c63a2d6611318e94b307cf35",
+  "expected_requirement_digest": "0f7c435432a43a685307117cd42d0e28716b9609bb046db9031ee03dd78b9c1d",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -620,6 +660,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -639,6 +687,8 @@
       "owners": ["project-owner", "implementation-agent"],
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",

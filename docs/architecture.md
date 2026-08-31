@@ -6,11 +6,11 @@
 >
 > 更新日期：2026-08-31
 >
-> 权威来源：`docs/master-plan.md` 2.2.10
+> 权威来源：`docs/master-plan.md` 2.2.11
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍留到 Day 10。Day 10 Step 1 沿既有 `evaluation` bounded context 建立 release readiness manifest/生成器；Step 2 复用既有 SEC、Research、Verifier、Evidence、Approval、Monitor 和 Case owner，通过 typed navigation draft 连接产品页面，不增加第二套 Runtime 或业务状态。当前结论仍为 `no_go`；页面连通和组件测试不代表真实浏览器、恢复或发布门已经关闭。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍留到 Day 10。Day 10 Step 1 沿既有 `evaluation` bounded context 建立 release readiness manifest/生成器；Step 2 复用既有 SEC、Research、Verifier、Evidence、Approval、Monitor 和 Case owner，通过 typed navigation draft 连接产品页面；Step 3 在同一 evaluation owner 内加入 common-case Run evidence scorer，不增加第二套 Runtime、业务状态或 benchmark Agent loop。当前结论仍为 `no_go`；空 observation、页面连通和组件测试都不代表真实 Runtime、浏览器、恢复或发布门已经关闭。
 
 架构需要同时满足：
 
@@ -764,6 +764,8 @@ Day 9 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context
 Day 10 Step 1 继续复用该 bounded context：`release_readiness` 只读取正式能力矩阵、受检评测报告和仓库证据，不参与线上回答，也不重算各 benchmark scorer。readiness manifest 固定 requirement digest、owner、依赖、验证命令、artifact 和 blocker/external-gate 映射；生成器验证十张正式能力表、taxonomy 双向覆盖、非完成目标与 open blocker、pending gate 与 open blocker 完全一致，并为每个 artifact 计算 byte size/SHA-256。checked JSON/Markdown 与 manifest/report Schema 是发布审计投影，不是新的运行时事实源。
 
 Day 10 Step 2 的页面协调只传递已锁定 Filing 的 `FinancialScope` 输入，不持久化新的业务副本。Research API 仍拥有 Run/Brief/Draft、Verifier 拥有四态报告、Evidence API 拥有 Citation/Calculation 反查、Durability API 拥有 Checkpoint/Approval、Disclosure API 拥有 Monitor/Case。Web 每次刷新从这些正式 owner 重建视图；没有报告就显示未生成，amendment 不会被静默转换，active/paused 状态不会由浏览器计时器直接推进。这样保持单一事实源，同时把无拦截真实依赖 Playwright 留作独立发布证据门。
+
+Day 10 Step 3 的 `release_evidence` 只消费版本化 common-case manifest 与经脱敏导出的生产 Run evidence。它引用 `sec-tool-v1` 的 10 个 case/gold identity，不复制或修改 gold；A0～A4 固定同一 case、Scope 和预算，offline 期望 50 个 Run，live 期望每格 3 次共 150 个 Run。每条 observation 必须带 Run/Trace/Workspace、Evidence/Calculation、final-state hash、ranked candidate、Token/成本/延迟及安全/恢复计数，scorer 才计算 Recall@5、Citation、runtime binding、freshness、跨 Workspace、未授权写、重复副作用、注入和恢复指标。空 observation 只生成 `not_measured`/`unknown` 和 blocker；这些报告是 evaluation 投影，不写回生产表，也不替代 OpenTelemetry/Prometheus 的真实运行采集。
 
 Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
 

@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.10 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.11 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
@@ -10,7 +10,7 @@
 >
 > 发布合同：[SEC 披露核验 Agent 发布就绪合同](../release-readiness.md)
 >
-> 当前状态：Step 1、Step 2 已在 `day-10` 工作树实现；D10-01/D10-02 为 `implemented_pending_verification`，D10-04/D10-07 为 `thin_slice`，Step 3～Step 5 尚未开始
+> 当前状态：Step 1～Step 3 已在 `day-10` 工作树实现；D10-01/D10-02 为 `implemented_pending_verification`，D10-04/D10-05/D10-07 为 `thin_slice`，Step 4～Step 5 尚未开始
 
 ## 1. 进入基线与最后一天边界
 
@@ -77,7 +77,7 @@ Step 1 在既有 `industry_platform.modules.evaluation` bounded context 新增�
 
 矩阵读取器只接受十张正式能力表，按结构识别 88 个唯一目标，并对完整规范化行计算 digest；它不会把 D1 的历史证据表重复算作目标，也能正确处理 code span 内的 `|`。manifest 固定 requirement count、digest 和全部六种状态计数，因此目标增删、状态漂移、未知状态、重复 ID、表格缺失或 Day 10 target 不是 `complete` 时均 fail closed。
 
-`sec-release-readiness-v1` 在 Step 2 后的当前重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、7 个 `thin_slice`、4 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定仍为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当前只剩最终 owner closeout，未改写 Day 9 不可变报告。
+`sec-release-readiness-v1` 在 Step 3 后的当前重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、8 个 `thin_slice`、3 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定仍为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当前只剩最终 owner closeout，未改写 Day 9 不可变报告。
 
 8 条聚焦测试覆盖 checked report/Markdown/schema 重算、全部 artifact hash、矩阵状态漂移、artifact 缺失、taxonomy 双向映射、仍 release-blocking 的 taxonomy 项伪关闭、无证据 external gate 和非法 hash。`pnpm run eval:release-readiness` 先规范化输入 manifest，再生成 JSON/Markdown 与 manifest/report 两份 JSON Schema，避免生成后格式化输入造成 hash 立即过期。
 
@@ -91,7 +91,15 @@ Research Web API 新增已有 `GET /research-runs/{id}/verification-report` 的 
 
 当前 readiness manifest 新增 11 个正式实现/测试 artifact，总数为 41；非金融 Run 不请求金融 Verification Report，聚焦 Web 组件/API 为 `15 passed`，全量 Web 为 `94 passed`，Research/Verifier/Monitor/readiness 聚焦 Python 为 `37 passed`，TypeScript 和 ESLint 通过。尚未执行无接口拦截的真实认证 + PostgreSQL/Redis/MinIO/Elasticsearch/Milvus 浏览器旅程，也未运行受控 SEC source、Worker 恢复、分支/PR/main CI 或 owner review。因此 D10-01/D10-02 仅为 `implemented_pending_verification`，D10-04 仅为 `thin_slice`；Day 5/8 浏览器与恢复 blocker、16 个总 blocker 和 `NO_GO` 均保留。
 
-## 7. 当日完成定义
+## 7. Step 3 实现与证据
+
+Step 3 沿既有 `evaluation` bounded context 新增 checked `release_evidence` scorer，没有创建 release-only Agent loop。manifest 直接引用 `sec-tool-v1` 的 10 个 case ID 与 canonical hash，保留原 gold identity/Evidence/program 和共享预算，只补齐 A3 verifier 与 A4 monitor 策略合同。offline 分母固定为 10×5=`50`，live 每格至少 3 次，分母为 `150`；缺任一 case/strategy/repetition 或重复 key 都拒绝评分。
+
+生产 Run observation 必须保存 Run/Trace/Workspace、Evidence/Calculation IDs、final-state hash、ranked candidates、Citation、Tool、Token/成本/延迟和 future source、跨 Workspace、注入、未授权写、重复副作用、恢复字段。scorer 从这些事实重算 case accuracy、Recall@5、Citation、正确拒答、runtime binding、security/recovery 指标与告警状态。7 条聚焦测试用合成完整/越权数据验证 50 格覆盖、Recall/绑定公式和 critical alert；合成数据不进入 checked report，也不被描述为生产能力。
+
+当前 checked observation 显式为 `not_executed`：实际 Run 为 0/50，11 个指标均为 `not_measured`，11 个告警均为 `unknown`，全局 A0～A4 不可比且 production default 为 null。`release-suite-v1` 已消费该报告并将 `global-a0-a4-common-cases-missing` 精确替换为 `global-a0-a4-common-runs-missing`；blocker 总数仍为 9，readiness 总 blocker 仍为 16。新增 8 个代码/测试/manifest/observation/report/schema/suite artifact 后总数为 49，当前状态为 45 complete、32 implemented pending verification、8 thin slice、3 planned。聚焦 release evidence/suite/readiness 为 `22 passed`，evaluation 全集为 `72 passed`，后端全量为 `1191 passed, 88 skipped`，Web 为 `94 passed`；Ruff、mypy、Prettier、ESLint、TypeScript、build 与 OpenAPI 确定性检查通过。真实 Runtime、公开集 prediction、live≥3、合法 SEC/provider、许可、中文签字、远端 CI 与 owner review 均未执行，因此 D10-04/D10-05/D10-07 仅为 `thin_slice`。
+
+## 8. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：
 
@@ -104,6 +112,6 @@ Day 10 只有同时满足以下条件才可关闭：
 
 任一条件未满足时，本日可以结束实施批次，但版本状态仍为 `NO_GO`，不得把计划完成等同于产品发布完成。
 
-## 8. 复盘题
+## 9. 复盘题
 
 最终证据能支持哪些明确的产品声明？A0～A4 中哪一级在同一分母上产生了值得成本的净收益？哪些失败属于产品缺陷、外部依赖或治理阻断？在不读取开发者解释的情况下，运维人员能否只凭 Run/Trace/Evidence/报告与 Runbook 完成定位和回滚？

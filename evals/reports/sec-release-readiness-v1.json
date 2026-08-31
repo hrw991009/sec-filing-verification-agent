@@ -2,33 +2,33 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 73691,
+      "byte_size": 74918,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "501daed4fe0c767c22b1716b6abd2bc1aeccf8afde9c65e826dbb6042374838f"
+      "sha256": "78245988192336e5f435e99f921e5a88f96a7ba955c89b2d3233d103be29ff51"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 148264,
+      "byte_size": 149573,
       "relative_path": "docs/master-plan.md",
-      "sha256": "cc681fb1c4814440f8e0969b395cf342d8203a8bbaa80ccf670d4154f47fd0e4"
+      "sha256": "7d338c1be762304eef392d00c3dd390a3268083a933874588b7f49b13b7ed552"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 106237,
+      "byte_size": 107171,
       "relative_path": "docs/architecture.md",
-      "sha256": "4be91ef4995776b9f3b2c1fb1dea10b86bc7631aebef43ac3a5fa492c959d9a3"
+      "sha256": "a135261e5ba053736c3a0eab8da8eb576f83fc14d5e2f269f2313f56e11bfb34"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 9997,
+      "byte_size": 11548,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "b3891e30e9680fbe4963cf21d900a96a4c603510a976d4709f4af945b97e3862"
+      "sha256": "9f62c762516d488727438430a3cfd91b38766bffc8bd6e0a1e0561b60ae8980e"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 23962,
+      "byte_size": 26248,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "0c5df355b109d5892204348b0d9309ee56e073934a32a2126f6137b15bebe8da"
+      "sha256": "370c02e8beacc1db27d81d7b3b9353161b0ed46604b2136437c223387f3e7799"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -40,7 +40,55 @@
       "artifact_id": "release-readiness-tests",
       "byte_size": 7309,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "c7f8e55f6146ebe6da8ef4e504372c8de8540b88c7daf3f2bbde632c1d8b825a"
+      "sha256": "2a94103ed2875ce280ee66653be09311738e5243e411bcea31db867c3a15e368"
+    },
+    {
+      "artifact_id": "release-evidence-generator",
+      "byte_size": 34898,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_evidence.py",
+      "sha256": "33419432dc2034e5a7ff63d58656d26c5a59d8ca39dd44ccdc384f95b024ebde"
+    },
+    {
+      "artifact_id": "release-evidence-tests",
+      "byte_size": 10515,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_evidence.py",
+      "sha256": "540638f7c80f146b41e0c5d2af07a50a6c18cfbc0961dc954f5553a1f8963da2"
+    },
+    {
+      "artifact_id": "release-evidence-manifest",
+      "byte_size": 2598,
+      "relative_path": "evals/manifests/sec-release-evidence-v1.json",
+      "sha256": "71f63a5988e2ccdf1ca28cac48cf47e027cc34aed1356111b5ee099cb17e0557"
+    },
+    {
+      "artifact_id": "release-evidence-observations",
+      "byte_size": 718,
+      "relative_path": "evals/observations/sec-release-evidence-v1.json",
+      "sha256": "d33692519f8ad9fff2bb654b3f773505175b5b830aeccbfd5f9f0a02b887a3fa"
+    },
+    {
+      "artifact_id": "release-evidence-report",
+      "byte_size": 11347,
+      "relative_path": "evals/reports/sec-release-evidence-v1.json",
+      "sha256": "d2b9ba48f2072b3470790db6d7e25b4e60e92124771ccbc964e27437d84dfb65"
+    },
+    {
+      "artifact_id": "release-evidence-schema",
+      "byte_size": 8264,
+      "relative_path": "evals/schemas/release-evidence-v1.schema.json",
+      "sha256": "d9b0d60d17e4796ddc5e6756fd10a7fe47639043cd5b555880274732083701ec"
+    },
+    {
+      "artifact_id": "release-suite-generator",
+      "byte_size": 48022,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_suite.py",
+      "sha256": "2e32002894ebf812c547ba14b89b59dfd8d242fe22ad1b848dbe98015ea0e778"
+    },
+    {
+      "artifact_id": "release-suite-tests",
+      "byte_size": 7768,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_suite.py",
+      "sha256": "c93d5ebc8d015db12123d5123b76eccbf96740cfdf2e820eaefff10e447d3a31"
     },
     {
       "artifact_id": "sec-workbench-ui",
@@ -110,9 +158,9 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 7863,
+      "byte_size": 8691,
       "relative_path": "package.json",
-      "sha256": "5438b9e5c2579fbecc125db715a96d6de9f92fddce436ddcd87fd67c4fab320e"
+      "sha256": "00ac00337d7478bf2fb48a1d5c6242b9a2be8e03e44ea4d42e9c68f66fc84376"
     },
     {
       "artifact_id": "ci-workflow",
@@ -182,9 +230,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 15203,
+      "byte_size": 17303,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "f6870b321c85d7b9fa263dcf1d19c60304a22d9fc4f31f4eadb46fc1a8249130"
+      "sha256": "6598a2ef5e1e84304066ee8b3fc5b3593a6dd23f074cba7680513c54d4be6eb1"
     },
     {
       "artifact_id": "day-4-report",
@@ -224,9 +272,9 @@
     },
     {
       "artifact_id": "sec-release-deterministic",
-      "byte_size": 8642,
+      "byte_size": 8883,
       "relative_path": "evals/reports/sec-release-deterministic-v1.json",
-      "sha256": "fc0fae31d39babc1ac3b6514c19ff8b540309560e30d7e5a08229770fddad100"
+      "sha256": "1c4946ce990e9e0a10a18acb80bda5c920d88da43980dee4078d7e0fc5373a2b"
     },
     {
       "artifact_id": "sec-release-offline",
@@ -242,9 +290,9 @@
     },
     {
       "artifact_id": "sec-release-failure-taxonomy",
-      "byte_size": 4006,
+      "byte_size": 4055,
       "relative_path": "evals/reports/sec-release-failure-taxonomy-v1.json",
-      "sha256": "8f7c37112856c01b0ae0a174f3ae35bda79227093c57dadd58fa059b789ec735"
+      "sha256": "bdbbf5e38a695c297b39436e645bc8e7b3332f8716988eb2d34020c5292b542b"
     }
   ],
   "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
@@ -372,14 +420,14 @@
       "status": "open"
     },
     {
-      "blocker_id": "global-a0-a4-common-cases-missing",
+      "blocker_id": "global-a0-a4-common-runs-missing",
       "closure_artifact_ids": [],
-      "detail": "A versioned common-case manifest is required before selecting a production strategy.",
+      "detail": "The versioned common-case manifest exists, but 50 production Runtime runs are absent.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D9-08", "D10-07"],
       "source": "evaluation_taxonomy",
-      "source_detail": "A0/A1/A2 and A2/A3/A4 use different frozen case suites.",
+      "source_detail": "The common A0-A4 contract is frozen, but production Runtime runs are absent.",
       "status": "open"
     },
     {
@@ -562,15 +610,15 @@
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "0c5df355b109d5892204348b0d9309ee56e073934a32a2126f6137b15bebe8da",
-  "matrix_sha256": "501daed4fe0c767c22b1716b6abd2bc1aeccf8afde9c65e826dbb6042374838f",
+  "manifest_sha256": "370c02e8beacc1db27d81d7b3b9353161b0ed46604b2136437c223387f3e7799",
+  "matrix_sha256": "78245988192336e5f435e99f921e5a88f96a7ba955c89b2d3233d103be29ff51",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 16,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "2637756f61b72813f8c7f9007191877b17f0ef33c63a2d6611318e94b307cf35",
+  "requirement_digest": "0f7c435432a43a685307117cd42d0e28716b9609bb046db9031ee03dd78b9c1d",
   "requirements": [
     {
       "current_status": "complete",
@@ -1705,6 +1753,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1727,6 +1783,8 @@
       "title": "SEC 产品路由与状态",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1746,6 +1804,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1768,6 +1834,8 @@
       "title": "完整中文用户路径",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1787,6 +1855,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1809,6 +1885,8 @@
       "title": "完整 CI 与供应链门禁",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1828,6 +1906,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1850,6 +1936,8 @@
       "title": "SEC Agent 可观测与审计",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1858,7 +1946,7 @@
       ]
     },
     {
-      "current_status": "planned",
+      "current_status": "thin_slice",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -1869,6 +1957,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1891,6 +1987,8 @@
       "title": "Agent/SEC 安全收口",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1910,6 +2008,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1932,6 +2038,8 @@
       "title": "环境、恢复与回滚",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1951,6 +2059,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1973,6 +2089,8 @@
       "title": "Release Eval 与完整性审计",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -1992,6 +2110,14 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -2014,6 +2140,8 @@
       "title": "文档、限制与发布候选",
       "verification_commands": [
         "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
@@ -2028,7 +2156,7 @@
     "complete": 45,
     "contract_only": 0,
     "implemented_pending_verification": 32,
-    "planned": 4,
-    "thin_slice": 7
+    "planned": 3,
+    "thin_slice": 8
   }
 }

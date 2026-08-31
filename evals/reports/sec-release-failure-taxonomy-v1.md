@@ -5,9 +5,9 @@
 
 | Blocker | Category | Layer | Affected cases |
 |---|---|---|---:|
-| `global-a0-a4-common-cases-missing` | `comparability` | `deterministic_contract` | 24 |
+| `global-a0-a4-common-runs-missing` | `comparability` | `deterministic_contract` | 10 |
 | `retrieval-recall-at-5-missing` | `quality` | `deterministic_contract` | 10 |
-| `runtime-binding-missing` | `runtime_evidence` | `deterministic_contract` | 66 |
+| `runtime-binding-missing` | `runtime_evidence` | `deterministic_contract` | 116 |
 | `offline-predictions-missing` | `offline_execution` | `offline_capability` | 3351 |
 | `external-license-review-missing` | `governance` | `offline_capability` | 541 |
 | `live-dependencies-not-executed` | `live_execution` | `live_model` | 244 |

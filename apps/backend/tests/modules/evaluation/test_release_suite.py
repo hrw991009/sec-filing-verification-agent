@@ -37,6 +37,7 @@ def _sources(**updates: Path) -> ReleaseSuiteSources:
         "verification": REPORTS / "sec-verification-v1.json",
         "temporal": REPORTS / "sec-temporal-v1.json",
         "agent_security": REPORTS / "agent-security-v1.json",
+        "release_evidence": REPORTS / "sec-release-evidence-v1.json",
         "finqa": REPORTS / "finqa-adapter-v1.json",
         "tatqa": REPORTS / "tatqa-adapter-v1.json",
         "financebench": REPORTS / "financebench-adapter-v1.json",
@@ -74,6 +75,7 @@ def test_release_suite_binds_source_report_hashes() -> None:
         "sec-verification-v1": REPORTS / "sec-verification-v1.json",
         "sec-temporal-v1": REPORTS / "sec-temporal-v1.json",
         "agent-security-v1": REPORTS / "agent-security-v1.json",
+        "sec-release-evidence-v1": REPORTS / "sec-release-evidence-v1.json",
     }
 
     for reference in bundle.deterministic.source_reports:
@@ -170,6 +172,8 @@ def test_release_suite_cli_writes_all_layers(tmp_path: Path) -> None:
                 str(sources.temporal),
                 "--agent-security-report",
                 str(sources.agent_security),
+                "--release-evidence-report",
+                str(sources.release_evidence),
                 "--finqa-report",
                 str(sources.finqa),
                 "--tatqa-report",

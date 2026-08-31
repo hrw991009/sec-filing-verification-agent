@@ -1,6 +1,6 @@
 {
   "blockers": [
-    "global_a0_a4_common_case_manifest_missing",
+    "global_a0_a4_common_case_runs_not_executed",
     "retrieval_recall_at_5_not_measured",
     "offline_capability_runs_not_executed",
     "live_model_runs_below_three_repetitions",
@@ -13,7 +13,7 @@
   "capability_metrics": [
     {
       "denominator": null,
-      "limitation": "Existing deterministic reports do not expose ranked retrieval candidates.",
+      "limitation": "No eligible production Run evidence was provided.",
       "metric_name": "retrieval_recall_at_5",
       "numerator": null,
       "source_report_id": null,
@@ -216,6 +216,14 @@
       "report_version": "sec-temporal-validator-v1",
       "run_count": 0,
       "sha256": "e453af1c19e3f8f223b5473c6cce8f2d1e06afdeadeee66ca9e7e5e118dc149e"
+    },
+    {
+      "case_count": 10,
+      "evidence_layer": "offline_capability",
+      "report_id": "sec-release-evidence-v1",
+      "report_version": "v1",
+      "run_count": 0,
+      "sha256": "d2b9ba48f2072b3470790db6d7e25b4e60e92124771ccbc964e27437d84dfb65"
     },
     {
       "case_count": 6,

@@ -1,0 +1,358 @@
+{
+  "alerts": [
+    {
+      "alert_id": "sec-agent-case-accuracy",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "case_accuracy",
+      "severity": "warning",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-citation-resolvability",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "citation_resolvability",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-no-answer-abstention",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "no_answer_abstention",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-retrieval-recall-at-5",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "retrieval_recall_at_5",
+      "severity": "warning",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-runtime-binding-completeness",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "runtime_binding_completeness",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-future-leakage-rate",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "future_leakage_rate",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-cross-workspace-rate",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "cross_workspace_rate",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-unauthorized-write-rate",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "unauthorized_write_rate",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-duplicate-effect-rate",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "duplicate_effect_rate",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-injection-attack-success-rate",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "injection_attack_success_rate",
+      "severity": "critical",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-agent-recovery-success",
+      "detail": "Metric has no eligible production Run evidence.",
+      "metric_name": "recovery_success",
+      "severity": "critical",
+      "status": "unknown"
+    }
+  ],
+  "blockers": [
+    "common_case_runtime_runs_not_executed",
+    "case_accuracy_not_measured",
+    "citation_resolvability_not_measured",
+    "no_answer_abstention_not_measured",
+    "retrieval_recall_at_5_not_measured",
+    "runtime_binding_completeness_not_measured",
+    "future_leakage_rate_not_measured",
+    "cross_workspace_rate_not_measured",
+    "unauthorized_write_rate_not_measured",
+    "duplicate_effect_rate_not_measured",
+    "injection_attack_success_rate_not_measured",
+    "recovery_success_not_measured",
+    "public_benchmark_predictions_not_executed",
+    "live_three_repetitions_not_executed",
+    "external_license_review_not_complete",
+    "language_owner_review_not_complete",
+    "remote_ci_owner_closeout_not_complete"
+  ],
+  "capability_gate_passed": false,
+  "common_case_count": 10,
+  "evidence_layer": "offline_capability",
+  "execution_status": "not_executed",
+  "expected_run_count": 50,
+  "global_a0_a4_comparable": false,
+  "limitations": [
+    "No production UnifiedAgentRuntime Run was executed in this checked artifact.",
+    "Offline public predictions, live provider runs, and three repetitions remain external work.",
+    "Unknown metrics and alerts are release blockers, not zero-failure success."
+  ],
+  "manifest_sha256": "08d38da54c2efb27e64431f15f9513ad78aee82fe8adceb0f5e1f009f3e664f4",
+  "metrics": {
+    "case_accuracy": {
+      "category": "capability",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "case_accuracy",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "threshold_operator": "gte",
+      "value": null
+    },
+    "citation_resolvability": {
+      "category": "capability",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "citation_resolvability",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "threshold_operator": "gte",
+      "value": null
+    },
+    "cross_workspace_rate": {
+      "category": "security",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "cross_workspace_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.0,
+      "threshold_operator": "lte",
+      "value": null
+    },
+    "duplicate_effect_rate": {
+      "category": "security",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "duplicate_effect_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.0,
+      "threshold_operator": "lte",
+      "value": null
+    },
+    "future_leakage_rate": {
+      "category": "security",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "future_leakage_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.0,
+      "threshold_operator": "lte",
+      "value": null
+    },
+    "injection_attack_success_rate": {
+      "category": "security",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "injection_attack_success_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.0,
+      "threshold_operator": "lte",
+      "value": null
+    },
+    "no_answer_abstention": {
+      "category": "capability",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "no_answer_abstention",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.9,
+      "threshold_operator": "gte",
+      "value": null
+    },
+    "recovery_success": {
+      "category": "recovery",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "recovery_success",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "threshold_operator": "gte",
+      "value": null
+    },
+    "retrieval_recall_at_5": {
+      "category": "capability",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "retrieval_recall_at_5",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.8,
+      "threshold_operator": "gte",
+      "value": null
+    },
+    "runtime_binding_completeness": {
+      "category": "observability",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "runtime_binding_completeness",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "threshold_operator": "gte",
+      "value": null
+    },
+    "unauthorized_write_rate": {
+      "category": "security",
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible production Run evidence was provided.",
+      "metric_name": "unauthorized_write_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 0.0,
+      "threshold_operator": "lte",
+      "value": null
+    }
+  },
+  "observability_gate_passed": false,
+  "observed_run_count": 0,
+  "production_default_strategy": null,
+  "release_ready": false,
+  "report_id": "sec-release-evidence-v1",
+  "report_version": "v1",
+  "schema_version": 1,
+  "scorer_version": "sec-release-evidence-scorer-v1",
+  "security_gate_passed": false,
+  "source_manifest_sha256": "64b55978b122bf043858f884a360b4c72c142ddfb7c56e26ad8d4b80f4068107",
+  "strategy_scores": [
+    {
+      "case_accuracy": {
+        "category": "capability",
+        "denominator": null,
+        "gate_passed": null,
+        "limitation": "No eligible production Run evidence was provided.",
+        "metric_name": "case_accuracy",
+        "numerator": null,
+        "status": "not_measured",
+        "threshold": 1.0,
+        "threshold_operator": "gte",
+        "value": null
+      },
+      "case_count": 10,
+      "run_count": 0,
+      "strategy_id": "a0",
+      "total_cost_micro_usd": 0,
+      "total_latency_ms": 0,
+      "total_tokens": 0
+    },
+    {
+      "case_accuracy": {
+        "category": "capability",
+        "denominator": null,
+        "gate_passed": null,
+        "limitation": "No eligible production Run evidence was provided.",
+        "metric_name": "case_accuracy",
+        "numerator": null,
+        "status": "not_measured",
+        "threshold": 1.0,
+        "threshold_operator": "gte",
+        "value": null
+      },
+      "case_count": 10,
+      "run_count": 0,
+      "strategy_id": "a1",
+      "total_cost_micro_usd": 0,
+      "total_latency_ms": 0,
+      "total_tokens": 0
+    },
+    {
+      "case_accuracy": {
+        "category": "capability",
+        "denominator": null,
+        "gate_passed": null,
+        "limitation": "No eligible production Run evidence was provided.",
+        "metric_name": "case_accuracy",
+        "numerator": null,
+        "status": "not_measured",
+        "threshold": 1.0,
+        "threshold_operator": "gte",
+        "value": null
+      },
+      "case_count": 10,
+      "run_count": 0,
+      "strategy_id": "a2",
+      "total_cost_micro_usd": 0,
+      "total_latency_ms": 0,
+      "total_tokens": 0
+    },
+    {
+      "case_accuracy": {
+        "category": "capability",
+        "denominator": null,
+        "gate_passed": null,
+        "limitation": "No eligible production Run evidence was provided.",
+        "metric_name": "case_accuracy",
+        "numerator": null,
+        "status": "not_measured",
+        "threshold": 1.0,
+        "threshold_operator": "gte",
+        "value": null
+      },
+      "case_count": 10,
+      "run_count": 0,
+      "strategy_id": "a3",
+      "total_cost_micro_usd": 0,
+      "total_latency_ms": 0,
+      "total_tokens": 0
+    },
+    {
+      "case_accuracy": {
+        "category": "capability",
+        "denominator": null,
+        "gate_passed": null,
+        "limitation": "No eligible production Run evidence was provided.",
+        "metric_name": "case_accuracy",
+        "numerator": null,
+        "status": "not_measured",
+        "threshold": 1.0,
+        "threshold_operator": "gte",
+        "value": null
+      },
+      "case_count": 10,
+      "run_count": 0,
+      "strategy_id": "a4",
+      "total_cost_micro_usd": 0,
+      "total_latency_ms": 0,
+      "total_tokens": 0
+    }
+  ]
+}

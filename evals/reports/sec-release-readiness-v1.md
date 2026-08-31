@@ -14,10 +14,10 @@
 |---|---:|
 | `complete` | 45 |
 | `implemented_pending_verification` | 32 |
-| `thin_slice` | 7 |
+| `thin_slice` | 8 |
 | `contract_only` | 0 |
 | `blocked` | 0 |
-| `planned` | 4 |
+| `planned` | 3 |
 
 ## Open blockers
 
@@ -30,7 +30,7 @@
 | `day7-retrieval-citation-incomplete` | `cross_day_audit` | implementation-agent | 10 | 0 |
 | `day8-browser-recovery-incomplete` | `cross_day_audit` | implementation-agent | 14 | 0 |
 | `day10-delivery-incomplete` | `cross_day_audit` | implementation-agent | 8 | 1 |
-| `global-a0-a4-common-cases-missing` | `evaluation_taxonomy` | implementation-agent | 2 | 0 |
+| `global-a0-a4-common-runs-missing` | `evaluation_taxonomy` | implementation-agent | 2 | 0 |
 | `retrieval-recall-at-5-missing` | `evaluation_taxonomy` | implementation-agent | 4 | 0 |
 | `runtime-binding-missing` | `evaluation_taxonomy` | implementation-agent | 5 | 0 |
 | `offline-predictions-missing` | `evaluation_taxonomy` | implementation-agent | 5 | 0 |

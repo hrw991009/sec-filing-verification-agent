@@ -31,6 +31,13 @@ from industry_platform.modules.evaluation.release import (
     load_strict_json,
     validate_manifest_against_registry,
 )
+from industry_platform.modules.evaluation.release_evidence import (
+    MetricStatus as ReleaseEvidenceMetricStatus,
+)
+from industry_platform.modules.evaluation.release_evidence import (
+    ReleaseEvidenceReport,
+    load_release_evidence_report,
+)
 from industry_platform.modules.evaluation.restricted_external import (
     FinanceBenchAdapterReport,
     FinSearchHistoricalReport,
@@ -201,14 +208,15 @@ class DeterministicReleaseReport(_FrozenModel):
         source_ids = {source.report_id for source in self.source_reports}
         if source_ids != {
             "sec-agent-release-v1",
+            "sec-release-evidence-v1",
             "sec-tool-v1",
             "sec-verification-v1",
             "sec-temporal-v1",
             "agent-security-v1",
         }:
             raise ValueError("Deterministic release report source set changed")
-        if self.global_a0_a4_comparable or self.global_a0_a4_score is not None:
-            raise ValueError("Different source suites cannot become one A0-A4 score")
+        if self.global_a0_a4_score is not None:
+            raise ValueError("A0-A4 score requires an executed offline capability report")
         if self.production_default_strategy is not None or self.release_ready or not self.blockers:
             raise ValueError("Deterministic contracts cannot select a production release profile")
         return self
@@ -361,6 +369,7 @@ class ReleaseSuiteSources:
     verification: Path
     temporal: Path
     agent_security: Path
+    release_evidence: Path
     finqa: Path
     tatqa: Path
     financebench: Path
@@ -382,6 +391,7 @@ def build_release_suite(sources: ReleaseSuiteSources) -> ReleaseSuiteBundle:
     verification = load_verification_report(sources.verification)
     temporal = _load_model(sources.temporal, SecTemporalValidationReport)
     security = load_agent_security_report(sources.agent_security)
+    release_evidence = load_release_evidence_report(sources.release_evidence)
     finqa = _load_model(sources.finqa, AdapterValidationReport)
     tatqa = _load_model(sources.tatqa, AdapterValidationReport)
     financebench = _load_model(sources.financebench, FinanceBenchAdapterReport)
@@ -402,6 +412,7 @@ def build_release_suite(sources: ReleaseSuiteSources) -> ReleaseSuiteBundle:
             verification=verification,
             temporal=temporal,
             security=security,
+            release_evidence=release_evidence,
         ),
         offline=_build_offline(
             sources=sources,
@@ -422,6 +433,7 @@ def build_release_suite(sources: ReleaseSuiteSources) -> ReleaseSuiteBundle:
             financebench=financebench,
             finsearch_historical=finsearch_historical,
             finsearch_live=finsearch_live,
+            release_evidence=release_evidence,
         ),
     )
 
@@ -472,7 +484,7 @@ def render_deterministic_markdown(report: DeterministicReleaseReport) -> str:
         "# SEC release deterministic contract report",
         "",
         f"- Contract gate: {'PASS' if report.deterministic_contract_gate_passed else 'FAIL'}",
-        "- Global A0-A4 comparable: `false`",
+        f"- Global A0-A4 comparable: `{str(report.global_a0_a4_comparable).lower()}`",
         "- Production default selected: `false`",
         "",
         "## Pairwise decisions",
@@ -575,6 +587,7 @@ def _build_deterministic(
     verification: VerificationCheckedReport,
     temporal: SecTemporalValidationReport,
     security: AgentSecurityReport,
+    release_evidence: ReleaseEvidenceReport,
 ) -> DeterministicReleaseReport:
     tool_a2 = tool.strategy_scores[SecToolStrategy.A2]
     verify_a3 = verification.strategy_scores[VerificationStrategy.A3]
@@ -634,6 +647,14 @@ def _build_deterministic(
                 0,
             ),
             _source_ref(
+                sources.release_evidence,
+                "sec-release-evidence-v1",
+                release_evidence.report_version,
+                release_evidence.evidence_layer.value,
+                release_evidence.common_case_count,
+                release_evidence.observed_run_count,
+            ),
+            _source_ref(
                 sources.agent_security,
                 "agent-security-v1",
                 security.report_version,
@@ -643,13 +664,9 @@ def _build_deterministic(
             ),
         ),
         capability_metrics=(
-            CapabilityMetric(
-                metric_name="retrieval_recall_at_5",
-                status=MetricStatus.NOT_MEASURED,
-                unit="ratio",
-                limitation=(
-                    "Existing deterministic reports do not expose ranked retrieval candidates."
-                ),
+            _release_evidence_capability(
+                release_evidence,
+                "retrieval_recall_at_5",
             ),
             _capability(
                 "answer_accuracy",
@@ -796,8 +813,9 @@ def _build_deterministic(
             and temporal_passed
             and security_passed
         ),
+        global_a0_a4_comparable=release_evidence.global_a0_a4_comparable,
         blockers=(
-            "global_a0_a4_common_case_manifest_missing",
+            "global_a0_a4_common_case_runs_not_executed",
             "retrieval_recall_at_5_not_measured",
             "offline_capability_runs_not_executed",
             "live_model_runs_below_three_repetitions",
@@ -963,30 +981,33 @@ def _build_failure_taxonomy(
     financebench: FinanceBenchAdapterReport,
     finsearch_historical: FinSearchHistoricalReport,
     finsearch_live: FinSearchLiveContractReport,
+    release_evidence: ReleaseEvidenceReport,
 ) -> FailureTaxonomyReport:
     items = (
         _failure(
-            "global-a0-a4-common-cases-missing",
+            "global-a0-a4-common-runs-missing",
             BlockerCategory.COMPARABILITY,
             EvidenceLayer.DETERMINISTIC,
-            ("sec-tool-v1", "sec-verification-v1"),
-            24,
-            "A0/A1/A2 and A2/A3/A4 use different frozen case suites.",
+            ("sec-release-evidence-v1",),
+            release_evidence.common_case_count,
+            "The common A0-A4 contract is frozen, but production Runtime runs are absent.",
         ),
         _failure(
             "retrieval-recall-at-5-missing",
             BlockerCategory.QUALITY,
             EvidenceLayer.DETERMINISTIC,
-            ("sec-tool-v1",),
-            10,
+            ("sec-release-evidence-v1",),
+            release_evidence.common_case_count,
             "Ranked retrieval candidates are absent, so Recall@5 cannot be computed.",
         ),
         _failure(
             "runtime-binding-missing",
             BlockerCategory.RUNTIME_EVIDENCE,
             EvidenceLayer.DETERMINISTIC,
-            ("sec-temporal-v1", "agent-security-v1"),
-            temporal.expanded_case_count + security.case_count,
+            ("sec-release-evidence-v1", "sec-temporal-v1", "agent-security-v1"),
+            release_evidence.expected_run_count
+            + temporal.expanded_case_count
+            + security.case_count,
             (
                 "Cases are not bound to UnifiedAgentRuntime Run, Trace, Evidence, or "
                 "database final state."
@@ -1122,6 +1143,30 @@ def _capability(metric_name: str, metric: _RatioMetric, unit: str, source: str) 
     )
 
 
+def _release_evidence_capability(
+    report: ReleaseEvidenceReport,
+    metric_name: str,
+) -> CapabilityMetric:
+    metric = report.metrics[metric_name]
+    if metric.status is ReleaseEvidenceMetricStatus.NOT_MEASURED:
+        return CapabilityMetric(
+            metric_name=metric_name,
+            status=MetricStatus.NOT_MEASURED,
+            unit="ratio",
+            limitation=metric.limitation,
+        )
+    return CapabilityMetric(
+        metric_name=metric_name,
+        status=MetricStatus.MEASURED_CONTRACT,
+        value=metric.value,
+        numerator=metric.numerator,
+        denominator=metric.denominator,
+        unit="ratio",
+        source_report_id=report.report_id,
+        limitation="Production Run evidence at the report's declared evidence layer.",
+    )
+
+
 def _pairwise_decision(
     *,
     segment_id: str,
@@ -1224,6 +1269,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--verification-report", type=Path, required=True)
     parser.add_argument("--temporal-report", type=Path, required=True)
     parser.add_argument("--agent-security-report", type=Path, required=True)
+    parser.add_argument("--release-evidence-report", type=Path, required=True)
     parser.add_argument("--finqa-report", type=Path, required=True)
     parser.add_argument("--tatqa-report", type=Path, required=True)
     parser.add_argument("--financebench-report", type=Path, required=True)
@@ -1239,6 +1285,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         verification=args.verification_report,
         temporal=args.temporal_report,
         agent_security=args.agent_security_report,
+        release_evidence=args.release_evidence_report,
         finqa=args.finqa_report,
         tatqa=args.tatqa_report,
         financebench=args.financebench_report,

@@ -1,0 +1,350 @@
+{
+  "$defs": {
+    "AlertStatus": {
+      "enum": ["clear", "firing", "unknown"],
+      "title": "AlertStatus",
+      "type": "string"
+    },
+    "MetricCategory": {
+      "enum": ["capability", "observability", "security", "recovery"],
+      "title": "MetricCategory",
+      "type": "string"
+    },
+    "MetricStatus": {
+      "enum": ["measured", "not_measured"],
+      "title": "MetricStatus",
+      "type": "string"
+    },
+    "ReleaseEvidenceAlert": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_id": {
+          "title": "Alert Id",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "metric_name": {
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "severity": {
+          "enum": ["critical", "warning"],
+          "title": "Severity",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/AlertStatus"
+        }
+      },
+      "required": ["alert_id", "metric_name", "severity", "status", "detail"],
+      "title": "ReleaseEvidenceAlert",
+      "type": "object"
+    },
+    "ReleaseEvidenceLayer": {
+      "enum": ["offline_capability", "live_model"],
+      "title": "ReleaseEvidenceLayer",
+      "type": "string"
+    },
+    "ReleaseEvidenceMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/MetricCategory"
+        },
+        "denominator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
+        },
+        "gate_passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gate Passed"
+        },
+        "limitation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limitation"
+        },
+        "metric_name": {
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "numerator": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Numerator"
+        },
+        "status": {
+          "$ref": "#/$defs/MetricStatus"
+        },
+        "threshold": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "threshold_operator": {
+          "$ref": "#/$defs/ThresholdOperator"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "metric_name",
+        "category",
+        "status",
+        "threshold_operator",
+        "threshold",
+        "gate_passed"
+      ],
+      "title": "ReleaseEvidenceMetric",
+      "type": "object"
+    },
+    "ReleaseExecutionStatus": {
+      "enum": ["not_executed", "executed"],
+      "title": "ReleaseExecutionStatus",
+      "type": "string"
+    },
+    "ReleaseStrategy": {
+      "enum": ["a0", "a1", "a2", "a3", "a4"],
+      "title": "ReleaseStrategy",
+      "type": "string"
+    },
+    "ReleaseStrategyScore": {
+      "additionalProperties": false,
+      "properties": {
+        "case_accuracy": {
+          "$ref": "#/$defs/ReleaseEvidenceMetric"
+        },
+        "case_count": {
+          "minimum": 1,
+          "title": "Case Count",
+          "type": "integer"
+        },
+        "run_count": {
+          "minimum": 0,
+          "title": "Run Count",
+          "type": "integer"
+        },
+        "strategy_id": {
+          "$ref": "#/$defs/ReleaseStrategy"
+        },
+        "total_cost_micro_usd": {
+          "minimum": 0,
+          "title": "Total Cost Micro Usd",
+          "type": "integer"
+        },
+        "total_latency_ms": {
+          "minimum": 0,
+          "title": "Total Latency Ms",
+          "type": "integer"
+        },
+        "total_tokens": {
+          "minimum": 0,
+          "title": "Total Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "strategy_id",
+        "case_count",
+        "run_count",
+        "case_accuracy",
+        "total_tokens",
+        "total_cost_micro_usd",
+        "total_latency_ms"
+      ],
+      "title": "ReleaseStrategyScore",
+      "type": "object"
+    },
+    "ThresholdOperator": {
+      "enum": ["gte", "lte"],
+      "title": "ThresholdOperator",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "alerts": {
+      "items": {
+        "$ref": "#/$defs/ReleaseEvidenceAlert"
+      },
+      "title": "Alerts",
+      "type": "array"
+    },
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "capability_gate_passed": {
+      "title": "Capability Gate Passed",
+      "type": "boolean"
+    },
+    "common_case_count": {
+      "const": 10,
+      "default": 10,
+      "title": "Common Case Count",
+      "type": "integer"
+    },
+    "evidence_layer": {
+      "$ref": "#/$defs/ReleaseEvidenceLayer"
+    },
+    "execution_status": {
+      "$ref": "#/$defs/ReleaseExecutionStatus"
+    },
+    "expected_run_count": {
+      "minimum": 50,
+      "title": "Expected Run Count",
+      "type": "integer"
+    },
+    "global_a0_a4_comparable": {
+      "title": "Global A0 A4 Comparable",
+      "type": "boolean"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "manifest_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "metrics": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ReleaseEvidenceMetric"
+      },
+      "title": "Metrics",
+      "type": "object"
+    },
+    "observability_gate_passed": {
+      "title": "Observability Gate Passed",
+      "type": "boolean"
+    },
+    "observed_run_count": {
+      "minimum": 0,
+      "title": "Observed Run Count",
+      "type": "integer"
+    },
+    "production_default_strategy": {
+      "default": null,
+      "title": "Production Default Strategy",
+      "type": "null"
+    },
+    "release_ready": {
+      "default": false,
+      "title": "Release Ready",
+      "type": "boolean"
+    },
+    "report_id": {
+      "const": "sec-release-evidence-v1",
+      "default": "sec-release-evidence-v1",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "report_version": {
+      "const": "v1",
+      "default": "v1",
+      "title": "Report Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scorer_version": {
+      "const": "sec-release-evidence-scorer-v1",
+      "default": "sec-release-evidence-scorer-v1",
+      "title": "Scorer Version",
+      "type": "string"
+    },
+    "security_gate_passed": {
+      "title": "Security Gate Passed",
+      "type": "boolean"
+    },
+    "source_manifest_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Source Manifest Sha256",
+      "type": "string"
+    },
+    "strategy_scores": {
+      "items": {
+        "$ref": "#/$defs/ReleaseStrategyScore"
+      },
+      "title": "Strategy Scores",
+      "type": "array"
+    }
+  },
+  "required": [
+    "manifest_sha256",
+    "source_manifest_sha256",
+    "execution_status",
+    "evidence_layer",
+    "expected_run_count",
+    "observed_run_count",
+    "global_a0_a4_comparable",
+    "strategy_scores",
+    "metrics",
+    "alerts",
+    "capability_gate_passed",
+    "observability_gate_passed",
+    "security_gate_passed",
+    "blockers",
+    "limitations"
+  ],
+  "title": "ReleaseEvidenceReport",
+  "type": "object"
+}
