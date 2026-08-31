@@ -17,11 +17,13 @@ members = ["apps/backend"]
 dev = [
     "httpx2>=2.9.1,<3.0.0",
     "mypy>=2.3.0,<3.0.0",
+    "pip-licenses==5.5.5",
     "pytest>=9.1.1,<10.0.0",
     "pytest-asyncio>=1.4.0,<2.0.0",
     "pytest-cov>=7.1.0,<8.0.0",
     "reportlab>=4.4.0,<5.0.0",
     "ruff>=0.16.1,<0.17.0",
+    "semgrep==1.175.0",
     "sympy>=1.14.0,<2.0.0",
     "types-reportlab>=4.4.0,<5.0.0",
 ]
@@ -78,6 +80,11 @@ ignore_missing_imports = true
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+[tool.pip-licenses]
+from = "mixed"
+ignore-packages = ["industry-platform-backend", "face", "peewee"]
+allow-only = "3-Clause BSD License;Apache Software License;Apache-2.0;Apache-2.0 OR BSD-2-Clause;Apache-2.0 OR BSD-3-Clause;Apache-2.0 OR MIT;BSD;BSD License;Public Domain;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0;BSD-3-Clause, Apache-2.0, dependency licenses;ISC License (ISCL);LGPL-2.1-or-later;LGPL-3.0-only;MIT;MIT AND PSF-2.0;MIT License;MIT-0;MIT-CMU;MPL-2.0 AND (Apache-2.0 OR MIT);MPL-2.0 AND MIT;Mozilla Public License 2.0 (MPL 2.0);PSF-2.0;Python Software Foundation License;The Unlicense (Unlicense)"
 
 [tool.pytest.ini_options]
 addopts = [

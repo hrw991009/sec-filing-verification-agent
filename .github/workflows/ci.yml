@@ -49,6 +49,16 @@ jobs:
       - name: Lint Python
         run: uv run --locked --all-packages ruff check --config pyproject.toml apps/backend evals/generators
 
+      - name: Scan product code with repository Semgrep rules
+        run: |
+          uv run --locked semgrep scan \
+            --config .semgrep.yml \
+            --error \
+            --strict \
+            --metrics=off \
+            --exclude apps/backend/src/industry_platform/core/config.py \
+            apps/backend/src apps/web/src packages
+
       - name: Type-check Python
         run: uv run --locked --all-packages mypy --config-file pyproject.toml
 
@@ -295,7 +305,7 @@ jobs:
             --cov-fail-under=80
           uv run --locked coverage report \
             --include='apps/backend/src/industry_platform/modules/memory/domain.py,apps/backend/src/industry_platform/modules/memory/service.py,apps/backend/src/industry_platform/modules/memory/eval.py,apps/backend/src/industry_platform/modules/evidence/domain.py,apps/backend/src/industry_platform/modules/evidence/service.py,apps/backend/src/industry_platform/modules/evidence/normalizer.py,apps/backend/src/industry_platform/modules/evidence/eval.py,apps/backend/src/industry_platform/modules/research/domain.py,apps/backend/src/industry_platform/modules/research/service.py,apps/backend/src/industry_platform/modules/research/eval.py,apps/backend/src/industry_platform/workflows/research/*.py' \
-            --fail-under=85
+            --fail-under=90
 
   web-quality:
     name: Web quality
@@ -339,6 +349,22 @@ jobs:
 
       - name: Verify generated API contract is current
         run: pnpm run api:check
+
+      - name: Verify release governance artifacts are current
+        run: |
+          pnpm run eval:release-recovery
+          pnpm run eval:release-readiness
+          git diff --exit-code -- \
+            evals/manifests/sec-release-recovery-v1.json \
+            evals/observations/sec-release-recovery-v1.json \
+            evals/reports/sec-release-recovery-v1.json \
+            evals/reports/sec-release-recovery-v1.md \
+            evals/schemas/release-recovery-v1.schema.json \
+            evals/manifests/sec-release-readiness-v1.json \
+            evals/reports/sec-release-readiness-v1.json \
+            evals/reports/sec-release-readiness-v1.md \
+            evals/schemas/release-readiness-manifest-v1.schema.json \
+            evals/schemas/release-readiness-report-v1.schema.json
 
       - name: Check formatting
         run: pnpm run format:check
@@ -549,8 +575,14 @@ jobs:
       - name: Install pinned Python
         run: uv python install
 
+      - name: Sync locked Python workspace for license inspection
+        run: uv sync --locked --all-packages
+
       - name: Audit locked Python dependencies
         run: uv audit --locked
+
+      - name: Reject unreviewed Python package licenses
+        run: uv run --locked pip-licenses --summary
 
   node-dependency-audit:
     name: Node dependency audit
@@ -570,8 +602,19 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Install locked Node dependencies for license inspection
+        run: pnpm install --frozen-lockfile
+
       - name: Audit locked Node dependencies
         run: pnpm audit --audit-level high
+
+      - name: Reject unreviewed Node package licenses and require notices
+        run: |
+          pnpm exec license-checker-rseidelsohn \
+            --excludePrivatePackages \
+            --onlyAllow 'MIT;ISC;Apache-2.0;BlueOak-1.0.0;BSD-2-Clause;BSD-3-Clause;CC0-1.0;MIT-0;MPL-2.0;0BSD;Python-2.0;CC-BY-4.0;CC-BY-3.0;(MIT AND CC-BY-3.0);(MIT OR CC0-1.0)' \
+            --summary
+          test -s docs/security/third-party-notices.md
 
   secret-history:
     name: Secret history

@@ -76,6 +76,61 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_suite.py"
     },
     {
+      "artifact_id": "release-recovery-generator",
+      "description": "Checked recovery exercise scorer that refuses to infer unexecuted success.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery.py"
+    },
+    {
+      "artifact_id": "release-recovery-tests",
+      "description": "Focused recovery coverage, artifact integrity, metric, and failure tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery.py"
+    },
+    {
+      "artifact_id": "release-recovery-manifest",
+      "description": "Frozen twelve-scenario release recovery and rollback contract.",
+      "relative_path": "evals/manifests/sec-release-recovery-v1.json"
+    },
+    {
+      "artifact_id": "release-recovery-observations",
+      "description": "Explicitly unexecuted recovery evidence input with no inferred success.",
+      "relative_path": "evals/observations/sec-release-recovery-v1.json"
+    },
+    {
+      "artifact_id": "release-recovery-report",
+      "description": "Checked recovery metrics, alerts, and release blockers.",
+      "relative_path": "evals/reports/sec-release-recovery-v1.json"
+    },
+    {
+      "artifact_id": "release-recovery-schema",
+      "description": "Validation schema for the checked recovery report.",
+      "relative_path": "evals/schemas/release-recovery-v1.schema.json"
+    },
+    {
+      "artifact_id": "release-recovery-runbook",
+      "description": "Reproducible staging-only dependency fault, restore, rebuild, and rollback procedures.",
+      "relative_path": "docs/runbooks/day-10-release-recovery.md"
+    },
+    {
+      "artifact_id": "semgrep-rules",
+      "description": "Repository-owned static security rules for production Python and Web source.",
+      "relative_path": ".semgrep.yml"
+    },
+    {
+      "artifact_id": "third-party-notices",
+      "description": "Dependency license, notice, scanner exception, and owner-review record.",
+      "relative_path": "docs/security/third-party-notices.md"
+    },
+    {
+      "artifact_id": "evidence-domain-boundary-tests",
+      "description": "Fail-closed Evidence, filing, XBRL, calculation, and source identity coverage.",
+      "relative_path": "apps/backend/tests/modules/evidence/test_domain.py"
+    },
+    {
+      "artifact_id": "research-service-boundary-tests",
+      "description": "Fail-closed Research checkpoint, approval, run, plan, and draft coverage.",
+      "relative_path": "apps/backend/tests/modules/research/test_service.py"
+    },
+    {
       "artifact_id": "sec-workbench-ui",
       "description": "SEC filing, verification launch, diff, Monitor, and Case product surface.",
       "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx"
@@ -134,6 +189,21 @@
       "artifact_id": "package-scripts",
       "description": "Repository command entry points including the readiness generator.",
       "relative_path": "package.json"
+    },
+    {
+      "artifact_id": "python-project-policy",
+      "description": "Pinned Python toolchain, quality, type, test, and license allowlist policy.",
+      "relative_path": "pyproject.toml"
+    },
+    {
+      "artifact_id": "python-lockfile",
+      "description": "Resolved Python application and quality-tool dependency graph.",
+      "relative_path": "uv.lock"
+    },
+    {
+      "artifact_id": "node-lockfile",
+      "description": "Resolved Node application and quality-tool dependency graph.",
+      "relative_path": "pnpm-lock.yaml"
     },
     {
       "artifact_id": "ci-workflow",
@@ -261,7 +331,7 @@
     {
       "blocker_id": "day4-core-coverage-debt",
       "closure_artifact_ids": [],
-      "detail": "The historical Day 4 acceptance remains complete, but the release-wide core coverage target is still below 90 percent.",
+      "detail": "The frozen core module set reaches the 90 percent local threshold without omissions, and CI now enforces it; a clean remote real-dependency run is still required before closure.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D10-03", "D10-07"],
@@ -322,7 +392,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state, but dedicated no-interception browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
+      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state. A frozen twelve-scenario recovery contract and Runbook now exist, but observations remain 0 of 12 and dedicated no-interception browser evidence is absent.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -347,7 +417,7 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 and 2 have local implementation evidence; release evaluation, full recovery gates, remote CI, and owner acceptance remain incomplete.",
+      "detail": "Day 10 Steps 1 through 4 have local implementation evidence; production evaluation runs, executed recovery evidence, remote CI, final audit, and owner acceptance remain incomplete.",
       "external_gate_ids": ["final-owner-acceptance"],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -469,12 +539,12 @@
     "blocked": 0,
     "complete": 45,
     "contract_only": 0,
-    "implemented_pending_verification": 32,
-    "planned": 3,
-    "thin_slice": 8
+    "implemented_pending_verification": 33,
+    "planned": 1,
+    "thin_slice": 9
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "0f7c435432a43a685307117cd42d0e28716b9609bb046db9031ee03dd78b9c1d",
+  "expected_requirement_digest": "ccd917cc18cffd2a83f5a16246e67a70c3d145529a4c472c06c70bc7a5d5841f",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -668,6 +738,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -680,6 +761,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -688,12 +772,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     }
   ],

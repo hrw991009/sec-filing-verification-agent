@@ -13,11 +13,11 @@
 | Status | Count |
 |---|---:|
 | `complete` | 45 |
-| `implemented_pending_verification` | 32 |
-| `thin_slice` | 8 |
+| `implemented_pending_verification` | 33 |
+| `thin_slice` | 9 |
 | `contract_only` | 0 |
 | `blocked` | 0 |
-| `planned` | 3 |
+| `planned` | 1 |
 
 ## Open blockers
 

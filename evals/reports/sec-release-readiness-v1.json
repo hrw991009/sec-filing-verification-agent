@@ -2,33 +2,33 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 74918,
+      "byte_size": 76353,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "78245988192336e5f435e99f921e5a88f96a7ba955c89b2d3233d103be29ff51"
+      "sha256": "eef9f6ab586d6409305aa96361f4a4cd197a62c67126d4dde01405191f6e501b"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 149573,
+      "byte_size": 149787,
       "relative_path": "docs/master-plan.md",
-      "sha256": "7d338c1be762304eef392d00c3dd390a3268083a933874588b7f49b13b7ed552"
+      "sha256": "f4e3c8657f70e48d81fb9ba3c9cd6240a4a07c6e3664a7ed399d0d77bf93be0f"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 107171,
+      "byte_size": 107802,
       "relative_path": "docs/architecture.md",
-      "sha256": "a135261e5ba053736c3a0eab8da8eb576f83fc14d5e2f269f2313f56e11bfb34"
+      "sha256": "7f96fd6da7960628934dfd9f1f859936465f2103a0bb3c1f8363d6abd8f33f1c"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 11548,
+      "byte_size": 12646,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "9f62c762516d488727438430a3cfd91b38766bffc8bd6e0a1e0561b60ae8980e"
+      "sha256": "f92878c4902b6c2c12392435d858cf54c310237485bb4e9110b19b77312bb33a"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 26248,
+      "byte_size": 30025,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "370c02e8beacc1db27d81d7b3b9353161b0ed46604b2136437c223387f3e7799"
+      "sha256": "e00debfd7cd8f3115eb7e322759ebbeb13656a4fb8f9afc4ebc44215f09ccaef"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -40,7 +40,7 @@
       "artifact_id": "release-readiness-tests",
       "byte_size": 7309,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "2a94103ed2875ce280ee66653be09311738e5243e411bcea31db867c3a15e368"
+      "sha256": "71b31a0a9f74b34be7c34060be46b15a967ae82b76449c09e545c6275552516d"
     },
     {
       "artifact_id": "release-evidence-generator",
@@ -89,6 +89,72 @@
       "byte_size": 7768,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_suite.py",
       "sha256": "c93d5ebc8d015db12123d5123b76eccbf96740cfdf2e820eaefff10e447d3a31"
+    },
+    {
+      "artifact_id": "release-recovery-generator",
+      "byte_size": 19451,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery.py",
+      "sha256": "7f065843ed5bc442eec7e9a8885e06848af182a30604fb2011a6bacc2d4ea979"
+    },
+    {
+      "artifact_id": "release-recovery-tests",
+      "byte_size": 8545,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery.py",
+      "sha256": "cc8f42df4acef93864c0d6bf1bd1f900062f01630a8f069909ef4e297ae609dd"
+    },
+    {
+      "artifact_id": "release-recovery-manifest",
+      "byte_size": 6166,
+      "relative_path": "evals/manifests/sec-release-recovery-v1.json",
+      "sha256": "37ac6e1f67cc0bc7590c1d657853b658cd61b987300c9a77629db511c291bbde"
+    },
+    {
+      "artifact_id": "release-recovery-observations",
+      "byte_size": 619,
+      "relative_path": "evals/observations/sec-release-recovery-v1.json",
+      "sha256": "c2d8eea697936b22ddd2d4458e44b194f14913559467dc0b0c40da4003ac2fbf"
+    },
+    {
+      "artifact_id": "release-recovery-report",
+      "byte_size": 3240,
+      "relative_path": "evals/reports/sec-release-recovery-v1.json",
+      "sha256": "9299259b31832fd099f241b3cf51c19b4e98d063ee7f1b40f4964c4453a8e779"
+    },
+    {
+      "artifact_id": "release-recovery-schema",
+      "byte_size": 5030,
+      "relative_path": "evals/schemas/release-recovery-v1.schema.json",
+      "sha256": "2411bdfa11c9ddf0319a993d95eb782afcc2c84fd6d61d915fe2d21321a4da30"
+    },
+    {
+      "artifact_id": "release-recovery-runbook",
+      "byte_size": 9328,
+      "relative_path": "docs/runbooks/day-10-release-recovery.md",
+      "sha256": "07de3d158afb0ec14939dc2d63cf83ea6cc652b700f19948f5c3305f6f2c600b"
+    },
+    {
+      "artifact_id": "semgrep-rules",
+      "byte_size": 1825,
+      "relative_path": ".semgrep.yml",
+      "sha256": "b7bad12886cde1d5b0da0cb2c2b581616b2625d40f2c0932eb9b5bd4655931b6"
+    },
+    {
+      "artifact_id": "third-party-notices",
+      "byte_size": 2537,
+      "relative_path": "docs/security/third-party-notices.md",
+      "sha256": "40562fd304a1711df58cdc9c8d53a8c2776c97cf88a499b79a278c393e15ebdf"
+    },
+    {
+      "artifact_id": "evidence-domain-boundary-tests",
+      "byte_size": 17462,
+      "relative_path": "apps/backend/tests/modules/evidence/test_domain.py",
+      "sha256": "a8a4c9ed3d958b8903b763bc3fb69336334c730403acd64bf740d81eb9f89baf"
+    },
+    {
+      "artifact_id": "research-service-boundary-tests",
+      "byte_size": 17955,
+      "relative_path": "apps/backend/tests/modules/research/test_service.py",
+      "sha256": "cad4ca4e99a9193777c2ee60d67e0079f4186088f1377b05c37164fe745942f6"
     },
     {
       "artifact_id": "sec-workbench-ui",
@@ -158,15 +224,33 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 8691,
+      "byte_size": 10153,
       "relative_path": "package.json",
-      "sha256": "00ac00337d7478bf2fb48a1d5c6242b9a2be8e03e44ea4d42e9c68f66fc84376"
+      "sha256": "b204907088fc3ac5934c1f0b7b0ae40c771572e3a56d0efaa2ff0a577e8132f6"
+    },
+    {
+      "artifact_id": "python-project-policy",
+      "byte_size": 2525,
+      "relative_path": "pyproject.toml",
+      "sha256": "e8237974c0f370ae2224f088527467b0ebdeda38700c01ec70156f192f8efbd2"
+    },
+    {
+      "artifact_id": "python-lockfile",
+      "byte_size": 286300,
+      "relative_path": "uv.lock",
+      "sha256": "38f232bc11419a6204e359301a66d626246b9dcde39ebcc7dde1232f376b85f3"
+    },
+    {
+      "artifact_id": "node-lockfile",
+      "byte_size": 166725,
+      "relative_path": "pnpm-lock.yaml",
+      "sha256": "e4a79a222c01ca76d52e60974aefb957cac7a2cc6a1a19352a33151f2560d9a4"
     },
     {
       "artifact_id": "ci-workflow",
-      "byte_size": 22090,
+      "byte_size": 24017,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "66387f1d7674ec6229347da526a717987d8a5841c2e000923e0045e61e66f94d"
+      "sha256": "9740aa241d473097e0318910a46118f9d7dd11130dfe2d0bac9dbbaa0e1d8412"
     },
     {
       "artifact_id": "credential-audit",
@@ -230,9 +314,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 17303,
+      "byte_size": 20356,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "6598a2ef5e1e84304066ee8b3fc5b3593a6dd23f074cba7680513c54d4be6eb1"
+      "sha256": "d2517ec1779f7df4de03e75b7cfaed6d0d287d403e5a26c03744482783fd986e"
     },
     {
       "artifact_id": "day-4-report",
@@ -311,7 +395,7 @@
     {
       "blocker_id": "day4-core-coverage-debt",
       "closure_artifact_ids": [],
-      "detail": "The historical Day 4 acceptance remains complete, but the release-wide core coverage target is still below 90 percent.",
+      "detail": "The frozen core module set reaches the 90 percent local threshold without omissions, and CI now enforces it; a clean remote real-dependency run is still required before closure.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D10-03", "D10-07"],
@@ -376,7 +460,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state, but dedicated no-interception browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
+      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state. A frozen twelve-scenario recovery contract and Runbook now exist, but observations remain 0 of 12 and dedicated no-interception browser evidence is absent.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -402,7 +486,7 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 and 2 have local implementation evidence; release evaluation, full recovery gates, remote CI, and owner acceptance remain incomplete.",
+      "detail": "Day 10 Steps 1 through 4 have local implementation evidence; production evaluation runs, executed recovery evidence, remote CI, final audit, and owner acceptance remain incomplete.",
       "external_gate_ids": ["final-owner-acceptance"],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -610,15 +694,15 @@
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "370c02e8beacc1db27d81d7b3b9353161b0ed46604b2136437c223387f3e7799",
-  "matrix_sha256": "78245988192336e5f435e99f921e5a88f96a7ba955c89b2d3233d103be29ff51",
+  "manifest_sha256": "e00debfd7cd8f3115eb7e322759ebbeb13656a4fb8f9afc4ebc44215f09ccaef",
+  "matrix_sha256": "eef9f6ab586d6409305aa96361f4a4cd197a62c67126d4dde01405191f6e501b",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 16,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "0f7c435432a43a685307117cd42d0e28716b9609bb046db9031ee03dd78b9c1d",
+  "requirement_digest": "ccd917cc18cffd2a83f5a16246e67a70c3d145529a4c472c06c70bc7a5d5841f",
   "requirements": [
     {
       "current_status": "complete",
@@ -1761,6 +1845,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1773,6 +1868,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -1784,12 +1882,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     },
     {
@@ -1812,6 +1913,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1824,6 +1936,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -1835,16 +1950,19 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     },
     {
-      "current_status": "planned",
+      "current_status": "implemented_pending_verification",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -1863,6 +1981,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1875,6 +2004,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -1886,12 +2018,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     },
     {
@@ -1914,6 +2049,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1926,6 +2072,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -1937,12 +2086,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     },
     {
@@ -1965,6 +2117,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -1977,6 +2140,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -1988,63 +2154,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
-      ]
-    },
-    {
-      "current_status": "planned",
-      "day": 10,
-      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-      "evidence_artifact_ids": [
-        "feature-matrix",
-        "master-plan",
-        "architecture",
-        "release-readiness-contract",
-        "release-readiness-manifest",
-        "release-readiness-generator",
-        "release-readiness-tests",
-        "release-evidence-generator",
-        "release-evidence-tests",
-        "release-evidence-manifest",
-        "release-evidence-observations",
-        "release-evidence-report",
-        "release-evidence-schema",
-        "release-suite-generator",
-        "release-suite-tests",
-        "sec-workbench-ui",
-        "sec-workbench-tests",
-        "sec-review-navigation",
-        "research-workbench-ui",
-        "research-workbench-tests",
-        "research-web-api",
-        "research-web-api-tests",
-        "workbench-routing",
-        "research-http-router",
-        "research-verifier",
-        "sec-monitor-service",
-        "package-scripts",
-        "day-10-log",
-        "ci-workflow",
-        "sec-release-failure-taxonomy"
-      ],
-      "owners": ["project-owner", "implementation-agent"],
-      "requirement_id": "D10-06",
-      "target_status": "complete",
-      "title": "环境、恢复与回滚",
-      "verification_commands": [
-        "pnpm run eval:release-readiness",
-        "pnpm run eval:release-evidence",
-        "pnpm run eval:release-suite",
-        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
-        "pnpm run test:e2e",
-        "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     },
     {
@@ -2067,6 +2185,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -2079,6 +2208,77 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-06",
+      "target_status": "complete",
+      "title": "环境、恢复与回滚",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
+      ]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "release-evidence-generator",
+        "release-evidence-tests",
+        "release-evidence-manifest",
+        "release-evidence-observations",
+        "release-evidence-report",
+        "release-evidence-schema",
+        "release-suite-generator",
+        "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
+        "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -2090,12 +2290,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     },
     {
@@ -2118,6 +2321,17 @@
         "release-evidence-schema",
         "release-suite-generator",
         "release-suite-tests",
+        "release-recovery-generator",
+        "release-recovery-tests",
+        "release-recovery-manifest",
+        "release-recovery-observations",
+        "release-recovery-report",
+        "release-recovery-schema",
+        "release-recovery-runbook",
+        "semgrep-rules",
+        "third-party-notices",
+        "evidence-domain-boundary-tests",
+        "research-service-boundary-tests",
         "sec-workbench-ui",
         "sec-workbench-tests",
         "sec-review-navigation",
@@ -2130,6 +2344,9 @@
         "research-verifier",
         "sec-monitor-service",
         "package-scripts",
+        "python-project-policy",
+        "python-lockfile",
+        "node-lockfile",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
@@ -2141,12 +2358,15 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "pnpm run eval:release-evidence",
+        "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
         "pnpm --filter @industry-platform/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
-        "pnpm run api:check"
+        "pnpm run api:check",
+        "pnpm run security:semgrep",
+        "pnpm run supply-chain:licenses"
       ]
     }
   ],
@@ -2155,8 +2375,8 @@
     "blocked": 0,
     "complete": 45,
     "contract_only": 0,
-    "implemented_pending_verification": 32,
-    "planned": 3,
-    "thin_slice": 8
+    "implemented_pending_verification": 33,
+    "planned": 1,
+    "thin_slice": 9
   }
 }

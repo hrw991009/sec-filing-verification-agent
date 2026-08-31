@@ -1,0 +1,93 @@
+{
+  "alerts": [
+    {
+      "alert_id": "sec-release-recovery-success",
+      "detail": "Metric has no eligible recovery exercise evidence.",
+      "metric_name": "recovery_success",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-release-zero-duplicate-side-effect-rate",
+      "detail": "Metric has no eligible recovery exercise evidence.",
+      "metric_name": "zero_duplicate_side_effect_rate",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-release-zero-data-loss-rate",
+      "detail": "Metric has no eligible recovery exercise evidence.",
+      "metric_name": "zero_data_loss_rate",
+      "status": "unknown"
+    },
+    {
+      "alert_id": "sec-release-zero-unauthorized-write-rate",
+      "detail": "Metric has no eligible recovery exercise evidence.",
+      "metric_name": "zero_unauthorized_write_rate",
+      "status": "unknown"
+    }
+  ],
+  "blockers": [
+    "recovery_success_not_measured",
+    "zero_duplicate_side_effect_rate_not_measured",
+    "zero_data_loss_rate_not_measured",
+    "zero_unauthorized_write_rate_not_measured",
+    "previous_image_release_artifact_not_verified",
+    "remote_ci_not_verified"
+  ],
+  "execution_status": "not_executed",
+  "expected_scenario_count": 12,
+  "limitations": [
+    "No checked backup/restore, dependency-fault, index-rebuild, or previous-image exercise observations have been recorded.",
+    "Existing unit and integration tests prove component contracts only and are not promoted to release recovery success.",
+    "Remote release CI and owner-reviewed rollback evidence remain pending."
+  ],
+  "manifest_sha256": "976413c0a85657c06ac502b20d2540dccae0ffeda9e373388b4a4fde03e59db5",
+  "metrics": {
+    "recovery_success": {
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible release recovery exercise evidence was provided.",
+      "metric_name": "recovery_success",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "value": null
+    },
+    "zero_data_loss_rate": {
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible release recovery exercise evidence was provided.",
+      "metric_name": "zero_data_loss_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "value": null
+    },
+    "zero_duplicate_side_effect_rate": {
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible release recovery exercise evidence was provided.",
+      "metric_name": "zero_duplicate_side_effect_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "value": null
+    },
+    "zero_unauthorized_write_rate": {
+      "denominator": null,
+      "gate_passed": null,
+      "limitation": "No eligible release recovery exercise evidence was provided.",
+      "metric_name": "zero_unauthorized_write_rate",
+      "numerator": null,
+      "status": "not_measured",
+      "threshold": 1.0,
+      "value": null
+    }
+  },
+  "observed_scenario_count": 0,
+  "recovery_gate_passed": false,
+  "release_ready": false,
+  "report_id": "sec-release-recovery-v1",
+  "report_version": "v1",
+  "schema_version": 1,
+  "scorer_version": "sec-release-recovery-scorer-v1"
+}

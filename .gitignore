@@ -77,6 +77,8 @@ evals/reports/*
 !evals/reports/sec-release-failure-taxonomy-v1.md
 !evals/reports/sec-release-evidence-v1.json
 !evals/reports/sec-release-evidence-v1.md
+!evals/reports/sec-release-recovery-v1.json
+!evals/reports/sec-release-recovery-v1.md
 !evals/reports/sec-release-readiness-v1.json
 !evals/reports/sec-release-readiness-v1.md
 

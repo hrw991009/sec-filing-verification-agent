@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.11 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.12 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
@@ -10,7 +10,7 @@
 >
 > 发布合同：[SEC 披露核验 Agent 发布就绪合同](../release-readiness.md)
 >
-> 当前状态：Step 1～Step 3 已在 `day-10` 工作树实现；D10-01/D10-02 为 `implemented_pending_verification`，D10-04/D10-05/D10-07 为 `thin_slice`，Step 4～Step 5 尚未开始
+> 当前状态：Step 1～Step 4 已在 `day-10` 工作树实现；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-07 为 `thin_slice`，Step 5 尚未开始
 
 ## 1. 进入基线与最后一天边界
 
@@ -99,7 +99,17 @@ Step 3 沿既有 `evaluation` bounded context 新增 checked `release_evidence` 
 
 当前 checked observation 显式为 `not_executed`：实际 Run 为 0/50，11 个指标均为 `not_measured`，11 个告警均为 `unknown`，全局 A0～A4 不可比且 production default 为 null。`release-suite-v1` 已消费该报告并将 `global-a0-a4-common-cases-missing` 精确替换为 `global-a0-a4-common-runs-missing`；blocker 总数仍为 9，readiness 总 blocker 仍为 16。新增 8 个代码/测试/manifest/observation/report/schema/suite artifact 后总数为 49，当前状态为 45 complete、32 implemented pending verification、8 thin slice、3 planned。聚焦 release evidence/suite/readiness 为 `22 passed`，evaluation 全集为 `72 passed`，后端全量为 `1191 passed, 88 skipped`，Web 为 `94 passed`；Ruff、mypy、Prettier、ESLint、TypeScript、build 与 OpenAPI 确定性检查通过。真实 Runtime、公开集 prediction、live≥3、合法 SEC/provider、许可、中文签字、远端 CI 与 owner review 均未执行，因此 D10-04/D10-05/D10-07 仅为 `thin_slice`。
 
-## 8. 当日完成定义
+## 8. Step 4 实现与证据
+
+Step 4 没有更改 coverage omission 或删除生产文件。Evidence domain 与 Research service 增加 source/locator/hash、filing/XBRL/calculation、checkpoint/approval/revision/cross-run 等 fail-closed 边界回归，冻结核心 include 集合达到 90%；CI 将同一集合的 `--fail-under` 从 85 提升到 90，后端总体 80% 与关键 Web 75% 保持不变。本机 `.env` 未声明 Milvus/Elasticsearch 映射端口，最终验证命令显式使用 Compose 的 `19530`/`19200` endpoint，在 PostgreSQL、Redis、MinIO、Milvus、Elasticsearch 五个真实依赖强制开启且无 skip 的条件下，后端 `1345 passed`，总体 branch coverage 为 `80.76%`，同一冻结核心集合为 `90%`。
+
+供应链门新增锁定 `semgrep==1.175.0`、`pip-licenses==5.5.5` 与 `license-checker-rseidelsohn==5.0.1`。Semgrep 以六条 repository rule 严格扫描生产 Python/Web 源码；其当前 parser 无法解析 `core/config.py` 的合法 Python 3.13 type alias，因此该文件被显式排除并继续由 Ruff、strict mypy 和配置测试覆盖。Python/Node license gate 拒绝未知及未允许的 GPL/AGPL metadata，NOTICE 记录单列 build-only 手工澄清、ECharts 和 MinIO 义务；工具通过不关闭 owner license review。
+
+新 `sec-release-recovery-v1` 冻结 12 个恢复/回滚场景。执行 observation 必须全覆盖并保存 environment/commit、exercise/evidence SHA-256、时间/耗时、恢复命令与终态 hash、适用的 Run/Workspace，以及重复副作用、数据损失和越权写计数；缺文件、hash 漂移、覆盖不全或伪造未执行身份均 fail closed。当前 checked input 明确为 `not_executed`，报告为 0/12，四个指标均 `not_measured`、告警均 `unknown`、恢复门为 false。Runbook 只提供 disposable/staging 演练顺序，不执行破坏性 volume 清理，也不把命令或合成单测冒充 actual exercise。
+
+readiness 现登记 63 个 hash artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；43 个未完成目标、16 个 open blocker、5 个 pending external gate 与 `NO_GO` 不变。聚焦 recovery/readiness/Evidence/Research 为 `101 passed`；Ruff format/check、strict mypy（517 个源文件）、wheel/sdist、fresh migration、OpenAPI 确定性、Prettier、ESLint、TypeScript 和生产 build 均通过。Web 为 `94 passed`，关键状态覆盖率四项均为 `100%`，现有 Chromium 套件为 `8 passed`；该浏览器套件包含 API replay/interception，不能代替 D10-02 所需的无拦截 SEC 完整产品旅程。Semgrep 严格扫描 356 个 target/0 finding，Python/Node license allowlist、Python/Node dependency audit 通过；Gitleaks 对 101 个可达提交、Git diff 和全部非忽略未跟踪文件未发现 Secret，本机被 Git 忽略的 `.env` 含运行凭据且未计入提交扫描。D10-03 为 `implemented_pending_verification`、D10-06 为 `thin_slice`，远端 branch/main CI、12 场景实际观测与上一镜像 artifact 尚缺。
+
+## 9. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：
 
@@ -112,6 +122,6 @@ Day 10 只有同时满足以下条件才可关闭：
 
 任一条件未满足时，本日可以结束实施批次，但版本状态仍为 `NO_GO`，不得把计划完成等同于产品发布完成。
 
-## 9. 复盘题
+## 10. 复盘题
 
 最终证据能支持哪些明确的产品声明？A0～A4 中哪一级在同一分母上产生了值得成本的净收益？哪些失败属于产品缺陷、外部依赖或治理阻断？在不读取开发者解释的情况下，运维人员能否只凭 Run/Trace/Evidence/报告与 Runbook 完成定位和回滚？

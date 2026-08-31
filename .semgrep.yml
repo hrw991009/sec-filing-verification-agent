@@ -1,0 +1,52 @@
+rules:
+  - id: python-dynamic-code-execution
+    message: Dynamic Python code execution is not allowed in production code.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: python-subprocess-shell
+    message: Shell-based subprocess execution is not allowed in production code.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: subprocess.run(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.check_call(..., shell=True, ...)
+      - pattern: subprocess.check_output(..., shell=True, ...)
+
+  - id: python-unsafe-deserialization
+    message: Unsafe deserialization is not allowed in production code.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - pattern: yaml.load(...)
+
+  - id: web-dynamic-code-execution
+    message: Dynamic JavaScript execution is not allowed in product code.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: web-unsafe-html-injection
+    message: Raw HTML injection bypasses the product's safe rendering boundary.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: <$ELEMENT dangerouslySetInnerHTML={...} />
+      - pattern: $ELEMENT.innerHTML = $VALUE
+
+  - id: web-shell-command-execution
+    message: Shell command execution is not allowed in browser or shared product code.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: child_process.exec(...)
+      - pattern: child_process.execSync(...)

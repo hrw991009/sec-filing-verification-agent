@@ -2,13 +2,13 @@
 
 > 合同编号：`IIP-RELEASE-SEC-001`
 >
-> 版本：`0.4.0`
+> 版本：`0.5.0`
 >
 > 制定日期：2026-08-31
 >
-> 权威范围：[主计划](master-plan.md) v2.2.11 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+> 权威范围：[主计划](master-plan.md) v2.2.12 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
 >
-> 当前状态：Step 1～Step 3 本地实现已完成；D10-01/D10-02 为 `implemented_pending_verification`，D10-04/D10-05/D10-07 为 `thin_slice`，当前判定仍为 `NO_GO`
+> 当前状态：Step 1～Step 4 本地实现已完成；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-07 为 `thin_slice`，当前判定仍为 `NO_GO`
 
 ## 1. 目标与真值来源
 
@@ -74,7 +74,7 @@ pnpm run eval:release-readiness
 - `evals/schemas/release-readiness-manifest-v1.schema.json`；
 - `evals/schemas/release-readiness-report-v1.schema.json`。
 
-当前报告绑定 88 个正式目标和 49 个 repository artifacts：45 个目标为 `complete`，43 个仍未完成；当前状态分布为 32 个 `implemented_pending_verification`、8 个 `thin_slice` 和 3 个 `planned`。9 个 evaluation taxonomy blocker 与 7 个跨 Day blocker 全部 open；Day 9 三层 CI 已验证，最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
+当前报告绑定 88 个正式目标和 63 个 repository artifacts：45 个目标为 `complete`，43 个仍未完成；当前状态分布为 33 个 `implemented_pending_verification`、9 个 `thin_slice` 和 1 个 `planned`。9 个 evaluation taxonomy blocker 与 7 个跨 Day blocker 全部 open；Day 9 三层 CI 已验证，最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
 
 生成器要求矩阵十张正式能力表、目标 ID/digest/状态计数、taxonomy 映射、非完成目标↔开放 blocker、pending gate↔开放 blocker 双向一致。所有登记 artifact 必须存在于仓库内、非空并生成 SHA-256；缺失、越界、状态冲突、无证据却标记 verified、taxonomy blocker 伪关闭或 checked report 未重生成都会失败。
 
@@ -94,14 +94,20 @@ SEC Workbench 只从已锁定、状态为 `ready` 的 Filing import 生成 typed
 
 Step 3 本地证据为聚焦 `22 passed`、evaluation `72 passed`、后端 `1191 passed, 88 skipped` 和 Web `94 passed`；Ruff format/check、mypy、Prettier、ESLint、TypeScript、生产 build 与 OpenAPI 确定性检查通过。88 个 skip 均需显式启用 PostgreSQL、MinIO 或 Redis，不能当作真实依赖通过；本地结果也不替代远端 branch/PR/main CI。
 
-## 8. CI 与运行分层
+## 8. Step 4 质量与恢复边界
+
+冻结核心模块集合通过新增 Evidence/Research fail-closed 回归达到 90%，CI 同一 include 集合的阈值由 85% 提升到 90%；后端总体 80% 与关键 Web 75% 门槛不变。Semgrep 1.175.0、`pip-licenses` 5.5.5 和 `license-checker-rseidelsohn` 5.0.1 已锁入依赖图，CI 分别执行 repository rules、未知/GPL/AGPL license 拒绝、NOTICE 非空、漏洞审计、Gitleaks 与 release recovery 生成物漂移检查。工具门通过不代表 owner 完成第三方权利复核。
+
+`pnpm run eval:release-recovery` 消费冻结的 12 场景 manifest 和 observation，校验 evidence hash、环境/commit、时间/时长、Run/Workspace 绑定、恢复命令/终态以及重复副作用、数据损失和越权写。当前 observation 显式为 `not_executed`，报告为 0/12，恢复成功、零重复副作用、零数据损失和零越权写四项均 `not_measured`，所以 `recovery_gate_passed=false`。Runbook、单测和既有集成测试只是执行前提，不能关闭实际演练、上一镜像或远端 CI blocker。
+
+## 9. CI 与运行分层
 
 - PR/push CI 只运行确定性、无公网、无付费模型的 quick suite 和工程门禁；不能因外部 SEC/provider 波动阻塞普通 PR。
 - release job 运行真实依赖、公开 benchmark prediction、受控 live suite、恢复演练和完整 artifact 归档；失败必须分类，不能回填 deterministic 成绩。
 - main CI 验证合并提交本身。PR CI 全绿不等于 main CI 全绿，两者都不能替代 owner acceptance。
 - GitHub Actions 的 Linux runner 只是可复现 CI 环境，不是 Day 10 新增的 Linux 客户端或产品版本；本版本不建设桌面发行版。
 
-## 9. 发布声明边界
+## 10. 发布声明边界
 
 允许的声明必须带 evidence layer、数据/模型/Tool/Prompt 版本、日期、分母与已知限制。禁止把 frozen replay 写成 live 能力，把 Adapter 可运行写成 benchmark 得分，把公开 benchmark 得分写成 SEC 产品可用性，或把局部 A1→A2、A2→A3、A3→A4 结果拼成全局 A0～A4 结论。
 
