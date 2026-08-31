@@ -1,0 +1,583 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "feature-matrix",
+      "description": "Canonical Day 1 through Day 10 capability status matrix.",
+      "relative_path": "docs/feature-matrix.md"
+    },
+    {
+      "artifact_id": "master-plan",
+      "description": "Accepted Day 1 through Day 10 execution baseline.",
+      "relative_path": "docs/master-plan.md"
+    },
+    {
+      "artifact_id": "architecture",
+      "description": "Current modular-monolith and evaluation ownership boundaries.",
+      "relative_path": "docs/architecture.md"
+    },
+    {
+      "artifact_id": "release-readiness-contract",
+      "description": "Day 10 release decision and evidence contract.",
+      "relative_path": "docs/release-readiness.md"
+    },
+    {
+      "artifact_id": "release-readiness-manifest",
+      "description": "Machine-readable Day 10 readiness scope, ownership, and blocker bindings.",
+      "relative_path": "evals/manifests/sec-release-readiness-v1.json"
+    },
+    {
+      "artifact_id": "release-readiness-generator",
+      "description": "Single production generator for the release-readiness ledger.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_readiness.py"
+    },
+    {
+      "artifact_id": "release-readiness-tests",
+      "description": "Focused positive and fail-closed readiness contract tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py"
+    },
+    {
+      "artifact_id": "package-scripts",
+      "description": "Repository command entry points including the readiness generator.",
+      "relative_path": "package.json"
+    },
+    {
+      "artifact_id": "ci-workflow",
+      "description": "Repository branch, pull request, and main engineering gates.",
+      "relative_path": ".github/workflows/ci.yml"
+    },
+    {
+      "artifact_id": "credential-audit",
+      "description": "Reference repository credential exposure and disposition audit.",
+      "relative_path": "docs/security/credential-exposure-audit.md"
+    },
+    {
+      "artifact_id": "day-1-log",
+      "description": "Day 1 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-1.md"
+    },
+    {
+      "artifact_id": "day-2-log",
+      "description": "Day 2 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-2.md"
+    },
+    {
+      "artifact_id": "day-3-log",
+      "description": "Day 3 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-3.md"
+    },
+    {
+      "artifact_id": "day-4-log",
+      "description": "Day 4 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-4.md"
+    },
+    {
+      "artifact_id": "day-5-log",
+      "description": "Day 5 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-5.md"
+    },
+    {
+      "artifact_id": "day-6-log",
+      "description": "Day 6 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-6.md"
+    },
+    {
+      "artifact_id": "day-7-log",
+      "description": "Day 7 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-7.md"
+    },
+    {
+      "artifact_id": "day-8-log",
+      "description": "Day 8 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-8.md"
+    },
+    {
+      "artifact_id": "day-9-log",
+      "description": "Day 9 implementation and acceptance record.",
+      "relative_path": "docs/learning-log/day-9.md"
+    },
+    {
+      "artifact_id": "day-10-log",
+      "description": "Day 10 execution and acceptance record.",
+      "relative_path": "docs/learning-log/day-10.md"
+    },
+    {
+      "artifact_id": "day-4-report",
+      "description": "Frozen Day 4 aggregate evaluation report.",
+      "relative_path": "evals/reports/day4-v1.json"
+    },
+    {
+      "artifact_id": "sec-fixture-report",
+      "description": "Day 5 fixed SEC fixture evaluation report.",
+      "relative_path": "evals/reports/sec-fixture-v1.json"
+    },
+    {
+      "artifact_id": "sec-fixture-l4-report",
+      "description": "Day 5 durable L4 fixture evaluation report.",
+      "relative_path": "evals/reports/sec-fixture-l4-v1.json"
+    },
+    {
+      "artifact_id": "sec-source-report",
+      "description": "Day 6 SEC source contract and closeout report.",
+      "relative_path": "evals/reports/sec-source-v1.json"
+    },
+    {
+      "artifact_id": "sec-tool-report",
+      "description": "Day 7 SEC tool deterministic report.",
+      "relative_path": "evals/reports/sec-tool-v1.json"
+    },
+    {
+      "artifact_id": "sec-verification-report",
+      "description": "Day 8 verifier, security, and recovery deterministic report.",
+      "relative_path": "evals/reports/sec-verification-v1.json"
+    },
+    {
+      "artifact_id": "sec-release-deterministic",
+      "description": "Day 9 deterministic release evidence layer.",
+      "relative_path": "evals/reports/sec-release-deterministic-v1.json"
+    },
+    {
+      "artifact_id": "sec-release-offline",
+      "description": "Day 9 offline capability evidence layer.",
+      "relative_path": "evals/reports/sec-release-offline-v1.json"
+    },
+    {
+      "artifact_id": "sec-release-live",
+      "description": "Day 9 live model evidence layer.",
+      "relative_path": "evals/reports/sec-release-live-v1.json"
+    },
+    {
+      "artifact_id": "sec-release-failure-taxonomy",
+      "description": "Machine-readable Day 9 release blocker taxonomy.",
+      "relative_path": "evals/reports/sec-release-failure-taxonomy-v1.json"
+    }
+  ],
+  "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+  "blockers": [
+    {
+      "blocker_id": "credential-disposition-open",
+      "closure_artifact_ids": [],
+      "detail": "Six reference-repository credential candidates still require provider-side disposition and a clean rescan.",
+      "external_gate_ids": ["provider-credential-disposition"],
+      "owner": "project-owner",
+      "requirement_ids": ["D1-09", "D10-03", "D10-05", "D10-07"],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "day4-core-coverage-debt",
+      "closure_artifact_ids": [],
+      "detail": "The historical Day 4 acceptance remains complete, but the release-wide core coverage target is still below 90 percent.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D10-03", "D10-07"],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "day5-browser-evidence-missing",
+      "closure_artifact_ids": [],
+      "detail": "The SEC fixture retrieval, calculation, evidence, approval, resume, and refresh paths lack one formal browser acceptance chain.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D5-08", "D5-09", "D10-02"],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "day6-source-closeout-incomplete",
+      "closure_artifact_ids": [],
+      "detail": "Day 6 remains 22 of 24 with bulk watermark, post-watermark gap, and live SEC evidence still open.",
+      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D6-01",
+        "D6-02",
+        "D6-03",
+        "D6-04",
+        "D6-05",
+        "D6-06",
+        "D6-07",
+        "D6-08",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "day7-retrieval-citation-incomplete",
+      "closure_artifact_ids": [],
+      "detail": "Ranked retrieval quality, table locators, citation resolution, runtime binding, and final owner evidence remain open.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D7-01",
+        "D7-02",
+        "D7-03",
+        "D7-04",
+        "D7-05",
+        "D7-06",
+        "D7-07",
+        "D7-08",
+        "D10-04",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "day8-browser-recovery-incomplete",
+      "closure_artifact_ids": [],
+      "detail": "Dedicated Monitor approval browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D8-01",
+        "D8-02",
+        "D8-03",
+        "D8-04",
+        "D8-05",
+        "D8-06",
+        "D8-07",
+        "D8-08",
+        "D10-01",
+        "D10-02",
+        "D10-04",
+        "D10-05",
+        "D10-06",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "day10-work-not-started",
+      "closure_artifact_ids": [],
+      "detail": "Day 10 implementation, release validation, and owner acceptance have not started.",
+      "external_gate_ids": ["final-owner-acceptance"],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D10-01",
+        "D10-02",
+        "D10-03",
+        "D10-04",
+        "D10-05",
+        "D10-06",
+        "D10-07",
+        "D10-08"
+      ],
+      "source": "cross_day_audit",
+      "status": "open"
+    },
+    {
+      "blocker_id": "global-a0-a4-common-cases-missing",
+      "closure_artifact_ids": [],
+      "detail": "A versioned common-case manifest is required before selecting a production strategy.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "retrieval-recall-at-5-missing",
+      "closure_artifact_ids": [],
+      "detail": "Ranked candidates and Recall at 5 must be computed from the release retrieval set.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D7-01", "D7-08", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "runtime-binding-missing",
+      "closure_artifact_ids": [],
+      "detail": "Release cases must bind to the production Runtime, Trace, Evidence, and final database state.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D9-05", "D9-07", "D9-08", "D10-04", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "offline-predictions-missing",
+      "closure_artifact_ids": [],
+      "detail": "Fixed-provider public benchmark predictions and official metrics have not executed.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D9-02", "D9-03", "D9-04", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "external-license-review-missing",
+      "closure_artifact_ids": [],
+      "detail": "Dataset and source-document rights need an explicit inclusion or exclusion decision.",
+      "external_gate_ids": ["external-license-owner-review"],
+      "owner": "project-owner",
+      "requirement_ids": ["D9-04", "D9-08", "D10-05", "D10-07", "D10-08"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "live-dependencies-not-executed",
+      "closure_artifact_ids": [],
+      "detail": "Dynamic data, approved dependencies, and the official judge need controlled live execution.",
+      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "owner": "project-owner",
+      "requirement_ids": ["D9-04", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "live-repetitions-missing",
+      "closure_artifact_ids": [],
+      "detail": "Every fixed live target still needs at least three repeated runs.",
+      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "owner": "project-owner",
+      "requirement_ids": ["D9-05", "D9-07", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "language-owner-review-missing",
+      "closure_artifact_ids": [],
+      "detail": "The frozen Chinese language sample requires owner sign-off.",
+      "external_gate_ids": ["chinese-language-owner-review"],
+      "owner": "project-owner",
+      "requirement_ids": ["D7-07", "D9-06", "D9-08", "D10-02", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    },
+    {
+      "blocker_id": "remote-ci-owner-closeout-missing",
+      "closure_artifact_ids": [],
+      "detail": "Day 9 three-layer CI is verified; final release owner acceptance remains pending.",
+      "external_gate_ids": ["day9-push-ci", "day9-pr-ci", "day9-main-ci", "final-owner-acceptance"],
+      "owner": "project-owner",
+      "requirement_ids": [
+        "D9-01",
+        "D9-02",
+        "D9-03",
+        "D9-04",
+        "D9-05",
+        "D9-06",
+        "D9-07",
+        "D9-08",
+        "D10-07",
+        "D10-08"
+      ],
+      "source": "evaluation_taxonomy",
+      "status": "open"
+    }
+  ],
+  "expected_current_status_counts": {
+    "blocked": 0,
+    "complete": 45,
+    "contract_only": 0,
+    "implemented_pending_verification": 30,
+    "planned": 7,
+    "thin_slice": 6
+  },
+  "expected_requirement_count": 88,
+  "expected_requirement_digest": "2c3ed3328d21132fddc9f10131eb892961e35edbb7b16528fbc336459a52b9dd",
+  "external_gates": [
+    {
+      "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302689820",
+      "gate_id": "day9-push-ci",
+      "owner": "github-actions",
+      "source_commit": "6a79e4a120bbf962f80d5071d7b5a953cf9bd621",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 9 pull-request CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302716257",
+      "gate_id": "day9-pr-ci",
+      "owner": "github-actions",
+      "source_commit": "6a79e4a120bbf962f80d5071d7b5a953cf9bd621",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 9 merge-commit main CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33303336316",
+      "gate_id": "day9-main-ci",
+      "owner": "github-actions",
+      "source_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+      "status": "verified"
+    },
+    {
+      "detail": "Final release owner acceptance has not been recorded.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "final-owner-acceptance",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Provider-side disposition for all six historical credential candidates is pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "provider-credential-disposition",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Owner review of external dataset and source-document rights is pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "external-license-owner-review",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Owner sign-off for the frozen Chinese language sample is pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "chinese-language-owner-review",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Approved live model credentials and a compliant SEC identity are pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "live-provider-and-sec-identity",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    }
+  ],
+  "failure_taxonomy_relative_path": "evals/reports/sec-release-failure-taxonomy-v1.json",
+  "limitations": [
+    "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
+    "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
+    "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
+  ],
+  "manifest_id": "sec-release-readiness-manifest-v1",
+  "manifest_version": "v1",
+  "matrix_relative_path": "docs/feature-matrix.md",
+  "requirement_groups": [
+    {
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    }
+  ],
+  "schema_version": 1
+}

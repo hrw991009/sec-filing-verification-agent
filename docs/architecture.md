@@ -4,13 +4,13 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-29
+> 更新日期：2026-08-30
 >
-> 权威来源：`docs/master-plan.md` 2.1.9
+> 权威来源：`docs/master-plan.md` 2.2.9
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 7 已合入 `main`，但各自登记的浏览器、ranking/table/Citation、bulk watermark、live SEC 与发布证据债务仍留到 Day 10。Day 8 Step 1～3 当前在 `feat/day-8` 工作树实现：确定性 SEC Claim Verifier 与四种业务状态已进入 PostgreSQL/API/Event/Trace，唯一 Research graph 已升级为 L5 并增加最多一次、服务端 exact-action 驱动的 retrieve/recalculate revise；版本化 Monitor/rule、append-only watermark、幂等 Case 与双侧 Evidence 已复用既有 Schedule/Job/Outbox、SEC sync 和 filing diff 链接入 Beat/Worker。D8-01～D8-05 均为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵与 A2/A3/A4 仍未实现，修复后的远端 CI 也尚未取得。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍留到 Day 10。Day 10 Step 1 当前在 `day-10` 工作树实现：沿既有 `evaluation` bounded context 建立 release readiness manifest/生成器，将正式能力矩阵、评测 taxonomy、仓库 artifact 与外部门投影为可重算台账。当前结论为 `no_go`；台账存在不代表业务、评测、恢复或发布门已经关闭。
 
 架构需要同时满足：
 
@@ -760,6 +760,8 @@ Evaluation Harness 与生产流量调用同一个 Agent Runtime/Harness；测试
 Day 2～Day 4 已有 50 条通用 Scenario 继续作为 Runtime/Memory/Evidence/L3 回归集，但不能证明金融能力。Day 5 建立 `sec-fixture-v1`，Day 6 建立 `sec-source-v1`；Day 9 汇总并冻结这些已有数据集，新增不少于 60 条的 `sec-temporal-v1`、不少于 30 组成对中英案例和公开 benchmark manifests。FinQA、TAT-QA、FinanceBench、FinSearchComp 只按各自公开范围补充能力证据。评分分为 source/identity、retrieval、calculation/result、evidence/citation、trajectory/tool、runtime recovery/security 与成本延迟层；LLM judge 只能作为辅助。
 
 Day 9 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context 建立唯一 release 治理入口：严格 Dataset Registry 负责 upstream revision、artifact byte size/SHA-256、split、数据/代码许可、允许用途和 release eligibility；Release Eval manifest 通过 registry canonical hash 固定 Runtime/Harness/model/Prompt/Tool/Context/Retrieval/Graph/Verifier/Scorer version、Budget、trajectory、SEC point-in-time gold 与 Run/Trace/Evidence/Calculation identity。Git 只保存 registry、manifest、JSON Schema 和小型派生产物，外部 payload 由后续 Adapter 按 registry 下载校验，不因登记元数据进入产品 RAG。四个公开数据集在 Adapter、artifact 校验和权利复核完成前均为 `registered_only` 且 fail closed，不能进入 release claim。
+
+Day 10 Step 1 继续复用该 bounded context：`release_readiness` 只读取正式能力矩阵、受检评测报告和仓库证据，不参与线上回答，也不重算各 benchmark scorer。readiness manifest 固定 requirement digest、owner、依赖、验证命令、artifact 和 blocker/external-gate 映射；生成器验证十张正式能力表、taxonomy 双向覆盖、非完成目标与 open blocker、pending gate 与 open blocker 完全一致，并为每个 artifact 计算 byte size/SHA-256。checked JSON/Markdown 与 manifest/report Schema 是发布审计投影，不是新的运行时事实源。
 
 Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
 

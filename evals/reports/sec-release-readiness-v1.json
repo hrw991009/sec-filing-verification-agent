@@ -1,0 +1,1864 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "feature-matrix",
+      "byte_size": 72475,
+      "relative_path": "docs/feature-matrix.md",
+      "sha256": "f907f574377f45dfde7f1759d5255c86db317dbbd8041af97579d0d5d93c342d"
+    },
+    {
+      "artifact_id": "master-plan",
+      "byte_size": 147139,
+      "relative_path": "docs/master-plan.md",
+      "sha256": "31d1f549763da4033c2f8aee7b06ee640026a367991356910b5641b6a233011f"
+    },
+    {
+      "artifact_id": "architecture",
+      "byte_size": 105555,
+      "relative_path": "docs/architecture.md",
+      "sha256": "e63c094e650327065e7bc9f2dcb997a5df4286fb724bfce254a52d4bf8ac5ce1"
+    },
+    {
+      "artifact_id": "release-readiness-contract",
+      "byte_size": 8776,
+      "relative_path": "docs/release-readiness.md",
+      "sha256": "dcbb8f2e2abd080a71d09c8cb237f9ffe522907cbaec87b63be6e6a3c31f2bf4"
+    },
+    {
+      "artifact_id": "release-readiness-manifest",
+      "byte_size": 20745,
+      "relative_path": "evals/manifests/sec-release-readiness-v1.json",
+      "sha256": "3c2ad6137201d6bc83bc521faeece9f8aad0a157597637909c3b3b260cc40534"
+    },
+    {
+      "artifact_id": "release-readiness-generator",
+      "byte_size": 32855,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_readiness.py",
+      "sha256": "3315647eb5910279edc0164c08e82f089e25586251f4e397f20697f109f1a665"
+    },
+    {
+      "artifact_id": "release-readiness-tests",
+      "byte_size": 7309,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
+      "sha256": "1384041b334f4b5f3aa8761a484d0028a919d0011f211c711ead76b1ab8ed1d7"
+    },
+    {
+      "artifact_id": "package-scripts",
+      "byte_size": 7863,
+      "relative_path": "package.json",
+      "sha256": "5438b9e5c2579fbecc125db715a96d6de9f92fddce436ddcd87fd67c4fab320e"
+    },
+    {
+      "artifact_id": "ci-workflow",
+      "byte_size": 22090,
+      "relative_path": ".github/workflows/ci.yml",
+      "sha256": "66387f1d7674ec6229347da526a717987d8a5841c2e000923e0045e61e66f94d"
+    },
+    {
+      "artifact_id": "credential-audit",
+      "byte_size": 7708,
+      "relative_path": "docs/security/credential-exposure-audit.md",
+      "sha256": "05e117665c4c254cfc29c60bd042dc9940ba6996616ea02c004a56910920fc43"
+    },
+    {
+      "artifact_id": "day-1-log",
+      "byte_size": 6583,
+      "relative_path": "docs/learning-log/day-1.md",
+      "sha256": "50fa80a825c468fb8253db8536932443f5c7ca3496051e9e03c2171f5126da2e"
+    },
+    {
+      "artifact_id": "day-2-log",
+      "byte_size": 11559,
+      "relative_path": "docs/learning-log/day-2.md",
+      "sha256": "8e9899fa5ab4c096aa7e06aefa0f0f7d08316598ff0f69950e8fd71b24234558"
+    },
+    {
+      "artifact_id": "day-3-log",
+      "byte_size": 15127,
+      "relative_path": "docs/learning-log/day-3.md",
+      "sha256": "e2d354af6983bff00c3ab19dc718720f114a8fae93ecda89419f9d0ee3a234e9"
+    },
+    {
+      "artifact_id": "day-4-log",
+      "byte_size": 68196,
+      "relative_path": "docs/learning-log/day-4.md",
+      "sha256": "8beae3ca8b6a11585177c07cff5a7eaf57268d855f3170724bf6214b388e0c93"
+    },
+    {
+      "artifact_id": "day-5-log",
+      "byte_size": 40218,
+      "relative_path": "docs/learning-log/day-5.md",
+      "sha256": "658306499b13675767f6cf6e1c69bc11bd28a9de2c26dc171629a6a14a2659be"
+    },
+    {
+      "artifact_id": "day-6-log",
+      "byte_size": 33028,
+      "relative_path": "docs/learning-log/day-6.md",
+      "sha256": "dcc7ce1e026edd57f4b5c4a635fb57ef32ad84d0bb8f83ba48a36171243c6869"
+    },
+    {
+      "artifact_id": "day-7-log",
+      "byte_size": 21853,
+      "relative_path": "docs/learning-log/day-7.md",
+      "sha256": "b32a9dc28d7c9cf3a14f5355f1c88b78433ac9553adbe714e371785a17d203ef"
+    },
+    {
+      "artifact_id": "day-8-log",
+      "byte_size": 22260,
+      "relative_path": "docs/learning-log/day-8.md",
+      "sha256": "4f82a311e4fac12f8dadd1498ca766ed58334338a264d18aae98d2c5825fc0e2"
+    },
+    {
+      "artifact_id": "day-9-log",
+      "byte_size": 18638,
+      "relative_path": "docs/learning-log/day-9.md",
+      "sha256": "c7d557b545827aac0bc66f6899badb199c8c64e42d922995d5dc3f5b340321af"
+    },
+    {
+      "artifact_id": "day-10-log",
+      "byte_size": 13157,
+      "relative_path": "docs/learning-log/day-10.md",
+      "sha256": "d228da237d5d7502aa3e02a54fd79c4ea77352911d57a939cab6467ccfe84ff9"
+    },
+    {
+      "artifact_id": "day-4-report",
+      "byte_size": 3066,
+      "relative_path": "evals/reports/day4-v1.json",
+      "sha256": "f4f6808cc1a680cd8007fd926fdc556971aec1e12cce922fd8c28ce7d9b18889"
+    },
+    {
+      "artifact_id": "sec-fixture-report",
+      "byte_size": 1982,
+      "relative_path": "evals/reports/sec-fixture-v1.json",
+      "sha256": "afe041a2e4ff8b22cb290b98763b3f77e8fb6facdeae815c1c3892f93387859d"
+    },
+    {
+      "artifact_id": "sec-fixture-l4-report",
+      "byte_size": 1429,
+      "relative_path": "evals/reports/sec-fixture-l4-v1.json",
+      "sha256": "52893f3f2e16de8d4e80d08e36f4d962f063d93d9efd3198cacf217955e25187"
+    },
+    {
+      "artifact_id": "sec-source-report",
+      "byte_size": 20606,
+      "relative_path": "evals/reports/sec-source-v1.json",
+      "sha256": "6b309b47a3394ed6093e2408a931c76f055a8a819b6721cc3720de75188edf22"
+    },
+    {
+      "artifact_id": "sec-tool-report",
+      "byte_size": 6179,
+      "relative_path": "evals/reports/sec-tool-v1.json",
+      "sha256": "269b1822dbe1dc226fd70d3a30463985eafc0b847e90d83d4c1739986f327e75"
+    },
+    {
+      "artifact_id": "sec-verification-report",
+      "byte_size": 9439,
+      "relative_path": "evals/reports/sec-verification-v1.json",
+      "sha256": "0019b1f32be2c4d83d51ce4bee4acdceefed1a83a49f10038eff9e39d5a36af5"
+    },
+    {
+      "artifact_id": "sec-release-deterministic",
+      "byte_size": 8642,
+      "relative_path": "evals/reports/sec-release-deterministic-v1.json",
+      "sha256": "fc0fae31d39babc1ac3b6514c19ff8b540309560e30d7e5a08229770fddad100"
+    },
+    {
+      "artifact_id": "sec-release-offline",
+      "byte_size": 3019,
+      "relative_path": "evals/reports/sec-release-offline-v1.json",
+      "sha256": "265271e8c3432b34a61d4db39ff67f81929836cf63e6ad26940ec545d9d20d59"
+    },
+    {
+      "artifact_id": "sec-release-live",
+      "byte_size": 2893,
+      "relative_path": "evals/reports/sec-release-live-v1.json",
+      "sha256": "f927c45c2279f926f1b0aa871e884d03d2231b75c501900d6c4916abcd0c7861"
+    },
+    {
+      "artifact_id": "sec-release-failure-taxonomy",
+      "byte_size": 4006,
+      "relative_path": "evals/reports/sec-release-failure-taxonomy-v1.json",
+      "sha256": "8f7c37112856c01b0ae0a174f3ae35bda79227093c57dadd58fa059b789ec735"
+    }
+  ],
+  "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+  "blockers": [
+    {
+      "blocker_id": "credential-disposition-open",
+      "closure_artifact_ids": [],
+      "detail": "Six reference-repository credential candidates still require provider-side disposition and a clean rescan.",
+      "external_gate_ids": ["provider-credential-disposition"],
+      "owner": "project-owner",
+      "requirement_ids": ["D1-09", "D10-03", "D10-05", "D10-07"],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "day4-core-coverage-debt",
+      "closure_artifact_ids": [],
+      "detail": "The historical Day 4 acceptance remains complete, but the release-wide core coverage target is still below 90 percent.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D10-03", "D10-07"],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "day5-browser-evidence-missing",
+      "closure_artifact_ids": [],
+      "detail": "The SEC fixture retrieval, calculation, evidence, approval, resume, and refresh paths lack one formal browser acceptance chain.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D5-08", "D5-09", "D10-02"],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "day6-source-closeout-incomplete",
+      "closure_artifact_ids": [],
+      "detail": "Day 6 remains 22 of 24 with bulk watermark, post-watermark gap, and live SEC evidence still open.",
+      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D6-01",
+        "D6-02",
+        "D6-03",
+        "D6-04",
+        "D6-05",
+        "D6-06",
+        "D6-07",
+        "D6-08",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "day7-retrieval-citation-incomplete",
+      "closure_artifact_ids": [],
+      "detail": "Ranked retrieval quality, table locators, citation resolution, runtime binding, and final owner evidence remain open.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D7-01",
+        "D7-02",
+        "D7-03",
+        "D7-04",
+        "D7-05",
+        "D7-06",
+        "D7-07",
+        "D7-08",
+        "D10-04",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "day8-browser-recovery-incomplete",
+      "closure_artifact_ids": [],
+      "detail": "Dedicated Monitor approval browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D8-01",
+        "D8-02",
+        "D8-03",
+        "D8-04",
+        "D8-05",
+        "D8-06",
+        "D8-07",
+        "D8-08",
+        "D10-01",
+        "D10-02",
+        "D10-04",
+        "D10-05",
+        "D10-06",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "day10-work-not-started",
+      "closure_artifact_ids": [],
+      "detail": "Day 10 implementation, release validation, and owner acceptance have not started.",
+      "external_gate_ids": ["final-owner-acceptance"],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D10-01",
+        "D10-02",
+        "D10-03",
+        "D10-04",
+        "D10-05",
+        "D10-06",
+        "D10-07",
+        "D10-08"
+      ],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "open"
+    },
+    {
+      "blocker_id": "global-a0-a4-common-cases-missing",
+      "closure_artifact_ids": [],
+      "detail": "A versioned common-case manifest is required before selecting a production strategy.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "A0/A1/A2 and A2/A3/A4 use different frozen case suites.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "retrieval-recall-at-5-missing",
+      "closure_artifact_ids": [],
+      "detail": "Ranked candidates and Recall at 5 must be computed from the release retrieval set.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D7-01", "D7-08", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Ranked retrieval candidates are absent, so Recall@5 cannot be computed.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "runtime-binding-missing",
+      "closure_artifact_ids": [],
+      "detail": "Release cases must bind to the production Runtime, Trace, Evidence, and final database state.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D9-05", "D9-07", "D9-08", "D10-04", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Cases are not bound to UnifiedAgentRuntime Run, Trace, Evidence, or database final state.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "offline-predictions-missing",
+      "closure_artifact_ids": [],
+      "detail": "Fixed-provider public benchmark predictions and official metrics have not executed.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D9-02", "D9-03", "D9-04", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Adapters exist, but no fixed-provider A0-A4 predictions were executed.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "external-license-review-missing",
+      "closure_artifact_ids": [],
+      "detail": "Dataset and source-document rights need an explicit inclusion or exclusion decision.",
+      "external_gate_ids": ["external-license-owner-review"],
+      "owner": "project-owner",
+      "requirement_ids": ["D9-04", "D9-08", "D10-05", "D10-07", "D10-08"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Owner license review and FinanceBench source-document rights remain open.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "live-dependencies-not-executed",
+      "closure_artifact_ids": [],
+      "detail": "Dynamic data, approved dependencies, and the official judge need controlled live execution.",
+      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "owner": "project-owner",
+      "requirement_ids": ["D9-04", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Dynamic data, professional dependencies, and the official judge were not executed.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "live-repetitions-missing",
+      "closure_artifact_ids": [],
+      "detail": "Every fixed live target still needs at least three repeated runs.",
+      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "owner": "project-owner",
+      "requirement_ids": ["D9-05", "D9-07", "D9-08", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Fixed provider/model/version runs have zero of three required repetitions.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "language-owner-review-missing",
+      "closure_artifact_ids": [],
+      "detail": "The frozen Chinese language sample requires owner sign-off.",
+      "external_gate_ids": ["chinese-language-owner-review"],
+      "owner": "project-owner",
+      "requirement_ids": ["D7-07", "D9-06", "D9-08", "D10-02", "D10-07"],
+      "source": "evaluation_taxonomy",
+      "source_detail": "The frozen Chinese language sample has not been signed off.",
+      "status": "open"
+    },
+    {
+      "blocker_id": "remote-ci-owner-closeout-missing",
+      "closure_artifact_ids": [],
+      "detail": "Day 9 three-layer CI is verified; final release owner acceptance remains pending.",
+      "external_gate_ids": ["day9-push-ci", "day9-pr-ci", "day9-main-ci", "final-owner-acceptance"],
+      "owner": "project-owner",
+      "requirement_ids": [
+        "D9-01",
+        "D9-02",
+        "D9-03",
+        "D9-04",
+        "D9-05",
+        "D9-06",
+        "D9-07",
+        "D9-08",
+        "D10-07",
+        "D10-08"
+      ],
+      "source": "evaluation_taxonomy",
+      "source_detail": "Branch, PR, main CI and final owner review are external evidence still pending.",
+      "status": "open"
+    }
+  ],
+  "external_gates": [
+    {
+      "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302689820",
+      "gate_id": "day9-push-ci",
+      "owner": "github-actions",
+      "source_commit": "6a79e4a120bbf962f80d5071d7b5a953cf9bd621",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 9 pull-request CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302716257",
+      "gate_id": "day9-pr-ci",
+      "owner": "github-actions",
+      "source_commit": "6a79e4a120bbf962f80d5071d7b5a953cf9bd621",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 9 merge-commit main CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33303336316",
+      "gate_id": "day9-main-ci",
+      "owner": "github-actions",
+      "source_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+      "status": "verified"
+    },
+    {
+      "detail": "Final release owner acceptance has not been recorded.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "final-owner-acceptance",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Provider-side disposition for all six historical credential candidates is pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "provider-credential-disposition",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Owner review of external dataset and source-document rights is pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "external-license-owner-review",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Owner sign-off for the frozen Chinese language sample is pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "chinese-language-owner-review",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    },
+    {
+      "detail": "Approved live model credentials and a compliant SEC identity are pending.",
+      "evidence_artifact_ids": [],
+      "evidence_url": null,
+      "gate_id": "live-provider-and-sec-identity",
+      "owner": "project-owner",
+      "source_commit": null,
+      "status": "pending"
+    }
+  ],
+  "incomplete_requirement_count": 43,
+  "limitations": [
+    "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
+    "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
+    "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
+  ],
+  "manifest_sha256": "3c2ad6137201d6bc83bc521faeece9f8aad0a157597637909c3b3b260cc40534",
+  "matrix_sha256": "f907f574377f45dfde7f1759d5255c86db317dbbd8041af97579d0d5d93c342d",
+  "pending_external_gate_count": 5,
+  "rc_ready": false,
+  "release_blocker_count": 16,
+  "release_decision": "no_go",
+  "report_id": "sec-release-readiness-v1",
+  "report_version": "v1",
+  "requirement_digest": "2c3ed3328d21132fddc9f10131eb892961e35edbb7b16528fbc336459a52b9dd",
+  "requirements": [
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-01",
+      "target_status": "complete",
+      "title": "可复现 Monorepo 与运行时",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-02",
+      "target_status": "complete",
+      "title": "本地基础设施",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-03",
+      "target_status": "complete",
+      "title": "配置与真实健康检查",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-04",
+      "target_status": "complete",
+      "title": "注册、登录与账户安全",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-05",
+      "target_status": "complete",
+      "title": "Workspace 与成员角色",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-06",
+      "target_status": "complete",
+      "title": "前端身份旅程",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-07",
+      "target_status": "complete",
+      "title": "唯一 API 契约",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-08",
+      "target_status": "complete",
+      "title": "Python/Web/浏览器质量门",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-09",
+      "target_status": "complete",
+      "title": "供应链与密钥安全",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-10",
+      "target_status": "complete",
+      "title": "产品、架构与 ADR 基线",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-11",
+      "target_status": "complete",
+      "title": "Alembic 与可重复数据库迁移",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 1,
+      "dependency_days": [],
+      "evidence_artifact_ids": ["feature-matrix", "day-1-log", "credential-audit", "ci-workflow"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D1-12",
+      "target_status": "complete",
+      "title": "可靠异步执行底座",
+      "verification_commands": [
+        "pnpm run format:check",
+        "pnpm run api:check",
+        "uv run --locked --all-packages pytest"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-01",
+      "target_status": "complete",
+      "title": "可替换 Model Provider",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-02",
+      "target_status": "complete",
+      "title": "完整会话管理",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-03",
+      "target_status": "complete",
+      "title": "单轮搜索模式",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-04",
+      "target_status": "complete",
+      "title": "聊天附件生命周期",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-05",
+      "target_status": "complete",
+      "title": "可恢复流式回答",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-06",
+      "target_status": "complete",
+      "title": "失败不丢用户工作",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-07",
+      "target_status": "complete",
+      "title": "安全 Markdown 与可见步骤",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-08",
+      "target_status": "complete",
+      "title": "Agent Runtime v0 与唯一执行入口",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 2,
+      "dependency_days": [1],
+      "evidence_artifact_ids": ["feature-matrix", "day-2-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D2-09",
+      "target_status": "complete",
+      "title": "Harness Scenario、Fake 与 Trace 基座",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-01",
+      "target_status": "complete",
+      "title": "首页与当前行业上下文",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-02",
+      "target_status": "complete",
+      "title": "Tool Registry、L1/L2 有界循环与审计",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-03",
+      "target_status": "complete",
+      "title": "Web Search",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-04",
+      "target_status": "complete",
+      "title": "新闻资讯",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-05",
+      "target_status": "complete",
+      "title": "政策",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-06",
+      "target_status": "complete",
+      "title": "招投标",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-07",
+      "target_status": "complete",
+      "title": "股票",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-08",
+      "target_status": "complete",
+      "title": "定时采集",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-09",
+      "target_status": "complete",
+      "title": "数据库浏览",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-10",
+      "target_status": "complete",
+      "title": "安全 Text2SQL",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 3,
+      "dependency_days": [1, 2],
+      "evidence_artifact_ids": ["feature-matrix", "day-3-log"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D3-11",
+      "target_status": "complete",
+      "title": "受校验图表",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-01",
+      "target_status": "complete",
+      "title": "从会话创建可控记忆",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-02",
+      "target_status": "complete",
+      "title": "记忆检索与删除",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-03",
+      "target_status": "complete",
+      "title": "Short-term Memory 与 Context manifest",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-04",
+      "target_status": "complete",
+      "title": "唯一 typed Research L3 graph",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-05",
+      "target_status": "complete",
+      "title": "Memory/Research Learning Workbench",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-06",
+      "target_status": "complete",
+      "title": "Claim 与证据图",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 4,
+      "dependency_days": [1, 2, 3],
+      "evidence_artifact_ids": ["feature-matrix", "day-4-log", "day-4-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D4-07",
+      "target_status": "complete",
+      "title": "Memory/Research 预算与策略边界",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm test"]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-01",
+      "target_status": "complete",
+      "title": "多知识库管理",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-02",
+      "target_status": "complete",
+      "title": "私有预签名上传",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-03",
+      "target_status": "complete",
+      "title": "文档格式真实能力",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-04",
+      "target_status": "complete",
+      "title": "版本化解析资产",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-05",
+      "target_status": "complete",
+      "title": "可观察异步入库",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-06",
+      "target_status": "complete",
+      "title": "跨存储删除与对账",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "complete",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-07",
+      "target_status": "complete",
+      "title": "文档/Chunk/资产详情",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-08",
+      "target_status": "complete",
+      "title": "Embedding/index-write、SEC Fixture Dense Tool 与 Calculator",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 5,
+      "dependency_days": [1, 2, 3, 4],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-5-log",
+        "sec-fixture-report",
+        "sec-fixture-l4-report"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D5-09",
+      "target_status": "complete",
+      "title": "SEC Fixture Durable Research L4、Checkpoint 与 HITL",
+      "verification_commands": [
+        "uv run --locked --all-packages pytest",
+        "pnpm test",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-01",
+      "target_status": "complete",
+      "title": "Filer/CIK 身份解析",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-02",
+      "target_status": "complete",
+      "title": "Filing/accession 时点选择",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-03",
+      "target_status": "complete",
+      "title": "不可变原始 Filing 快照",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-04",
+      "target_status": "complete",
+      "title": "XBRL Context/Fact",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-05",
+      "target_status": "complete",
+      "title": "SEC typed read Tools",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-06",
+      "target_status": "complete",
+      "title": "Fair Access 与来源治理",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-07",
+      "target_status": "complete",
+      "title": "Filing 入库与 Workbench",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 6,
+      "dependency_days": [1, 2, 3, 4, 5],
+      "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D6-08",
+      "target_status": "complete",
+      "title": "`sec-source-v1` 数据合同评测",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-01",
+      "target_status": "complete",
+      "title": "XBRL + Filing Hybrid Retrieval",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-02",
+      "target_status": "complete",
+      "title": "SEC Evidence locator/Citation",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-03",
+      "target_status": "complete",
+      "title": "Financial Context Compiler",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-04",
+      "target_status": "complete",
+      "title": "Typed financial calculator",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-05",
+      "target_status": "complete",
+      "title": "Period/unit/context reconciliation",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-06",
+      "target_status": "complete",
+      "title": "Filing/amendment diff",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-07",
+      "target_status": "complete",
+      "title": "中文 SEC L4 Agent profile",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 7,
+      "dependency_days": [1, 2, 3, 4, 5, 6],
+      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D7-08",
+      "target_status": "complete",
+      "title": "`sec-tool-v1` 与 A0/A1/A2",
+      "verification_commands": [
+        "pnpm run eval:sec-tool",
+        "uv run --locked --all-packages pytest",
+        "pnpm run test:e2e"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-01",
+      "target_status": "complete",
+      "title": "SEC Evidence-aware Verifier",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-02",
+      "target_status": "complete",
+      "title": "四种业务核验终态",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-03",
+      "target_status": "complete",
+      "title": "最多一次 bounded revise",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-04",
+      "target_status": "complete",
+      "title": "Indirect Prompt Injection 防护",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-05",
+      "target_status": "complete",
+      "title": "披露 Monitor 与差异 Case",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-06",
+      "target_status": "complete",
+      "title": "`monitor.subscribe@v1` 持久 HITL",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-07",
+      "target_status": "complete",
+      "title": "L4/L5 Durable recovery",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 8,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7],
+      "evidence_artifact_ids": ["feature-matrix", "day-8-log", "sec-verification-report"],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D8-08",
+      "target_status": "complete",
+      "title": "Verified/Monitor Workbench 与 A2/A3/A4",
+      "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-01",
+      "target_status": "complete",
+      "title": "Release Eval manifest/schema",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-02",
+      "target_status": "complete",
+      "title": "FinQA adapter",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-03",
+      "target_status": "complete",
+      "title": "TAT-QA adapter",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-04",
+      "target_status": "complete",
+      "title": "FinanceBench/FinSearchComp 补充",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-05",
+      "target_status": "complete",
+      "title": "`sec-temporal-v1`",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-06",
+      "target_status": "complete",
+      "title": "中英配对验证",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "implemented_pending_verification",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-07",
+      "target_status": "complete",
+      "title": "Agent trajectory/state/security suite",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 9,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-9-log",
+        "sec-release-deterministic",
+        "sec-release-offline",
+        "sec-release-live",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D9-08",
+      "target_status": "complete",
+      "title": "A0～A4 release ablation",
+      "verification_commands": [
+        "pnpm run eval:release-suite",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-01",
+      "target_status": "complete",
+      "title": "SEC 产品路由与状态",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-02",
+      "target_status": "complete",
+      "title": "完整中文用户路径",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-03",
+      "target_status": "complete",
+      "title": "完整 CI 与供应链门禁",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-04",
+      "target_status": "complete",
+      "title": "SEC Agent 可观测与审计",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-05",
+      "target_status": "complete",
+      "title": "Agent/SEC 安全收口",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-06",
+      "target_status": "complete",
+      "title": "环境、恢复与回滚",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-07",
+      "target_status": "complete",
+      "title": "Release Eval 与完整性审计",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-08",
+      "target_status": "complete",
+      "title": "文档、限制与发布候选",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "status_counts": {
+    "blocked": 0,
+    "complete": 45,
+    "contract_only": 0,
+    "implemented_pending_verification": 30,
+    "planned": 7,
+    "thin_slice": 6
+  }
+}

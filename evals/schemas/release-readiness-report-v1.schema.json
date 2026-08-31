@@ -1,0 +1,387 @@
+{
+  "$defs": {
+    "ArtifactSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "byte_size": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "relative_path": {
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": ["artifact_id", "relative_path", "sha256", "byte_size"],
+      "title": "ArtifactSnapshot",
+      "type": "object"
+    },
+    "BlockerSource": {
+      "enum": ["evaluation_taxonomy", "cross_day_audit"],
+      "title": "BlockerSource",
+      "type": "string"
+    },
+    "BlockerStatus": {
+      "enum": ["open", "closed"],
+      "title": "BlockerStatus",
+      "type": "string"
+    },
+    "ExternalGateSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_artifact_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Artifact Ids",
+          "type": "array"
+        },
+        "evidence_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Url"
+        },
+        "gate_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Gate Id",
+          "type": "string"
+        },
+        "owner": {
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "source_commit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Commit"
+        },
+        "status": {
+          "$ref": "#/$defs/ExternalGateStatus"
+        }
+      },
+      "required": ["gate_id", "status", "owner", "detail"],
+      "title": "ExternalGateSpec",
+      "type": "object"
+    },
+    "ExternalGateStatus": {
+      "enum": ["verified", "pending"],
+      "title": "ExternalGateStatus",
+      "type": "string"
+    },
+    "ReadinessBlocker": {
+      "additionalProperties": false,
+      "properties": {
+        "blocker_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Blocker Id",
+          "type": "string"
+        },
+        "closure_artifact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Closure Artifact Ids",
+          "type": "array"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "external_gate_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "External Gate Ids",
+          "type": "array"
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/BlockerSource"
+        },
+        "source_detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Detail"
+        },
+        "status": {
+          "$ref": "#/$defs/BlockerStatus"
+        }
+      },
+      "required": [
+        "blocker_id",
+        "source",
+        "status",
+        "owner",
+        "requirement_ids",
+        "external_gate_ids",
+        "closure_artifact_ids",
+        "detail"
+      ],
+      "title": "ReadinessBlocker",
+      "type": "object"
+    },
+    "ReleaseDecision": {
+      "enum": ["no_go", "rc_ready"],
+      "title": "ReleaseDecision",
+      "type": "string"
+    },
+    "RequirementReadiness": {
+      "additionalProperties": false,
+      "properties": {
+        "current_status": {
+          "$ref": "#/$defs/RequirementStatus"
+        },
+        "day": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Day",
+          "type": "integer"
+        },
+        "dependency_days": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Dependency Days",
+          "type": "array"
+        },
+        "evidence_artifact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Artifact Ids",
+          "type": "array"
+        },
+        "owners": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Owners",
+          "type": "array"
+        },
+        "requirement_id": {
+          "pattern": "^D(?:10|[1-9])-[0-9]{2}$",
+          "title": "Requirement Id",
+          "type": "string"
+        },
+        "target_status": {
+          "const": "complete",
+          "default": "complete",
+          "title": "Target Status",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "verification_commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Verification Commands",
+          "type": "array"
+        }
+      },
+      "required": [
+        "requirement_id",
+        "title",
+        "day",
+        "current_status",
+        "owners",
+        "dependency_days",
+        "evidence_artifact_ids",
+        "verification_commands"
+      ],
+      "title": "RequirementReadiness",
+      "type": "object"
+    },
+    "RequirementStatus": {
+      "enum": [
+        "complete",
+        "implemented_pending_verification",
+        "thin_slice",
+        "contract_only",
+        "blocked",
+        "planned"
+      ],
+      "title": "RequirementStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactSnapshot"
+      },
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "baseline_commit": {
+      "pattern": "^[a-f0-9]{40}$",
+      "title": "Baseline Commit",
+      "type": "string"
+    },
+    "blockers": {
+      "items": {
+        "$ref": "#/$defs/ReadinessBlocker"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "external_gates": {
+      "items": {
+        "$ref": "#/$defs/ExternalGateSpec"
+      },
+      "title": "External Gates",
+      "type": "array"
+    },
+    "incomplete_requirement_count": {
+      "minimum": 0,
+      "title": "Incomplete Requirement Count",
+      "type": "integer"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "manifest_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "matrix_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Matrix Sha256",
+      "type": "string"
+    },
+    "pending_external_gate_count": {
+      "minimum": 0,
+      "title": "Pending External Gate Count",
+      "type": "integer"
+    },
+    "rc_ready": {
+      "title": "Rc Ready",
+      "type": "boolean"
+    },
+    "release_blocker_count": {
+      "minimum": 0,
+      "title": "Release Blocker Count",
+      "type": "integer"
+    },
+    "release_decision": {
+      "$ref": "#/$defs/ReleaseDecision"
+    },
+    "report_id": {
+      "const": "sec-release-readiness-v1",
+      "default": "sec-release-readiness-v1",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "report_version": {
+      "const": "v1",
+      "default": "v1",
+      "title": "Report Version",
+      "type": "string"
+    },
+    "requirement_digest": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Requirement Digest",
+      "type": "string"
+    },
+    "requirements": {
+      "items": {
+        "$ref": "#/$defs/RequirementReadiness"
+      },
+      "title": "Requirements",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status_counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/RequirementStatus"
+      },
+      "title": "Status Counts",
+      "type": "object"
+    }
+  },
+  "required": [
+    "baseline_commit",
+    "manifest_sha256",
+    "matrix_sha256",
+    "requirement_digest",
+    "artifacts",
+    "requirements",
+    "status_counts",
+    "incomplete_requirement_count",
+    "external_gates",
+    "pending_external_gate_count",
+    "blockers",
+    "release_blocker_count",
+    "release_decision",
+    "rc_ready",
+    "limitations"
+  ],
+  "title": "ReleaseReadinessReport",
+  "type": "object"
+}

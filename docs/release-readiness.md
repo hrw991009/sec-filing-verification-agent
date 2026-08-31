@@ -2,13 +2,13 @@
 
 > 合同编号：`IIP-RELEASE-SEC-001`
 >
-> 版本：`0.1.0`
+> 版本：`0.2.0`
 >
 > 制定日期：2026-08-30
 >
-> 权威范围：[主计划](master-plan.md) v2.2.8 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+> 权威范围：[主计划](master-plan.md) v2.2.9 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
 >
-> 当前状态：`planned`；本文只冻结 Day 10 的证据与发布判定，不证明任何阻断项已经关闭
+> 当前状态：Step 1 机器台账已实现，D10-07 为 `thin_slice`；当前判定为 `NO_GO`，不证明任何业务或发布阻断项已经关闭
 
 ## 1. 目标与真值来源
 
@@ -59,14 +59,35 @@ Day 10 不再扩张产品范围，而是证明现有 SEC 披露与财务事实�
 | 4. 工程质量、故障恢复与回滚 | Compose/CI、迁移、存储、Worker 与发布镜像 | 覆盖率、全量真实依赖门、fresh start、备份恢复、索引重建、依赖故障和上一镜像演练 | 核心≥90%、后端≥80%、关键前端≥75%；恢复 100%、重复副作用 0 |
 | 5. 完整性审计与候选发布 | 前四步不可变 artifacts、branch/PR/main CI | README/ADR/架构/评测/Runbook/限制、owner acceptance、RC 决策 | D10-01～D10-08 全部 `complete` 且 blocker=0 后才可进入 `RC_READY` |
 
-## 5. CI 与运行分层
+## 5. Step 1 机器合同
+
+唯一机器入口为：
+
+```text
+pnpm run eval:release-readiness
+```
+
+输入为 `evals/manifests/sec-release-readiness-v1.json`、正式能力矩阵和既有 failure taxonomy。生成器位于 `industry_platform.modules.evaluation.release_readiness`，输出：
+
+- `evals/reports/sec-release-readiness-v1.json`；
+- `evals/reports/sec-release-readiness-v1.md`；
+- `evals/schemas/release-readiness-manifest-v1.schema.json`；
+- `evals/schemas/release-readiness-report-v1.schema.json`。
+
+当前报告绑定 88 个正式目标和 30 个 repository artifacts：45 个目标为 `complete`，43 个仍未完成；9 个 evaluation taxonomy blocker 与 7 个跨 Day blocker 全部 open；Day 9 三层 CI 已验证，最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
+
+生成器要求矩阵十张正式能力表、目标 ID/digest/状态计数、taxonomy 映射、非完成目标↔开放 blocker、pending gate↔开放 blocker 双向一致。所有登记 artifact 必须存在于仓库内、非空并生成 SHA-256；缺失、越界、状态冲突、无证据却标记 verified、taxonomy blocker 伪关闭或 checked report 未重生成都会失败。
+
+Step 1 本地证据为聚焦 `8 passed`、evaluation `65 passed`、readiness branch coverage `84%` 和无强制真实服务全量 `1184 passed, 88 skipped`；Python/Web/构建/OpenAPI、依赖审计与 98-commit Gitleaks 通过。真实依赖、Chromium 和远端三层 CI 未在本步执行，不能据此关闭相应 blocker。
+
+## 6. CI 与运行分层
 
 - PR/push CI 只运行确定性、无公网、无付费模型的 quick suite 和工程门禁；不能因外部 SEC/provider 波动阻塞普通 PR。
 - release job 运行真实依赖、公开 benchmark prediction、受控 live suite、恢复演练和完整 artifact 归档；失败必须分类，不能回填 deterministic 成绩。
 - main CI 验证合并提交本身。PR CI 全绿不等于 main CI 全绿，两者都不能替代 owner acceptance。
 - GitHub Actions 的 Linux runner 只是可复现 CI 环境，不是 Day 10 新增的 Linux 客户端或产品版本；本版本不建设桌面发行版。
 
-## 6. 发布声明边界
+## 7. 发布声明边界
 
 允许的声明必须带 evidence layer、数据/模型/Tool/Prompt 版本、日期、分母与已知限制。禁止把 frozen replay 写成 live 能力，把 Adapter 可运行写成 benchmark 得分，把公开 benchmark 得分写成 SEC 产品可用性，或把局部 A1→A2、A2→A3、A3→A4 结果拼成全局 A0～A4 结论。
 

@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.8`
+> 版本：`2.2.9`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1105,7 +1105,7 @@ FinQA/TAT-QA/FinanceBench/FinSearchComp adapters 与 dataset cards、`sec-tempor
 
 ## 17. Day 10：披露核验工作台、发布评测与完整交付
 
-> 执行状态（2026-08-30）：Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`；push CI `33302689820`、PR CI `33302716257` 与 main CI `33303336316` 均通过 7 个适用 Job。该证据只关闭 Day 9 的合并工程门，不会把 D9-01～D9-07 的 `implemented_pending_verification` 或 D9-08 的 `thin_slice` 升级为完成。项目所有者已授权进入 Day 10 文档规划；执行顺序收敛为五步：[Day 10 执行计划](learning-log/day-10.md)，发布状态、初始阻断台账和证据层级见 [发布就绪合同](release-readiness.md)。当前尚未开始 Day 10 代码，D10-01～D10-08 均保持 `planned`。
+> 执行状态（2026-08-30）：Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`；push CI `33302689820`、PR CI `33302716257` 与 main CI `33303336316` 均通过 7 个适用 Job。Day 10 按 [五步执行计划](learning-log/day-10.md) 与 [发布就绪合同](release-readiness.md) 推进。Step 1 已在 `day-10` 工作树实现严格 release readiness manifest/生成器、JSON/Markdown、双 JSON Schema 与 8 条聚焦测试：正式矩阵固定 88 个目标，当前 45 complete、43 未完成，9 个 evaluation + 7 个跨 Day blocker 均 open，5 个 external gate pending，机器结论为 `no_go`。本地 evaluation `65 passed`、readiness branch coverage `84%`、全量 `1184 passed, 88 skipped`，Python/Web/构建/OpenAPI、依赖审计和 98-commit Gitleaks 通过；强制真实依赖、Chromium 与远端 CI 未执行。三层 Day 9 CI 已在台账中独立标为 verified，但 owner 等外部门仍阻断；D10-07 仅为 `thin_slice`，D10 其余项保持 `planned`。
 
 ### 学习主题
 
@@ -1351,3 +1351,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.6 | 2026-08-30 | 同步 Day 9 Step 4：沿正式 registry/受控物化实现 FinanceBench 与 FinSearchComp 严格 Adapter/dataset card/schema/contract report；前者冻结 150 题/84 引用文档/189 Evidence 并保留未引用 metadata period 冲突，后者将 391 historical 与 244 dynamic 分报，单列 203 AkShare-compatible、41 专业依赖和 203 timestamp drift。新增复用 release Budget/Trajectory 的 6-case/18-trial `agent-security-v1`，规则 scorer 重算 argument/partial-order/stop/final-state、注入、跨 Workspace、越权、重复副作用、恢复和经验 `pass^3`。本地 evaluation `50 passed`、两套新增模块 branch coverage `84%`、全量无强制外部服务 pytest `1169 passed, 88 skipped`，Ruff/mypy 通过；四个外部数据集均为 `adapter_ready` 但 `release_eligible=false`，真实依赖总体 coverage、Runtime/model/database/judge、远端 CI 和 owner review 未完成，D9-04/D9-07 仅为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |
 | 2.2.7 | 2026-08-30 | 同步 Day 9 Step 5：新增严格 `release-suite-v1` 聚合器，校验 registry/release manifest 与九份受检报告身份/hash，生成 deterministic/offline/live/failure-taxonomy JSON+Markdown/schema。保留同一 source-suite 内 A1→A2、A2→A3、A3→A4 operational 决策，但全局 A0～A4 分数与生产默认策略为 null；公开集 prediction、live 3 次、Recall@5、Runtime/Trace/Evidence、远端 CI 与 owner review 缺失均为机器 blocker。本地 evaluation `57 passed`、新增模块 branch coverage `91%`、全量无强制服务 pytest `1176 passed, 88 skipped`，Ruff/mypy/Web `89 passed`/build/OpenAPI/Chromium `8 passed`、依赖审计与 96-commit Gitleaks 通过；真实依赖总体 coverage 与远端 CI 尚缺。D9-08 为 `thin_slice`，不把聚合报告冒充模型能力或 Day 9 完成 | 用户授权继续 Day 9 下一步 |
 | 2.2.8 | 2026-08-30 | 记录 Day 9 PR #15、功能 head `6a79e4a`、合并提交 `4500505` 及 push/PR/main 三层 CI 全绿；按项目所有者指令进入最后一天并先完成文档规划。将 Day 10 原十项任务收敛为五个证据驱动步骤：发布台账、真实中文闭环、评测/可观测/安全、工程恢复门禁、最终审计与候选发布；新增 Day 10 学习日志和发布就绪合同。当前 D10-01～D10-08 仍为 `planned`，Day 1～9 所有未关闭项继续作为发布硬门 | 用户授权进入 Day 10 文档规划 |
+| 2.2.9 | 2026-08-30 | 同步 Day 10 Step 1：在既有 `evaluation` bounded context 新增严格 release readiness manifest/生成器、checked JSON/Markdown 与 manifest/report Schema；从能力矩阵十张正式表提取 88 个目标并锁定 digest/状态计数，将每项目标映射至 owner、依赖日、验证命令和 30 个带 SHA-256 artifact。9 个 Day 9 taxonomy blocker 必须双向全覆盖，另登记 7 个跨 Day blocker；当前 45 complete、43 未完成、16 个 open blocker、5 个 pending external gate，结论 fail closed 为 `no_go`。聚焦/evaluation 为 `8/65 passed`，readiness branch coverage `84%`，全量 `1184 passed, 88 skipped`，Python/Web/构建/OpenAPI/audit/Gitleaks 通过；真实依赖、Chromium 与远端 CI 未执行。D10-07 仅为 `thin_slice`，不把台账存在写成发布就绪 | 用户授权开始 Day 10 Step 1 |

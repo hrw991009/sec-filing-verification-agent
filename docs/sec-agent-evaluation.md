@@ -2,15 +2,15 @@
 
 > 计划编号：`IIP-EVAL-SEC-001`
 >
-> 版本：`1.5.5`
+> 版本：`1.5.6`
 >
 > 日期：2026-08-26
 >
 > 修订日期：2026-08-30
 >
-> 权威范围：`docs/master-plan.md` v2.2.8 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.2.9 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 9 Step 1～Step 5 已由 PR #15 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505` 的 push/PR/main 三层 CI 均通过；`release-suite-v1` 已能分层生成 deterministic/offline/live/failure-taxonomy 报告，但统一 A0～A4 common-case manifest、公开集 prediction、live≥3 次、真实 Agent/Trace/Evidence、许可/中文/owner 复核仍缺，D9-08 仍为 `thin_slice`。Day 10 只按机器 blocker 补证和收口，不改写旧报告分母
+> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 9 Step 1～Step 5 已由 PR #15 合入 `main`，push/PR/main 三层 CI 均通过；`release-suite-v1` 的统一 A0～A4、公开集 prediction、live≥3 次、真实 Agent/Trace/Evidence、许可/中文/owner 复核仍缺。Day 10 Step 1 已增加 `sec-release-readiness-v1`：88 个目标中 43 个未完成，9 个 evaluation 与 7 个跨 Day blocker 均 open，5 个 external gate pending，结论为 `no_go`。D9-08 与 D10-07 均为 `thin_slice`，不改写旧报告分母
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
@@ -273,6 +273,14 @@ Step 5 的 release suite 只消费受检派生报告和 Step 1 registry/release 
 deterministic 报告保留三段同 manifest/data/Scope/budget 的局部决策：10-case `sec-tool-v1` A1→A2、14-case `sec-verification-v1` A2→A3，以及同 14-case 的 A3→A4 operational extension。A2/A3 可以进入下一证据层，A4 只保留于审批/恢复范围。因为两个 source suite 不同，不生成全局 A0～A4 score，也不选择 production default。没有 ranked retrieval candidate 时，`retrieval_recall_at_5` 必须为 `not_measured`，不能以 answer/complex accuracy 代替。
 
 offline 报告仅声明四个 Adapter 的可用 denominator，model/prediction/official scores 全为空；live 报告冻结 FinSearchComp dynamic、SEC temporal、Agent security 三类目标的 case 数和最低 3 次要求，provider/model/version、均值、方差、`pass^k`、成本和延迟在未运行时均为空。failure taxonomy 将缺失证据与真实运行失败分开；当前 9 项均为 release blocker，但 observed runtime failure 为 0。该实现使缺口可机器审计，不代表 D9-08 已完成。
+
+### 4.10 `sec-release-readiness-v1`
+
+Day 10 Step 1 在同一 `evaluation` bounded context 将能力矩阵、Day 1～10 日志、代码/测试、CI workflow 和既有评测报告投影为单一发布台账。manifest 固定 88 个正式 requirement 的规范化 digest、六种状态计数、Day owner/依赖/验证命令、30 个 artifact、9 个 taxonomy blocker 的双向映射、7 个跨 Day blocker 和 8 个 external gate。生成报告为每个 artifact 计算 byte size/SHA-256，并要求全部非 `complete` requirement 被 open blocker 精确覆盖、全部 pending gate 被 open blocker 引用。
+
+当前结果是 45 个 `complete`、30 个 `implemented_pending_verification`、6 个 `thin_slice`、7 个 `planned`；43 个未完成目标、16 个 open blocker、5 个 pending gate，故 `release_decision=no_go`、`rc_ready=false`。Day 9 push/PR/main CI 三项已有 URL/commit 证据并标记 verified；最终 owner acceptance 仍 pending。该层只审计证据完整性，不运行模型、Runtime、公开 benchmark 或 live SEC，也不把历史 `complete` 自动升级为当前发布能力。
+
+本地验证为聚焦/evaluation `8/65 passed`、readiness branch coverage `84%`、无强制真实服务全量 `1184 passed, 88 skipped`；Python/Web/构建/OpenAPI、依赖审计和 98-commit Gitleaks 通过。真实依赖、Chromium、远端分支/PR/main CI 和 owner review 未在本步执行，继续保留为发布证据缺口。
 
 ## 5. Scorer 分层
 

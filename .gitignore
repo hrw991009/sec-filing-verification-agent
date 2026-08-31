@@ -75,6 +75,8 @@ evals/reports/*
 !evals/reports/sec-release-live-v1.md
 !evals/reports/sec-release-failure-taxonomy-v1.json
 !evals/reports/sec-release-failure-taxonomy-v1.md
+!evals/reports/sec-release-readiness-v1.json
+!evals/reports/sec-release-readiness-v1.md
 
 # Runtime and infrastructure state
 *.log

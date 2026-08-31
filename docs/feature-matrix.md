@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-08-30
 >
-> 权威来源：`docs/master-plan.md` 2.2.8
+> 权威来源：`docs/master-plan.md` 2.2.9
 
 ## 1. 使用规则
 
@@ -297,10 +297,10 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D10-04 | SEC Agent 可观测与审计 | NEW | request/job/run/tool/evidence/calculation/checkpoint/monitor/case、rate-limit/freshness/future leakage | Workbench/告警定位和固定报告可重放 | `planned` | `complete` |
 | D10-05 | Agent/SEC 安全收口 | NEW | Workspace、Tool、Prompt Injection、Secret、对象访问、写审批、来源许可、免责声明 | 跨租户/未来信息/未授权写/Secret/敏感原文均为 0 | `planned` | `complete` |
 | D10-06 | 环境、恢复与回滚 | NEW | fresh startup、备份恢复、Filing 索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障、上一镜像 | Runbook 演练、正式 Scenario 继续且零重复副作用 | `planned` | `complete` |
-| D10-07 | Release Eval 与完整性审计 | BENCH + NEW | 全矩阵、A0～A4、fixed/public/live、D1-09、Day4 90% 债务、DoD/owner acceptance | 每项证据齐全，无未关闭阻断项和重复正式链路 | `planned` | `complete` |
+| D10-07 | Release Eval 与完整性审计 | BENCH + NEW | 全矩阵、A0～A4、fixed/public/live、D1-09、Day4 90% 债务、DoD/owner acceptance | 每项证据齐全，无未关闭阻断项和重复正式链路 | `thin_slice` | `complete` |
 | D10-08 | 文档、限制与发布候选 | NEW | README/ADR/架构/评测/Runbook/rollback、非投资建议边界、`v0.2.0-sec-disclosure-verifier` | 链接/格式/diff/secret scan、main merge CI 与所有者复核 | `planned` | `complete` |
 
-2026-08-30 规划映射：Day 9 已由 PR #15 合入 `main`，功能 head `6a79e4a` 与合并提交 `4500505` 的 push/PR/main 三层 CI 均通过 7 个适用 Job。该工程证据不关闭 `release-suite-v1` 的 9 个机器 blocker，也不升级 D9 状态。Day 10 按 [五步执行计划](learning-log/day-10.md) 依次建立发布台账、真实中文闭环、评测/可观测/安全、工程恢复门禁和最终审计；发布判定与初始跨 Day 阻断台账见 [发布就绪合同](release-readiness.md)。文档阶段没有新增实现证据，D10-01～D10-08 均保持 `planned`。
+2026-08-30 Step 1 映射：在现有 `evaluation` bounded context 新增 `sec-release-readiness-v1` manifest/生成器、checked JSON/Markdown、manifest/report JSON Schema 与唯一 `pnpm run eval:release-readiness` 入口。生成器从十张正式能力表提取 88 个唯一目标，锁定规范化 digest 与状态计数，并将每项目标映射到 owner、依赖日、验证命令和 30 个带 byte size/SHA-256 的仓库 artifact；目标/状态漂移、artifact 缺失、taxonomy 映射不全、pending gate 未绑定、无证据 verified 和 blocker 伪关闭均 fail closed。当前报告为 45 complete、43 未完成、16 个 open blocker、5 个 pending external gate，结论 `no_go`；Day 9 三层 CI 已独立验证但最终 owner closeout 仍 pending。聚焦/evaluation 为 `8/65 passed`、readiness branch coverage `84%`，全量无强制服务 `1184 passed, 88 skipped`，Python/Web/构建/OpenAPI/audit/Gitleaks 通过；真实依赖、Chromium、远端 CI 和 owner review 仍缺。该台账没有完成 common-case、offline/live、产品 E2E、恢复或外部门，因此只有 D10-07 更新为 `thin_slice`，其余 D10 项保持 `planned`。
 
 ## 13. 明确不继承的参考项目行为
 

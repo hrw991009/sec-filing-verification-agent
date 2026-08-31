@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.8 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.9 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
@@ -10,7 +10,7 @@
 >
 > 发布合同：[SEC 披露核验 Agent 发布就绪合同](../release-readiness.md)
 >
-> 当前状态：文档规划完成，Step 1～Step 5 尚未开始，D10-01～D10-08 均为 `planned`
+> 当前状态：Step 1 已在 `day-10` 工作树实现，D10-07 为 `thin_slice`；Step 2～Step 5 尚未开始，其余 D10 项保持 `planned`
 
 ## 1. 进入基线与最后一天边界
 
@@ -71,7 +71,19 @@ coverage 必须使用冻结模块集合和真实依赖路径，不能通过新�
 
 最终审计从参考能力→矩阵→实现→测试/评测→用户旅程正向检查，也从路由/API/Job/表/Tool/报告反向检查 owner、真实用途和重复链路。只有合并提交 main CI 通过、外部硬门和 owner review 关闭、所有报告 hash 与源码提交一致时，才允许提出 `v0.2.0-sec-disclosure-verifier` 标签候选；Codex 不自动提交、推送或打标签。
 
-## 5. 当日完成定义
+## 5. Step 1 实现与证据
+
+Step 1 在既有 `industry_platform.modules.evaluation` bounded context 新增唯一 `release_readiness` 生成器，没有建立第二套 Eval Runtime。机器 manifest 固定 Day 9 合并提交 `4500505` 为审计基线，并登记 Day 1～10 的 owner、依赖日、验证命令、30 个文档/代码/测试/报告/CI artifact，以及 9 个 Day 9 taxonomy blocker 和 7 个跨 Day 发布阻断族。每个 artifact 在报告中保存相对路径、byte size 与 SHA-256；manifest、矩阵、生成器、测试和命令入口也进入证据链。
+
+矩阵读取器只接受十张正式能力表，按结构识别 88 个唯一目标，并对完整规范化行计算 digest；它不会把 D1 的历史证据表重复算作目标，也能正确处理 code span 内的 `|`。manifest 固定 requirement count、digest 和全部六种状态计数，因此目标增删、状态漂移、未知状态、重复 ID、表格缺失或 Day 10 target 不是 `complete` 时均 fail closed。
+
+`sec-release-readiness-v1` 当前重算结果为：45 个 `complete`、30 个 `implemented_pending_verification`、6 个 `thin_slice`、7 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当前只剩最终 owner closeout，未改写 Day 9 不可变报告。
+
+8 条聚焦测试覆盖 checked report/Markdown/schema 重算、全部 artifact hash、矩阵状态漂移、artifact 缺失、taxonomy 双向映射、仍 release-blocking 的 taxonomy 项伪关闭、无证据 external gate 和非法 hash。`pnpm run eval:release-readiness` 先规范化输入 manifest，再生成 JSON/Markdown 与 manifest/report 两份 JSON Schema，避免生成后格式化输入造成 hash 立即过期。
+
+本地门禁为 evaluation 模块 `65 passed`、readiness 模块 branch coverage `84%`、无强制真实服务全量 pytest `1184 passed, 88 skipped`；Ruff format/check、mypy `513` 个源文件、Prettier、ESLint、TypeScript、Vitest `89 passed`、生产构建和 OpenAPI 确定性均通过。Python/Node audit 无已知漏洞，完整 98-commit Gitleaks 无泄漏。PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 强制集成、Chromium、分支/PR/main CI 与 owner review 未在本步执行。该结果只证明发布台账合同和当前 `NO_GO` 基线可重算；它没有关闭任何业务、评测、恢复或外部 blocker，所以只有 D10-07 更新为 `thin_slice`。
+
+## 6. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：
 
@@ -84,6 +96,6 @@ Day 10 只有同时满足以下条件才可关闭：
 
 任一条件未满足时，本日可以结束实施批次，但版本状态仍为 `NO_GO`，不得把计划完成等同于产品发布完成。
 
-## 6. 复盘题
+## 7. 复盘题
 
 最终证据能支持哪些明确的产品声明？A0～A4 中哪一级在同一分母上产生了值得成本的净收益？哪些失败属于产品缺陷、外部依赖或治理阻断？在不读取开发者解释的情况下，运维人员能否只凭 Run/Trace/Evidence/报告与 Runbook 完成定位和回滚？
