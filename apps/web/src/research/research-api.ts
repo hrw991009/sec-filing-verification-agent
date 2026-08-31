@@ -5,6 +5,7 @@ import { apiClient, unwrapData, withAccessToken } from "../api/api";
 export type ResearchRun = components["schemas"]["ResearchRunDetailResponse"];
 export type ResearchApproval = components["schemas"]["ResearchApprovalResponse"];
 export type ResearchDurability = components["schemas"]["ResearchDurabilityTimelineResponse"];
+export type VerificationReport = components["schemas"]["VerificationReportResponse"];
 export type StartResearchRequest = components["schemas"]["StartResearchRequest"];
 export type StartResearchResponse = components["schemas"]["StartResearchResponse"];
 export type ResumeResearchResponse = components["schemas"]["ResumeResearchResponse"];
@@ -77,6 +78,23 @@ export function getResearchDurability(
     unwrapData<ResearchDurability>(
       await apiClient.GET(
         "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/durability",
+        {
+          headers: authorization(accessToken),
+          params: { path: { research_run_id: researchRunId, workspace_id: workspaceId } },
+        },
+      ),
+    ),
+  );
+}
+
+export function getVerificationReport(
+  workspaceId: string,
+  researchRunId: string,
+): Promise<VerificationReport> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<VerificationReport>(
+      await apiClient.GET(
+        "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/verification-report",
         {
           headers: authorization(accessToken),
           params: { path: { research_run_id: researchRunId, workspace_id: workspaceId } },

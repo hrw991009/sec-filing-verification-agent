@@ -2,33 +2,33 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 72475,
+      "byte_size": 73691,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "f907f574377f45dfde7f1759d5255c86db317dbbd8041af97579d0d5d93c342d"
+      "sha256": "501daed4fe0c767c22b1716b6abd2bc1aeccf8afde9c65e826dbb6042374838f"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 147139,
+      "byte_size": 148264,
       "relative_path": "docs/master-plan.md",
-      "sha256": "31d1f549763da4033c2f8aee7b06ee640026a367991356910b5641b6a233011f"
+      "sha256": "cc681fb1c4814440f8e0969b395cf342d8203a8bbaa80ccf670d4154f47fd0e4"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 105555,
+      "byte_size": 106237,
       "relative_path": "docs/architecture.md",
-      "sha256": "e63c094e650327065e7bc9f2dcb997a5df4286fb724bfce254a52d4bf8ac5ce1"
+      "sha256": "4be91ef4995776b9f3b2c1fb1dea10b86bc7631aebef43ac3a5fa492c959d9a3"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 8776,
+      "byte_size": 9997,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "dcbb8f2e2abd080a71d09c8cb237f9ffe522907cbaec87b63be6e6a3c31f2bf4"
+      "sha256": "b3891e30e9680fbe4963cf21d900a96a4c603510a976d4709f4af945b97e3862"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 20745,
+      "byte_size": 23962,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "3c2ad6137201d6bc83bc521faeece9f8aad0a157597637909c3b3b260cc40534"
+      "sha256": "0c5df355b109d5892204348b0d9309ee56e073934a32a2126f6137b15bebe8da"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -40,7 +40,73 @@
       "artifact_id": "release-readiness-tests",
       "byte_size": 7309,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "1384041b334f4b5f3aa8761a484d0028a919d0011f211c711ead76b1ab8ed1d7"
+      "sha256": "c7f8e55f6146ebe6da8ef4e504372c8de8540b88c7daf3f2bbde632c1d8b825a"
+    },
+    {
+      "artifact_id": "sec-workbench-ui",
+      "byte_size": 52666,
+      "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx",
+      "sha256": "3fef8ec441c6d351f0b6251d70c9d6178b6c326f15de4464515322cbf39ea0c2"
+    },
+    {
+      "artifact_id": "sec-workbench-tests",
+      "byte_size": 20582,
+      "relative_path": "apps/web/src/disclosures/SecWorkbench.test.tsx",
+      "sha256": "4733563f1b2e924860fa7fe746f6093b3ea2c717b2f3c5665e934d7eb6a8607a"
+    },
+    {
+      "artifact_id": "sec-review-navigation",
+      "byte_size": 298,
+      "relative_path": "apps/web/src/disclosures/sec-review-navigation.ts",
+      "sha256": "7bef8b6577ddecddd76ec5874192fc08c47dedda8ff6b7b51fdc625c04d15bf0"
+    },
+    {
+      "artifact_id": "research-workbench-ui",
+      "byte_size": 57951,
+      "relative_path": "apps/web/src/research/ResearchWorkspace.tsx",
+      "sha256": "86b646843be34fac6a2cc448fefee9f91b566f249b0d1a109b8dad2c476c0d0f"
+    },
+    {
+      "artifact_id": "research-workbench-tests",
+      "byte_size": 28007,
+      "relative_path": "apps/web/src/research/ResearchWorkspace.test.tsx",
+      "sha256": "1ba0a7af9d42866f4974eed40430ee069dca34cdc40a01e9b8e748e524f17e9c"
+    },
+    {
+      "artifact_id": "research-web-api",
+      "byte_size": 5594,
+      "relative_path": "apps/web/src/research/research-api.ts",
+      "sha256": "699292435c8a793b9fb89359958281b0b117cfa76924b0886a4bedf7e5df1876"
+    },
+    {
+      "artifact_id": "research-web-api-tests",
+      "byte_size": 1474,
+      "relative_path": "apps/web/src/research/research-api.test.ts",
+      "sha256": "c8c6ae3a2d7de97045afa07bbdb155ac74c55f028f42f885f8a258da7547d8f3"
+    },
+    {
+      "artifact_id": "workbench-routing",
+      "byte_size": 55639,
+      "relative_path": "apps/web/src/chat/ChatWorkbench.tsx",
+      "sha256": "69f8d11e908f7da7d27e0fdb4916dee49502a9752e2df6b3b75156e1895e29fc"
+    },
+    {
+      "artifact_id": "research-http-router",
+      "byte_size": 18797,
+      "relative_path": "apps/backend/src/industry_platform/modules/research/router.py",
+      "sha256": "c89085ec93308302c314c3ad0ef2560c004c411f1b221f13fe62f7e281c95a9e"
+    },
+    {
+      "artifact_id": "research-verifier",
+      "byte_size": 33950,
+      "relative_path": "apps/backend/src/industry_platform/modules/research/verification.py",
+      "sha256": "180ac32cd2779c279da412aaada640088b3c35a8b2cad9a4d9f0a39949c43f9b"
+    },
+    {
+      "artifact_id": "sec-monitor-service",
+      "byte_size": 20201,
+      "relative_path": "apps/backend/src/industry_platform/modules/disclosures/monitor.py",
+      "sha256": "8a3bc941e02044823ed86f73e8380d615d2238aec47606ab9827d4a52e063df2"
     },
     {
       "artifact_id": "package-scripts",
@@ -116,9 +182,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 13157,
+      "byte_size": 15203,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "d228da237d5d7502aa3e02a54fd79c4ea77352911d57a939cab6467ccfe84ff9"
+      "sha256": "f6870b321c85d7b9fa263dcf1d19c60304a22d9fc4f31f4eadb46fc1a8249130"
     },
     {
       "artifact_id": "day-4-report",
@@ -208,7 +274,7 @@
     {
       "blocker_id": "day5-browser-evidence-missing",
       "closure_artifact_ids": [],
-      "detail": "The SEC fixture retrieval, calculation, evidence, approval, resume, and refresh paths lack one formal browser acceptance chain.",
+      "detail": "The product path now joins a locked filing to Research, Verification, Evidence, approval, Monitor, and Case APIs, but still lacks one no-interception browser acceptance chain against all real dependencies.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D5-08", "D5-09", "D10-02"],
@@ -262,7 +328,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Dedicated Monitor approval browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
+      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state, but dedicated no-interception browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -286,9 +352,9 @@
       "status": "open"
     },
     {
-      "blocker_id": "day10-work-not-started",
+      "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 implementation, release validation, and owner acceptance have not started.",
+      "detail": "Day 10 Steps 1 and 2 have local implementation evidence; release evaluation, full recovery gates, remote CI, and owner acceptance remain incomplete.",
       "external_gate_ids": ["final-owner-acceptance"],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -496,15 +562,15 @@
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "3c2ad6137201d6bc83bc521faeece9f8aad0a157597637909c3b3b260cc40534",
-  "matrix_sha256": "f907f574377f45dfde7f1759d5255c86db317dbbd8041af97579d0d5d93c342d",
+  "manifest_sha256": "0c5df355b109d5892204348b0d9309ee56e073934a32a2126f6137b15bebe8da",
+  "matrix_sha256": "501daed4fe0c767c22b1716b6abd2bc1aeccf8afde9c65e826dbb6042374838f",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 16,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "2c3ed3328d21132fddc9f10131eb892961e35edbb7b16528fbc336459a52b9dd",
+  "requirement_digest": "2637756f61b72813f8c7f9007191877b17f0ef33c63a2d6611318e94b307cf35",
   "requirements": [
     {
       "current_status": "complete",
@@ -1628,7 +1694,7 @@
       ]
     },
     {
-      "current_status": "planned",
+      "current_status": "implemented_pending_verification",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -1639,6 +1705,17 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
         "package-scripts",
         "day-10-log",
         "ci-workflow",
@@ -1651,12 +1728,14 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check"
       ]
     },
     {
-      "current_status": "planned",
+      "current_status": "implemented_pending_verification",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -1667,6 +1746,17 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
         "package-scripts",
         "day-10-log",
         "ci-workflow",
@@ -1679,6 +1769,8 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check"
       ]
@@ -1695,6 +1787,17 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
         "package-scripts",
         "day-10-log",
         "ci-workflow",
@@ -1707,90 +1810,8 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm run format:check",
-        "pnpm run api:check"
-      ]
-    },
-    {
-      "current_status": "planned",
-      "day": 10,
-      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-      "evidence_artifact_ids": [
-        "feature-matrix",
-        "master-plan",
-        "architecture",
-        "release-readiness-contract",
-        "release-readiness-manifest",
-        "release-readiness-generator",
-        "release-readiness-tests",
-        "package-scripts",
-        "day-10-log",
-        "ci-workflow",
-        "sec-release-failure-taxonomy"
-      ],
-      "owners": ["project-owner", "implementation-agent"],
-      "requirement_id": "D10-04",
-      "target_status": "complete",
-      "title": "SEC Agent 可观测与审计",
-      "verification_commands": [
-        "pnpm run eval:release-readiness",
-        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm run format:check",
-        "pnpm run api:check"
-      ]
-    },
-    {
-      "current_status": "planned",
-      "day": 10,
-      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-      "evidence_artifact_ids": [
-        "feature-matrix",
-        "master-plan",
-        "architecture",
-        "release-readiness-contract",
-        "release-readiness-manifest",
-        "release-readiness-generator",
-        "release-readiness-tests",
-        "package-scripts",
-        "day-10-log",
-        "ci-workflow",
-        "sec-release-failure-taxonomy"
-      ],
-      "owners": ["project-owner", "implementation-agent"],
-      "requirement_id": "D10-05",
-      "target_status": "complete",
-      "title": "Agent/SEC 安全收口",
-      "verification_commands": [
-        "pnpm run eval:release-readiness",
-        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm run format:check",
-        "pnpm run api:check"
-      ]
-    },
-    {
-      "current_status": "planned",
-      "day": 10,
-      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-      "evidence_artifact_ids": [
-        "feature-matrix",
-        "master-plan",
-        "architecture",
-        "release-readiness-contract",
-        "release-readiness-manifest",
-        "release-readiness-generator",
-        "release-readiness-tests",
-        "package-scripts",
-        "day-10-log",
-        "ci-workflow",
-        "sec-release-failure-taxonomy"
-      ],
-      "owners": ["project-owner", "implementation-agent"],
-      "requirement_id": "D10-06",
-      "target_status": "complete",
-      "title": "环境、恢复与回滚",
-      "verification_commands": [
-        "pnpm run eval:release-readiness",
-        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check"
       ]
@@ -1807,18 +1828,31 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
         "package-scripts",
         "day-10-log",
         "ci-workflow",
         "sec-release-failure-taxonomy"
       ],
       "owners": ["project-owner", "implementation-agent"],
-      "requirement_id": "D10-07",
+      "requirement_id": "D10-04",
       "target_status": "complete",
-      "title": "Release Eval 与完整性审计",
+      "title": "SEC Agent 可观测与审计",
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check"
       ]
@@ -1835,6 +1869,140 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-05",
+      "target_status": "complete",
+      "title": "Agent/SEC 安全收口",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-06",
+      "target_status": "complete",
+      "title": "环境、恢复与回滚",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "thin_slice",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
+        "package-scripts",
+        "day-10-log",
+        "ci-workflow",
+        "sec-release-failure-taxonomy"
+      ],
+      "owners": ["project-owner", "implementation-agent"],
+      "requirement_id": "D10-07",
+      "target_status": "complete",
+      "title": "Release Eval 与完整性审计",
+      "verification_commands": [
+        "pnpm run eval:release-readiness",
+        "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
+        "pnpm run format:check",
+        "pnpm run api:check"
+      ]
+    },
+    {
+      "current_status": "planned",
+      "day": 10,
+      "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "master-plan",
+        "architecture",
+        "release-readiness-contract",
+        "release-readiness-manifest",
+        "release-readiness-generator",
+        "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
         "package-scripts",
         "day-10-log",
         "ci-workflow",
@@ -1847,6 +2015,8 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check"
       ]
@@ -1857,8 +2027,8 @@
     "blocked": 0,
     "complete": 45,
     "contract_only": 0,
-    "implemented_pending_verification": 30,
-    "planned": 7,
-    "thin_slice": 6
+    "implemented_pending_verification": 32,
+    "planned": 4,
+    "thin_slice": 7
   }
 }

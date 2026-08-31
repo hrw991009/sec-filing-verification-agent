@@ -4,13 +4,13 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-30
+> 更新日期：2026-08-31
 >
-> 权威来源：`docs/master-plan.md` 2.2.9
+> 权威来源：`docs/master-plan.md` 2.2.10
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍留到 Day 10。Day 10 Step 1 当前在 `day-10` 工作树实现：沿既有 `evaluation` bounded context 建立 release readiness manifest/生成器，将正式能力矩阵、评测 taxonomy、仓库 artifact 与外部门投影为可重算台账。当前结论为 `no_go`；台账存在不代表业务、评测、恢复或发布门已经关闭。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍留到 Day 10。Day 10 Step 1 沿既有 `evaluation` bounded context 建立 release readiness manifest/生成器；Step 2 复用既有 SEC、Research、Verifier、Evidence、Approval、Monitor 和 Case owner，通过 typed navigation draft 连接产品页面，不增加第二套 Runtime 或业务状态。当前结论仍为 `no_go`；页面连通和组件测试不代表真实浏览器、恢复或发布门已经关闭。
 
 架构需要同时满足：
 
@@ -762,6 +762,8 @@ Day 2～Day 4 已有 50 条通用 Scenario 继续作为 Runtime/Memory/Evidence/
 Day 9 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context 建立唯一 release 治理入口：严格 Dataset Registry 负责 upstream revision、artifact byte size/SHA-256、split、数据/代码许可、允许用途和 release eligibility；Release Eval manifest 通过 registry canonical hash 固定 Runtime/Harness/model/Prompt/Tool/Context/Retrieval/Graph/Verifier/Scorer version、Budget、trajectory、SEC point-in-time gold 与 Run/Trace/Evidence/Calculation identity。Git 只保存 registry、manifest、JSON Schema 和小型派生产物，外部 payload 由后续 Adapter 按 registry 下载校验，不因登记元数据进入产品 RAG。四个公开数据集在 Adapter、artifact 校验和权利复核完成前均为 `registered_only` 且 fail closed，不能进入 release claim。
 
 Day 10 Step 1 继续复用该 bounded context：`release_readiness` 只读取正式能力矩阵、受检评测报告和仓库证据，不参与线上回答，也不重算各 benchmark scorer。readiness manifest 固定 requirement digest、owner、依赖、验证命令、artifact 和 blocker/external-gate 映射；生成器验证十张正式能力表、taxonomy 双向覆盖、非完成目标与 open blocker、pending gate 与 open blocker 完全一致，并为每个 artifact 计算 byte size/SHA-256。checked JSON/Markdown 与 manifest/report Schema 是发布审计投影，不是新的运行时事实源。
+
+Day 10 Step 2 的页面协调只传递已锁定 Filing 的 `FinancialScope` 输入，不持久化新的业务副本。Research API 仍拥有 Run/Brief/Draft、Verifier 拥有四态报告、Evidence API 拥有 Citation/Calculation 反查、Durability API 拥有 Checkpoint/Approval、Disclosure API 拥有 Monitor/Case。Web 每次刷新从这些正式 owner 重建视图；没有报告就显示未生成，amendment 不会被静默转换，active/paused 状态不会由浏览器计时器直接推进。这样保持单一事实源，同时把无拦截真实依赖 Playwright 留作独立发布证据门。
 
 Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
 

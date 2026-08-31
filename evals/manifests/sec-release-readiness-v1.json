@@ -36,6 +36,61 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py"
     },
     {
+      "artifact_id": "sec-workbench-ui",
+      "description": "SEC filing, verification launch, diff, Monitor, and Case product surface.",
+      "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx"
+    },
+    {
+      "artifact_id": "sec-workbench-tests",
+      "description": "Focused SEC scope handoff, filing, XBRL, diff, Monitor, and Case component tests.",
+      "relative_path": "apps/web/src/disclosures/SecWorkbench.test.tsx"
+    },
+    {
+      "artifact_id": "sec-review-navigation",
+      "description": "Typed immutable handoff from a locked SEC filing to the formal Research route.",
+      "relative_path": "apps/web/src/disclosures/sec-review-navigation.ts"
+    },
+    {
+      "artifact_id": "research-workbench-ui",
+      "description": "Formal Research Runtime, verification, evidence, approval, and recovery product surface.",
+      "relative_path": "apps/web/src/research/ResearchWorkspace.tsx"
+    },
+    {
+      "artifact_id": "research-workbench-tests",
+      "description": "Focused formal scope, verification report, approval, and recovery component tests.",
+      "relative_path": "apps/web/src/research/ResearchWorkspace.test.tsx"
+    },
+    {
+      "artifact_id": "research-web-api",
+      "description": "Generated-client wrapper for formal Research and Verification HTTP routes.",
+      "relative_path": "apps/web/src/research/research-api.ts"
+    },
+    {
+      "artifact_id": "research-web-api-tests",
+      "description": "Workspace-scoped Verification Report route regression test.",
+      "relative_path": "apps/web/src/research/research-api.test.ts"
+    },
+    {
+      "artifact_id": "workbench-routing",
+      "description": "Single product navigation state joining SEC, Research, and Evidence workspaces.",
+      "relative_path": "apps/web/src/chat/ChatWorkbench.tsx"
+    },
+    {
+      "artifact_id": "research-http-router",
+      "description": "Authenticated formal Research, Verification, durability, approval, and resume delivery.",
+      "relative_path": "apps/backend/src/industry_platform/modules/research/router.py"
+    },
+    {
+      "artifact_id": "research-verifier",
+      "description": "Deterministic four-state SEC Claim verification service and contracts.",
+      "relative_path": "apps/backend/src/industry_platform/modules/research/verification.py"
+    },
+    {
+      "artifact_id": "sec-monitor-service",
+      "description": "Existing durable SEC Monitor execution and idempotent Case service.",
+      "relative_path": "apps/backend/src/industry_platform/modules/disclosures/monitor.py"
+    },
+    {
       "artifact_id": "package-scripts",
       "description": "Repository command entry points including the readiness generator.",
       "relative_path": "package.json"
@@ -176,7 +231,7 @@
     {
       "blocker_id": "day5-browser-evidence-missing",
       "closure_artifact_ids": [],
-      "detail": "The SEC fixture retrieval, calculation, evidence, approval, resume, and refresh paths lack one formal browser acceptance chain.",
+      "detail": "The product path now joins a locked filing to Research, Verification, Evidence, approval, Monitor, and Case APIs, but still lacks one no-interception browser acceptance chain against all real dependencies.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D5-08", "D5-09", "D10-02"],
@@ -227,7 +282,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Dedicated Monitor approval browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
+      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state, but dedicated no-interception browser evidence and the combined hard-stop, lease, and notification-unknown recovery matrix remain open.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -250,9 +305,9 @@
       "status": "open"
     },
     {
-      "blocker_id": "day10-work-not-started",
+      "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 implementation, release validation, and owner acceptance have not started.",
+      "detail": "Day 10 Steps 1 and 2 have local implementation evidence; release evaluation, full recovery gates, remote CI, and owner acceptance remain incomplete.",
       "external_gate_ids": ["final-owner-acceptance"],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -374,12 +429,12 @@
     "blocked": 0,
     "complete": 45,
     "contract_only": 0,
-    "implemented_pending_verification": 30,
-    "planned": 7,
-    "thin_slice": 6
+    "implemented_pending_verification": 32,
+    "planned": 4,
+    "thin_slice": 7
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "2c3ed3328d21132fddc9f10131eb892961e35edbb7b16528fbc336459a52b9dd",
+  "expected_requirement_digest": "2637756f61b72813f8c7f9007191877b17f0ef33c63a2d6611318e94b307cf35",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -565,6 +620,17 @@
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
+        "sec-workbench-ui",
+        "sec-workbench-tests",
+        "sec-review-navigation",
+        "research-workbench-ui",
+        "research-workbench-tests",
+        "research-web-api",
+        "research-web-api-tests",
+        "workbench-routing",
+        "research-http-router",
+        "research-verifier",
+        "sec-monitor-service",
         "package-scripts",
         "day-10-log",
         "ci-workflow",
@@ -574,6 +640,8 @@
       "verification_commands": [
         "pnpm run eval:release-readiness",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
+        "pnpm --filter @industry-platform/web test",
+        "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check"
       ]

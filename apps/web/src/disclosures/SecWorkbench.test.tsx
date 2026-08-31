@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { KnowledgeBase } from "../knowledge/knowledge-api";
+import type { SecReviewDraft } from "./sec-review-navigation";
 import type {
   SecFiling,
   SecFilingDiff,
@@ -405,11 +406,22 @@ describe("SecWorkbench", () => {
 
   it("rebuilds Monitor and Case state from formal APIs and pauses with its revision", async () => {
     const user = userEvent.setup();
-    render(<SecWorkbench canManage workspaceId={workspaceId} />);
+    const onOpenEvidence = vi.fn();
+    render(
+      <SecWorkbench
+        canManage
+        onOpenEvidence={onOpenEvidence}
+        onOpenResearch={vi.fn()}
+        workspaceId={workspaceId}
+      />,
+    );
 
     await user.click(await screen.findByRole("tab", { name: "Monitor / Case" }));
     expect(await screen.findByRole("heading", { name: "Apple Inc." })).toBeInTheDocument();
     expect(screen.getByText(`${comparisonAccession} → ${accession}`)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "baseline:20202020" }));
+    expect(onOpenEvidence).toHaveBeenCalledWith(disclosureCase.evidence[0]?.evidence_id);
 
     await user.click(screen.getByRole("button", { name: "暂停" }));
     await waitFor(() => {
@@ -424,7 +436,14 @@ describe("SecWorkbench", () => {
 
   it("runs the CIK to locked snapshot to chunk reading journey", async () => {
     const user = userEvent.setup();
-    render(<SecWorkbench canManage workspaceId={workspaceId} />);
+    render(
+      <SecWorkbench
+        canManage
+        onOpenEvidence={vi.fn()}
+        onOpenResearch={vi.fn()}
+        workspaceId={workspaceId}
+      />,
+    );
 
     await screen.findByRole("option", { name: "SEC Research" });
     await user.click(screen.getByRole("button", { name: "查询申报" }));
@@ -458,9 +477,73 @@ describe("SecWorkbench", () => {
     );
   });
 
+  it("hands a locked FinancialScope and Chinese question to the formal Research route", async () => {
+    const user = userEvent.setup();
+    const onOpenResearch = vi.fn<(draft: SecReviewDraft) => void>();
+    render(
+      <SecWorkbench
+        canManage
+        onOpenEvidence={vi.fn()}
+        onOpenResearch={onOpenResearch}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    await screen.findByRole("option", { name: "SEC Research" });
+    await user.click(screen.getByRole("button", { name: "查询申报" }));
+    await user.click(screen.getByRole("button", { name: "锁定并导入" }));
+    await screen.findByText("可检索");
+    await user.click(screen.getByRole("tab", { name: "正式核验" }));
+    await user.clear(screen.getByLabelText("中文核验问题"));
+    await user.type(screen.getByLabelText("中文核验问题"), "请核验营业收入及同比变化。");
+    await user.click(screen.getByRole("button", { name: "进入正式核验" }));
+
+    expect(onOpenResearch).toHaveBeenCalledTimes(1);
+    const draft = onOpenResearch.mock.calls[0]?.[0];
+    expect(draft).toMatchObject({
+      accession,
+      cik: filing.cik,
+      form: filing.form,
+      knowledgeBaseId,
+      question: "请核验营业收入及同比变化。",
+      reportPeriod: filing.report_date,
+      scale: 6,
+      unit: "USD",
+    });
+    expect(typeof draft?.asOf).toBe("string");
+  });
+
+  it("does not silently coerce an amendment into a base-form FinancialScope", async () => {
+    const user = userEvent.setup();
+    mocks.listSecFilings.mockResolvedValue([{ ...filing, form: "10-K/A" }]);
+    render(
+      <SecWorkbench
+        canManage
+        onOpenEvidence={vi.fn()}
+        onOpenResearch={vi.fn()}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    await screen.findByRole("option", { name: "SEC Research" });
+    await user.click(screen.getByRole("button", { name: "查询申报" }));
+    await user.click(screen.getByRole("button", { name: "锁定并导入" }));
+    await screen.findByText("可检索");
+    await user.click(screen.getByRole("tab", { name: "正式核验" }));
+
+    expect(screen.getByRole("button", { name: "进入正式核验" })).toBeDisabled();
+  });
+
   it("shows standard aggregate and raw custom facts with distinct locators", async () => {
     const user = userEvent.setup();
-    render(<SecWorkbench canManage workspaceId={workspaceId} />);
+    render(
+      <SecWorkbench
+        canManage
+        onOpenEvidence={vi.fn()}
+        onOpenResearch={vi.fn()}
+        workspaceId={workspaceId}
+      />,
+    );
 
     await screen.findByRole("option", { name: "SEC Research" });
     await user.click(screen.getByRole("button", { name: "查询申报" }));
@@ -490,7 +573,14 @@ describe("SecWorkbench", () => {
 
   it("runs a formal filing diff and exposes both source locators", async () => {
     const user = userEvent.setup();
-    render(<SecWorkbench canManage workspaceId={workspaceId} />);
+    render(
+      <SecWorkbench
+        canManage
+        onOpenEvidence={vi.fn()}
+        onOpenResearch={vi.fn()}
+        workspaceId={workspaceId}
+      />,
+    );
 
     await screen.findByRole("option", { name: "SEC Research" });
     await user.click(screen.getByRole("button", { name: "查询申报" }));

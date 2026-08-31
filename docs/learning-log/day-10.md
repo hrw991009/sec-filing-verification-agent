@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.9 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.10 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
@@ -10,7 +10,7 @@
 >
 > 发布合同：[SEC 披露核验 Agent 发布就绪合同](../release-readiness.md)
 >
-> 当前状态：Step 1 已在 `day-10` 工作树实现，D10-07 为 `thin_slice`；Step 2～Step 5 尚未开始，其余 D10 项保持 `planned`
+> 当前状态：Step 1、Step 2 已在 `day-10` 工作树实现；D10-01/D10-02 为 `implemented_pending_verification`，D10-04/D10-07 为 `thin_slice`，Step 3～Step 5 尚未开始
 
 ## 1. 进入基线与最后一天边界
 
@@ -77,13 +77,21 @@ Step 1 在既有 `industry_platform.modules.evaluation` bounded context 新增�
 
 矩阵读取器只接受十张正式能力表，按结构识别 88 个唯一目标，并对完整规范化行计算 digest；它不会把 D1 的历史证据表重复算作目标，也能正确处理 code span 内的 `|`。manifest 固定 requirement count、digest 和全部六种状态计数，因此目标增删、状态漂移、未知状态、重复 ID、表格缺失或 Day 10 target 不是 `complete` 时均 fail closed。
 
-`sec-release-readiness-v1` 当前重算结果为：45 个 `complete`、30 个 `implemented_pending_verification`、6 个 `thin_slice`、7 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当前只剩最终 owner closeout，未改写 Day 9 不可变报告。
+`sec-release-readiness-v1` 在 Step 2 后的当前重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、7 个 `thin_slice`、4 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定仍为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当前只剩最终 owner closeout，未改写 Day 9 不可变报告。
 
 8 条聚焦测试覆盖 checked report/Markdown/schema 重算、全部 artifact hash、矩阵状态漂移、artifact 缺失、taxonomy 双向映射、仍 release-blocking 的 taxonomy 项伪关闭、无证据 external gate 和非法 hash。`pnpm run eval:release-readiness` 先规范化输入 manifest，再生成 JSON/Markdown 与 manifest/report 两份 JSON Schema，避免生成后格式化输入造成 hash 立即过期。
 
 本地门禁为 evaluation 模块 `65 passed`、readiness 模块 branch coverage `84%`、无强制真实服务全量 pytest `1184 passed, 88 skipped`；Ruff format/check、mypy `513` 个源文件、Prettier、ESLint、TypeScript、Vitest `89 passed`、生产构建和 OpenAPI 确定性均通过。Python/Node audit 无已知漏洞，完整 98-commit Gitleaks 无泄漏。PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 强制集成、Chromium、分支/PR/main CI 与 owner review 未在本步执行。该结果只证明发布台账合同和当前 `NO_GO` 基线可重算；它没有关闭任何业务、评测、恢复或外部 blocker，所以只有 D10-07 更新为 `thin_slice`。
 
-## 6. 当日完成定义
+## 6. Step 2 实现与证据
+
+Step 2 没有复制 Research 或 Verifier。SEC Workbench 在用户选定并锁定正式 Filing import 后，构造 typed `SecReviewDraft`，一次性交付 CIK、form、report period、accession、`as_of`、Knowledge Base、unit/scale 和中文问题。Research Workbench 以该草稿预填既有 `StartResearchRequest.financial_scope`、明确的 scope/exclusion/completion criteria，并继续使用唯一 Research graph、Unified Runtime、Tool profile、Checkpoint/Approval 和 Monitor subscription 服务。`10-K/A`/`10-Q/A` 不会静默降为原表单；正式核验入口 fail closed，修订关系仍由 Filing Diff 处理。
+
+Research Web API 新增已有 `GET /research-runs/{id}/verification-report` 的 generated-client wrapper。工作台从服务端报告显示 `verified`、`partial`、`conflict`、`insufficient_evidence` 四态、coverage、Claim verdict、Citation/Calculation 分母、typed issue、Runtime stop reason 和 Evidence snapshot；404 只表示报告尚未生成，其他读取失败仍显示为错误。active/paused Run 每 3 秒从正式列表、Run、Trace、Claim、Durability 和 Verification API 重建；Case 的 baseline/target Evidence 可直接进入 Evidence Workbench。页面不会按 Claim 数或 Draft 文本自行推导核验状态。
+
+当前 readiness manifest 新增 11 个正式实现/测试 artifact，总数为 41；非金融 Run 不请求金融 Verification Report，聚焦 Web 组件/API 为 `15 passed`，全量 Web 为 `94 passed`，Research/Verifier/Monitor/readiness 聚焦 Python 为 `37 passed`，TypeScript 和 ESLint 通过。尚未执行无接口拦截的真实认证 + PostgreSQL/Redis/MinIO/Elasticsearch/Milvus 浏览器旅程，也未运行受控 SEC source、Worker 恢复、分支/PR/main CI 或 owner review。因此 D10-01/D10-02 仅为 `implemented_pending_verification`，D10-04 仅为 `thin_slice`；Day 5/8 浏览器与恢复 blocker、16 个总 blocker 和 `NO_GO` 均保留。
+
+## 7. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：
 
@@ -96,6 +104,6 @@ Day 10 只有同时满足以下条件才可关闭：
 
 任一条件未满足时，本日可以结束实施批次，但版本状态仍为 `NO_GO`，不得把计划完成等同于产品发布完成。
 
-## 7. 复盘题
+## 8. 复盘题
 
 最终证据能支持哪些明确的产品声明？A0～A4 中哪一级在同一分母上产生了值得成本的净收益？哪些失败属于产品缺陷、外部依赖或治理阻断？在不读取开发者解释的情况下，运维人员能否只凭 Run/Trace/Evidence/报告与 Runbook 完成定位和回滚？

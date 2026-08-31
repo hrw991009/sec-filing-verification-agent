@@ -13,11 +13,11 @@
 | Status | Count |
 |---|---:|
 | `complete` | 45 |
-| `implemented_pending_verification` | 30 |
-| `thin_slice` | 6 |
+| `implemented_pending_verification` | 32 |
+| `thin_slice` | 7 |
 | `contract_only` | 0 |
 | `blocked` | 0 |
-| `planned` | 7 |
+| `planned` | 4 |
 
 ## Open blockers
 
@@ -29,7 +29,7 @@
 | `day6-source-closeout-incomplete` | `cross_day_audit` | implementation-agent | 9 | 1 |
 | `day7-retrieval-citation-incomplete` | `cross_day_audit` | implementation-agent | 10 | 0 |
 | `day8-browser-recovery-incomplete` | `cross_day_audit` | implementation-agent | 14 | 0 |
-| `day10-work-not-started` | `cross_day_audit` | implementation-agent | 8 | 1 |
+| `day10-delivery-incomplete` | `cross_day_audit` | implementation-agent | 8 | 1 |
 | `global-a0-a4-common-cases-missing` | `evaluation_taxonomy` | implementation-agent | 2 | 0 |
 | `retrieval-recall-at-5-missing` | `evaluation_taxonomy` | implementation-agent | 4 | 0 |
 | `runtime-binding-missing` | `evaluation_taxonomy` | implementation-agent | 5 | 0 |

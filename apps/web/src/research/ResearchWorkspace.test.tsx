@@ -2,9 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiProblem } from "../api/api";
 import type { AgentTrace } from "../chat/chat-api";
 import type { Industry } from "../industry/industry-api";
-import type { ResearchDurability, ResearchRun } from "./research-api";
+import type { ResearchDurability, ResearchRun, VerificationReport } from "./research-api";
 
 const workspaceId = "11111111-1111-4111-8111-111111111111";
 const researchRunId = "22222222-2222-4222-8222-222222222222";
@@ -172,11 +173,62 @@ const durability: ResearchDurability = {
   duplicate_side_effect_count: 0,
 };
 
+const verificationReport: VerificationReport = {
+  agent_run_id: agentRunId,
+  checker_version: "sec-claim-verifier-v1",
+  claims: [
+    {
+      calculation_refs: ["12121212-1212-4212-8212-121212121212"],
+      citation_refs: ["13131313-1313-4313-8313-131313131313"],
+      claim_id: "66666666-6666-4666-8666-666666666666",
+      claim_revision: 1,
+      coverage: 0.5,
+      evidence_refs: ["14141414-1414-4414-8414-141414141414"],
+      issues: [],
+      required: true,
+      verdict: "supported",
+    },
+  ],
+  coverage: 0.5,
+  created_at: "2026-08-22T08:00:05Z",
+  draft_id: "77777777-7777-4777-8777-777777777777",
+  evidence_snapshots: [
+    {
+      available: true,
+      content_sha256: "a".repeat(64),
+      evidence_id: "14141414-1414-4414-8414-141414141414",
+      revision: 1,
+      status: "active",
+    },
+  ],
+  financial_scope: {
+    accession: "0000320193-23-000106",
+    as_of: "2023-11-03T12:00:00Z",
+    cik: "0000320193",
+    form: "10-K",
+    report_period: "2023-09-30",
+    scale: 6,
+    schema_version: 1,
+    unit: "USD",
+  },
+  graph_version: "research-l5-graph-v1",
+  issues: [],
+  report_id: "15151515-1515-4515-8515-151515151515",
+  required_claim_ids: ["66666666-6666-4666-8666-666666666666"],
+  research_run_id: researchRunId,
+  revision: 1,
+  runtime_stop_reason: "final",
+  schema_version: 1,
+  verification_status: "partial",
+  workspace_id: workspaceId,
+};
+
 const researchMocks = vi.hoisted(() => ({
   decideMonitorSubscription: vi.fn(),
   decideResearchApproval: vi.fn(),
   getResearchDurability: vi.fn(),
   getResearchRun: vi.fn(),
+  getVerificationReport: vi.fn(),
   listResearchRuns: vi.fn(),
   resumeResearch: vi.fn(),
   startResearch: vi.fn(),
@@ -198,6 +250,7 @@ describe("ResearchWorkspace", () => {
     researchMocks.listResearchRuns.mockResolvedValue([researchRun]);
     researchMocks.getResearchRun.mockResolvedValue(researchRun);
     researchMocks.getResearchDurability.mockResolvedValue(durability);
+    researchMocks.getVerificationReport.mockRejectedValue(new ApiProblem(404, null));
     knowledgeMocks.listKnowledgeBases.mockResolvedValue([
       {
         created_at: "2026-08-25T08:00:00Z",
@@ -254,6 +307,7 @@ describe("ResearchWorkspace", () => {
     expect(screen.getByText("uncertain_draft")).toBeVisible();
     expect(screen.getByText(/coverage 0%/u)).toBeVisible();
     expect(screen.getByText(/No source passed/u)).toBeVisible();
+    expect(researchMocks.getVerificationReport).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "准备 L0" }));
     expect(onOpenAgent).toHaveBeenCalledWith(researchRun.brief.original_question, "none");
@@ -266,6 +320,78 @@ describe("ResearchWorkspace", () => {
     await waitFor(() => {
       expect(researchMocks.listResearchRuns).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("renders the authoritative four-state verification report and Evidence drilldown", async () => {
+    const user = userEvent.setup();
+    const onOpenEvidence = vi.fn();
+    const financialRun: ResearchRun = {
+      ...researchRun,
+      brief: { ...researchRun.brief, financial_scope: verificationReport.financial_scope },
+    };
+    researchMocks.listResearchRuns.mockResolvedValue([financialRun]);
+    researchMocks.getResearchRun.mockResolvedValue(financialRun);
+    researchMocks.getVerificationReport.mockResolvedValue(verificationReport);
+
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={researchRunId}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={onOpenEvidence}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    expect(await screen.findByText("部分核验", { selector: "dd" })).toBeVisible();
+    expect(researchMocks.getVerificationReport).toHaveBeenCalledWith(workspaceId, researchRunId);
+    expect(screen.getByText("sec-claim-verifier-v1 · r1")).toBeVisible();
+    expect(screen.getAllByText("50%", { selector: "dd" })).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: /Evidence 14141414/u }));
+    expect(onOpenEvidence).toHaveBeenCalledWith(
+      verificationReport.evidence_snapshots[0]?.evidence_id,
+    );
+  });
+
+  it("prefills the formal Research Brief from a locked SEC filing scope", async () => {
+    const onSecReviewDraftConsumed = vi.fn();
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={null}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onSecReviewDraftConsumed={onSecReviewDraftConsumed}
+        onSelectIndustry={vi.fn()}
+        secReviewDraft={{
+          accession: "0000320193-23-000106",
+          asOf: "2023-11-03T18:01:00Z",
+          cik: "0000320193",
+          form: "10-K",
+          knowledgeBaseId,
+          question: "请核验营业收入及同比变化。",
+          reportPeriod: "2023-09-30",
+          scale: 6,
+          unit: "USD",
+        }}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Research 原始问题")).toHaveValue(
+      "请核验营业收入及同比变化。",
+    );
+    expect(screen.getByLabelText("Research accession")).toHaveValue("0000320193-23-000106");
+    expect(screen.getByLabelText("Research Knowledge Base")).toHaveValue(knowledgeBaseId);
+    expect(
+      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Research 已确认范围" }).value,
+    ).toContain("FinancialScope");
+    expect(onSecReviewDraftConsumed).toHaveBeenCalledTimes(1);
   });
 
   it("shows context exclusions, calculation reconciliation, diff and citation drilldown", async () => {

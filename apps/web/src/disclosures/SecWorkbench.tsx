@@ -26,10 +26,13 @@ import {
   type SecXbrlFactCollection,
   type SecXbrlSourceKind,
 } from "./sec-api";
+import type { SecReviewDraft } from "./sec-review-navigation";
 import "./sec-workbench.css";
 
 interface SecWorkbenchProps {
   readonly canManage: boolean;
+  readonly onOpenEvidence: (evidenceId: string) => void;
+  readonly onOpenResearch: (draft: SecReviewDraft) => void;
   readonly workspaceId: string;
 }
 
@@ -46,7 +49,7 @@ const xbrlSourceNames: Readonly<Record<SecXbrlSourceKind, string>> = {
   raw_instance: "Raw Instance",
 };
 
-type ContentMode = "text" | "xbrl" | "diff" | "monitor";
+type ContentMode = "text" | "xbrl" | "verification" | "diff" | "monitor";
 type XbrlSourceMode = "all" | "aggregate" | "raw";
 
 function xbrlSourceKinds(mode: XbrlSourceMode): readonly SecXbrlSourceKind[] {
@@ -72,7 +75,16 @@ function asIso(value: string): string {
   return new Date(value).toISOString();
 }
 
-export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
+function isResearchForm(value: string): value is "10-K" | "10-Q" {
+  return value === "10-K" || value === "10-Q";
+}
+
+export function SecWorkbench({
+  canManage,
+  onOpenEvidence,
+  onOpenResearch,
+  workspaceId,
+}: SecWorkbenchProps) {
   const now = useMemo(() => new Date(), []);
   const [cik, setCik] = useState("0000320193");
   const [forms, setForms] = useState<readonly ("10-K" | "10-Q")[]>(["10-K", "10-Q"]);
@@ -98,6 +110,11 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
   const [diffUnit, setDiffUnit] = useState("USD");
   const [diffScale, setDiffScale] = useState(0);
   const [diffResult, setDiffResult] = useState<SecFilingDiff | null>(null);
+  const [reviewQuestion, setReviewQuestion] = useState(
+    "请核验该报告期营业收入及同比变化，并列出可解析的 SEC 引用和计算过程。",
+  );
+  const [reviewUnit, setReviewUnit] = useState("USD");
+  const [reviewScale, setReviewScale] = useState(6);
   const [monitors, setMonitors] = useState<SecMonitor[]>([]);
   const [cases, setCases] = useState<SecDisclosureCase[]>([]);
   const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
@@ -372,6 +389,29 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
     );
   }
 
+  function openFormalVerification(): void {
+    if (
+      selectedFiling === null ||
+      !isResearchForm(selectedFiling.form) ||
+      selectedImport?.status !== "ready" ||
+      !reviewQuestion.trim() ||
+      !reviewUnit.trim()
+    ) {
+      return;
+    }
+    onOpenResearch({
+      accession: selectedFiling.accession,
+      asOf: asIso(asOf),
+      cik: selectedFiling.cik,
+      form: selectedFiling.form,
+      knowledgeBaseId: selectedImport.knowledge_base_id,
+      question: reviewQuestion.trim(),
+      reportPeriod: selectedFiling.report_date,
+      scale: reviewScale,
+      unit: reviewUnit.trim().toUpperCase(),
+    });
+  }
+
   return (
     <section className="sec-workbench" aria-labelledby="sec-workbench-title">
       <header className="sec-workbench__header">
@@ -567,6 +607,16 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                 type="button"
               >
                 XBRL
+              </button>
+              <button
+                aria-selected={contentMode === "verification"}
+                onClick={() => {
+                  setContentMode("verification");
+                }}
+                role="tab"
+                type="button"
+              >
+                正式核验
               </button>
               <button
                 aria-selected={contentMode === "diff"}
@@ -877,6 +927,101 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                   </article>
                 </div>
               </>
+            ) : contentMode === "verification" ? (
+              <div className="sec-verification-launcher">
+                <header>
+                  <div>
+                    <p className="eyebrow">FinancialScope</p>
+                    <h2>{selectedFiling?.accession ?? "选择并锁定一个 Accession"}</h2>
+                  </div>
+                  <span
+                    className={`sec-import-status sec-import-status--${selectedImport?.status ?? "none"}`}
+                  >
+                    {selectedImport?.status === "ready" ? "范围可核验" : "等待锁定快照"}
+                  </span>
+                </header>
+                <dl>
+                  <div>
+                    <dt>CIK / Form</dt>
+                    <dd>
+                      {selectedFiling === null
+                        ? "-"
+                        : `${selectedFiling.cik} / ${selectedFiling.form}`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Report period</dt>
+                    <dd>{selectedFiling?.report_date ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>As of</dt>
+                    <dd>{asOf}</dd>
+                  </div>
+                  <div>
+                    <dt>Knowledge Base</dt>
+                    <dd>
+                      {knowledgeBases.find((item) => item.id === knowledgeBaseId)?.name ?? "-"}
+                    </dd>
+                  </div>
+                </dl>
+                <label>
+                  中文核验问题
+                  <textarea
+                    maxLength={4_000}
+                    onChange={(event) => {
+                      setReviewQuestion(event.currentTarget.value);
+                    }}
+                    required
+                    rows={4}
+                    value={reviewQuestion}
+                  />
+                </label>
+                <div className="sec-verification-launcher__numbers">
+                  <label>
+                    Unit
+                    <input
+                      maxLength={16}
+                      onChange={(event) => {
+                        setReviewUnit(event.currentTarget.value);
+                      }}
+                      pattern="[A-Z][A-Z0-9_/-]{0,15}"
+                      required
+                      value={reviewUnit}
+                    />
+                  </label>
+                  <label>
+                    Scale
+                    <input
+                      max={12}
+                      min={-12}
+                      onChange={(event) => {
+                        setReviewScale(event.currentTarget.valueAsNumber);
+                      }}
+                      required
+                      type="number"
+                      value={reviewScale}
+                    />
+                  </label>
+                </div>
+                <button
+                  className="primary-button"
+                  disabled={
+                    !canManage ||
+                    selectedFiling === null ||
+                    !isResearchForm(selectedFiling.form) ||
+                    selectedImport?.status !== "ready" ||
+                    !reviewQuestion.trim() ||
+                    !reviewUnit.trim() ||
+                    !Number.isInteger(reviewScale) ||
+                    reviewScale < -12 ||
+                    reviewScale > 12
+                  }
+                  onClick={openFormalVerification}
+                  type="button"
+                >
+                  进入正式核验
+                </button>
+              </div>
             ) : contentMode === "diff" ? (
               <div className="sec-diff-workspace">
                 <form className="sec-diff-toolbar" onSubmit={(event) => void runFilingDiff(event)}>
@@ -1184,11 +1329,19 @@ export function SecWorkbench({ canManage, workspaceId }: SecWorkbenchProps) {
                                 <p>
                                   {item.baseline_accession} → {item.target_accession}
                                 </p>
-                                <small>
-                                  {item.evidence
-                                    .map((link) => `${link.side}:${link.evidence_id.slice(0, 8)}`)
-                                    .join(" · ")}
-                                </small>
+                                <div className="sec-case-evidence">
+                                  {item.evidence.map((link) => (
+                                    <button
+                                      key={`${link.side}:${link.evidence_id}`}
+                                      onClick={() => {
+                                        onOpenEvidence(link.evidence_id);
+                                      }}
+                                      type="button"
+                                    >
+                                      {link.side}:{link.evidence_id.slice(0, 8)}
+                                    </button>
+                                  ))}
+                                </div>
                               </li>
                             ))}
                           </ol>

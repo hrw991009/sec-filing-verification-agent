@@ -40,11 +40,11 @@ def test_release_readiness_recomputes_checked_ledger() -> None:
     assert len(report.requirements) == 88
     assert report.status_counts == {
         RequirementStatus.COMPLETE: 45,
-        RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 30,
-        RequirementStatus.THIN_SLICE: 6,
+        RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 32,
+        RequirementStatus.THIN_SLICE: 7,
         RequirementStatus.CONTRACT_ONLY: 0,
         RequirementStatus.BLOCKED: 0,
-        RequirementStatus.PLANNED: 7,
+        RequirementStatus.PLANNED: 4,
     }
     assert report.incomplete_requirement_count == 43
     assert report.release_blocker_count == 16
