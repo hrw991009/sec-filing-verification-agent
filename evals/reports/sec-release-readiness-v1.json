@@ -2,63 +2,63 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 77192,
+      "byte_size": 78271,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "47ca7e832c3b68a2760fe59f0de57e744582ecf94419635ea750b882cda8ca50"
+      "sha256": "6e784b7260475262c65749a0833c2a71fa01f13e22402435c9020d7f246c1a2c"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 150568,
+      "byte_size": 151056,
       "relative_path": "docs/master-plan.md",
-      "sha256": "6f63bc42d2c06871edc72048d90bf9c74236c663f64c37c5bc41a8eb3fffe1e5"
+      "sha256": "c98eabf65935648510f97303d80bfd8ec94f5f235b63424543dcf8503ff83830"
     },
     {
       "artifact_id": "architecture",
       "byte_size": 107899,
       "relative_path": "docs/architecture.md",
-      "sha256": "2541b12cb0df3b6169e02fe06cc4f352db340a776e4a99fede05946557c9c8d6"
+      "sha256": "a6bf3cf0b2c47075c30122d730764689637dd3da5143e7f1535838ab1702195e"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 13792,
+      "byte_size": 14755,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "7d510ccbf83f95845f1b7d78b7825bfb22792b1a2c0edfe1d5993c2788220945"
+      "sha256": "574b6e4a7f2b479c658d4fd4f1c234b7f3937d6425ee053033f05c52f51fd4a4"
     },
     {
       "artifact_id": "readme",
-      "byte_size": 20481,
+      "byte_size": 20504,
       "relative_path": "README.md",
-      "sha256": "69297a207f4881a268290b91e14d16d23c206664d227c68ebe5cfd81dbde7b22"
+      "sha256": "1ddaaf464c6dc2b3f5436828f4bc6fc23ff4879319a17744939cbb1949a09875"
     },
     {
       "artifact_id": "product-scope",
-      "byte_size": 30787,
+      "byte_size": 30861,
       "relative_path": "docs/product-scope.md",
-      "sha256": "1e226b8ef2ae0b21f18b2fb7d30216ceacfbbd1d0bf84c23d0bf088632ca5108"
+      "sha256": "bc85f3a410f7a56dd2fd812f2724a188bc8969961412b22207dc05d935d03406"
     },
     {
       "artifact_id": "sec-domain-adr",
       "byte_size": 15452,
       "relative_path": "docs/adr/0007-sec-disclosure-financial-fact-verification.md",
-      "sha256": "38db8d79f6b98682e8d7d6e65e99bf2a00b32c4143c4f97cb8021539c552b6ee"
+      "sha256": "a6a44cdea18d4098269eaa30231e732f4a7a23506d7d0846063d66ba31ffb22c"
     },
     {
       "artifact_id": "sec-agent-evaluation-plan",
-      "byte_size": 35175,
+      "byte_size": 35066,
       "relative_path": "docs/sec-agent-evaluation.md",
-      "sha256": "eefcfd106a93b3666d5125fba722d7b344b11815c84ff75e17d5799f0f9d3988"
+      "sha256": "79a05d412e354ecfe978fca7a9e8766ece7920390f08cf2f0f572b9c7ed15042"
     },
     {
       "artifact_id": "release-candidate-draft",
-      "byte_size": 4067,
+      "byte_size": 4235,
       "relative_path": "docs/release-notes/v0.2.0-sec-disclosure-verifier.md",
-      "sha256": "8e65e8093de6ccdb73c584d70ee5b1b2390095bf6bb5065400ea1d4b4a98717b"
+      "sha256": "c7742248c2da38aa84c513f9bc5f05d3611e4a73fc730b035e7cee24c0c9b48f"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 31280,
+      "byte_size": 32714,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "711090922f85e0de19413a13afbf941a9f1fac3d78479a5a618b92e79fbed28f"
+      "sha256": "528e6f74e28fb22a963be2e574a5374f86612348081626224cbbb5c3ad1aa294"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -68,9 +68,9 @@
     },
     {
       "artifact_id": "release-readiness-tests",
-      "byte_size": 10216,
+      "byte_size": 10916,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "1119200e015c86d7532fe27b48396e93ef2e30e6cfb5c205afc674d5ff5616e8"
+      "sha256": "986f936bc711d84d3539ad924747f1347f351d8374858a45e1f6dcd284b8942e"
     },
     {
       "artifact_id": "release-evidence-generator",
@@ -344,9 +344,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 22619,
+      "byte_size": 24621,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "05610206ac3b88c5a2ec1b79332b90b8bc7094c1e0c79cc075e951fe3cd16ce2"
+      "sha256": "4304ccb500cf3ee7a85bfaa893e8dc1bf8ab2350d4d538972078568583638029"
     },
     {
       "artifact_id": "day-4-report",
@@ -409,7 +409,7 @@
       "sha256": "bdbbf5e38a695c297b39436e645bc8e7b3332f8716988eb2d34020c5292b542b"
     }
   ],
-  "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+  "baseline_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
   "blockers": [
     {
       "blocker_id": "credential-disposition-open",
@@ -417,21 +417,21 @@
       "detail": "Six reference-repository credential candidates still require provider-side disposition and a clean rescan.",
       "external_gate_ids": ["provider-credential-disposition"],
       "owner": "project-owner",
-      "requirement_ids": ["D1-09", "D10-03", "D10-05", "D10-07"],
+      "requirement_ids": ["D1-09", "D10-05", "D10-07"],
       "source": "cross_day_audit",
       "source_detail": null,
       "status": "open"
     },
     {
       "blocker_id": "day4-core-coverage-debt",
-      "closure_artifact_ids": [],
-      "detail": "The frozen core module set reaches the 90 percent local threshold without omissions, and CI now enforces it; a clean remote real-dependency run is still required before closure.",
-      "external_gate_ids": [],
+      "closure_artifact_ids": ["ci-workflow", "day-10-log", "feature-matrix"],
+      "detail": "Day 10 main CI 33463386752 passed all seven jobs with five real dependencies, 1347 backend tests, 80.72 percent total branch coverage, and 90 percent frozen core coverage.",
+      "external_gate_ids": ["day10-main-ci"],
       "owner": "implementation-agent",
-      "requirement_ids": ["D10-03", "D10-07"],
+      "requirement_ids": ["D10-03"],
       "source": "cross_day_audit",
       "source_detail": null,
-      "status": "open"
+      "status": "closed"
     },
     {
       "blocker_id": "day5-browser-evidence-missing",
@@ -516,19 +516,15 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 through 5 have local implementation and final audit evidence; production evaluation runs, executed recovery evidence, remote branch/PR/main CI, and owner acceptance remain incomplete.",
-      "external_gate_ids": ["final-owner-acceptance"],
-      "owner": "implementation-agent",
-      "requirement_ids": [
-        "D10-01",
-        "D10-02",
-        "D10-03",
-        "D10-04",
-        "D10-05",
-        "D10-06",
-        "D10-07",
-        "D10-08"
+      "detail": "Day 10 Steps 1 through 5 are merged and branch, pull-request, and main CI are verified; production evaluation runs, executed recovery evidence, and final owner acceptance remain incomplete.",
+      "external_gate_ids": [
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
       ],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D10-01", "D10-02", "D10-04", "D10-05", "D10-06", "D10-07", "D10-08"],
       "source": "cross_day_audit",
       "source_detail": null,
       "status": "open"
@@ -624,8 +620,16 @@
     {
       "blocker_id": "remote-ci-owner-closeout-missing",
       "closure_artifact_ids": [],
-      "detail": "Day 9 three-layer CI is verified; final release owner acceptance remains pending.",
-      "external_gate_ids": ["day9-push-ci", "day9-pr-ci", "day9-main-ci", "final-owner-acceptance"],
+      "detail": "Day 9 and Day 10 three-layer CI are verified; final release owner acceptance remains pending.",
+      "external_gate_ids": [
+        "day9-push-ci",
+        "day9-pr-ci",
+        "day9-main-ci",
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
+      ],
       "owner": "project-owner",
       "requirement_ids": [
         "D9-01",
@@ -670,6 +674,33 @@
       "gate_id": "day9-main-ci",
       "owner": "github-actions",
       "source_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 feature-head push CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380",
+      "gate_id": "day10-push-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 pull-request CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633",
+      "gate_id": "day10-pr-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 merge-commit main CI passed all seven applicable jobs, including the five-real-dependency backend integration and frozen coverage gates.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752",
+      "gate_id": "day10-main-ci",
+      "owner": "github-actions",
+      "source_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
       "status": "verified"
     },
     {
@@ -718,21 +749,21 @@
       "status": "pending"
     }
   ],
-  "incomplete_requirement_count": 43,
+  "incomplete_requirement_count": 42,
   "limitations": [
     "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "711090922f85e0de19413a13afbf941a9f1fac3d78479a5a618b92e79fbed28f",
-  "matrix_sha256": "47ca7e832c3b68a2760fe59f0de57e744582ecf94419635ea750b882cda8ca50",
+  "manifest_sha256": "528e6f74e28fb22a963be2e574a5374f86612348081626224cbbb5c3ad1aa294",
+  "matrix_sha256": "6e784b7260475262c65749a0833c2a71fa01f13e22402435c9020d7f246c1a2c",
   "pending_external_gate_count": 5,
   "rc_ready": false,
-  "release_blocker_count": 16,
+  "release_blocker_count": 15,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "856b548d60b4899b700b6cb38e18048c4142aa08df241621a7fdc826c5e12b21",
+  "requirement_digest": "31282aab5f42c214e4d15cfaf2330db3ab650638838d1c783fdd2430a08349ee",
   "requirements": [
     {
       "current_status": "complete",
@@ -2002,7 +2033,7 @@
       ]
     },
     {
-      "current_status": "implemented_pending_verification",
+      "current_status": "complete",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -2443,9 +2474,9 @@
   "schema_version": 1,
   "status_counts": {
     "blocked": 0,
-    "complete": 45,
+    "complete": 46,
     "contract_only": 0,
-    "implemented_pending_verification": 33,
+    "implemented_pending_verification": 32,
     "planned": 0,
     "thin_slice": 10
   }

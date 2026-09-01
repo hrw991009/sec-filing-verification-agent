@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.13 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.14 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
@@ -10,7 +10,7 @@
 >
 > 发布合同：[SEC 披露核验 Agent 发布就绪合同](../release-readiness.md)
 >
-> 当前状态：Step 1～Step 5 已在 `day-10` 工作树完成本地实施；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，最终机器判定为 `NO_GO`
+> 当前状态：Step 1～Step 5 已由 PR #16 合入 `main`；D10-03 为 `complete`，D10-01/D10-02 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，最终机器判定仍为 `NO_GO`
 
 ## 1. 进入基线与最后一天边界
 
@@ -77,7 +77,7 @@ Step 1 在既有 `industry_platform.modules.evaluation` bounded context 新增�
 
 矩阵读取器只接受十张正式能力表，按结构识别 88 个唯一目标，并对完整规范化行计算 digest；它不会把 D1 的历史证据表重复算作目标，也能正确处理 code span 内的 `|`。manifest 固定 requirement count、digest 和全部六种状态计数，因此目标增删、状态漂移、未知状态、重复 ID、表格缺失或 Day 10 target 不是 `complete` 时均 fail closed。
 
-`sec-release-readiness-v1` 在 Step 3 后的当前重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、8 个 `thin_slice`、3 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定仍为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当前只剩最终 owner closeout，未改写 Day 9 不可变报告。
+`sec-release-readiness-v1` 在 Step 3 后的当时重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、8 个 `thin_slice`、3 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当时只剩最终 owner closeout，未改写 Day 9 不可变报告。
 
 8 条聚焦测试覆盖 checked report/Markdown/schema 重算、全部 artifact hash、矩阵状态漂移、artifact 缺失、taxonomy 双向映射、仍 release-blocking 的 taxonomy 项伪关闭、无证据 external gate 和非法 hash。`pnpm run eval:release-readiness` 先规范化输入 manifest，再生成 JSON/Markdown 与 manifest/report 两份 JSON Schema，避免生成后格式化输入造成 hash 立即过期。
 
@@ -107,17 +107,25 @@ Step 4 没有更改 coverage omission 或删除生产文件。Evidence domain �
 
 新 `sec-release-recovery-v1` 冻结 12 个恢复/回滚场景。执行 observation 必须全覆盖并保存 environment/commit、exercise/evidence SHA-256、时间/耗时、恢复命令与终态 hash、适用的 Run/Workspace，以及重复副作用、数据损失和越权写计数；缺文件、hash 漂移、覆盖不全或伪造未执行身份均 fail closed。当前 checked input 明确为 `not_executed`，报告为 0/12，四个指标均 `not_measured`、告警均 `unknown`、恢复门为 false。Runbook 只提供 disposable/staging 演练顺序，不执行破坏性 volume 清理，也不把命令或合成单测冒充 actual exercise。
 
-readiness 现登记 63 个 hash artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；43 个未完成目标、16 个 open blocker、5 个 pending external gate 与 `NO_GO` 不变。聚焦 recovery/readiness/Evidence/Research 为 `101 passed`；Ruff format/check、strict mypy（517 个源文件）、wheel/sdist、fresh migration、OpenAPI 确定性、Prettier、ESLint、TypeScript 和生产 build 均通过。Web 为 `94 passed`，关键状态覆盖率四项均为 `100%`，现有 Chromium 套件为 `8 passed`；该浏览器套件包含 API replay/interception，不能代替 D10-02 所需的无拦截 SEC 完整产品旅程。Semgrep 严格扫描 356 个 target/0 finding，Python/Node license allowlist、Python/Node dependency audit 通过；Gitleaks 对 101 个可达提交、Git diff 和全部非忽略未跟踪文件未发现 Secret，本机被 Git 忽略的 `.env` 含运行凭据且未计入提交扫描。D10-03 为 `implemented_pending_verification`、D10-06 为 `thin_slice`，远端 branch/main CI、12 场景实际观测与上一镜像 artifact 尚缺。
+Step 4 当时的 readiness 登记 63 个 hash artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；43 个未完成目标、16 个 open blocker、5 个 pending external gate 与 `NO_GO` 不变。聚焦 recovery/readiness/Evidence/Research 为 `101 passed`；Ruff format/check、strict mypy（517 个源文件）、wheel/sdist、fresh migration、OpenAPI 确定性、Prettier、ESLint、TypeScript 和生产 build 均通过。Web 为 `94 passed`，关键状态覆盖率四项均为 `100%`，现有 Chromium 套件为 `8 passed`；该浏览器套件包含 API replay/interception，不能代替 D10-02 所需的无拦截 SEC 完整产品旅程。Semgrep 严格扫描 356 个 target/0 finding，Python/Node license allowlist、Python/Node dependency audit 通过；Gitleaks 对 101 个可达提交、Git diff 和全部非忽略未跟踪文件未发现 Secret，本机被 Git 忽略的 `.env` 含运行凭据且未计入提交扫描。D10-03 当时为 `implemented_pending_verification`、D10-06 为 `thin_slice`，远端 branch/main CI、12 场景实际观测与上一镜像 artifact 尚缺。
 
 ## 9. Step 5 实现与最终审计
 
-Step 5 只消费前四步 artifact 并继续使用唯一 `sec-release-readiness-v1` 判定，没有新增 release-only scorer、状态机或手工结论。README、产品范围、ADR 0007、架构、SEC 评测、恢复/回滚、第三方 NOTICE 与候选说明草案同步到主计划 2.2.13；README、产品范围、ADR、评测和候选草案新增进入 readiness hash 台账。候选说明固定为 `NO_GO`，明确不得创建 tag/镜像或对外宣称 live/model/公开 benchmark/正式恢复能力。
+Step 5 只消费前四步 artifact 并继续使用唯一 `sec-release-readiness-v1` 判定，没有新增 release-only scorer、状态机或手工结论。README、产品范围、ADR 0007、架构、SEC 评测、恢复/回滚、第三方 NOTICE 与候选说明草案当时同步到主计划 2.2.13；README、产品范围、ADR、评测和候选草案新增进入 readiness hash 台账。候选说明固定为 `NO_GO`，明确不得创建 tag/镜像或对外宣称 live/model/公开 benchmark/正式恢复能力。
 
-文档门使用 Markdown AST 解析受审计文档的本地 link/image destination，并拒绝越出仓库或不存在的目标；readiness 仍拒绝 artifact 缺失、hash 漂移、矩阵状态冲突、taxonomy blocker 伪关闭和无证据 verified gate。D10-08 从 `planned` 推进到 `thin_slice` 后，状态为 45 complete、33 implemented pending verification、10 thin slice、0 planned，未完成目标仍为 43。新增文档 artifact 后台账为 68 项；16 个 blocker、5 个 external gate 和 `release_decision=no_go` 不变。
+文档门使用 Markdown AST 解析受审计文档的本地 link/image destination，并拒绝越出仓库或不存在的目标；readiness 仍拒绝 artifact 缺失、hash 漂移、矩阵状态冲突、taxonomy blocker 伪关闭和无证据 verified gate。D10-08 从 `planned` 推进到 `thin_slice` 后，Step 5 当时状态为 45 complete、33 implemented pending verification、10 thin slice、0 planned，未完成目标为 43。新增文档 artifact 后台账为 68 项；16 个 blocker、5 个 external gate 和 `release_decision=no_go` 不变。
 
 本步聚焦 readiness/recovery 为 `17 passed`；全量无服务后端为 `1259 passed, 88 skipped`。Ruff format/check、strict mypy 517 个源文件、wheel/sdist、Prettier、ESLint、TypeScript、OpenAPI、Web `94 passed`、关键状态覆盖率 `100%` 和生产 build 通过；Semgrep 为 356 个 target/0 finding，Python/Node dependency audit 与 license/NOTICE 门通过。Gitleaks 对 102 个可达提交、Git diff 和新增候选说明均未发现 Secret。本机 Docker Desktop 在本步验证时未运行，因此没有重跑真实依赖和 Chromium；Step 4 提交前的 `1345 passed` 五依赖与 Chromium `8 passed` 是前一证据层，不冒充本步重跑或远端 CI。
 
-本步没有执行外部 Provider 凭据处置、公开/live 模型运行、中文人工签字、12 场景 staging 恢复、上一镜像回滚或 Day 10 远端 CI，也没有项目所有者最终验收。因此 D10-07/D10-08 均为 `thin_slice`，`v0.2.0-sec-disclosure-verifier` 仍只是禁止提升的候选说明草案。实现代理可以提交本步代码与文档供 branch/PR/main CI 验证，但不能自动 commit、push、merge 或打标签。
+本步当时没有执行外部 Provider 凭据处置、公开/live 模型运行、中文人工签字、12 场景 staging 恢复、上一镜像回滚或 Day 10 远端 CI，也没有项目所有者最终验收。因此 D10-07/D10-08 均为 `thin_slice`，`v0.2.0-sec-disclosure-verifier` 仍只是禁止提升的候选说明草案。实现代理可以提交本步代码与文档供 branch/PR/main CI 验证，但不能自动 commit、push、merge 或打标签。
+
+### 9.1 合并、三层 CI 与覆盖率债务关闭
+
+2026-09-01，[PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 将 Day 10 合入 `main`。功能 head [`e1a6dcc`](https://github.com/hrw991009/industry-intelligence-platform/commit/e1a6dcc930dd1be7522330ec08b1e847e53ea82b) 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 [`778a196`](https://github.com/hrw991009/industry-intelligence-platform/commit/778a1966a5fd42df6b47d4a4002cb47e67435ac4) 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。早先失败的 Day 10 run 已由最终 head 修复并被上述成功证据取代，没有从历史中删除。
+
+main PostgreSQL integration Job 在 PostgreSQL、Redis、MinIO、Milvus 与 Elasticsearch 五个真实依赖下完成 `1347 passed`；总体 branch coverage 为 `80.72%`，冻结核心模块集合为 `90%`。这满足 D10-03 的干净 feature head/PR/main CI、供应链与覆盖率验收，因此 D10-03 升为 `complete`，`day4-core-coverage-debt` 关闭。readiness 当前为 46 complete、32 implemented pending verification、10 thin slice、0 planned；42 个未完成目标、15 个 open blocker、5 个 pending external gate，仍为 `no_go`。
+
+该 CI 证据不越层：Browser E2E 仍是现有 interception 套件，不能关闭 D10-02 要求的无拦截中文完整链；生产 Runtime observation 仍为 0/50，正式恢复仍为 0/12，外部凭据/权利/中文签字和最终 owner acceptance 仍待完成。因此本次只关闭工程质量与核心覆盖率债务，不提升候选发布状态。
 
 ## 10. 当日完成定义
 

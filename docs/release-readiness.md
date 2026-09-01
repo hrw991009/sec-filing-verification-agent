@@ -2,13 +2,15 @@
 
 > 合同编号：`IIP-RELEASE-SEC-001`
 >
-> 版本：`0.6.0`
+> 版本：`0.6.1`
 >
 > 制定日期：2026-08-31
 >
-> 权威范围：[主计划](master-plan.md) v2.2.13 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+> 修订日期：2026-09-01
 >
-> 当前状态：Step 1～Step 5 本地实施与最终审计已完成；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，当前判定仍为 `NO_GO`
+> 权威范围：[主计划](master-plan.md) v2.2.14 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+>
+> 当前状态：Step 1～Step 5 已由 PR #16 合入 `main`，三层 CI 全绿；D10-03 为 `complete`，D10-01/D10-02 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，当前判定仍为 `NO_GO`
 
 ## 1. 目标与真值来源
 
@@ -38,7 +40,7 @@ Day 10 不再扩张产品范围，而是证明现有 SEC 披露与财务事实�
 | 阻断族 | 当前事实 | 关闭证据 | 负责步骤 |
 |---|---|---|---|
 | D1-09 凭据处置 | 参考仓 6 组候选仍需 Provider 侧吊销/轮换与复扫 | Provider 处置记录、仓库与历史复扫、所有者确认 | Step 5 |
-| Day 4 覆盖率债务 | 核心 domain/application 最近登记为 86%，目标为 ≥90% | 固定模块集合、真实依赖 coverage artifact、未用排除规则降低分母 | Step 4 |
+| Day 4 覆盖率债务 | 已于 Day 10 main CI 关闭：冻结核心 90%、后端总体 80.72% | [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 在五个真实依赖下 `1347 passed`，未降低冻结模块分母 | Step 4 |
 | Day 5 浏览器链 | 页面已连接 Filing→Research→Verification→Evidence，但尚无无拦截真实依赖浏览器证据 | Playwright 真实 API/数据库旅程与失败制品 | Step 2 |
 | Day 6 来源收口 | `sec-source-v1` 为 22/24，bulk watermark/post-watermark gap 与 live SEC 身份仍缺 | 保留 24 分母的重算报告、合法 SEC 身份、snapshot/watermark 与 gap 证据 | Step 3 |
 | Day 7 Retrieval/Citation | Recall@5 未测，ranking/table locator/Citation 与真实链仍缺 | ranked candidates、Recall@5≥0.80、Citation 100% 可解析、正式 Run 绑定 | Step 3 |
@@ -74,7 +76,7 @@ pnpm run eval:release-readiness
 - `evals/schemas/release-readiness-manifest-v1.schema.json`；
 - `evals/schemas/release-readiness-report-v1.schema.json`。
 
-当前报告绑定 88 个正式目标和 68 个 repository artifacts：45 个目标为 `complete`，43 个仍未完成；当前状态分布为 33 个 `implemented_pending_verification`、10 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 与 7 个跨 Day blocker 全部 open；Day 9 三层 CI 已验证，最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
+当前报告绑定 88 个正式目标和 68 个 repository artifacts：46 个目标为 `complete`，42 个仍未完成；当前状态分布为 32 个 `implemented_pending_verification`、10 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 仍 open；7 个跨 Day blocker 中 Day 4 核心覆盖率债务已关闭，其余 6 个 open，合计 15 个 open blocker。Day 9 与 Day 10 三层 CI 已验证；最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
 
 生成器要求矩阵十张正式能力表、目标 ID/digest/状态计数、taxonomy 映射、非完成目标↔开放 blocker、pending gate↔开放 blocker 双向一致。所有登记 artifact 必须存在于仓库内、非空并生成 SHA-256；缺失、越界、状态冲突、无证据却标记 verified、taxonomy blocker 伪关闭或 checked report 未重生成都会失败。
 
@@ -100,6 +102,8 @@ Step 3 本地证据为聚焦 `22 passed`、evaluation `72 passed`、后端 `1191
 
 `pnpm run eval:release-recovery` 消费冻结的 12 场景 manifest 和 observation，校验 evidence hash、环境/commit、时间/时长、Run/Workspace 绑定、恢复命令/终态以及重复副作用、数据损失和越权写。当前 observation 显式为 `not_executed`，报告为 0/12，恢复成功、零重复副作用、零数据损失和零越权写四项均 `not_measured`，所以 `recovery_gate_passed=false`。Runbook、单测和既有集成测试只是执行前提，不能关闭实际演练、上一镜像或远端 CI blocker。
 
+Day 10 功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job。main 真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`，所以 D10-03 与 Day 4 核心覆盖率债务关闭。该证据不代表 12 场景恢复已执行，也不关闭无拦截浏览器、生产评测或 owner 门。
+
 ## 9. CI 与运行分层
 
 - PR/push CI 只运行确定性、无公网、无付费模型的 quick suite 和工程门禁；不能因外部 SEC/provider 波动阻塞普通 PR。
@@ -117,6 +121,6 @@ Step 3 本地证据为聚焦 `22 passed`、evaluation `72 passed`、后端 `1191
 
 最终审计继续由 `sec-release-readiness-v1` 消费矩阵、failure taxonomy、release evidence、recovery 和前四步 artifact。README、产品范围、ADR 0007、架构、评测、Runbook、NOTICE 与[候选说明草案](release-notes/v0.2.0-sec-disclosure-verifier.md)已同步并进入 hash/链接门；本步未创建平行的发布状态或手工修改 scorer 结果。
 
-候选说明草案固定标记 `NO_GO`。生产 Run observation 仍为 0/50、恢复 observation 仍为 0/12；外部 Provider/SEC identity、数据和 source document 权利、中文签字、凭据处置、Day 10 branch/PR/main CI 与 owner acceptance 均未出现新证据。D10-08 因文档包和机器门已实现从 `planned` 变为 `thin_slice`，但不可提升为 `complete` 或创建标签。
+候选说明草案固定标记 `NO_GO`。Day 10 branch/PR/main CI 已有可核验 URL 与 commit，D10-03 已为 `complete`；生产 Run observation 仍为 0/50、恢复 observation 仍为 0/12，外部 Provider/SEC identity、数据和 source document 权利、中文签字、凭据处置与 owner acceptance 仍缺。D10-08 因文档包和机器门已实现为 `thin_slice`，但不可提升为 `complete` 或创建标签。
 
 后续只有在原机器报告自然重算为 `rc_ready` 后，项目所有者才能将草案提升为候选发布说明。任何人都不得通过删 blocker、删 case、缩分母、把 pending gate 标成 verified、把本地测试写成远端 CI 或把空 observation 写成 100% 成功来改变结论。

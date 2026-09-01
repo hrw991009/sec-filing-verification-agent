@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.13`
+> 版本：`2.2.14`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-31`
+> 修订日期：`2026-09-01`
 >
 > 状态：SEC 财务事实核验 Agent 执行基线
 >
@@ -54,7 +54,7 @@
 | Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
 | Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
 | Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
-| Day 6～Day 10 | 尚未完成 | Day 6～Day 9 代码均已合入 `main`，最近的 Day 9 PR #15 push/PR/main 三层 CI 全绿；这不关闭能力缺口。Day 6 `sec-source-v1` 仍为 22/24，Day 7 Recall@5/Citation、Day 8 专用浏览器/故障、Day 9 common-case/offline/live/Runtime binding、D5-08/D5-09 浏览器 DoD、Day 4 核心 90% 与 D1-09 外部凭据处置均进入 Day 10 发布硬门 |
+| Day 6～Day 10 | 实施批次已合入，发布未就绪 | Day 6～Day 10 代码均已合入 `main`；Day 10 PR #16 的 push/PR/main 三层 CI 全绿，D10-03 与 Day 4 核心 90% 覆盖率债务已关闭。这不关闭能力缺口：Day 6 `sec-source-v1` 仍为 22/24，Day 7 Recall@5/Citation、Day 8 专用浏览器/故障、Day 9 common-case/offline/live/Runtime binding、D5-08/D5-09 浏览器 DoD、D1-09 外部凭据处置、正式恢复与 owner acceptance 仍是发布硬门 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -1105,7 +1105,7 @@ FinQA/TAT-QA/FinanceBench/FinSearchComp adapters 与 dataset cards、`sec-tempor
 
 ## 17. Day 10：披露核验工作台、发布评测与完整交付
 
-> 执行状态（2026-08-31）：Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`；push/PR/main 三层 CI 均通过 7 个适用 Job。Day 10 Step 1～Step 5 已在 `day-10` 工作树完成本地实施和最终完整性审计。Step 4 在冻结模块集合上把核心覆盖率提升并锁到 90%，新增锁定 Semgrep、Python/Node 许可证与 NOTICE 门禁，并以 `sec-release-recovery-v1` 冻结 12 个恢复/回滚场景；Step 5 只消费既有 artifact，同步 README/ADR/架构/评测/Runbook/限制和明确 `NO_GO` 的候选说明草案。checked 恢复 observation 仍为 `not_executed`/0 of 12，不能以 Runbook、单测或候选草案替代演练。readiness 当前登记 68 个 artifact，状态为 45 complete、33 implemented pending verification、10 thin slice、0 planned，共 43 未完成；16 个 blocker open、5 个 external gate pending，机器结论仍为 `no_go`。D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`；真实 Runtime/public/live、无拦截浏览器、正式恢复演练、许可/中文签字、Day 10 远端 CI 和 owner review 尚未完成。
+> 执行状态（2026-09-01）：Day 10 已由 [PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 合入 `main`。功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job。main 的真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`，因此 D10-03 为 `complete`，Day 4 核心覆盖率债务关闭。checked 生产 Run 仍为 0/50，恢复 observation 仍为 0/12；readiness 当前登记 68 个 artifact，状态为 46 complete、32 implemented pending verification、10 thin slice、0 planned，共 42 未完成；15 个 blocker open、5 个 external gate pending，机器结论仍为 `no_go`。真实 Runtime/public/live、无拦截浏览器、正式恢复演练、许可/中文签字和 owner acceptance 尚未完成。
 
 ### 学习主题
 
@@ -1356,3 +1356,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.11 | 2026-08-31 | 同步 Day 10 Step 3：在唯一 evaluation bounded context 新增 checked `sec-release-evidence-v1`，引用同一 10-case/gold/budget 冻结 A0～A4，要求 offline 50 或 live 150 个 Run 绑定 Trace/Evidence/Calculation/final state/ranked candidates，并重算 Recall@5、Citation、拒答、freshness、Workspace、注入、未授权写、重复副作用与恢复指标/告警。当前 checked observation 为 `not_executed`/0 of 50，11 指标均 `not_measured`、告警 `unknown`，production default 为 null；release suite 只把 common manifest 缺失精确改为 production Runs 缺失，9 个 evaluation blocker、16 个总 blocker、5 个 external gate 与 `no_go` 不变。readiness 登记 49 个 artifact，状态 45 complete、32 implemented pending verification、8 thin slice、3 planned；聚焦 22 passed、evaluation 72 passed、后端 1191 passed/88 skipped、Web 94 passed，真实 Runtime/public/live/治理/远端证据仍缺，故 D10-04/D10-05/D10-07 仅为 `thin_slice` | 用户授权继续 Day 10 Step 3 |
 | 2.2.12 | 2026-08-31 | 同步 Day 10 Step 4：冻结核心模块集合达到并在 CI 强制 90%，保留后端 80%/关键 Web 75%；锁定 Semgrep、Python/Node license scanner 与 NOTICE 门禁。新增 checked `sec-release-recovery-v1`、12 场景 manifest、0/12 unexecuted observation、报告/schema 和 staging Runbook；未把测试或命令冒充演练。readiness 登记 63 个 artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；16 blocker/5 external gate 与 `no_go` 不变，D10-03/D10-06 分别为 `implemented_pending_verification`/`thin_slice` | 用户授权继续 Day 10 Step 4 |
 | 2.2.13 | 2026-08-31 | 同步 Day 10 Step 5 最终完整性审计：继续使用唯一 readiness 判定，更新 README、产品范围、ADR 0007、架构、评测、恢复/NOTICE 和明确 `NO_GO` 的候选说明草案，并将这些文档纳入 hash 与 Markdown AST 本地链接门。D10-08 从 planned 推进到 thin slice；当前 45 complete、33 implemented pending verification、10 thin slice、0 planned，68 个 artifact、43 个未完成目标、16 blocker、5 pending external gate 与 `no_go` 均如实保留。未创建标签、提交、推送或伪造外部/owner 证据 | 用户授权继续 Day 10 Step 5 |
+| 2.2.14 | 2026-09-01 | 记录 Day 10 PR #16、功能 head `e1a6dcc`、合并提交 `778a196` 与 push/PR/main 三层 CI 全绿；main 真实依赖门为 1347 passed、总体/核心 branch coverage 为 80.72%/90%。D10-03 升为 complete，Day 4 核心覆盖率债务关闭；readiness 更新为 46 complete、42 未完成、15 open blocker、5 pending gate，仍为 `no_go`，不改写生产评测、恢复、外部治理或 owner 缺口 | 用户要求逐项补齐十天技术债 |

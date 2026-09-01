@@ -2,8 +2,8 @@
 
 面向中文研究、企业战略、IR、财务和咨询团队的 SEC 公开披露监控与财务事实核验工作台。
 
-当前状态：Day 10 Step 1～Step 5 已完成本地实施与最终完整性审计，但发布判定仍为
-`NO_GO`。机器台账登记 88 个冻结目标，其中 45 个 `complete`、43 个未完成；16 个 release
+当前状态：Day 10 Step 1～Step 5 已由 PR #16 合入 `main`，三层 CI 与完整工程门禁均已通过，但发布判定仍为
+`NO_GO`。机器台账登记 88 个冻结目标，其中 46 个 `complete`、42 个未完成；15 个 release
 blocker 仍为 open，5 个 external gate 仍为 pending。不得创建
 `v0.2.0-sec-disclosure-verifier` 标签，也不得把 frozen replay、Adapter readiness、组件测试或
 本地验证写成 live/model/公开 benchmark/正式恢复能力。
@@ -11,13 +11,13 @@ blocker 仍为 open，5 个 external gate 仍为 pending。不得创建
 当前代码已收敛到唯一 SEC 披露核验链：Filer/Filings → Research/Verification →
 Evidence/Calculation → Approval/Monitor/Case，并复用统一 Agent Runtime、Tool、Checkpoint、
 PostgreSQL 事实和可重建索引。生产 Run observation 仍为 0/50，正式恢复 observation 仍为
-0/12；无 interception 中文浏览器全链、公开/live 评测、外部权利/凭据、Day 10 三层 CI 与
-owner acceptance 尚未关闭。精确状态以[机器 readiness 报告](evals/reports/sec-release-readiness-v1.md)
+0/12；无 interception 中文浏览器全链、公开/live 评测、正式恢复、外部权利/凭据与 owner
+acceptance 尚未关闭。精确状态以[机器 readiness 报告](evals/reports/sec-release-readiness-v1.md)
 和[候选说明草案](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)为准。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.2.13（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.2.14（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -325,7 +325,7 @@ Day 3 已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright
 
 Day 4 的五个实现步骤和收口文档已通过功能分支 CI；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 随后合入 `main`。合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 对应的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 已通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。正式 Trace、50 条累计 Scenario、四套独立 Scorer、真实浏览器旅程、DoD 与项目所有者授权收口均已复核，D4-01～D4-07 已为 `complete`，可以进入 Day 5。
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不否定已有本地实现，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建发布标签。后续工作以 [Day 1～Day 10 主计划 v2.2.13](docs/master-plan.md) 和 [发布就绪合同](docs/release-readiness.md) 为权威基线。
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不否定已有本地实现，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建发布标签。后续工作以 [Day 1～Day 10 主计划 v2.2.14](docs/master-plan.md) 和 [发布就绪合同](docs/release-readiness.md) 为权威基线。
 
 ## 常见问题
 

@@ -341,7 +341,7 @@
       "relative_path": "evals/reports/sec-release-failure-taxonomy-v1.json"
     }
   ],
-  "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+  "baseline_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
   "blockers": [
     {
       "blocker_id": "credential-disposition-open",
@@ -349,19 +349,19 @@
       "detail": "Six reference-repository credential candidates still require provider-side disposition and a clean rescan.",
       "external_gate_ids": ["provider-credential-disposition"],
       "owner": "project-owner",
-      "requirement_ids": ["D1-09", "D10-03", "D10-05", "D10-07"],
+      "requirement_ids": ["D1-09", "D10-05", "D10-07"],
       "source": "cross_day_audit",
       "status": "open"
     },
     {
       "blocker_id": "day4-core-coverage-debt",
-      "closure_artifact_ids": [],
-      "detail": "The frozen core module set reaches the 90 percent local threshold without omissions, and CI now enforces it; a clean remote real-dependency run is still required before closure.",
-      "external_gate_ids": [],
+      "closure_artifact_ids": ["ci-workflow", "day-10-log", "feature-matrix"],
+      "detail": "Day 10 main CI 33463386752 passed all seven jobs with five real dependencies, 1347 backend tests, 80.72 percent total branch coverage, and 90 percent frozen core coverage.",
+      "external_gate_ids": ["day10-main-ci"],
       "owner": "implementation-agent",
-      "requirement_ids": ["D10-03", "D10-07"],
+      "requirement_ids": ["D10-03"],
       "source": "cross_day_audit",
-      "status": "open"
+      "status": "closed"
     },
     {
       "blocker_id": "day5-browser-evidence-missing",
@@ -442,19 +442,15 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 through 5 have local implementation and final audit evidence; production evaluation runs, executed recovery evidence, remote branch/PR/main CI, and owner acceptance remain incomplete.",
-      "external_gate_ids": ["final-owner-acceptance"],
-      "owner": "implementation-agent",
-      "requirement_ids": [
-        "D10-01",
-        "D10-02",
-        "D10-03",
-        "D10-04",
-        "D10-05",
-        "D10-06",
-        "D10-07",
-        "D10-08"
+      "detail": "Day 10 Steps 1 through 5 are merged and branch, pull-request, and main CI are verified; production evaluation runs, executed recovery evidence, and final owner acceptance remain incomplete.",
+      "external_gate_ids": [
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
       ],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D10-01", "D10-02", "D10-04", "D10-05", "D10-06", "D10-07", "D10-08"],
       "source": "cross_day_audit",
       "status": "open"
     },
@@ -541,8 +537,16 @@
     {
       "blocker_id": "remote-ci-owner-closeout-missing",
       "closure_artifact_ids": [],
-      "detail": "Day 9 three-layer CI is verified; final release owner acceptance remains pending.",
-      "external_gate_ids": ["day9-push-ci", "day9-pr-ci", "day9-main-ci", "final-owner-acceptance"],
+      "detail": "Day 9 and Day 10 three-layer CI are verified; final release owner acceptance remains pending.",
+      "external_gate_ids": [
+        "day9-push-ci",
+        "day9-pr-ci",
+        "day9-main-ci",
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
+      ],
       "owner": "project-owner",
       "requirement_ids": [
         "D9-01",
@@ -562,14 +566,14 @@
   ],
   "expected_current_status_counts": {
     "blocked": 0,
-    "complete": 45,
+    "complete": 46,
     "contract_only": 0,
-    "implemented_pending_verification": 33,
+    "implemented_pending_verification": 32,
     "planned": 0,
     "thin_slice": 10
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "856b548d60b4899b700b6cb38e18048c4142aa08df241621a7fdc826c5e12b21",
+  "expected_requirement_digest": "31282aab5f42c214e4d15cfaf2330db3ab650638838d1c783fdd2430a08349ee",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -596,6 +600,33 @@
       "gate_id": "day9-main-ci",
       "owner": "github-actions",
       "source_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 feature-head push CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380",
+      "gate_id": "day10-push-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 pull-request CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633",
+      "gate_id": "day10-pr-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 merge-commit main CI passed all seven applicable jobs, including the five-real-dependency backend integration and frozen coverage gates.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752",
+      "gate_id": "day10-main-ci",
+      "owner": "github-actions",
+      "source_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
       "status": "verified"
     },
     {

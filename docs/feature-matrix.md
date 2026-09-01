@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-31
+> 更新日期：2026-09-01
 >
-> 权威来源：`docs/master-plan.md` 2.2.13
+> 权威来源：`docs/master-plan.md` 2.2.14
 
 ## 1. 使用规则
 
@@ -293,7 +293,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 |---|---|---|---|---|---|---|
 | D10-01 | SEC 产品路由与状态 | NEW | Filer/Filings、Verification、Evidence/Calculation、Monitor/Case、Eval；ambiguous/partial/conflict/insufficient | 组件、权限、刷新恢复和路由 E2E | `implemented_pending_verification` | `complete` |
 | D10-02 | 完整中文用户路径 | SEC + NEW | resolve→accession/as_of→XBRL+RAG→calculate→verify→report→approve monitor→diff Case | 无人工改库/假数据的 Playwright + 真实来源演示分报 | `implemented_pending_verification` | `complete` |
-| D10-03 | 完整 CI 与供应链门禁 | NEW | format/type/test/build/migration/OpenAPI/Gitleaks/Semgrep/audit/license/NOTICE/coverage | 干净 branch/main CI、核心≥90%、后端≥80%、关键前端≥75% | `implemented_pending_verification` | `complete` |
+| D10-03 | 完整 CI 与供应链门禁 | NEW | format/type/test/build/migration/OpenAPI/Gitleaks/Semgrep/audit/license/NOTICE/coverage | 干净 branch/main CI、核心≥90%、后端≥80%、关键前端≥75% | `complete` | `complete` |
 | D10-04 | SEC Agent 可观测与审计 | NEW | request/job/run/tool/evidence/calculation/checkpoint/monitor/case、rate-limit/freshness/future leakage | Workbench/告警定位和固定报告可重放 | `thin_slice` | `complete` |
 | D10-05 | Agent/SEC 安全收口 | NEW | Workspace、Tool、Prompt Injection、Secret、对象访问、写审批、来源许可、免责声明 | 跨租户/未来信息/未授权写/Secret/敏感原文均为 0 | `thin_slice` | `complete` |
 | D10-06 | 环境、恢复与回滚 | NEW | fresh startup、备份恢复、Filing 索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障、上一镜像 | Runbook 演练、正式 Scenario 继续且零重复副作用 | `thin_slice` | `complete` |
@@ -309,6 +309,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 2026-08-31 Step 4 映射：固定核心模块集合通过 Evidence 与 Research fail-closed 边界回归达到 90%，CI 阈值同步从 85% 提升到 90%，后端总门仍为 80%、关键 Web 门仍为 75%。仓库新增锁定的 Semgrep 1.175.0、Python/Node license scanner、NOTICE 记录和生成物漂移检查。`sec-release-recovery-v1` 冻结 fresh migration、备份恢复、索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障、dead-letter、通知不确定性和上一镜像共 12 个场景，并要求实际 evidence hash、Run/Case/Workspace 绑定、终态和副作用计数。当前 observation 明确为 `not_executed`/0 of 12，四个恢复指标均 `not_measured`、告警均 `unknown`，故恢复门未通过。本机五个真实依赖强制开启且无 skip 的后端全量为 `1345 passed`，总体/核心 branch coverage 为 `80.76%`/`90%`；Web 为 `94 passed`、关键状态覆盖率 `100%`，现有 Chromium 套件为 `8 passed`，但其中 SEC 工作台用 API replay/interception，不作为无拦截完整产品旅程证据。readiness 登记 63 个 artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；16 个总 blocker、5 个 pending external gate 与 `no_go` 不变。D10-03 仅为 `implemented_pending_verification`，D10-06 仅为 `thin_slice`，仍需远端 branch/main CI、正式恢复演练和上一镜像 artifact。
 
 2026-08-31 Step 5 映射：最终审计继续使用唯一 `sec-release-readiness-v1`，没有新增第二套发布状态机或手工覆盖报告。README、产品范围、ADR 0007、架构、评测、恢复 Runbook、许可证/NOTICE 和 `v0.2.0-sec-disclosure-verifier` 候选说明草案已同步；候选草案显式为 `NO_GO`，并禁止 tag、镜像和生产能力声明。上述文档进入 hash artifact 台账，本地相对链接由 Markdown AST 检查。状态调整后为 45 complete、33 implemented pending verification、10 thin slice、0 planned；43 个未完成目标、16 个 blocker、5 个 pending external gate 保持不变。D10-07 仍为 `thin_slice`；D10-08 从 `planned` 推进为 `thin_slice`，因为 Day 10 branch/PR/main CI、owner acceptance、外部权利/凭据和可提升的发布候选均尚缺。
+
+2026-09-01 合并收口映射：[PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 已将 Day 10 合入 `main`。功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job；main 的真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`。因此 D10-03 升为 `complete`，Day 4 核心覆盖率债务关闭。当前为 46 complete、32 implemented pending verification、10 thin slice、0 planned；42 个未完成目标、15 个 open blocker、5 个 pending external gate，结论仍为 `no_go`。该远端浏览器 Job 仍使用现有 interception 套件，不关闭 D10-02 无拦截中文全链；生产 Run、正式恢复、外部治理和 owner acceptance 也仍未完成。
 
 ## 13. 明确不继承的参考项目行为
 
