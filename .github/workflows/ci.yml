@@ -339,8 +339,8 @@ jobs:
       - name: Install pinned Python for API contract generation
         run: uv python install
 
-      - name: Sync locked backend for API contract generation
-        run: uv sync --locked --package industry-platform-backend
+      - name: Sync locked Python workspace for generated contracts
+        run: uv sync --locked --all-packages
 
       - name: Verify Node toolchain
         run: |
