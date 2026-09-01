@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Final
 from xml.parsers import expat
@@ -70,11 +70,29 @@ class FrozenSecCompanyFactsAdapter:
             raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False)
         return self._source
 
+    async def fetch_after(
+        self,
+        filing: SecCanonicalFiling,
+        *,
+        watermark: datetime,
+    ) -> SecXbrlSourceSnapshot:
+        del watermark
+        return await self.fetch(filing)
+
 
 class UnavailableSecCompanyFactsAdapter:
     async def fetch(self, filing: SecCanonicalFiling) -> SecXbrlSourceSnapshot:
         del filing
         raise SecSourceError(SecSourceErrorCode.NOT_CONFIGURED, retryable=False)
+
+    async def fetch_after(
+        self,
+        filing: SecCanonicalFiling,
+        *,
+        watermark: datetime,
+    ) -> SecXbrlSourceSnapshot:
+        del watermark
+        return await self.fetch(filing)
 
 
 class LiveSecCompanyFactsAdapter:
@@ -90,10 +108,31 @@ class LiveSecCompanyFactsAdapter:
         self._cache_ttl_seconds = cache_ttl_seconds
 
     async def fetch(self, filing: SecCanonicalFiling) -> SecXbrlSourceSnapshot:
+        return await self._fetch(filing, cache_scope="ordinary")
+
+    async def fetch_after(
+        self,
+        filing: SecCanonicalFiling,
+        *,
+        watermark: datetime,
+    ) -> SecXbrlSourceSnapshot:
+        if watermark.tzinfo is None or watermark.utcoffset() is None:
+            raise ValueError("SEC post-watermark boundary must be timezone-aware")
+        return await self._fetch(
+            filing,
+            cache_scope=f"post-{int(watermark.timestamp())}",
+        )
+
+    async def _fetch(
+        self,
+        filing: SecCanonicalFiling,
+        *,
+        cache_scope: str,
+    ) -> SecXbrlSourceSnapshot:
         url = sec_companyfacts_url(filing.cik)
         response = await self._client.fetch(
             url,
-            self._cache_factory(f"iip:sec:xbrl:companyfacts:{filing.cik}:v1"),
+            self._cache_factory(f"iip:sec:xbrl:companyfacts:{filing.cik}:v1:{cache_scope}"),
             cache_ttl_seconds=self._cache_ttl_seconds,
             maximum_bytes=SEC_MAX_XBRL_RESPONSE_BYTES,
         )
@@ -113,6 +152,18 @@ class LiveSecCompanyFactsAdapter:
             source_available_at=response.source_available_at or response.retrieved_at,
             body=response.body,
         )
+
+
+def validate_companyfacts_bulk_entry(body: bytes, *, cik: str) -> None:
+    """Validate one companyfacts bulk member before accepting its watermark."""
+
+    document = _json_object(body)
+    try:
+        if normalize_cik(_required_scalar(document.get("cik"))) != cik:
+            raise ValueError
+        _required_object(document.get("facts"))
+    except (TypeError, ValueError):
+        raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False) from None
 
 
 def parse_companyfacts(

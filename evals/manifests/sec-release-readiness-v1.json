@@ -375,9 +375,29 @@
     },
     {
       "blocker_id": "day6-source-closeout-incomplete",
+      "closure_artifact_ids": ["sec-source-report", "day-6-log", "feature-matrix"],
+      "detail": "Closed on 2026-09-01: both bulk watermark and post-watermark gap cases pass, sec-source-v1 is 24 of 24, and the separate SEC identity live smoke succeeded.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D6-01",
+        "D6-02",
+        "D6-03",
+        "D6-04",
+        "D6-05",
+        "D6-06",
+        "D6-07",
+        "D6-08",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "status": "closed"
+    },
+    {
+      "blocker_id": "day6-verification-evidence-pending",
       "closure_artifact_ids": [],
-      "detail": "Day 6 remains 22 of 24 with bulk watermark, post-watermark gap, and live SEC evidence still open.",
-      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "detail": "Day 6 implementation is 24 of 24, but real large-archive execution, source-rights owner review, applicable browser evidence, and the current branch CI remain open.",
+      "external_gate_ids": ["external-license-owner-review"],
       "owner": "implementation-agent",
       "requirement_ids": [
         "D6-01",
@@ -568,12 +588,12 @@
     "blocked": 0,
     "complete": 46,
     "contract_only": 0,
-    "implemented_pending_verification": 32,
+    "implemented_pending_verification": 34,
     "planned": 0,
-    "thin_slice": 10
+    "thin_slice": 8
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "31282aab5f42c214e4d15cfaf2330db3ab650638838d1c783fdd2430a08349ee",
+  "expected_requirement_digest": "74a4eda91d0d2c441d9d8a1a4a6ab480d2ff90c62400f219fd8466299dbd4f24",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -666,7 +686,7 @@
       "status": "pending"
     },
     {
-      "detail": "Approved live model credentials and a compliant SEC identity are pending.",
+      "detail": "The SEC identity live smoke is verified separately; approved live model credentials remain pending.",
       "evidence_artifact_ids": [],
       "evidence_url": null,
       "gate_id": "live-provider-and-sec-identity",
@@ -679,7 +699,7 @@
   "limitations": [
     "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
-    "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
+    "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
   "manifest_id": "sec-release-readiness-manifest-v1",
   "manifest_version": "v1",

@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.14 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.15 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >

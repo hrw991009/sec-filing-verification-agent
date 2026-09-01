@@ -56,8 +56,8 @@ def test_release_readiness_recomputes_checked_ledger() -> None:
     assert len(report.requirements) == 88
     assert report.status_counts == {
         RequirementStatus.COMPLETE: 46,
-        RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 32,
-        RequirementStatus.THIN_SLICE: 10,
+        RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 34,
+        RequirementStatus.THIN_SLICE: 8,
         RequirementStatus.CONTRACT_ONLY: 0,
         RequirementStatus.BLOCKED: 0,
         RequirementStatus.PLANNED: 0,
@@ -81,6 +81,13 @@ def test_release_readiness_recomputes_checked_ledger() -> None:
         "day-10-log",
         "feature-matrix",
     )
+    assert blockers["day6-source-closeout-incomplete"].status is BlockerStatus.CLOSED
+    assert blockers["day6-source-closeout-incomplete"].closure_artifact_ids == (
+        "sec-source-report",
+        "day-6-log",
+        "feature-matrix",
+    )
+    assert blockers["day6-verification-evidence-pending"].status is BlockerStatus.OPEN
 
 
 def test_release_documentation_links_resolve_inside_repository() -> None:

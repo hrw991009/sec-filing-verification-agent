@@ -2,63 +2,63 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 78271,
+      "byte_size": 79283,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "6e784b7260475262c65749a0833c2a71fa01f13e22402435c9020d7f246c1a2c"
+      "sha256": "ff3a83c4a53ce01d72c4d553106f6346513cd4a554e5ade4fe937e5df1ddb39e"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 151056,
+      "byte_size": 151076,
       "relative_path": "docs/master-plan.md",
-      "sha256": "c98eabf65935648510f97303d80bfd8ec94f5f235b63424543dcf8503ff83830"
+      "sha256": "db5749dbe8aa409e7b6e387cbb64527564005917b87f9b67f8d5694d4a9945ef"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 107899,
+      "byte_size": 108131,
       "relative_path": "docs/architecture.md",
-      "sha256": "a6bf3cf0b2c47075c30122d730764689637dd3da5143e7f1535838ab1702195e"
+      "sha256": "f81b609c8f22ea8675c4b15e7aed7ea160a4891808edb5595ae80f457d17bbe0"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 14755,
+      "byte_size": 14902,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "574b6e4a7f2b479c658d4fd4f1c234b7f3937d6425ee053033f05c52f51fd4a4"
+      "sha256": "8ea88cb67a7196b256d389bd391bafcfc2bc57a7935ac74a1b1c7a6ebb4c6f44"
     },
     {
       "artifact_id": "readme",
       "byte_size": 20504,
       "relative_path": "README.md",
-      "sha256": "1ddaaf464c6dc2b3f5436828f4bc6fc23ff4879319a17744939cbb1949a09875"
+      "sha256": "f2cb2ea1ee9edbe6850d519f47154238516175cd0fa7ffc70ec77751a8c9015b"
     },
     {
       "artifact_id": "product-scope",
-      "byte_size": 30861,
+      "byte_size": 30908,
       "relative_path": "docs/product-scope.md",
-      "sha256": "bc85f3a410f7a56dd2fd812f2724a188bc8969961412b22207dc05d935d03406"
+      "sha256": "a568d126bfb0e09b3b7392dd5ee2f285c8983ceefc164207f609a54fa4ff8740"
     },
     {
       "artifact_id": "sec-domain-adr",
       "byte_size": 15452,
       "relative_path": "docs/adr/0007-sec-disclosure-financial-fact-verification.md",
-      "sha256": "a6a44cdea18d4098269eaa30231e732f4a7a23506d7d0846063d66ba31ffb22c"
+      "sha256": "7833670f0d7017012b0b332bcca5b142f9826329fa784aa90d635fbf4618e7a9"
     },
     {
       "artifact_id": "sec-agent-evaluation-plan",
-      "byte_size": 35066,
+      "byte_size": 35126,
       "relative_path": "docs/sec-agent-evaluation.md",
-      "sha256": "79a05d412e354ecfe978fca7a9e8766ece7920390f08cf2f0f572b9c7ed15042"
+      "sha256": "c6be41fa24de28f0d754c44314159374576ab0a14a34a4b8eaf9211c45b2f3cb"
     },
     {
       "artifact_id": "release-candidate-draft",
-      "byte_size": 4235,
+      "byte_size": 4214,
       "relative_path": "docs/release-notes/v0.2.0-sec-disclosure-verifier.md",
-      "sha256": "c7742248c2da38aa84c513f9bc5f05d3611e4a73fc730b035e7cee24c0c9b48f"
+      "sha256": "32d851e15e174759b72274dc14772ac3135304f7af262b7f42f33623c2a8ebfc"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 32714,
+      "byte_size": 33471,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "528e6f74e28fb22a963be2e574a5374f86612348081626224cbbb5c3ad1aa294"
+      "sha256": "bc1de0d832bbb4b87fa125ac928fc1717436badf879bd533d350ab0bb2e4d003"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -68,9 +68,9 @@
     },
     {
       "artifact_id": "release-readiness-tests",
-      "byte_size": 10916,
+      "byte_size": 11251,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "986f936bc711d84d3539ad924747f1347f351d8374858a45e1f6dcd284b8942e"
+      "sha256": "8e227b708e88bb7f7ea21a9707654a10280bc3427c94a475d7d63cffe5a981ff"
     },
     {
       "artifact_id": "release-evidence-generator",
@@ -320,15 +320,15 @@
     },
     {
       "artifact_id": "day-6-log",
-      "byte_size": 33028,
+      "byte_size": 34693,
       "relative_path": "docs/learning-log/day-6.md",
-      "sha256": "dcc7ce1e026edd57f4b5c4a635fb57ef32ad84d0bb8f83ba48a36171243c6869"
+      "sha256": "0fffb5b161da182ae4165b87b21f34a9108674c73f7916bee43c5059fc020742"
     },
     {
       "artifact_id": "day-7-log",
-      "byte_size": 21853,
+      "byte_size": 22146,
       "relative_path": "docs/learning-log/day-7.md",
-      "sha256": "b32a9dc28d7c9cf3a14f5355f1c88b78433ac9553adbe714e371785a17d203ef"
+      "sha256": "1a10bb9f21a554caff98bdaeb09da81eafeed5bb2fcae036bd75f0df83677ae2"
     },
     {
       "artifact_id": "day-8-log",
@@ -346,7 +346,7 @@
       "artifact_id": "day-10-log",
       "byte_size": 24621,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "4304ccb500cf3ee7a85bfaa893e8dc1bf8ab2350d4d538972078568583638029"
+      "sha256": "04aae00801acc3c2d0dc374bb1daebc4f3748cd3d4ba887c0f7a1e0c4dc087bd"
     },
     {
       "artifact_id": "day-4-report",
@@ -368,9 +368,9 @@
     },
     {
       "artifact_id": "sec-source-report",
-      "byte_size": 20606,
+      "byte_size": 20644,
       "relative_path": "evals/reports/sec-source-v1.json",
-      "sha256": "6b309b47a3394ed6093e2408a931c76f055a8a819b6721cc3720de75188edf22"
+      "sha256": "683f92b1254c67b4524cded288b9f0eca4f2fc0b671b956d91fc2a17ab7037f0"
     },
     {
       "artifact_id": "sec-tool-report",
@@ -446,9 +446,30 @@
     },
     {
       "blocker_id": "day6-source-closeout-incomplete",
+      "closure_artifact_ids": ["sec-source-report", "day-6-log", "feature-matrix"],
+      "detail": "Closed on 2026-09-01: both bulk watermark and post-watermark gap cases pass, sec-source-v1 is 24 of 24, and the separate SEC identity live smoke succeeded.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D6-01",
+        "D6-02",
+        "D6-03",
+        "D6-04",
+        "D6-05",
+        "D6-06",
+        "D6-07",
+        "D6-08",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "closed"
+    },
+    {
+      "blocker_id": "day6-verification-evidence-pending",
       "closure_artifact_ids": [],
-      "detail": "Day 6 remains 22 of 24 with bulk watermark, post-watermark gap, and live SEC evidence still open.",
-      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "detail": "Day 6 implementation is 24 of 24, but real large-archive execution, source-rights owner review, applicable browser evidence, and the current branch CI remain open.",
+      "external_gate_ids": ["external-license-owner-review"],
       "owner": "implementation-agent",
       "requirement_ids": [
         "D6-01",
@@ -740,7 +761,7 @@
       "status": "pending"
     },
     {
-      "detail": "Approved live model credentials and a compliant SEC identity are pending.",
+      "detail": "The SEC identity live smoke is verified separately; approved live model credentials remain pending.",
       "evidence_artifact_ids": [],
       "evidence_url": null,
       "gate_id": "live-provider-and-sec-identity",
@@ -753,17 +774,17 @@
   "limitations": [
     "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
-    "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
+    "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "528e6f74e28fb22a963be2e574a5374f86612348081626224cbbb5c3ad1aa294",
-  "matrix_sha256": "6e784b7260475262c65749a0833c2a71fa01f13e22402435c9020d7f246c1a2c",
+  "manifest_sha256": "bc1de0d832bbb4b87fa125ac928fc1717436badf879bd533d350ab0bb2e4d003",
+  "matrix_sha256": "ff3a83c4a53ce01d72c4d553106f6346513cd4a554e5ade4fe937e5df1ddb39e",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 15,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "31282aab5f42c214e4d15cfaf2330db3ab650638838d1c783fdd2430a08349ee",
+  "requirement_digest": "74a4eda91d0d2c441d9d8a1a4a6ab480d2ff90c62400f219fd8466299dbd4f24",
   "requirements": [
     {
       "current_status": "complete",
@@ -1434,7 +1455,7 @@
       "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
     },
     {
-      "current_status": "thin_slice",
+      "current_status": "implemented_pending_verification",
       "day": 6,
       "dependency_days": [1, 2, 3, 4, 5],
       "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
@@ -1478,7 +1499,7 @@
       "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
     },
     {
-      "current_status": "thin_slice",
+      "current_status": "implemented_pending_verification",
       "day": 6,
       "dependency_days": [1, 2, 3, 4, 5],
       "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
@@ -2476,8 +2497,8 @@
     "blocked": 0,
     "complete": 46,
     "contract_only": 0,
-    "implemented_pending_verification": 32,
+    "implemented_pending_verification": 34,
     "planned": 0,
-    "thin_slice": 10
+    "thin_slice": 8
   }
 }

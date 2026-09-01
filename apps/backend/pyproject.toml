@@ -38,6 +38,7 @@ industry-platform-celery-beat = "industry_platform.workers.beat:main"
 industry-platform-celery-worker = "industry_platform.workers.celery_app:main"
 industry-platform-outbox-dispatcher = "industry_platform.workers.dispatcher:main"
 industry-platform-job-reconciler = "industry_platform.workers.reconciler:main"
+industry-platform-sec-live-smoke = "industry_platform.modules.disclosures.live_sec_smoke:main"
 
 [build-system]
 requires = ["uv_build>=0.11.32,<0.12"]

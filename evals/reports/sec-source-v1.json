@@ -9,8 +9,8 @@
     "live_sec_executed": false,
     "real_dependency_evidence": ["PostgreSQL", "MinIO", "Milvus", "Elasticsearch"],
     "ordinary_pr_ci_network_access": false,
-    "observation_date": "2026-08-27",
-    "limitation": "Bulk submissions/companyfacts snapshots and post-watermark gap closure are not implemented."
+    "observation_date": "2026-09-01",
+    "limitation": "This deterministic report excludes network access; the separate live SEC identity smoke is recorded under ignored .data/evals output."
   },
   "observations": [
     {
@@ -393,44 +393,52 @@
     },
     {
       "case_id": "submissions-bulk-watermark",
-      "observed_outcome": "capability_missing",
-      "observed_error_code": "submissions_bulk_not_implemented",
-      "observed_snapshot_presence": false,
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
       "observed_import_presence": false,
-      "observed_source_locator": false,
+      "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": ["closeout_audit", "record_capability_missing"],
-      "observed_bulk_coverage_complete": false,
+      "observed_milestones": [
+        "download_submissions_bulk",
+        "persist_bulk_snapshot",
+        "close_post_watermark_gap"
+      ],
+      "observed_bulk_coverage_complete": true,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
       "workspace_leakage_count": 0,
       "duplicate_commit_count": 0,
       "dependency_as_no_result_count": 0,
-      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_submissions_bulk_closeout_is_reported_as_blocker"
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_bulk.py::test_submissions_bulk_watermark_persists_snapshot_and_closes_post_watermark_gap"
     },
     {
       "case_id": "companyfacts-bulk-watermark",
-      "observed_outcome": "capability_missing",
-      "observed_error_code": "companyfacts_bulk_not_implemented",
-      "observed_snapshot_presence": false,
+      "observed_outcome": "success",
+      "observed_error_code": null,
+      "observed_snapshot_presence": true,
       "observed_import_presence": false,
-      "observed_source_locator": false,
+      "observed_source_locator": true,
       "observed_tools": [],
-      "observed_milestones": ["closeout_audit", "record_capability_missing"],
-      "observed_bulk_coverage_complete": false,
+      "observed_milestones": [
+        "download_companyfacts_bulk",
+        "persist_bulk_snapshot",
+        "close_post_watermark_gap"
+      ],
+      "observed_bulk_coverage_complete": true,
       "future_leakage_count": 0,
       "scope_violation_count": 0,
       "workspace_leakage_count": 0,
       "duplicate_commit_count": 0,
       "dependency_as_no_result_count": 0,
-      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_companyfacts_bulk_closeout_is_reported_as_blocker"
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_bulk.py::test_companyfacts_bulk_watermark_persists_snapshot_and_closes_post_watermark_gap"
     }
   ],
   "metrics": {
     "case_pass_rate": {
-      "numerator": 22,
+      "numerator": 24,
       "denominator": 24,
-      "value": 0.916667
+      "value": 1
     },
     "contract_pass_rate": {
       "numerator": 18,
@@ -438,19 +446,19 @@
       "value": 1
     },
     "closeout_pass_rate": {
-      "numerator": 4,
+      "numerator": 6,
       "denominator": 6,
-      "value": 0.666667
+      "value": 1
     },
     "source_locator_resolvability": {
-      "numerator": 20,
+      "numerator": 22,
       "denominator": 22,
-      "value": 0.909091
+      "value": 1
     },
     "snapshot_presence_accuracy": {
-      "numerator": 22,
+      "numerator": 24,
       "denominator": 24,
-      "value": 0.916667
+      "value": 1
     },
     "import_presence_accuracy": {
       "numerator": 24,
@@ -463,9 +471,9 @@
       "value": 1
     },
     "bulk_coverage_readiness": {
-      "numerator": 0,
+      "numerator": 2,
       "denominator": 2,
-      "value": 0
+      "value": 1
     },
     "future_leakage": {
       "numerator": 0,
@@ -493,6 +501,6 @@
       "value": 0
     }
   },
-  "gate_passed": false,
-  "blockers": ["submissions-bulk-watermark", "companyfacts-bulk-watermark"]
+  "gate_passed": true,
+  "blockers": []
 }

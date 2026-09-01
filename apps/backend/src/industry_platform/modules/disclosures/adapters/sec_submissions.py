@@ -51,6 +51,15 @@ class FrozenSecSubmissionsAdapter:
             raise SecSourceError(SecSourceErrorCode.COVERAGE_INCOMPLETE, retryable=False)
         return self._snapshot
 
+    async def fetch_submission_set_after(
+        self,
+        scope: FilingSelectionScope,
+        *,
+        watermark: datetime,
+    ) -> SecSubmissionSet:
+        del watermark
+        return await self.fetch_submission_set(scope)
+
 
 class LiveSecSubmissionsAdapter:
     def __init__(
@@ -65,10 +74,29 @@ class LiveSecSubmissionsAdapter:
         self._cache_ttl_seconds = cache_ttl_seconds
 
     async def fetch_submission_set(self, scope: FilingSelectionScope) -> SecSubmissionSet:
+        return await self._fetch_submission_set(scope, cache_scope="ordinary")
+
+    async def fetch_submission_set_after(
+        self,
+        scope: FilingSelectionScope,
+        *,
+        watermark: datetime,
+    ) -> SecSubmissionSet:
+        if watermark.tzinfo is None or watermark.utcoffset() is None:
+            raise ValueError("SEC post-watermark boundary must be timezone-aware")
+        cache_scope = f"post-{int(watermark.timestamp())}"
+        return await self._fetch_submission_set(scope, cache_scope=cache_scope)
+
+    async def _fetch_submission_set(
+        self,
+        scope: FilingSelectionScope,
+        *,
+        cache_scope: str,
+    ) -> SecSubmissionSet:
         current_url = sec_submissions_current_url(scope.cik)
         current_response = await self._client.fetch(
             current_url,
-            self._cache_factory(_cache_key(current_url)),
+            self._cache_factory(f"{_cache_key(current_url)}:{cache_scope}"),
             cache_ttl_seconds=self._cache_ttl_seconds,
             maximum_bytes=SEC_MAX_SUBMISSIONS_RESPONSE_BYTES,
         )
@@ -83,7 +111,7 @@ class LiveSecSubmissionsAdapter:
         for descriptor in required:
             response = await self._client.fetch(
                 descriptor.source_url,
-                self._cache_factory(_cache_key(descriptor.source_url)),
+                self._cache_factory(f"{_cache_key(descriptor.source_url)}:{cache_scope}"),
                 cache_ttl_seconds=self._cache_ttl_seconds,
                 maximum_bytes=SEC_MAX_SUBMISSIONS_RESPONSE_BYTES,
             )
@@ -101,6 +129,24 @@ class LiveSecSubmissionsAdapter:
             supplementals=tuple(supplementals),
             required_supplemental_names=tuple(item.name for item in required),
         )
+
+
+def validate_submissions_bulk_entry(body: bytes, *, cik: str) -> None:
+    """Validate that one bulk member is the canonical submissions schema for its CIK."""
+
+    document = _json_object(body)
+    try:
+        if normalize_cik(_required_int(document.get("cik"))) != cik:
+            raise ValueError
+        filings = _required_object(document.get("filings"))
+        recent = _required_object(filings.get("recent"))
+        _filing_rows(recent, cik=cik)
+        raw_descriptors = filings.get("files")
+        if not isinstance(raw_descriptors, list):
+            raise ValueError
+        tuple(_descriptor(item, cik=cik) for item in raw_descriptors)
+    except (TypeError, ValueError):
+        raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False) from None
 
 
 def _parse_current(

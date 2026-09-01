@@ -6,7 +6,7 @@
 >
 > 更新日期：2026-09-01
 >
-> 权威来源：`docs/master-plan.md` 2.2.14
+> 权威来源：`docs/master-plan.md` 2.2.15
 
 ## 1. 使用规则
 
@@ -206,15 +206,17 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
 | D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `implemented_pending_verification` | `complete` |
-| D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `thin_slice` | `complete` |
+| D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `implemented_pending_verification` | `complete` |
 | D6-03 | 不可变原始 Filing 快照 | SEC + R1 | canonical identity/current projection、append-only source version 与 Workspace import 分层；官方 HTML/iXBRL/XML/response/必要附件、URL、source-version visibility、retrieved_at、hash、MinIO ref | correction/deletion、重复同步、引用/删除、内容变化异常、损坏/partial 与授权测试 | `implemented_pending_verification` | `complete` |
 | D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/instant-duration/accession；聚合 response 与 raw iXBRL/instance XML 来源分离，context/dimensions/decimals/scale 按 source capability 可空 | standard/custom tag、aggregate/raw locator、单位/期间/context、provenance 与 locator 测试 | `implemented_pending_verification` | `complete` |
 | D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `implemented_pending_verification` | `complete` |
-| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `thin_slice` | `complete` |
+| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `implemented_pending_verification` | `complete` |
 | D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `implemented_pending_verification` | `complete` |
 
 2026-08-27 收口映射：Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head `7a4766b` 的 push/PR CI `33053621106`、`33053623731` 和合并提交 `84a7945` 的 main CI `33054136204` 均通过 7 个适用 Job，项目所有者已要求核对 Day 6 并准备 Day 7 文档。提交、合并和 CI 条件已关闭，但确定性报告仍为 contract `18/18`、closeout `4/6`、总计 `22/24`，两条 bulk watermark case 保持 `capability_missing` 且没有从分母删除；当前也没有合法 SEC 联系身份对应的 live smoke。因此 D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 继续为 `implemented_pending_verification`，D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。Day 6 分支结束不等于 D6-01～D6-08 全部 `complete`。详见 [Day 6 执行计划](learning-log/day-6.md)。
+
+2026-09-01 技术债收口：新增 `submissions.zip`/`companyfacts.zip` 流式下载与内容寻址 MinIO snapshot、PostgreSQL archive/CIK entry/gap source 不可变账本、`Last-Modified` published watermark、`coverage_through=bulk_published_at-1s` 策略，以及水位后强制绕开普通 cache 的官方 API 增量读取。冻结 ZIP 的成功、截断、水位缺失、危险 member、CIK 缺失与重复同步测试已绑定原两条 closeout case，`sec-source-v1` 提升为 contract `18/18`、closeout `6/6`、总计 `24/24`、bulk readiness `2/2`。同日 `OfficialSecJsonClient` 使用已配置联系身份完成 CIK `0000320193` live smoke；非 PII 结果保存在 Git 忽略的 `.data/evals/sec-live-identity-v1.json`。D6-02/D6-06 升为 `implemented_pending_verification`；真实 1.4～1.6 GB bulk 运行、外部来源权利/所有者复核、适用浏览器与新分支/PR/main CI 尚未完成，因此 D6-01～D6-08 不改写为 `complete`。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 

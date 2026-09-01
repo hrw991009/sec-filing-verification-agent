@@ -10,7 +10,7 @@
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-09-01 修订同步基线：`docs/master-plan.md` v2.2.14
+> 2026-09-01 修订同步基线：`docs/master-plan.md` v2.2.15
 
 ## 背景
 

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import partial
 from io import BytesIO
-from typing import TypeVar
+from typing import BinaryIO, TypeVar
 
 from anyio import to_thread
 from minio import Minio
@@ -151,6 +151,33 @@ class MinioPrivateFileObjectStore:
                 object_key,
                 BytesIO(snapshot),
                 len(snapshot),
+                content_type=content_type,
+            )
+        )
+
+    async def put_private_stream(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        content_type: str,
+        stream: BinaryIO,
+        exact_size: int,
+    ) -> None:
+        """Upload a bounded seekable stream without copying it into process memory."""
+
+        if isinstance(exact_size, bool) or exact_size < 1:
+            raise ValueError("Private object stream size is invalid")
+        if not all(hasattr(stream, method) for method in ("read", "seek")):
+            raise ValueError("Private object stream is invalid")
+        stream.seek(0)
+        await self._call(
+            partial(
+                self._client.put_object,
+                bucket,
+                object_key,
+                stream,
+                exact_size,
                 content_type=content_type,
             )
         )

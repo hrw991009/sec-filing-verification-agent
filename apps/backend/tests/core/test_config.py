@@ -136,6 +136,7 @@ def test_settings_load_and_convert_environment_values(
     assert settings.sec_catalog_cache_ttl_seconds == 3_600
     assert settings.sec_request_timeout_seconds == 20.0
     assert settings.sec_request_max_attempts == 3
+    assert settings.sec_bulk_request_timeout_seconds == 900.0
 
 
 def test_settings_hide_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:

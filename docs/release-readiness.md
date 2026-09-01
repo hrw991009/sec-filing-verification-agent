@@ -8,7 +8,7 @@
 >
 > 修订日期：2026-09-01
 >
-> 权威范围：[主计划](master-plan.md) v2.2.14 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+> 权威范围：[主计划](master-plan.md) v2.2.15 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
 >
 > 当前状态：Step 1～Step 5 已由 PR #16 合入 `main`，三层 CI 全绿；D10-03 为 `complete`，D10-01/D10-02 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，当前判定仍为 `NO_GO`
 
@@ -42,7 +42,7 @@ Day 10 不再扩张产品范围，而是证明现有 SEC 披露与财务事实�
 | D1-09 凭据处置 | 参考仓 6 组候选仍需 Provider 侧吊销/轮换与复扫 | Provider 处置记录、仓库与历史复扫、所有者确认 | Step 5 |
 | Day 4 覆盖率债务 | 已于 Day 10 main CI 关闭：冻结核心 90%、后端总体 80.72% | [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 在五个真实依赖下 `1347 passed`，未降低冻结模块分母 | Step 4 |
 | Day 5 浏览器链 | 页面已连接 Filing→Research→Verification→Evidence，但尚无无拦截真实依赖浏览器证据 | Playwright 真实 API/数据库旅程与失败制品 | Step 2 |
-| Day 6 来源收口 | `sec-source-v1` 为 22/24，bulk watermark/post-watermark gap 与 live SEC 身份仍缺 | 保留 24 分母的重算报告、合法 SEC 身份、snapshot/watermark 与 gap 证据 | Step 3 |
+| Day 6 来源收口 | 技术债已关闭：`sec-source-v1` 为 24/24，bulk watermark/post-gap 与独立 live SEC identity smoke 已通过；真实大体积 bulk、外部权利/所有者、浏览器和本轮 CI 仍缺 | 24 分母重算报告、合法 SEC identity、snapshot/watermark/gap 执行证据；剩余验证由独立 blocker 跟踪 | Step 3 |
 | Day 7 Retrieval/Citation | Recall@5 未测，ranking/table locator/Citation 与真实链仍缺 | ranked candidates、Recall@5≥0.80、Citation 100% 可解析、正式 Run 绑定 | Step 3 |
 | Day 8 Monitor/恢复 | 专用审批浏览器旅程和真实 hard-stop/lease/通知不确定性仍缺 | 组合故障演练、恢复率 100%、重复副作用 0、正式 Workbench 反查 | Step 2、Step 4 |
 | Day 9 可比评测 | common-case A0～A4 合同已冻结，但 50 个 offline Run、Runtime binding、公开集 prediction 与默认策略仍缺 | 同 manifest/data/Scope/budget 的分层报告与可复算决策 | Step 3 |
@@ -76,7 +76,7 @@ pnpm run eval:release-readiness
 - `evals/schemas/release-readiness-manifest-v1.schema.json`；
 - `evals/schemas/release-readiness-report-v1.schema.json`。
 
-当前报告绑定 88 个正式目标和 68 个 repository artifacts：46 个目标为 `complete`，42 个仍未完成；当前状态分布为 32 个 `implemented_pending_verification`、10 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 仍 open；7 个跨 Day blocker 中 Day 4 核心覆盖率债务已关闭，其余 6 个 open，合计 15 个 open blocker。Day 9 与 Day 10 三层 CI 已验证；最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
+当前报告绑定 88 个正式目标和 68 个 repository artifacts：46 个目标为 `complete`，42 个仍未完成；当前状态分布为 34 个 `implemented_pending_verification`、8 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 仍 open；8 个跨 Day blocker 中 Day 4 覆盖率与 Day 6 source closeout 已关闭，其余 6 个 open，合计 15 个 open blocker。Day 9 与 Day 10 三层 CI 已验证；最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live model Provider 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
 
 生成器要求矩阵十张正式能力表、目标 ID/digest/状态计数、taxonomy 映射、非完成目标↔开放 blocker、pending gate↔开放 blocker 双向一致。所有登记 artifact 必须存在于仓库内、非空并生成 SHA-256；缺失、越界、状态冲突、无证据却标记 verified、taxonomy blocker 伪关闭或 checked report 未重生成都会失败。
 

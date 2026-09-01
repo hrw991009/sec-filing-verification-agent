@@ -9,6 +9,9 @@ from redis.asyncio import Redis
 
 from industry_platform.core.config import Settings
 from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.modules.disclosures.adapters.bulk_sqlalchemy import (
+    SqlAlchemySecBulkSyncRepository,
+)
 from industry_platform.modules.disclosures.adapters.filing_content_sqlalchemy import (
     SqlAlchemySecFilingContentRepository,
 )
@@ -21,6 +24,13 @@ from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
 from industry_platform.modules.disclosures.adapters.sec_archives import (
     LiveSecFilingArchiveAdapter,
     UnavailableSecFilingArchiveAdapter,
+)
+from industry_platform.modules.disclosures.adapters.sec_bulk import (
+    LiveSecBulkArchiveAdapter,
+    MinioSecBulkSnapshotStore,
+    SecBulkObjectStore,
+    UnavailableSecBulkArchiveAdapter,
+    UnavailableSecBulkSnapshotStore,
 )
 from industry_platform.modules.disclosures.adapters.sec_edgar import (
     LiveSecEdgarAdapter,
@@ -53,6 +63,11 @@ from industry_platform.modules.disclosures.adapters.xbrl import (
 )
 from industry_platform.modules.disclosures.adapters.xbrl_sqlalchemy import (
     SqlAlchemySecXbrlRepository,
+)
+from industry_platform.modules.disclosures.bulk import (
+    SecBulkSyncService,
+    SecPostWatermarkCompanyFactsPort,
+    SecPostWatermarkSubmissionsPort,
 )
 from industry_platform.modules.disclosures.diff import SecFilingDiffService
 from industry_platform.modules.disclosures.filing_content_service import (
@@ -101,6 +116,7 @@ from industry_platform.modules.tools.registry import RegisteredToolAdapter
 
 @dataclass(frozen=True, slots=True)
 class DisclosureResources:
+    bulk_sync_service: SecBulkSyncService
     resolution_service: SecFilerResolutionService
     resolve_filer_tool: SecResolveFilerTool
     filing_selection_service: SecFilingSelectionService
@@ -250,6 +266,25 @@ def create_disclosure_resources(
                 object_store,
                 bucket=object_bucket,
             )
+    selected_bulk_source = (
+        LiveSecBulkArchiveAdapter(
+            http_client,
+            request_budget,
+            user_agent=settings.sec_user_agent,
+            timeout_seconds=settings.sec_bulk_request_timeout_seconds,
+            maximum_attempts=settings.sec_request_max_attempts,
+        )
+        if settings.sec_source_configured
+        else UnavailableSecBulkArchiveAdapter()
+    )
+    selected_bulk_store = (
+        MinioSecBulkSnapshotStore(
+            cast(SecBulkObjectStore, object_store),
+            bucket=object_bucket,
+        )
+        if object_store is not None and object_bucket is not None
+        else UnavailableSecBulkSnapshotStore()
+    )
     resolution_service = SecFilerResolutionService(
         repository=SqlAlchemySecFilerCatalogRepository(session_factory),
         source=selected_source,
@@ -310,6 +345,19 @@ def create_disclosure_resources(
         xbrl_service=xbrl_service,
     )
     resources = DisclosureResources(
+        bulk_sync_service=SecBulkSyncService(
+            archive_source=selected_bulk_source,
+            snapshot_store=selected_bulk_store,
+            repository=SqlAlchemySecBulkSyncRepository(session_factory),
+            submissions_source=cast(
+                SecPostWatermarkSubmissionsPort,
+                selected_submissions_source,
+            ),
+            companyfacts_source=cast(
+                SecPostWatermarkCompanyFactsPort,
+                selected_companyfacts_source,
+            ),
+        ),
         resolution_service=resolution_service,
         resolve_filer_tool=SecResolveFilerTool(resolution_service),
         filing_selection_service=filing_selection_service,

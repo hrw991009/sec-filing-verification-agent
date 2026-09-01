@@ -8,9 +8,9 @@
 >
 > 修订日期：2026-09-01
 >
-> 权威范围：`docs/master-plan.md` v2.2.14 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.2.15 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 10 已由 PR #16 合入 `main` 且三层 CI 通过，D10-03 与 Day 4 核心覆盖率债务已关闭。真实 Run observation 仍为 0/50，恢复 observation 为 0/12；Recall@5、Runtime binding、公开集 prediction、live≥3、正式恢复演练、许可/中文/owner 复核仍缺。88 个目标仍有 42 个未完成，15 个 blocker open、5 个 external gate pending，结论为 `no_go`，候选说明仅为草案
+> 状态：Day 6 `sec-source-v1` 已由 bulk watermark/post-gap 执行证据提升为 24/24，独立 SEC identity live smoke 通过；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 10 已由 PR #16 合入 `main` 且三层 CI 通过，D10-03 与 Day 4 核心覆盖率债务已关闭。真实 Run observation 仍为 0/50，恢复 observation 为 0/12；Recall@5、Runtime binding、公开集 prediction、live model≥3、真实大体积 bulk、正式恢复演练、许可/中文/owner 复核仍缺。88 个目标仍有 42 个未完成，结论保持 `no_go`，候选说明仅为草案
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 

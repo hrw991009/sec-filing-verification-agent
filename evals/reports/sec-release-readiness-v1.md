@@ -13,8 +13,8 @@
 | Status | Count |
 |---|---:|
 | `complete` | 46 |
-| `implemented_pending_verification` | 32 |
-| `thin_slice` | 10 |
+| `implemented_pending_verification` | 34 |
+| `thin_slice` | 8 |
 | `contract_only` | 0 |
 | `blocked` | 0 |
 | `planned` | 0 |
@@ -25,7 +25,7 @@
 |---|---|---|---:|---:|
 | `credential-disposition-open` | `cross_day_audit` | project-owner | 3 | 1 |
 | `day5-browser-evidence-missing` | `cross_day_audit` | implementation-agent | 3 | 0 |
-| `day6-source-closeout-incomplete` | `cross_day_audit` | implementation-agent | 9 | 1 |
+| `day6-verification-evidence-pending` | `cross_day_audit` | implementation-agent | 9 | 1 |
 | `day7-retrieval-citation-incomplete` | `cross_day_audit` | implementation-agent | 10 | 0 |
 | `day8-browser-recovery-incomplete` | `cross_day_audit` | implementation-agent | 14 | 0 |
 | `day10-delivery-incomplete` | `cross_day_audit` | implementation-agent | 7 | 4 |

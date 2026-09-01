@@ -363,6 +363,7 @@ class Settings(BaseSettings):
     sec_catalog_cache_ttl_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3_600
     sec_request_timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 20.0
     sec_request_max_attempts: Annotated[int, Field(ge=1, le=5)] = 3
+    sec_bulk_request_timeout_seconds: Annotated[float, Field(ge=30, le=3_600)] = 900.0
 
     text2sql_database_url: SecretStr | None = None
     text2sql_statement_timeout_ms: Annotated[int, Field(ge=100, le=30_000)] = 2_000

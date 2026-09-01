@@ -26,6 +26,10 @@ from industry_platform.modules.data_explorer.models import (
     SchemaSnapshotRecord,
 )
 from industry_platform.modules.disclosures.models import (
+    SecBulkEntryRecord,
+    SecBulkGapClosureRecord,
+    SecBulkGapSourceRecord,
+    SecBulkSourceRecord,
     SecCatalogSyncRecord,
     SecDisclosureCaseEvidenceRecord,
     SecDisclosureCaseRecord,
@@ -173,6 +177,10 @@ REGISTERED_MODELS: tuple[type[Base], ...] = (
     SecFilerRecord,
     SecFilerAliasRecord,
     SecCatalogSyncRecord,
+    SecBulkSourceRecord,
+    SecBulkEntryRecord,
+    SecBulkGapClosureRecord,
+    SecBulkGapSourceRecord,
     SecSubmissionSourceRecord,
     SecFilingObservationRecord,
     SecFilingRecord,
