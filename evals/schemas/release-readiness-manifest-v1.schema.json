@@ -1,0 +1,316 @@
+{
+  "$defs": {
+    "BlockerBindingSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "blocker_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Blocker Id",
+          "type": "string"
+        },
+        "closure_artifact_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Closure Artifact Ids",
+          "type": "array"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "external_gate_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "External Gate Ids",
+          "type": "array"
+        },
+        "owner": {
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/BlockerSource"
+        },
+        "status": {
+          "$ref": "#/$defs/BlockerStatus"
+        }
+      },
+      "required": ["blocker_id", "source", "status", "owner", "requirement_ids", "detail"],
+      "title": "BlockerBindingSpec",
+      "type": "object"
+    },
+    "BlockerSource": {
+      "enum": ["evaluation_taxonomy", "cross_day_audit"],
+      "title": "BlockerSource",
+      "type": "string"
+    },
+    "BlockerStatus": {
+      "enum": ["open", "closed"],
+      "title": "BlockerStatus",
+      "type": "string"
+    },
+    "EvidenceArtifactSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "relative_path": {
+          "title": "Relative Path",
+          "type": "string"
+        }
+      },
+      "required": ["artifact_id", "relative_path", "description"],
+      "title": "EvidenceArtifactSpec",
+      "type": "object"
+    },
+    "ExternalGateSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_artifact_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Artifact Ids",
+          "type": "array"
+        },
+        "evidence_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Url"
+        },
+        "gate_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Gate Id",
+          "type": "string"
+        },
+        "owner": {
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "source_commit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Commit"
+        },
+        "status": {
+          "$ref": "#/$defs/ExternalGateStatus"
+        }
+      },
+      "required": ["gate_id", "status", "owner", "detail"],
+      "title": "ExternalGateSpec",
+      "type": "object"
+    },
+    "ExternalGateStatus": {
+      "enum": ["verified", "pending"],
+      "title": "ExternalGateStatus",
+      "type": "string"
+    },
+    "RequirementGroupSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Day",
+          "type": "integer"
+        },
+        "dependency_days": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Dependency Days",
+          "type": "array"
+        },
+        "evidence_artifact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Artifact Ids",
+          "type": "array"
+        },
+        "owners": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Owners",
+          "type": "array"
+        },
+        "verification_commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Verification Commands",
+          "type": "array"
+        }
+      },
+      "required": [
+        "day",
+        "owners",
+        "dependency_days",
+        "evidence_artifact_ids",
+        "verification_commands"
+      ],
+      "title": "RequirementGroupSpec",
+      "type": "object"
+    },
+    "RequirementStatus": {
+      "enum": [
+        "complete",
+        "implemented_pending_verification",
+        "thin_slice",
+        "contract_only",
+        "blocked",
+        "planned"
+      ],
+      "title": "RequirementStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/EvidenceArtifactSpec"
+      },
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "baseline_commit": {
+      "pattern": "^[a-f0-9]{40}$",
+      "title": "Baseline Commit",
+      "type": "string"
+    },
+    "blockers": {
+      "items": {
+        "$ref": "#/$defs/BlockerBindingSpec"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "expected_current_status_counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/RequirementStatus"
+      },
+      "title": "Expected Current Status Counts",
+      "type": "object"
+    },
+    "expected_requirement_count": {
+      "minimum": 1,
+      "title": "Expected Requirement Count",
+      "type": "integer"
+    },
+    "expected_requirement_digest": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Expected Requirement Digest",
+      "type": "string"
+    },
+    "external_gates": {
+      "items": {
+        "$ref": "#/$defs/ExternalGateSpec"
+      },
+      "title": "External Gates",
+      "type": "array"
+    },
+    "failure_taxonomy_relative_path": {
+      "title": "Failure Taxonomy Relative Path",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "manifest_id": {
+      "const": "sec-release-readiness-manifest-v1",
+      "default": "sec-release-readiness-manifest-v1",
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "manifest_version": {
+      "const": "v1",
+      "default": "v1",
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "matrix_relative_path": {
+      "title": "Matrix Relative Path",
+      "type": "string"
+    },
+    "requirement_groups": {
+      "items": {
+        "$ref": "#/$defs/RequirementGroupSpec"
+      },
+      "title": "Requirement Groups",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "baseline_commit",
+    "matrix_relative_path",
+    "failure_taxonomy_relative_path",
+    "expected_requirement_count",
+    "expected_requirement_digest",
+    "expected_current_status_counts",
+    "artifacts",
+    "requirement_groups",
+    "external_gates",
+    "blockers",
+    "limitations"
+  ],
+  "title": "ReleaseReadinessManifest",
+  "type": "object"
+}

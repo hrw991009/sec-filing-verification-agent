@@ -17,6 +17,7 @@ import { getIndustryPreference, listIndustries, type Industry } from "../industr
 import { KnowledgeWorkspace } from "../knowledge/KnowledgeWorkspace";
 import { ResearchWorkspace } from "../research/ResearchWorkspace";
 import { SecWorkbench } from "../disclosures/SecWorkbench";
+import type { SecReviewDraft } from "../disclosures/sec-review-navigation";
 
 import {
   cancelRun,
@@ -114,6 +115,7 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
   const [focusedMemoryId, setFocusedMemoryId] = useState<string | null>(null);
   const [focusedEvidenceId, setFocusedEvidenceId] = useState<string | null>(null);
   const [focusedResearchRunId, setFocusedResearchRunId] = useState<string | null>(null);
+  const [secReviewDraft, setSecReviewDraft] = useState<SecReviewDraft | null>(null);
   const [evidenceRefreshToken, setEvidenceRefreshToken] = useState(0);
   const [evidencePromotionKey, setEvidencePromotionKey] = useState<string | null>(null);
   const [evidencePromotionError, setEvidencePromotionError] = useState<string | null>(null);
@@ -512,6 +514,7 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
     setMemoryBusy(false);
     setFocusedEvidenceId(null);
     setFocusedResearchRunId(null);
+    setSecReviewDraft(null);
     setEvidenceRefreshToken(0);
     setEvidencePromotionKey(null);
     setEvidencePromotionError(null);
@@ -1443,7 +1446,20 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
       ) : view === "knowledge" ? (
         <KnowledgeWorkspace canManage={canCompose} key={workspaceId} workspaceId={workspaceId} />
       ) : view === "sec" ? (
-        <SecWorkbench canManage={canCompose} key={workspaceId} workspaceId={workspaceId} />
+        <SecWorkbench
+          canManage={canCompose}
+          key={workspaceId}
+          onOpenEvidence={(evidenceId) => {
+            setFocusedEvidenceId(evidenceId);
+            setView("evidence");
+          }}
+          onOpenResearch={(draft) => {
+            setFocusedResearchRunId(null);
+            setSecReviewDraft(draft);
+            setView("research");
+          }}
+          workspaceId={workspaceId}
+        />
       ) : view === "evidence" ? (
         <EvidenceWorkspace
           canManage={canCompose}
@@ -1471,10 +1487,14 @@ export function ChatWorkbench({ currentUser, onLogout, onOpenSettings }: ChatWor
             setFocusedEvidenceId(evidenceId);
             setView("evidence");
           }}
+          onSecReviewDraftConsumed={() => {
+            setSecReviewDraft(null);
+          }}
           onSelectIndustry={(nextIndustryId) => {
             setIndustryId(nextIndustryId);
           }}
           selectedIndustryId={industryId}
+          secReviewDraft={secReviewDraft}
           workspaceId={workspaceId}
         />
       ) : (

@@ -2,15 +2,22 @@
 
 面向中文研究、企业战略、IR、财务和咨询团队的 SEC 公开披露监控与财务事实核验工作台。
 
-当前状态：Day 1～Day 4 已完成；Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)，分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。
+当前状态：Day 10 Step 1～Step 5 已完成本地实施与最终完整性审计，但发布判定仍为
+`NO_GO`。机器台账登记 88 个冻结目标，其中 45 个 `complete`、43 个未完成；16 个 release
+blocker 仍为 open，5 个 external gate 仍为 pending。不得创建
+`v0.2.0-sec-disclosure-verifier` 标签，也不得把 frozen replay、Adapter readiness、组件测试或
+本地验证写成 live/model/公开 benchmark/正式恢复能力。
 
-Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`，功能 head [`7a4766b`](https://github.com/hrw991009/industry-intelligence-platform/commit/7a4766b6d4c4ad764b9e095b2d0f03d8ec96c143) 的 push CI [`33053621106`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053621106)、PR CI [`33053623731`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053623731) 和合并提交 [`84a7945`](https://github.com/hrw991009/industry-intelligence-platform/commit/84a7945ed769d63974602b5c20984e2f4ebf0e93) 的 main CI [`33054136204`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33054136204) 均通过。`sec-source-v1` 仍为 `22/24`，D6-02/D6-06 的 bulk snapshot/watermark/post-gap 与 live SEC 债务没有关闭；这些未完成项已改为 Day 10 发布前硬门，不从原评测分母删除。
-
-Day 7 五步已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`；功能 head `6a25ab2` 的 push/PR 检查通过，但合并提交 `ae33b98` 的 main CI [`33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 为 6/7 Job 通过，Browser E2E 失败，既有 ranking/table/Citation 和评测债务继续保留。Day 8 Step 1～2 当前在 `feat/day-8` 工作树实现：确定性 Claim Verifier、四种业务状态、append-only verification report，以及同一 Research graph 内最多一次的服务端 exact-action revise 已落地，D8-01～D8-04 为 `implemented_pending_verification`。本机 CI 等价真实依赖门禁为 `1180 passed`、总体分支覆盖率 `80.27%`、核心合集 `85%`；提交 `3a46220` 的 push CI [`33229040121`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33229040121) 曾因 Elasticsearch 冷启动首次索引超过 10 秒导致 PostgreSQL Job 失败，当前工作树已增加实际写读 readiness probe，并仅为该 Job 将索引超时调整为 30 秒。生成契约的前端 fixture 与 Research 浏览器驱动也已同步到 L5 schema，现有真实 Chromium 回归为 `8 passed`；修复后的远端 CI 和 D8 专属 Workbench 浏览器验收仍待验证。Day 5～7 已登记债务、D1-09 参考仓凭据候选与 Day 4 核心合集 90% 覆盖率债务继续保留。
+当前代码已收敛到唯一 SEC 披露核验链：Filer/Filings → Research/Verification →
+Evidence/Calculation → Approval/Monitor/Case，并复用统一 Agent Runtime、Tool、Checkpoint、
+PostgreSQL 事实和可重建索引。生产 Run observation 仍为 0/50，正式恢复 observation 仍为
+0/12；无 interception 中文浏览器全链、公开/live 评测、外部权利/凭据、Day 10 三层 CI 与
+owner acceptance 尚未关闭。精确状态以[机器 readiness 报告](evals/reports/sec-release-readiness-v1.md)
+和[候选说明草案](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)为准。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.1.8（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.2.13（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)
@@ -38,6 +45,12 @@ Day 7 五步已由 [PR #11](https://github.com/hrw991009/industry-intelligence-p
 - [Day 6 SEC 官方披露与 Point-in-Time 五步执行计划](docs/learning-log/day-6.md)
 - [Day 7 Filing Hybrid Retrieval、财务计算与核对五步计划](docs/learning-log/day-7.md)
 - [Day 8 SEC Verified Agent L5、监控与 Durable HITL 五步计划](docs/learning-log/day-8.md)
+- [Day 9 Benchmark、Temporal Eval 与中文验证执行日志](docs/learning-log/day-9.md)
+- [Day 10 SEC 工作台、发布评测与完整交付日志](docs/learning-log/day-10.md)
+- [SEC 披露核验 Agent 发布就绪合同](docs/release-readiness.md)
+- [v0.2.0 候选说明草案（NO_GO）](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)
+- [Day 10 恢复与回滚 Runbook](docs/runbooks/day-10-release-recovery.md)
+- [第三方依赖 NOTICE 与许可证边界](docs/security/third-party-notices.md)
 - [Day 8 SEC Verifier、Monitor 与恢复设计](docs/sec-verification-monitor-design.md)
 - [Research L4 Checkpoint 与 HITL 合同](docs/research-checkpoint-contract.md)
 - [Day 5 Research L4 运行与回滚手册](docs/runbooks/day-5-research-l4.md)
@@ -247,7 +260,7 @@ pnpm run api:check
 
 ## 统一验证
 
-先保持 PostgreSQL、Redis 和 MinIO 运行。以下是一组完整的本地收口命令；不要只挑绿色的子集代替完整验证：
+先保持 PostgreSQL、Redis、MinIO、Milvus 和 Elasticsearch 运行，并让 `.env` 指向实际 Compose endpoint。以下是一组完整的本地收口命令；不要只挑绿色的子集代替完整验证：
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -255,18 +268,24 @@ $PSNativeCommandUseErrorActionPreference = $true
 $env:POSTGRES_TESTS_REQUIRED = '1'
 $env:REDIS_TESTS_REQUIRED = '1'
 $env:MINIO_TESTS_REQUIRED = '1'
+$env:VECTOR_TESTS_REQUIRED = '1'
+$env:ELASTICSEARCH_TESTS_REQUIRED = '1'
 
 try {
     uv sync --locked --all-packages
-    uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend
-    uv run --locked --all-packages ruff check --config pyproject.toml apps/backend
+    uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend evals/generators
+    uv run --locked --all-packages ruff check --config pyproject.toml apps/backend evals/generators
     uv run --locked --all-packages mypy --config-file pyproject.toml --no-incremental
     uv run --env-file '.env' --locked --all-packages pytest --cov=industry_platform --cov-branch --cov-report=term --cov-fail-under=80
     uv build --package industry-platform-backend
     uv audit --locked
 
     pnpm install --frozen-lockfile
+    pnpm run security:semgrep
+    pnpm run supply-chain:licenses
     pnpm run api:check
+    pnpm run eval:release-recovery
+    pnpm run eval:release-readiness
     pnpm run format:check
     pnpm run lint
     pnpm run typecheck
@@ -306,7 +325,7 @@ Day 3 已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright
 
 Day 4 的五个实现步骤和收口文档已通过功能分支 CI；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 随后合入 `main`。合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 对应的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 已通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。正式 Trace、50 条累计 Scenario、四套独立 Scorer、真实浏览器旅程、DoD 与项目所有者授权收口均已复核，D4-01～D4-07 已为 `complete`，可以进入 Day 5。
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不阻断 Day 2～Day 9 Agent 学习，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建 Day 10 发布标签。后续开发以 [Day 1～Day 10 主计划 v2.0.6](docs/master-plan.md) 为权威执行基线。
+D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不否定已有本地实现，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建发布标签。后续工作以 [Day 1～Day 10 主计划 v2.2.13](docs/master-plan.md) 和 [发布就绪合同](docs/release-readiness.md) 为权威基线。
 
 ## 常见问题
 

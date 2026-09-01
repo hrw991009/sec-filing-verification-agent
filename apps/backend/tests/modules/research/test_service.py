@@ -2,12 +2,16 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 import pytest
 
-from industry_platform.modules.agent_runtime.domain import AgentRunStatus
+from industry_platform.modules.agent_runtime.domain import (
+    AGENT_RUNTIME_SCHEMA_VERSION,
+    AgentRunStatus,
+    RunBudget,
+)
 from industry_platform.modules.conversations.domain import (
     DirectAnswerTurnReceipt,
     StartDirectAnswerTurn,
@@ -21,9 +25,22 @@ from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.research.domain import (
     RESEARCH_GRAPH_VERSION,
     RESEARCH_STATE_SCHEMA_VERSION,
+    ResearchApprovalReason,
+    ResearchBrief,
     ResearchBriefInput,
+    ResearchDraft,
+    ResearchDraftStatus,
     ResearchNode,
+    ResearchPlan,
+    ResearchPlanAction,
+    ResearchRun,
+    ResearchRunStatus,
+    ResearchRunView,
     ResearchState,
+    initial_research_state_document,
+    research_brief_id_for_run,
+    research_claim_id_for_run,
+    research_draft_id_for_run,
     research_run_id_for_agent_run,
 )
 from industry_platform.modules.research.service import (
@@ -187,6 +204,63 @@ def test_research_state_accepts_the_versioned_l5_checkpoint_shape() -> None:
             lambda state: replace(state, evidence_refs=(EVIDENCE_ID, EVIDENCE_ID)),
             "Evidence refs",
         ),
+        (lambda state: replace(state, plan_id=UUID(int=0)), "Plan ID"),
+        (
+            lambda state: replace(state, verification_report_id=UUID(int=0)),
+            "report ID",
+        ),
+        (
+            lambda state: replace(state, verification_revision=-1),
+            "Verification revision",
+        ),
+        (
+            lambda state: replace(state, verification_action="unsupported"),
+            "Verification action",
+        ),
+        (
+            lambda state: replace(state, verification_issue_digest="bad"),
+            "issue digest",
+        ),
+        (
+            lambda state: replace(
+                state,
+                verification_report_id=EVIDENCE_ID,
+                verification_revision=1,
+                verification_status="verified",
+                verification_issue_digest="a" * 64,
+                verification_action="targeted_retrieve",
+            ),
+            "action digest",
+        ),
+        (
+            lambda state: replace(
+                state,
+                verification_report_id=EVIDENCE_ID,
+                verification_revision=1,
+                verification_status="verified",
+                verification_issue_digest="a" * 64,
+                verification_action="targeted_retrieve",
+                verification_action_digest="b" * 64,
+                revise_count=1,
+            ),
+            "still pending",
+        ),
+        (
+            lambda state: replace(
+                state,
+                verification_report_id=EVIDENCE_ID,
+                verification_revision=1,
+                verification_status="verified",
+                verification_issue_digest="a" * 64,
+                verification_observation_digest="b" * 64,
+            ),
+            "has no revise",
+        ),
+        (lambda state: replace(state, claim_refs=(UUID(int=0),)), "Claim refs"),
+        (
+            lambda state: replace(state, artifact_refs=(ARTIFACT_ID, ARTIFACT_ID)),
+            "Artifact refs",
+        ),
     ],
 )
 def test_research_state_rejects_incompatible_checkpoint_values(
@@ -290,3 +364,145 @@ async def test_viewer_cannot_submit_research() -> None:
         )
 
     assert starter.commands == []
+
+
+@pytest.mark.parametrize(
+    ("builder", "message"),
+    [
+        (lambda: research_brief_id_for_run(RUN_ID, 0), "Research Brief revision is invalid"),
+        (lambda: research_draft_id_for_run(RUN_ID, True), "Research Draft revision is invalid"),
+        (lambda: research_claim_id_for_run(RUN_ID, -1), "Research Claim revision is invalid"),
+        (
+            lambda: initial_research_state_document(
+                research_run_id=RUN_ID,
+                agent_run_id=UUID(int=0),
+                workspace_id=WORKSPACE_ID,
+            ),
+            "Research State Agent Run ID must not use a nil UUID",
+        ),
+        (
+            lambda: initial_research_state_document(
+                research_run_id=RUN_ID,
+                agent_run_id=RUN_ID,
+                workspace_id=WORKSPACE_ID,
+                brief_revision=0,
+            ),
+            "Research State Brief revision is invalid",
+        ),
+    ],
+)
+def test_research_identity_and_initial_state_reject_invalid_revisions(
+    builder: Callable[[], object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        builder()
+
+
+def test_research_brief_rejects_unsupported_or_unscoped_approval_reasons() -> None:
+    base = request().brief
+    with pytest.raises(ValueError, match="approval reason is unsupported"):
+        replace(base, approval_reason=ResearchApprovalReason.MONITOR_SUBSCRIPTION)
+    with pytest.raises(ValueError, match="requires a Financial Scope"):
+        replace(base, approval_reason=ResearchApprovalReason.COMPANY_OR_PERIOD_AMBIGUITY)
+    with pytest.raises(ValueError, match="must be unique"):
+        replace(base, confirmed_scope=("SEC filing", "SEC filing"))
+
+
+def test_research_plan_draft_and_view_fail_closed_on_cross_run_or_time_drift() -> None:
+    research_run_id = research_run_id_for_agent_run(RUN_ID)
+    budget = RunBudget(
+        schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
+        max_steps=20,
+        max_total_tokens=12_000,
+        max_cost_micro_usd=300_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    brief = ResearchBrief(
+        brief_id=research_brief_id_for_run(research_run_id),
+        research_run_id=research_run_id,
+        workspace_id=WORKSPACE_ID,
+        revision=1,
+        input=request().brief,
+        budget=budget,
+        confirmed_by_user_id=USER_ID,
+        confirmed_at=NOW,
+        created_at=NOW,
+    )
+    action = ResearchPlanAction(
+        ordinal=1,
+        objective="Retrieve authoritative SEC evidence.",
+        allowed_tool_names=("sec.get_filing_text",),
+    )
+    plan = ResearchPlan(
+        plan_id=INDUSTRY_ID,
+        research_run_id=research_run_id,
+        workspace_id=WORKSPACE_ID,
+        brief_revision=1,
+        revision=1,
+        actions=(action,),
+        planner_summary="Use only the locked filing scope.",
+        created_at=NOW,
+    )
+    draft = ResearchDraft(
+        draft_id=ARTIFACT_ID,
+        research_run_id=research_run_id,
+        workspace_id=WORKSPACE_ID,
+        plan_id=plan.plan_id,
+        status=ResearchDraftStatus.EXPLAINABLE_DRAFT,
+        content_markdown="The filing supports the stated fact.",
+        outline=("Result",),
+        evidence_refs=(EVIDENCE_ID,),
+        claim_refs=(CLAIM_ID,),
+        uncertainty_summary=None,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    research_run = ResearchRun(
+        research_run_id=research_run_id,
+        workspace_id=WORKSPACE_ID,
+        owner_user_id=USER_ID,
+        agent_run_id=RUN_ID,
+        status=ResearchRunStatus.ACTIVE,
+        revision=1,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    view = ResearchRunView(
+        research_run=research_run,
+        brief=brief,
+        plan=plan,
+        draft=draft,
+        agent_status=AgentRunStatus.RUNNING,
+        stop_reason=None,
+        step_count=1,
+        event_count=1,
+        input_tokens_used=10,
+        output_tokens_used=5,
+        cost_micro_usd=20,
+    )
+
+    with pytest.raises(ValueError, match="action ordinal"):
+        replace(action, ordinal=0)
+    with pytest.raises(ValueError, match="Plan actions"):
+        replace(plan, actions=(replace(action, ordinal=2),))
+    with pytest.raises(ValueError, match="Brief revision"):
+        replace(plan, brief_revision=0)
+    with pytest.raises(ValueError, match="Draft revision"):
+        replace(draft, revision=0)
+    with pytest.raises(ValueError, match="Markdown"):
+        replace(draft, content_markdown=" ")
+    with pytest.raises(ValueError, match="update cannot precede"):
+        replace(draft, updated_at=NOW - timedelta(seconds=1))
+    with pytest.raises(ValueError, match="graph version"):
+        replace(research_run, graph_version="unknown")
+    with pytest.raises(ValueError, match="state schema"):
+        replace(research_run, state_schema_version=1)
+    with pytest.raises(ValueError, match="Plan belongs"):
+        replace(view, plan=replace(plan, research_run_id=UUID(int=1)))
+    with pytest.raises(ValueError, match="step count"):
+        replace(view, step_count=-1)
+    with pytest.raises(ValueError, match="Brief confirmation"):
+        replace(brief, confirmed_at=NOW - timedelta(seconds=1))
+    with pytest.raises(ValueError, match="revision"):
+        replace(brief, revision=0)

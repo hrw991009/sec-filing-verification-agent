@@ -15,7 +15,7 @@
 The pairwise decisions are valid only inside their named common-case source suite. The 10-case A0/A1/A2 and 14-case A2/A3/A4 aggregates are not merged into a global A0-A4 score.
 
 Release blockers:
-- `global_a0_a4_common_case_manifest_missing`
+- `global_a0_a4_common_case_runs_not_executed`
 - `retrieval_recall_at_5_not_measured`
 - `offline_capability_runs_not_executed`
 - `live_model_runs_below_three_repetitions`

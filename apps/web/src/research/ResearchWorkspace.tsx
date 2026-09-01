@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SubmitEvent } from "react";
 
+import { ApiProblem } from "../api/api";
 import type { Industry } from "../industry/industry-api";
 import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-api";
 import { cancelRun, getAgentTrace, type AgentTrace } from "../chat/chat-api";
+import type { SecReviewDraft } from "../disclosures/sec-review-navigation";
 import {
   formatCost,
   idempotencyKey,
@@ -17,6 +19,7 @@ import {
   decideMonitorSubscription,
   getResearchDurability,
   getResearchRun,
+  getVerificationReport,
   listResearchRuns,
   resumeResearch,
   startResearch,
@@ -24,6 +27,7 @@ import {
   type ResearchDurability,
   type ResearchRun,
   type StartResearchRequest,
+  type VerificationReport,
 } from "./research-api";
 import "./research.css";
 
@@ -33,7 +37,9 @@ interface ResearchWorkspaceProps {
   readonly industries: readonly Industry[];
   readonly onOpenAgent: (question: string, mode: "none" | "web") => void;
   readonly onOpenEvidence: (evidenceId: string | null) => void;
+  readonly onSecReviewDraftConsumed?: () => void;
   readonly onSelectIndustry: (industryId: string) => void;
+  readonly secReviewDraft?: SecReviewDraft | null;
   readonly selectedIndustryId: string | null;
   readonly workspaceId: string;
 }
@@ -65,6 +71,15 @@ const approvalStatusNames: Readonly<Record<string, string>> = {
   timed_out: "已超时",
 };
 
+const verificationStatusNames: Readonly<Record<string, string>> = {
+  conflict: "证据冲突",
+  insufficient_evidence: "证据不足",
+  partial: "部分核验",
+  verified: "已核验",
+};
+
+const verificationStatuses = ["verified", "partial", "conflict", "insufficient_evidence"] as const;
+
 function lines(value: string): string[] {
   return [
     ...new Set(
@@ -84,13 +99,36 @@ function textArgument(value: unknown): string {
   return typeof value === "string" ? value : "-";
 }
 
+function localDateTime(value: string): string {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function secConfirmedScope(draft: SecReviewDraft): string {
+  return [
+    `仅核验 ${draft.accession} 在 ${draft.asOf} 截止时可用的信息`,
+    "Filing Hybrid Retrieval 与 XBRL 事实必须共享同一 FinancialScope",
+    "结论必须绑定 Evidence、Citation 和 Calculation lineage",
+  ].join("\n");
+}
+
+const SEC_EXCLUSIONS = "投资建议\nas_of 之后公开的来源\n未绑定 accession 的外部摘要";
+const SEC_COMPLETION_CRITERIA = [
+  "输出 verified、partial、conflict 或 insufficient_evidence 之一",
+  "所有结论均可反查 SEC 原文或 XBRL Evidence",
+  "涉及派生数字时保存可重算 Calculation",
+].join("\n");
+
 export function ResearchWorkspace({
   canManage,
   focusedResearchRunId,
   industries,
   onOpenAgent,
   onOpenEvidence,
+  onSecReviewDraftConsumed,
   onSelectIndustry,
+  secReviewDraft = null,
   selectedIndustryId,
   workspaceId,
 }: ResearchWorkspaceProps) {
@@ -100,6 +138,7 @@ export function ResearchWorkspace({
   const [trace, setTrace] = useState<AgentTrace | null>(null);
   const [claims, setClaims] = useState<ResearchClaim[]>([]);
   const [durability, setDurability] = useState<ResearchDurability | null>(null);
+  const [verification, setVerification] = useState<VerificationReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailRefreshRevision, setDetailRefreshRevision] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -110,28 +149,41 @@ export function ResearchWorkspace({
     readonly researchRunId: string;
     readonly message: string;
   } | null>(null);
-  const [originalQuestion, setOriginalQuestion] = useState("");
-  const [mode, setMode] = useState<"web" | "local">("web");
+  const [originalQuestion, setOriginalQuestion] = useState(secReviewDraft?.question ?? "");
+  const [mode, setMode] = useState<"web" | "local">(secReviewDraft === null ? "web" : "local");
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
-  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<string | null>(null);
-  const [cik, setCik] = useState("0000320193");
-  const [accession, setAccession] = useState("0000320193-23-000106");
-  const [form, setForm] = useState<"10-K" | "10-Q">("10-K");
-  const [reportPeriod, setReportPeriod] = useState("2023-09-30");
-  const [asOf, setAsOf] = useState("2023-11-03T12:00");
-  const [unit, setUnit] = useState("USD");
-  const [scale, setScale] = useState(6);
+  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<string | null>(
+    secReviewDraft?.knowledgeBaseId ?? null,
+  );
+  const [cik, setCik] = useState(secReviewDraft?.cik ?? "0000320193");
+  const [accession, setAccession] = useState(secReviewDraft?.accession ?? "0000320193-23-000106");
+  const [form, setForm] = useState<"10-K" | "10-Q">(secReviewDraft?.form ?? "10-K");
+  const [reportPeriod, setReportPeriod] = useState(secReviewDraft?.reportPeriod ?? "2023-09-30");
+  const [asOf, setAsOf] = useState(
+    secReviewDraft === null ? "2023-11-03T12:00" : localDateTime(secReviewDraft.asOf),
+  );
+  const [unit, setUnit] = useState(secReviewDraft?.unit ?? "USD");
+  const [scale, setScale] = useState(secReviewDraft?.scale ?? 6);
   const [requireAmbiguityApproval, setRequireAmbiguityApproval] = useState(false);
-  const [confirmedScope, setConfirmedScope] = useState("");
-  const [exclusions, setExclusions] = useState("");
+  const [confirmedScope, setConfirmedScope] = useState(
+    secReviewDraft === null ? "" : secConfirmedScope(secReviewDraft),
+  );
+  const [exclusions, setExclusions] = useState(secReviewDraft === null ? "" : SEC_EXCLUSIONS);
   const [completionCriteria, setCompletionCriteria] = useState(
-    "形成带 Evidence/Claim 关系和不确定项的 L3 草稿",
+    secReviewDraft === null
+      ? "形成带 Evidence/Claim 关系和不确定项的 L3 草稿"
+      : SEC_COMPLETION_CRITERIA,
   );
   const [maxSteps, setMaxSteps] = useState(20);
   const [maxTotalTokens, setMaxTotalTokens] = useState(16_384);
   const [maxCostMicroUsd, setMaxCostMicroUsd] = useState(500_000);
   const [timeoutSeconds, setTimeoutSeconds] = useState(600);
   const detailRequestRef = useRef(0);
+
+  useEffect(() => {
+    if (secReviewDraft === null) return;
+    onSecReviewDraftConsumed?.();
+  }, [onSecReviewDraftConsumed, secReviewDraft]);
 
   const chooseLoadedRun = useCallback(
     (loaded: ResearchRun[], preferredId: string | null = null) => {
@@ -147,6 +199,7 @@ export function ResearchWorkspace({
         setTrace(null);
         setClaims([]);
         setDurability(null);
+        setVerification(null);
       }
     },
     [focusedResearchRunId],
@@ -217,17 +270,27 @@ export function ResearchWorkspace({
     void getResearchRun(workspaceId, selectedId)
       .then(async (loaded) => {
         if (detailRequestRef.current !== requestNumber) return;
-        const [loadedTrace, loadedClaims, loadedDurability] = await Promise.allSettled([
-          getAgentTrace(workspaceId, loaded.agent_run_id),
-          listResearchClaims(workspaceId, loaded.id, 100),
-          getResearchDurability(workspaceId, loaded.id),
-        ]);
+        const [loadedTrace, loadedClaims, loadedDurability, loadedVerification] =
+          await Promise.allSettled([
+            getAgentTrace(workspaceId, loaded.agent_run_id),
+            listResearchClaims(workspaceId, loaded.id, 100),
+            getResearchDurability(workspaceId, loaded.id),
+            loaded.brief.financial_scope === null
+              ? Promise.resolve(null)
+              : getVerificationReport(workspaceId, loaded.id).catch((caught: unknown) => {
+                  if (caught instanceof ApiProblem && caught.status === 404) return null;
+                  throw caught;
+                }),
+          ]);
         if (detailRequestRef.current !== requestNumber) return;
         setDetail(loaded);
         setTrace(loadedTrace.status === "fulfilled" ? loadedTrace.value : null);
         setClaims(loadedClaims.status === "fulfilled" ? loadedClaims.value : []);
         setDurability(loadedDurability.status === "fulfilled" ? loadedDurability.value : null);
-        const failures = [loadedTrace, loadedClaims, loadedDurability]
+        setVerification(
+          loadedVerification.status === "fulfilled" ? loadedVerification.value : null,
+        );
+        const failures = [loadedTrace, loadedClaims, loadedDurability, loadedVerification]
           .filter((item) => item.status === "rejected")
           .map((item) => publicError(item.reason));
         setDetailError(
@@ -242,6 +305,7 @@ export function ResearchWorkspace({
         setTrace(null);
         setClaims([]);
         setDurability(null);
+        setVerification(null);
         setDetailError({ message: publicError(caught), researchRunId: selectedId });
       });
   }, [detailRefreshRevision, selectedId, workspaceId]);
@@ -397,6 +461,16 @@ export function ResearchWorkspace({
     visibleDetail?.agent_status === "queued" ||
     visibleDetail?.agent_status === "running" ||
     visibleDetail?.agent_status === "paused";
+
+  useEffect(() => {
+    if (!detailIsActive || selectedId === null) return;
+    const timer = window.setInterval(() => {
+      void loadRuns(selectedId);
+    }, 3_000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [detailIsActive, loadRuns, selectedId]);
   const latestApproval = durability?.approvals.at(-1) ?? null;
   const relatedEvidence = useMemo(() => {
     const unique = new Map<string, ResearchClaim["relations"][number]["evidence"]>();
@@ -1103,6 +1177,107 @@ export function ResearchWorkspace({
                   </div>
                 )}
               </section>
+
+              {visibleDetail.brief.financial_scope === null ? null : (
+                <section className="research-card research-verification">
+                  <div className="research-section-heading">
+                    <h3>Verification Report</h3>
+                    <span>
+                      {verification === null
+                        ? "尚无正式报告"
+                        : `${verification.checker_version} · r${String(verification.revision)}`}
+                    </span>
+                  </div>
+                  <div className="research-verification__states" aria-label="核验业务状态">
+                    {verificationStatuses.map((status) => (
+                      <span
+                        aria-current={
+                          verification?.verification_status === status ? "true" : undefined
+                        }
+                        key={status}
+                      >
+                        {verificationStatusNames[status]}
+                      </span>
+                    ))}
+                  </div>
+                  {verification === null ? (
+                    <div className="research-empty">
+                      Verifier 尚未提交报告；失败、取消或等待审批不会生成替代结论。
+                    </div>
+                  ) : (
+                    <>
+                      <dl className="research-verification__summary">
+                        <div>
+                          <dt>Status</dt>
+                          <dd>{verificationStatusNames[verification.verification_status]}</dd>
+                        </div>
+                        <div>
+                          <dt>Coverage</dt>
+                          <dd>{(verification.coverage * 100).toFixed(0)}%</dd>
+                        </div>
+                        <div>
+                          <dt>Claims / Issues</dt>
+                          <dd>
+                            {verification.claims.length} / {verification.issues.length}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Runtime stop</dt>
+                          <dd>{verification.runtime_stop_reason ?? "-"}</dd>
+                        </div>
+                      </dl>
+                      <div className="research-verification__claims">
+                        {verification.claims.map((claim) => (
+                          <article key={claim.claim_id}>
+                            <header>
+                              <strong>{claim.claim_id.slice(0, 8)}</strong>
+                              <span>{claim.verdict}</span>
+                            </header>
+                            <dl>
+                              <div>
+                                <dt>Coverage</dt>
+                                <dd>{(claim.coverage * 100).toFixed(0)}%</dd>
+                              </div>
+                              <div>
+                                <dt>Citations</dt>
+                                <dd>{claim.citation_refs.length}</dd>
+                              </div>
+                              <div>
+                                <dt>Calculations</dt>
+                                <dd>{claim.calculation_refs.length}</dd>
+                              </div>
+                            </dl>
+                            {claim.issues.length === 0 ? null : (
+                              <ul>
+                                {claim.issues.map((issue) => (
+                                  <li key={issue.issue_id}>
+                                    {issue.code} · {issue.severity} · {issue.repairability}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                      <div className="research-verification__evidence">
+                        {verification.evidence_snapshots.map((snapshot) => (
+                          <button
+                            disabled={!snapshot.available}
+                            key={snapshot.evidence_id}
+                            onClick={() => {
+                              onOpenEvidence(snapshot.evidence_id);
+                            }}
+                            type="button"
+                          >
+                            Evidence {snapshot.evidence_id.slice(0, 8)} · r{snapshot.revision} ·{" "}
+                            {snapshot.status}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </section>
+              )}
 
               <section className="research-card research-durability">
                 <div className="research-section-heading">

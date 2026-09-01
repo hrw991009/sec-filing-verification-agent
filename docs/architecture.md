@@ -4,13 +4,13 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-29
+> 更新日期：2026-08-31
 >
-> 权威来源：`docs/master-plan.md` 2.1.9
+> 权威来源：`docs/master-plan.md` 2.2.13
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 7 已合入 `main`，但各自登记的浏览器、ranking/table/Citation、bulk watermark、live SEC 与发布证据债务仍留到 Day 10。Day 8 Step 1～3 当前在 `feat/day-8` 工作树实现：确定性 SEC Claim Verifier 与四种业务状态已进入 PostgreSQL/API/Event/Trace，唯一 Research graph 已升级为 L5 并增加最多一次、服务端 exact-action 驱动的 retrieve/recalculate revise；版本化 Monitor/rule、append-only watermark、幂等 Case 与双侧 Evidence 已复用既有 Schedule/Job/Outbox、SEC sync 和 filing diff 链接入 Beat/Worker。D8-01～D8-05 均为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵与 A2/A3/A4 仍未实现，修复后的远端 CI 也尚未取得。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍是发布阻断项。Day 10 Step 1～Step 3 分别建立 readiness 台账、复用正式 owner 连接产品页面并加入 common-case Run evidence scorer；Step 4 只增加仓库质量门和 checked recovery evidence 投影；Step 5 只消费这些 artifact 完成最终文档和 `NO_GO` 判定，没有创建第二套 Runtime、业务状态、运维状态机或发布状态机。空 observation、页面连通、组件测试、Runbook 和候选说明草案都不代表真实 Runtime、浏览器、恢复演练或发布已经通过。
 
 架构需要同时满足：
 
@@ -760,6 +760,14 @@ Evaluation Harness 与生产流量调用同一个 Agent Runtime/Harness；测试
 Day 2～Day 4 已有 50 条通用 Scenario 继续作为 Runtime/Memory/Evidence/L3 回归集，但不能证明金融能力。Day 5 建立 `sec-fixture-v1`，Day 6 建立 `sec-source-v1`；Day 9 汇总并冻结这些已有数据集，新增不少于 60 条的 `sec-temporal-v1`、不少于 30 组成对中英案例和公开 benchmark manifests。FinQA、TAT-QA、FinanceBench、FinSearchComp 只按各自公开范围补充能力证据。评分分为 source/identity、retrieval、calculation/result、evidence/citation、trajectory/tool、runtime recovery/security 与成本延迟层；LLM judge 只能作为辅助。
 
 Day 9 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context 建立唯一 release 治理入口：严格 Dataset Registry 负责 upstream revision、artifact byte size/SHA-256、split、数据/代码许可、允许用途和 release eligibility；Release Eval manifest 通过 registry canonical hash 固定 Runtime/Harness/model/Prompt/Tool/Context/Retrieval/Graph/Verifier/Scorer version、Budget、trajectory、SEC point-in-time gold 与 Run/Trace/Evidence/Calculation identity。Git 只保存 registry、manifest、JSON Schema 和小型派生产物，外部 payload 由后续 Adapter 按 registry 下载校验，不因登记元数据进入产品 RAG。四个公开数据集在 Adapter、artifact 校验和权利复核完成前均为 `registered_only` 且 fail closed，不能进入 release claim。
+
+Day 10 Step 1 继续复用该 bounded context：`release_readiness` 只读取正式能力矩阵、受检评测报告和仓库证据，不参与线上回答，也不重算各 benchmark scorer。readiness manifest 固定 requirement digest、owner、依赖、验证命令、artifact 和 blocker/external-gate 映射；生成器验证十张正式能力表、taxonomy 双向覆盖、非完成目标与 open blocker、pending gate 与 open blocker 完全一致，并为每个 artifact 计算 byte size/SHA-256。checked JSON/Markdown 与 manifest/report Schema 是发布审计投影，不是新的运行时事实源。
+
+Day 10 Step 2 的页面协调只传递已锁定 Filing 的 `FinancialScope` 输入，不持久化新的业务副本。Research API 仍拥有 Run/Brief/Draft、Verifier 拥有四态报告、Evidence API 拥有 Citation/Calculation 反查、Durability API 拥有 Checkpoint/Approval、Disclosure API 拥有 Monitor/Case。Web 每次刷新从这些正式 owner 重建视图；没有报告就显示未生成，amendment 不会被静默转换，active/paused 状态不会由浏览器计时器直接推进。这样保持单一事实源，同时把无拦截真实依赖 Playwright 留作独立发布证据门。
+
+Day 10 Step 3 的 `release_evidence` 只消费版本化 common-case manifest 与经脱敏导出的生产 Run evidence。它引用 `sec-tool-v1` 的 10 个 case/gold identity，不复制或修改 gold；A0～A4 固定同一 case、Scope 和预算，offline 期望 50 个 Run，live 期望每格 3 次共 150 个 Run。每条 observation 必须带 Run/Trace/Workspace、Evidence/Calculation、final-state hash、ranked candidate、Token/成本/延迟及安全/恢复计数，scorer 才计算 Recall@5、Citation、runtime binding、freshness、跨 Workspace、未授权写、重复副作用、注入和恢复指标。空 observation 只生成 `not_measured`/`unknown` 和 blocker；这些报告是 evaluation 投影，不写回生产表，也不替代 OpenTelemetry/Prometheus 的真实运行采集。
+
+Day 10 Step 4 的 `release_recovery` 同样是只读 evaluation 投影。manifest 固定 12 个 fresh migration、备份恢复、索引重建、依赖/Worker 故障、SEC 429、dead-letter、通知不确定性和上一镜像回滚场景；executed observation 必须全覆盖并绑定 evidence SHA-256、时间、恢复命令/终态 hash、Run/Workspace（适用时）、数据损失、越权写和重复副作用。当前 checked 输入为 0/12，四个指标保持 `not_measured`，因此不会因合同或 Runbook 存在而关闭恢复门。CI 在既有真实依赖 Job 强制冻结核心 90%/后端 80%，并以锁定 Semgrep、许可证和 NOTICE 检查补齐供应链层；工具通过仍不替代远端 CI、实际演练或 owner review。
 
 Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
 

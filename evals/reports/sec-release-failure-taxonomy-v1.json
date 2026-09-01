@@ -9,13 +9,13 @@
   },
   "items": [
     {
-      "affected_case_count": 24,
+      "affected_case_count": 10,
       "category": "comparability",
-      "detail": "A0/A1/A2 and A2/A3/A4 use different frozen case suites.",
+      "detail": "The common A0-A4 contract is frozen, but production Runtime runs are absent.",
       "evidence_layer": "deterministic_contract",
-      "failure_id": "global-a0-a4-common-cases-missing",
+      "failure_id": "global-a0-a4-common-runs-missing",
       "release_blocking": true,
-      "source_report_ids": ["sec-tool-v1", "sec-verification-v1"]
+      "source_report_ids": ["sec-release-evidence-v1"]
     },
     {
       "affected_case_count": 10,
@@ -24,16 +24,16 @@
       "evidence_layer": "deterministic_contract",
       "failure_id": "retrieval-recall-at-5-missing",
       "release_blocking": true,
-      "source_report_ids": ["sec-tool-v1"]
+      "source_report_ids": ["sec-release-evidence-v1"]
     },
     {
-      "affected_case_count": 66,
+      "affected_case_count": 116,
       "category": "runtime_evidence",
       "detail": "Cases are not bound to UnifiedAgentRuntime Run, Trace, Evidence, or database final state.",
       "evidence_layer": "deterministic_contract",
       "failure_id": "runtime-binding-missing",
       "release_blocking": true,
-      "source_report_ids": ["sec-temporal-v1", "agent-security-v1"]
+      "source_report_ids": ["sec-release-evidence-v1", "sec-temporal-v1", "agent-security-v1"]
     },
     {
       "affected_case_count": 3351,

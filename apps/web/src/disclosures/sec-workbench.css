@@ -96,7 +96,8 @@
 }
 
 .sec-workbench input,
-.sec-workbench select {
+.sec-workbench select,
+.sec-workbench textarea {
   min-width: 0;
   box-sizing: border-box;
   padding: 0.52rem 0.58rem;
@@ -106,6 +107,10 @@
   color: #29384b;
   font: inherit;
   font-size: 0.72rem;
+}
+
+.sec-workbench textarea {
+  resize: vertical;
 }
 
 .sec-workbench fieldset {
@@ -220,6 +225,7 @@
 
 .sec-content-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   min-height: 2.15rem;
   border-bottom: 1px solid #dce3de;
@@ -242,6 +248,86 @@
   border-bottom-color: #2e6958;
   border-radius: 0;
   color: #244e42;
+}
+
+.sec-verification-launcher {
+  display: grid;
+  width: min(100%, 50rem);
+  gap: 0.85rem;
+}
+
+.sec-verification-launcher > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sec-verification-launcher > header > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sec-verification-launcher > dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid #dce3de;
+  border-radius: 0.4rem;
+  background: #f7f8f6;
+}
+
+.sec-verification-launcher > dl > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  padding: 0.65rem;
+  border-right: 1px solid #dce3de;
+}
+
+.sec-verification-launcher > dl > div:last-child {
+  border-right: 0;
+}
+
+.sec-verification-launcher dt {
+  color: #718078;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sec-verification-launcher dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #34453c;
+  font-size: 0.68rem;
+}
+
+.sec-verification-launcher__numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 10rem));
+  gap: 0.65rem;
+}
+
+.sec-verification-launcher > button {
+  width: fit-content;
+}
+
+.sec-case-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sec-case-evidence button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2e6958;
+  cursor: pointer;
+  font-size: 0.62rem;
+  text-decoration: underline;
 }
 
 .sec-content-search {
@@ -768,6 +854,7 @@
 
   .sec-retrieval-audit,
   .sec-diff-summary,
+  .sec-verification-launcher > dl,
   .sec-diff-facts > div:last-child {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -831,6 +918,8 @@
 
   .sec-retrieval-audit,
   .sec-diff-summary,
+  .sec-verification-launcher > dl,
+  .sec-verification-launcher__numbers,
   .sec-diff-columns,
   .sec-diff-facts > div:last-child,
   .sec-diff-facts dl,
@@ -839,13 +928,15 @@
   }
 
   .sec-retrieval-audit > div,
-  .sec-diff-summary > div {
+  .sec-diff-summary > div,
+  .sec-verification-launcher > dl > div {
     border-right: 0;
     border-bottom: 1px solid #dce3de;
   }
 
   .sec-retrieval-audit > div:last-child,
-  .sec-diff-summary > div:last-child {
+  .sec-diff-summary > div:last-child,
+  .sec-verification-launcher > dl > div:last-child {
     border-bottom: 0;
   }
 }

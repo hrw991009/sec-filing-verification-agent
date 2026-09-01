@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-28
+> 更新日期：2026-08-31
 >
-> 权威来源：`docs/master-plan.md` 2.1.2
+> 权威来源：`docs/master-plan.md` 2.2.13
 
 ## 1. 产品定位
 
@@ -16,7 +16,7 @@
 
 Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence、Research L3，以及 Day 5 已合并的 Knowledge/Research L4 实现继续复用；Day 5 的 SEC fixture 浏览器 DoD 仍须补齐。后续能力目标是以同一正式链路接入 SEC 披露和系统性评测，而不是复制一套“金融 Agent”旁路。
 
-“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.1.2 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
+“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.2.13 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
 
 ## 2. Day 1～Day 10 目标与诚实边界
 
@@ -25,6 +25,8 @@ Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence、Research L3，�
 ```text
 v0.2.0-sec-disclosure-verifier
 ```
+
+截至 2026-08-31 的 Step 5 最终审计，该名称仍是目标版本而不是已发布版本或 release candidate。机器 readiness 为 `no_go`：88 个冻结目标中 43 个未完成，16 个 blocker open、5 个 external gate pending；生产 Run 为 0/50、正式恢复为 0/12。仓库中的[候选说明](release-notes/v0.2.0-sec-disclosure-verifier.md)仅为明确限制和提升条件的草案，不授权创建标签或扩大产品声明。
 
 该版本需要建立一条真实可运行的中文核心用户路径：
 

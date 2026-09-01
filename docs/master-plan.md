@@ -2,11 +2,11 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.7`
+> 版本：`2.2.13`
 >
 > 制定日期：`2026-07-23`
 >
-> 修订日期：`2026-08-30`
+> 修订日期：`2026-08-31`
 >
 > 状态：SEC 财务事实核验 Agent 执行基线
 >
@@ -54,7 +54,7 @@
 | Day 5 Step 1～3 | 私有上传、版本化解析资产、双索引写入/删除对账/Workbench 已合入 `main` | PR #9 与分支/PR/main CI 关闭其冻结验收，D5-01～D5-07 为 `complete`；不据此关闭 Step 4～5 的浏览器 DoD |
 | Day 5 Step 4 | 固定 SEC fixture、Dense `knowledge_search`、typed calculator、filing/calculation Evidence 与 F0～F2 合同对照已合入 `main` | D5-08 为 `implemented_pending_verification`；缺 ready fixture 的浏览器 Dense/calculation/Evidence 反查，F0/F1 也不表述为 live/model 质量 |
 | Day 5 Step 5 | 节点 Checkpoint、HITL、同 Run resume、副作用账本、Workbench 时间线与 L4 recovery eval 已合入 `main` | D5-09 为 `implemented_pending_verification`；缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程，Day 8 组合恢复门另行保留 |
-| Day 6～Day 10 | 尚未完成 | Day 6 已由 PR #10 合入 `main`，但 `sec-source-v1` 仍为 22/24，D6-02/D6-06 的 bulk watermark 与其余 live SEC 债务保留。项目所有者已推进至 Day 7 Step 3，因此 Day 6 未关闭项改为 Day 10 发布前硬门且不删分母。Day 7 当前 D7-01/D7-03～D7-05=`implemented_pending_verification`、D7-02=`thin_slice`；D5-08/D5-09 浏览器 DoD 仍未关闭 |
+| Day 6～Day 10 | 尚未完成 | Day 6～Day 9 代码均已合入 `main`，最近的 Day 9 PR #15 push/PR/main 三层 CI 全绿；这不关闭能力缺口。Day 6 `sec-source-v1` 仍为 22/24，Day 7 Recall@5/Citation、Day 8 专用浏览器/故障、Day 9 common-case/offline/live/Runtime binding、D5-08/D5-09 浏览器 DoD、Day 4 核心 90% 与 D1-09 外部凭据处置均进入 Day 10 发布硬门 |
 
 Day 5 前三步是后续 Filing RAG 的通用底座，不建立第二套“金融上传/解析/索引”链路。已有行业、政策、招投标、股票和 Text2SQL 实现作为已完成的 Runtime/Tool/Evidence 学习证据保留，但它们不再是新业务范围，也不作为 SEC Agent 能力的替代证据。
 
@@ -1056,7 +1056,7 @@ SEC L5 Verifier、one-revise graph、四种业务终态、Monitor/Case/HITL、fa
 
 ## 16. Day 9：公开 Benchmark、SEC Temporal Eval 与中文验证链
 
-> 执行状态（2026-08-30）：Day 8 已由 PR #14 合入 `main`，功能 head `227eeb4`、合并提交 `ae1f50b`，push/PR/main 三层 CI 的 7 个适用 Job 均通过。项目所有者已授权进入 Day 9；执行顺序收敛为五步：[Day 9 执行计划](learning-log/day-9.md)。Step 1～Step 5 已在 `feat/day-9` 工作树实现：四个外部数据集均为 `adapter_ready`/`release_eligible=false`，`sec-temporal-v1` 固定 60 个中英 case，受限外部报告严格分离 FinanceBench 非商用/source-PDF 边界与 FinSearchComp historical/dynamic 依赖，`agent-security-v1` 以 6-case/18-trial 冻结 observation 验证 trajectory/final-state/injection/经验 `pass^3` scorer。Step 5 的 `release-suite-v1` 分别输出 deterministic/offline/live/failure taxonomy，只保留同集 A1→A2、A2→A3、A3→A4 operational pairwise 决策，并拒绝把不同 case suite 拼成全局 A0～A4 分数。统一 common-case manifest、Recall@5、真实 Runtime/model/database、公开集 prediction、live≥3 次、官方 judge、case→Run/Trace/Evidence、远端 CI、中文抽样和 owner review 仍缺。因此 D9-01～D9-07 为 `implemented_pending_verification`，D9-08 为 `thin_slice`。
+> 执行状态（2026-08-30）：Day 9 五步已由 PR #15 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`，push/PR/main 三层 CI 均通过 7 个适用 Job。四个外部数据集均为 `adapter_ready`/`release_eligible=false`，`sec-temporal-v1` 固定 60 个中英 case，`agent-security-v1` 以 6-case/18-trial 冻结 observation 验证 scorer；`release-suite-v1` 分列 deterministic/offline/live/failure taxonomy，并拒绝把不同 case suite 拼成全局 A0～A4 分数。统一 common-case manifest、Recall@5、真实 Runtime/model/database、公开集 prediction、live≥3 次、官方 judge、case→Run/Trace/Evidence、中文抽样和 owner review 仍缺。因此 D9-01～D9-07 保持 `implemented_pending_verification`，D9-08 保持 `thin_slice`；后续只按 [Day 10 执行计划](learning-log/day-10.md) 和 [发布就绪合同](release-readiness.md) 补证收口。
 
 ### 学习主题
 
@@ -1105,6 +1105,8 @@ FinQA/TAT-QA/FinanceBench/FinSearchComp adapters 与 dataset cards、`sec-tempor
 
 ## 17. Day 10：披露核验工作台、发布评测与完整交付
 
+> 执行状态（2026-08-31）：Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`；push/PR/main 三层 CI 均通过 7 个适用 Job。Day 10 Step 1～Step 5 已在 `day-10` 工作树完成本地实施和最终完整性审计。Step 4 在冻结模块集合上把核心覆盖率提升并锁到 90%，新增锁定 Semgrep、Python/Node 许可证与 NOTICE 门禁，并以 `sec-release-recovery-v1` 冻结 12 个恢复/回滚场景；Step 5 只消费既有 artifact，同步 README/ADR/架构/评测/Runbook/限制和明确 `NO_GO` 的候选说明草案。checked 恢复 observation 仍为 `not_executed`/0 of 12，不能以 Runbook、单测或候选草案替代演练。readiness 当前登记 68 个 artifact，状态为 45 complete、33 implemented pending verification、10 thin slice、0 planned，共 43 未完成；16 个 blocker open、5 个 external gate pending，机器结论仍为 `no_go`。D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`；真实 Runtime/public/live、无拦截浏览器、正式恢复演练、许可/中文签字、Day 10 远端 CI 和 owner review 尚未完成。
+
 ### 学习主题
 
 - 业务工作台如何将复杂 Agent 轨迹压缩为可操作的核验结果。
@@ -1150,7 +1152,7 @@ FinQA/TAT-QA/FinanceBench/FinSearchComp adapters 与 dataset cards、`sec-tempor
 
 ### 当日产物
 
-SEC 披露与财务事实核验工作台、release Eval manifests/reports、完整 Workbench、Runbook、来源/许可证清单、架构与评测报告、`learning-log/day-10.md`、演示证据和 `v0.2.0-sec-disclosure-verifier` 标签候选。
+SEC 披露与财务事实核验工作台、release Eval manifests/reports、完整 Workbench、Runbook、来源/许可证清单、架构与评测报告、[Day 10 执行计划](learning-log/day-10.md)、[发布就绪合同](release-readiness.md)、演示证据和 `v0.2.0-sec-disclosure-verifier` 标签候选。
 
 ### 复盘题
 
@@ -1348,3 +1350,9 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.5 | 2026-08-30 | 同步 Day 9 Step 3：新增内部 `sec-temporal-v1` manifest/生成器/schema/dataset card/contract-only 报告，复用 release Budget/Trajectory/SEC/Answer gold，将 30 个单 gold 中英 pair 展开为 60 case。11 个真实 accession 的 22 个 HTML/XBRL artifact 固定 SEC URL/size/SHA-256 并按 filing 隔离 split；八类分母为 `10/8/10/8/6/6/6/6`，本地 22/22 artifact、35/35 Evidence、pair identity 100%、future leakage 0。明确没有模型/Runtime 执行、真实 Run/Trace/Evidence binding 或 capability score，10 组中文抽样尚未签字，远端 CI/owner review 亦缺，故 D9-05/D9-06 仅为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |
 | 2.2.6 | 2026-08-30 | 同步 Day 9 Step 4：沿正式 registry/受控物化实现 FinanceBench 与 FinSearchComp 严格 Adapter/dataset card/schema/contract report；前者冻结 150 题/84 引用文档/189 Evidence 并保留未引用 metadata period 冲突，后者将 391 historical 与 244 dynamic 分报，单列 203 AkShare-compatible、41 专业依赖和 203 timestamp drift。新增复用 release Budget/Trajectory 的 6-case/18-trial `agent-security-v1`，规则 scorer 重算 argument/partial-order/stop/final-state、注入、跨 Workspace、越权、重复副作用、恢复和经验 `pass^3`。本地 evaluation `50 passed`、两套新增模块 branch coverage `84%`、全量无强制外部服务 pytest `1169 passed, 88 skipped`，Ruff/mypy 通过；四个外部数据集均为 `adapter_ready` 但 `release_eligible=false`，真实依赖总体 coverage、Runtime/model/database/judge、远端 CI 和 owner review 未完成，D9-04/D9-07 仅为 `implemented_pending_verification` | 用户授权继续 Day 9 下一步 |
 | 2.2.7 | 2026-08-30 | 同步 Day 9 Step 5：新增严格 `release-suite-v1` 聚合器，校验 registry/release manifest 与九份受检报告身份/hash，生成 deterministic/offline/live/failure-taxonomy JSON+Markdown/schema。保留同一 source-suite 内 A1→A2、A2→A3、A3→A4 operational 决策，但全局 A0～A4 分数与生产默认策略为 null；公开集 prediction、live 3 次、Recall@5、Runtime/Trace/Evidence、远端 CI 与 owner review 缺失均为机器 blocker。本地 evaluation `57 passed`、新增模块 branch coverage `91%`、全量无强制服务 pytest `1176 passed, 88 skipped`，Ruff/mypy/Web `89 passed`/build/OpenAPI/Chromium `8 passed`、依赖审计与 96-commit Gitleaks 通过；真实依赖总体 coverage 与远端 CI 尚缺。D9-08 为 `thin_slice`，不把聚合报告冒充模型能力或 Day 9 完成 | 用户授权继续 Day 9 下一步 |
+| 2.2.8 | 2026-08-30 | 记录 Day 9 PR #15、功能 head `6a79e4a`、合并提交 `4500505` 及 push/PR/main 三层 CI 全绿；按项目所有者指令进入最后一天并先完成文档规划。将 Day 10 原十项任务收敛为五个证据驱动步骤：发布台账、真实中文闭环、评测/可观测/安全、工程恢复门禁、最终审计与候选发布；新增 Day 10 学习日志和发布就绪合同。当前 D10-01～D10-08 仍为 `planned`，Day 1～9 所有未关闭项继续作为发布硬门 | 用户授权进入 Day 10 文档规划 |
+| 2.2.9 | 2026-08-30 | 同步 Day 10 Step 1：在既有 `evaluation` bounded context 新增严格 release readiness manifest/生成器、checked JSON/Markdown 与 manifest/report Schema；从能力矩阵十张正式表提取 88 个目标并锁定 digest/状态计数，将每项目标映射至 owner、依赖日、验证命令和 30 个带 SHA-256 artifact。9 个 Day 9 taxonomy blocker 必须双向全覆盖，另登记 7 个跨 Day blocker；当前 45 complete、43 未完成、16 个 open blocker、5 个 pending external gate，结论 fail closed 为 `no_go`。聚焦/evaluation 为 `8/65 passed`，readiness branch coverage `84%`，全量 `1184 passed, 88 skipped`，Python/Web/构建/OpenAPI/audit/Gitleaks 通过；真实依赖、Chromium 与远端 CI 未执行。D10-07 仅为 `thin_slice`，不把台账存在写成发布就绪 | 用户授权开始 Day 10 Step 1 |
+| 2.2.10 | 2026-08-31 | 同步 Day 10 Step 2：复用正式 SEC/Research/Verification/Evidence/Approval/Monitor/Case 链，从 ready Filing import 生成 typed scope 草稿并预填唯一 Research Runtime；新增 Verification Report generated-client wrapper，Workbench 只按服务端报告展示四态、Claim/Citation/Calculation/issue/Evidence，并对 active/paused Run 自动重建，非金融 Run 不请求金融报告。amendment 不静默降级；Case Evidence 可反查。readiness 扩展为 41 个 hash artifact，当前 45 complete、32 implemented pending verification、7 thin slice、4 planned，16 blocker/5 pending gate 与 `no_go` 不变。Web `94 passed`、相关 Python `37 passed`、TypeScript/ESLint 通过；无拦截真实依赖 Playwright、受控 SEC source、Worker 恢复、远端 CI 和 owner review 仍缺，故 D10-01/D10-02 为 `implemented_pending_verification`，D10-04 为 `thin_slice` | 用户授权继续 Day 10 Step 2 |
+| 2.2.11 | 2026-08-31 | 同步 Day 10 Step 3：在唯一 evaluation bounded context 新增 checked `sec-release-evidence-v1`，引用同一 10-case/gold/budget 冻结 A0～A4，要求 offline 50 或 live 150 个 Run 绑定 Trace/Evidence/Calculation/final state/ranked candidates，并重算 Recall@5、Citation、拒答、freshness、Workspace、注入、未授权写、重复副作用与恢复指标/告警。当前 checked observation 为 `not_executed`/0 of 50，11 指标均 `not_measured`、告警 `unknown`，production default 为 null；release suite 只把 common manifest 缺失精确改为 production Runs 缺失，9 个 evaluation blocker、16 个总 blocker、5 个 external gate 与 `no_go` 不变。readiness 登记 49 个 artifact，状态 45 complete、32 implemented pending verification、8 thin slice、3 planned；聚焦 22 passed、evaluation 72 passed、后端 1191 passed/88 skipped、Web 94 passed，真实 Runtime/public/live/治理/远端证据仍缺，故 D10-04/D10-05/D10-07 仅为 `thin_slice` | 用户授权继续 Day 10 Step 3 |
+| 2.2.12 | 2026-08-31 | 同步 Day 10 Step 4：冻结核心模块集合达到并在 CI 强制 90%，保留后端 80%/关键 Web 75%；锁定 Semgrep、Python/Node license scanner 与 NOTICE 门禁。新增 checked `sec-release-recovery-v1`、12 场景 manifest、0/12 unexecuted observation、报告/schema 和 staging Runbook；未把测试或命令冒充演练。readiness 登记 63 个 artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；16 blocker/5 external gate 与 `no_go` 不变，D10-03/D10-06 分别为 `implemented_pending_verification`/`thin_slice` | 用户授权继续 Day 10 Step 4 |
+| 2.2.13 | 2026-08-31 | 同步 Day 10 Step 5 最终完整性审计：继续使用唯一 readiness 判定，更新 README、产品范围、ADR 0007、架构、评测、恢复/NOTICE 和明确 `NO_GO` 的候选说明草案，并将这些文档纳入 hash 与 Markdown AST 本地链接门。D10-08 从 planned 推进到 thin slice；当前 45 complete、33 implemented pending verification、10 thin slice、0 planned，68 个 artifact、43 个未完成目标、16 blocker、5 pending external gate 与 `no_go` 均如实保留。未创建标签、提交、推送或伪造外部/owner 证据 | 用户授权继续 Day 10 Step 5 |

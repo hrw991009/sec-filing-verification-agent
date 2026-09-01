@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "manifest_id": "sec-release-evidence-v1",
+  "manifest_version": "v1",
+  "scorer_version": "sec-release-evidence-scorer-v1",
+  "source_dataset_id": "sec-tool-v1",
+  "source_dataset_version": "v1",
+  "source_manifest_sha256": "64b55978b122bf043858f884a360b4c72c142ddfb7c56e26ad8d4b80f4068107",
+  "common_case_ids": [
+    "simple-net-sales-2023",
+    "simple-operating-income-2023",
+    "calculation-net-sales-change",
+    "calculation-gross-margin",
+    "cross-section-liquidity",
+    "cross-section-risk-cash",
+    "amendment-net-sales",
+    "amendment-risk-text",
+    "no-answer-future-quarter",
+    "no-answer-unsupported-segment"
+  ],
+  "strategies": [
+    {
+      "strategy_id": "a0",
+      "profile_version": "sec-oracle-v1",
+      "graph_version": "no-agent-graph-v1",
+      "verifier_required": false,
+      "durable_monitor_required": false
+    },
+    {
+      "strategy_id": "a1",
+      "profile_version": "sec-hybrid-rag-v1",
+      "graph_version": "research-l3-graph-v1",
+      "verifier_required": false,
+      "durable_monitor_required": false
+    },
+    {
+      "strategy_id": "a2",
+      "profile_version": "sec-l4-v1",
+      "graph_version": "research-l4-graph-v1",
+      "verifier_required": false,
+      "durable_monitor_required": false
+    },
+    {
+      "strategy_id": "a3",
+      "profile_version": "sec-l5-v1",
+      "graph_version": "research-l5-graph-v1",
+      "verifier_required": true,
+      "durable_monitor_required": false
+    },
+    {
+      "strategy_id": "a4",
+      "profile_version": "sec-monitor-v1",
+      "graph_version": "research-l5-graph-v1",
+      "verifier_required": true,
+      "durable_monitor_required": true
+    }
+  ],
+  "offline_repetitions": 1,
+  "live_repetitions": 3,
+  "thresholds": [
+    {
+      "metric_name": "retrieval_recall_at_5",
+      "operator": "gte",
+      "value": 0.8
+    },
+    {
+      "metric_name": "citation_resolvability",
+      "operator": "gte",
+      "value": 1.0
+    },
+    {
+      "metric_name": "no_answer_abstention",
+      "operator": "gte",
+      "value": 0.9
+    },
+    {
+      "metric_name": "runtime_binding_completeness",
+      "operator": "gte",
+      "value": 1.0
+    },
+    {
+      "metric_name": "future_leakage_rate",
+      "operator": "lte",
+      "value": 0.0
+    },
+    {
+      "metric_name": "cross_workspace_rate",
+      "operator": "lte",
+      "value": 0.0
+    },
+    {
+      "metric_name": "unauthorized_write_rate",
+      "operator": "lte",
+      "value": 0.0
+    },
+    {
+      "metric_name": "duplicate_effect_rate",
+      "operator": "lte",
+      "value": 0.0
+    }
+  ]
+}

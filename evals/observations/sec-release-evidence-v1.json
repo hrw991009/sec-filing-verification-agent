@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "manifest_id": "sec-release-evidence-v1",
+  "manifest_sha256": "08d38da54c2efb27e64431f15f9513ad78aee82fe8adceb0f5e1f009f3e664f4",
+  "execution_status": "not_executed",
+  "evidence_layer": "offline_capability",
+  "provider": null,
+  "model": null,
+  "model_version": null,
+  "runtime_version": null,
+  "harness_version": null,
+  "prompt_version": null,
+  "toolset_version": null,
+  "observations": [],
+  "limitations": [
+    "No production UnifiedAgentRuntime Run was executed in this checked artifact.",
+    "Offline public predictions, live provider runs, and three repetitions remain external work.",
+    "Unknown metrics and alerts are release blockers, not zero-failure success."
+  ]
+}

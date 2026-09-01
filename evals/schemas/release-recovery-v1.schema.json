@@ -1,0 +1,222 @@
+{
+  "$defs": {
+    "RecoveryAlert": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_id": {
+          "title": "Alert Id",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "metric_name": {
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/RecoveryAlertStatus"
+        }
+      },
+      "required": ["alert_id", "metric_name", "status", "detail"],
+      "title": "RecoveryAlert",
+      "type": "object"
+    },
+    "RecoveryAlertStatus": {
+      "enum": ["clear", "firing", "unknown"],
+      "title": "RecoveryAlertStatus",
+      "type": "string"
+    },
+    "RecoveryExecutionStatus": {
+      "enum": ["not_executed", "executed"],
+      "title": "RecoveryExecutionStatus",
+      "type": "string"
+    },
+    "RecoveryMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
+        },
+        "gate_passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gate Passed"
+        },
+        "limitation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limitation"
+        },
+        "metric_name": {
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "numerator": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Numerator"
+        },
+        "status": {
+          "$ref": "#/$defs/RecoveryMetricStatus"
+        },
+        "threshold": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 1.0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": ["metric_name", "status", "gate_passed"],
+      "title": "RecoveryMetric",
+      "type": "object"
+    },
+    "RecoveryMetricStatus": {
+      "enum": ["measured", "not_measured"],
+      "title": "RecoveryMetricStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "alerts": {
+      "items": {
+        "$ref": "#/$defs/RecoveryAlert"
+      },
+      "title": "Alerts",
+      "type": "array"
+    },
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "execution_status": {
+      "$ref": "#/$defs/RecoveryExecutionStatus"
+    },
+    "expected_scenario_count": {
+      "const": 12,
+      "default": 12,
+      "title": "Expected Scenario Count",
+      "type": "integer"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "manifest_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "metrics": {
+      "additionalProperties": {
+        "$ref": "#/$defs/RecoveryMetric"
+      },
+      "title": "Metrics",
+      "type": "object"
+    },
+    "observed_scenario_count": {
+      "minimum": 0,
+      "title": "Observed Scenario Count",
+      "type": "integer"
+    },
+    "recovery_gate_passed": {
+      "title": "Recovery Gate Passed",
+      "type": "boolean"
+    },
+    "release_ready": {
+      "default": false,
+      "title": "Release Ready",
+      "type": "boolean"
+    },
+    "report_id": {
+      "const": "sec-release-recovery-v1",
+      "default": "sec-release-recovery-v1",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "report_version": {
+      "const": "v1",
+      "default": "v1",
+      "title": "Report Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scorer_version": {
+      "const": "sec-release-recovery-scorer-v1",
+      "default": "sec-release-recovery-scorer-v1",
+      "title": "Scorer Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "manifest_sha256",
+    "execution_status",
+    "observed_scenario_count",
+    "metrics",
+    "alerts",
+    "recovery_gate_passed",
+    "blockers",
+    "limitations"
+  ],
+  "title": "RecoveryReport",
+  "type": "object"
+}

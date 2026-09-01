@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "manifest_id": "sec-release-recovery-v1",
+  "manifest_version": "v1",
+  "scorer_version": "sec-release-recovery-scorer-v1",
+  "scenarios": [
+    {
+      "scenario_id": "fresh-migration",
+      "fault_target": "postgres",
+      "automation": "pytest",
+      "runtime_binding_required": false,
+      "required_services": ["postgres"],
+      "verification_ref": "uv run --locked --all-packages pytest apps/backend/tests/integration/test_migration_smoke.py::test_complete_migration_history_round_trip",
+      "expected_outcome": "A disposable database upgrades through the full history, downgrades to base, and upgrades to head again."
+    },
+    {
+      "scenario_id": "postgres-backup-restore",
+      "fault_target": "postgres",
+      "automation": "runbook",
+      "runtime_binding_required": false,
+      "required_services": ["postgres"],
+      "verification_ref": "docs/runbooks/day-10-release-recovery.md#postgres-backup-restore",
+      "expected_outcome": "A scoped backup restores into a disposable database with identical business counts and hashes."
+    },
+    {
+      "scenario_id": "filing-index-rebuild",
+      "fault_target": "derived-indexes",
+      "automation": "pytest",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "minio", "milvus", "elasticsearch"],
+      "verification_ref": "uv run --locked --all-packages pytest apps/backend/tests/integration/test_knowledge_ingestion_worker_postgres_minio.py::test_worker_persists_dual_indexes_and_deduplicates_delivery",
+      "expected_outcome": "Filing-derived indexes rebuild from PostgreSQL and MinIO truth without duplicate side effects."
+    },
+    {
+      "scenario_id": "worker-interruption-resume",
+      "fault_target": "worker",
+      "automation": "pytest",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "redis"],
+      "verification_ref": "uv run --locked --all-packages pytest apps/backend/tests/integration/test_jobs_postgres.py::test_hard_kill_expiry_refences_old_worker_and_honours_cancellation",
+      "expected_outcome": "An expired worker loses its fence and the same durable job resumes without a second business effect."
+    },
+    {
+      "scenario_id": "redis-outage-recovery",
+      "fault_target": "redis",
+      "automation": "runbook",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "redis", "worker"],
+      "verification_ref": "docs/runbooks/day-10-release-recovery.md#redis-outage-recovery",
+      "expected_outcome": "PostgreSQL outbox truth survives broker loss and publishes once after Redis recovery."
+    },
+    {
+      "scenario_id": "minio-outage-recovery",
+      "fault_target": "minio",
+      "automation": "runbook",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "minio", "worker"],
+      "verification_ref": "docs/runbooks/day-10-release-recovery.md#minio-outage-recovery",
+      "expected_outcome": "Object unavailability is retryable and the existing version resumes without duplicate objects."
+    },
+    {
+      "scenario_id": "elasticsearch-outage-rebuild",
+      "fault_target": "elasticsearch",
+      "automation": "runbook",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "minio", "elasticsearch", "worker"],
+      "verification_ref": "docs/runbooks/day-10-release-recovery.md#elasticsearch-outage-rebuild",
+      "expected_outcome": "The lexical index rebuilds from durable truth after total index loss."
+    },
+    {
+      "scenario_id": "milvus-outage-rebuild",
+      "fault_target": "milvus",
+      "automation": "runbook",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "minio", "milvus", "worker"],
+      "verification_ref": "docs/runbooks/day-10-release-recovery.md#milvus-outage-rebuild",
+      "expected_outcome": "The vector index rebuilds from durable truth after total collection loss."
+    },
+    {
+      "scenario_id": "sec-429-backoff",
+      "fault_target": "sec",
+      "automation": "pytest",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "redis", "sec"],
+      "verification_ref": "uv run --locked --all-packages pytest apps/backend/tests/modules/disclosures/test_sec_edgar_adapter.py::test_429_retries_with_bounded_delay_and_never_becomes_no_result",
+      "expected_outcome": "SEC throttling follows the shared bounded budget and never becomes a fabricated no-result success."
+    },
+    {
+      "scenario_id": "dead-letter-replay",
+      "fault_target": "outbox",
+      "automation": "pytest",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "redis", "worker"],
+      "verification_ref": "uv run --locked --all-packages pytest apps/backend/tests/integration/test_jobs_postgres.py::test_retry_generation_outbox_and_bounded_dead_letter_are_atomic",
+      "expected_outcome": "Bounded retries atomically dead-letter and an authorized replay cannot duplicate the prior effect."
+    },
+    {
+      "scenario_id": "notification-unknown-idempotency",
+      "fault_target": "tool-delivery",
+      "automation": "pytest",
+      "runtime_binding_required": true,
+      "required_services": ["postgres", "worker"],
+      "verification_ref": "uv run --locked --all-packages pytest apps/backend/tests/modules/tools/test_registry.py::test_hard_timeout_returns_unknown_when_adapter_outlives_the_bounded_drain",
+      "expected_outcome": "An unknown delivery outcome remains unknown and retry uses the same side-effect identity."
+    },
+    {
+      "scenario_id": "previous-image-rollback",
+      "fault_target": "release-image",
+      "automation": "runbook",
+      "runtime_binding_required": false,
+      "required_services": ["postgres", "release-image"],
+      "verification_ref": "docs/runbooks/day-10-release-recovery.md#previous-image-rollback",
+      "expected_outcome": "The previous immutable image starts against a schema-compatible restored snapshot and passes the release smoke."
+    }
+  ],
+  "recovery_success_threshold": 1.0,
+  "zero_side_effect_threshold": 1.0,
+  "zero_data_loss_threshold": 1.0,
+  "zero_unauthorized_write_threshold": 1.0
+}

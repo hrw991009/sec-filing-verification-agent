@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "manifest_id": "sec-release-recovery-v1",
+  "manifest_sha256": "976413c0a85657c06ac502b20d2540dccae0ffeda9e373388b4a4fde03e59db5",
+  "execution_status": "not_executed",
+  "source_commit": null,
+  "environment": null,
+  "observations": [],
+  "limitations": [
+    "No checked backup/restore, dependency-fault, index-rebuild, or previous-image exercise observations have been recorded.",
+    "Existing unit and integration tests prove component contracts only and are not promoted to release recovery success.",
+    "Remote release CI and owner-reviewed rollback evidence remain pending."
+  ]
+}
