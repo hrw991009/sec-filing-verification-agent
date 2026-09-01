@@ -2,13 +2,13 @@
 
 > 合同编号：`IIP-RELEASE-SEC-001`
 >
-> 版本：`0.5.0`
+> 版本：`0.6.0`
 >
 > 制定日期：2026-08-31
 >
-> 权威范围：[主计划](master-plan.md) v2.2.12 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+> 权威范围：[主计划](master-plan.md) v2.2.13 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
 >
-> 当前状态：Step 1～Step 4 本地实现已完成；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-07 为 `thin_slice`，当前判定仍为 `NO_GO`
+> 当前状态：Step 1～Step 5 本地实施与最终审计已完成；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，当前判定仍为 `NO_GO`
 
 ## 1. 目标与真值来源
 
@@ -74,7 +74,7 @@ pnpm run eval:release-readiness
 - `evals/schemas/release-readiness-manifest-v1.schema.json`；
 - `evals/schemas/release-readiness-report-v1.schema.json`。
 
-当前报告绑定 88 个正式目标和 63 个 repository artifacts：45 个目标为 `complete`，43 个仍未完成；当前状态分布为 33 个 `implemented_pending_verification`、9 个 `thin_slice` 和 1 个 `planned`。9 个 evaluation taxonomy blocker 与 7 个跨 Day blocker 全部 open；Day 9 三层 CI 已验证，最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
+当前报告绑定 88 个正式目标和 68 个 repository artifacts：45 个目标为 `complete`，43 个仍未完成；当前状态分布为 33 个 `implemented_pending_verification`、10 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 与 7 个跨 Day blocker 全部 open；Day 9 三层 CI 已验证，最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live Provider/SEC identity 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
 
 生成器要求矩阵十张正式能力表、目标 ID/digest/状态计数、taxonomy 映射、非完成目标↔开放 blocker、pending gate↔开放 blocker 双向一致。所有登记 artifact 必须存在于仓库内、非空并生成 SHA-256；缺失、越界、状态冲突、无证据却标记 verified、taxonomy blocker 伪关闭或 checked report 未重生成都会失败。
 
@@ -112,3 +112,11 @@ Step 3 本地证据为聚焦 `22 passed`、evaluation `72 passed`、后端 `1191
 允许的声明必须带 evidence layer、数据/模型/Tool/Prompt 版本、日期、分母与已知限制。禁止把 frozen replay 写成 live 能力，把 Adapter 可运行写成 benchmark 得分，把公开 benchmark 得分写成 SEC 产品可用性，或把局部 A1→A2、A2→A3、A3→A4 结果拼成全局 A0～A4 结论。
 
 产品仅提供 SEC 披露事实核验，不输出预测、估值、目标价、荐股、交易动作或审计意见。页面、导出与发布说明必须保留这一边界。
+
+## 11. Step 5 最终审计结果
+
+最终审计继续由 `sec-release-readiness-v1` 消费矩阵、failure taxonomy、release evidence、recovery 和前四步 artifact。README、产品范围、ADR 0007、架构、评测、Runbook、NOTICE 与[候选说明草案](release-notes/v0.2.0-sec-disclosure-verifier.md)已同步并进入 hash/链接门；本步未创建平行的发布状态或手工修改 scorer 结果。
+
+候选说明草案固定标记 `NO_GO`。生产 Run observation 仍为 0/50、恢复 observation 仍为 0/12；外部 Provider/SEC identity、数据和 source document 权利、中文签字、凭据处置、Day 10 branch/PR/main CI 与 owner acceptance 均未出现新证据。D10-08 因文档包和机器门已实现从 `planned` 变为 `thin_slice`，但不可提升为 `complete` 或创建标签。
+
+后续只有在原机器报告自然重算为 `rc_ready` 后，项目所有者才能将草案提升为候选发布说明。任何人都不得通过删 blocker、删 case、缩分母、把 pending gate 标成 verified、把本地测试写成远端 CI 或把空 observation 写成 100% 成功来改变结论。

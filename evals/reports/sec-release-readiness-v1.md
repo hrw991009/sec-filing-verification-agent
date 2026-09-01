@@ -14,10 +14,10 @@
 |---|---:|
 | `complete` | 45 |
 | `implemented_pending_verification` | 33 |
-| `thin_slice` | 9 |
+| `thin_slice` | 10 |
 | `contract_only` | 0 |
 | `blocked` | 0 |
-| `planned` | 1 |
+| `planned` | 0 |
 
 ## Open blockers
 

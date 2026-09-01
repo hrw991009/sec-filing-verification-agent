@@ -2,7 +2,7 @@
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.12 Day 10
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.13 Day 10
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
@@ -10,7 +10,7 @@
 >
 > 发布合同：[SEC 披露核验 Agent 发布就绪合同](../release-readiness.md)
 >
-> 当前状态：Step 1～Step 4 已在 `day-10` 工作树实现；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-07 为 `thin_slice`，Step 5 尚未开始
+> 当前状态：Step 1～Step 5 已在 `day-10` 工作树完成本地实施；D10-01/D10-02/D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，最终机器判定为 `NO_GO`
 
 ## 1. 进入基线与最后一天边界
 
@@ -109,7 +109,17 @@ Step 4 没有更改 coverage omission 或删除生产文件。Evidence domain �
 
 readiness 现登记 63 个 hash artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；43 个未完成目标、16 个 open blocker、5 个 pending external gate 与 `NO_GO` 不变。聚焦 recovery/readiness/Evidence/Research 为 `101 passed`；Ruff format/check、strict mypy（517 个源文件）、wheel/sdist、fresh migration、OpenAPI 确定性、Prettier、ESLint、TypeScript 和生产 build 均通过。Web 为 `94 passed`，关键状态覆盖率四项均为 `100%`，现有 Chromium 套件为 `8 passed`；该浏览器套件包含 API replay/interception，不能代替 D10-02 所需的无拦截 SEC 完整产品旅程。Semgrep 严格扫描 356 个 target/0 finding，Python/Node license allowlist、Python/Node dependency audit 通过；Gitleaks 对 101 个可达提交、Git diff 和全部非忽略未跟踪文件未发现 Secret，本机被 Git 忽略的 `.env` 含运行凭据且未计入提交扫描。D10-03 为 `implemented_pending_verification`、D10-06 为 `thin_slice`，远端 branch/main CI、12 场景实际观测与上一镜像 artifact 尚缺。
 
-## 9. 当日完成定义
+## 9. Step 5 实现与最终审计
+
+Step 5 只消费前四步 artifact 并继续使用唯一 `sec-release-readiness-v1` 判定，没有新增 release-only scorer、状态机或手工结论。README、产品范围、ADR 0007、架构、SEC 评测、恢复/回滚、第三方 NOTICE 与候选说明草案同步到主计划 2.2.13；README、产品范围、ADR、评测和候选草案新增进入 readiness hash 台账。候选说明固定为 `NO_GO`，明确不得创建 tag/镜像或对外宣称 live/model/公开 benchmark/正式恢复能力。
+
+文档门使用 Markdown AST 解析受审计文档的本地 link/image destination，并拒绝越出仓库或不存在的目标；readiness 仍拒绝 artifact 缺失、hash 漂移、矩阵状态冲突、taxonomy blocker 伪关闭和无证据 verified gate。D10-08 从 `planned` 推进到 `thin_slice` 后，状态为 45 complete、33 implemented pending verification、10 thin slice、0 planned，未完成目标仍为 43。新增文档 artifact 后台账为 68 项；16 个 blocker、5 个 external gate 和 `release_decision=no_go` 不变。
+
+本步聚焦 readiness/recovery 为 `17 passed`；全量无服务后端为 `1259 passed, 88 skipped`。Ruff format/check、strict mypy 517 个源文件、wheel/sdist、Prettier、ESLint、TypeScript、OpenAPI、Web `94 passed`、关键状态覆盖率 `100%` 和生产 build 通过；Semgrep 为 356 个 target/0 finding，Python/Node dependency audit 与 license/NOTICE 门通过。Gitleaks 对 102 个可达提交、Git diff 和新增候选说明均未发现 Secret。本机 Docker Desktop 在本步验证时未运行，因此没有重跑真实依赖和 Chromium；Step 4 提交前的 `1345 passed` 五依赖与 Chromium `8 passed` 是前一证据层，不冒充本步重跑或远端 CI。
+
+本步没有执行外部 Provider 凭据处置、公开/live 模型运行、中文人工签字、12 场景 staging 恢复、上一镜像回滚或 Day 10 远端 CI，也没有项目所有者最终验收。因此 D10-07/D10-08 均为 `thin_slice`，`v0.2.0-sec-disclosure-verifier` 仍只是禁止提升的候选说明草案。实现代理可以提交本步代码与文档供 branch/PR/main CI 验证，但不能自动 commit、push、merge 或打标签。
+
+## 10. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：
 
@@ -122,6 +132,6 @@ Day 10 只有同时满足以下条件才可关闭：
 
 任一条件未满足时，本日可以结束实施批次，但版本状态仍为 `NO_GO`，不得把计划完成等同于产品发布完成。
 
-## 10. 复盘题
+## 11. 复盘题
 
 最终证据能支持哪些明确的产品声明？A0～A4 中哪一级在同一分母上产生了值得成本的净收益？哪些失败属于产品缺陷、外部依赖或治理阻断？在不读取开发者解释的情况下，运维人员能否只凭 Run/Trace/Evidence/报告与 Runbook 完成定位和回滚？

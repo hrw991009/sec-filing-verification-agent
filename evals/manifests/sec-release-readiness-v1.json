@@ -21,6 +21,31 @@
       "relative_path": "docs/release-readiness.md"
     },
     {
+      "artifact_id": "readme",
+      "description": "Repository entrypoint, current NO_GO status, validation commands, and documentation index.",
+      "relative_path": "README.md"
+    },
+    {
+      "artifact_id": "product-scope",
+      "description": "Accepted SEC disclosure verification product and non-investment boundary.",
+      "relative_path": "docs/product-scope.md"
+    },
+    {
+      "artifact_id": "sec-domain-adr",
+      "description": "Accepted SEC disclosure and financial fact verification architecture decision.",
+      "relative_path": "docs/adr/0007-sec-disclosure-financial-fact-verification.md"
+    },
+    {
+      "artifact_id": "sec-agent-evaluation-plan",
+      "description": "Deterministic, offline, live, security, and recovery evidence-layer contract.",
+      "relative_path": "docs/sec-agent-evaluation.md"
+    },
+    {
+      "artifact_id": "release-candidate-draft",
+      "description": "Explicit NO_GO candidate-note draft with claim, blocker, and promotion boundaries.",
+      "relative_path": "docs/release-notes/v0.2.0-sec-disclosure-verifier.md"
+    },
+    {
       "artifact_id": "release-readiness-manifest",
       "description": "Machine-readable Day 10 readiness scope, ownership, and blocker bindings.",
       "relative_path": "evals/manifests/sec-release-readiness-v1.json"
@@ -417,7 +442,7 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 through 4 have local implementation evidence; production evaluation runs, executed recovery evidence, remote CI, final audit, and owner acceptance remain incomplete.",
+      "detail": "Day 10 Steps 1 through 5 have local implementation and final audit evidence; production evaluation runs, executed recovery evidence, remote branch/PR/main CI, and owner acceptance remain incomplete.",
       "external_gate_ids": ["final-owner-acceptance"],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -540,11 +565,11 @@
     "complete": 45,
     "contract_only": 0,
     "implemented_pending_verification": 33,
-    "planned": 1,
-    "thin_slice": 9
+    "planned": 0,
+    "thin_slice": 10
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "ccd917cc18cffd2a83f5a16246e67a70c3d145529a4c472c06c70bc7a5d5841f",
+  "expected_requirement_digest": "856b548d60b4899b700b6cb38e18048c4142aa08df241621a7fdc826c5e12b21",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -727,6 +752,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",

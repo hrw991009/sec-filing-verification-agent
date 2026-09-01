@@ -2,33 +2,63 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 76353,
+      "byte_size": 77192,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "eef9f6ab586d6409305aa96361f4a4cd197a62c67126d4dde01405191f6e501b"
+      "sha256": "47ca7e832c3b68a2760fe59f0de57e744582ecf94419635ea750b882cda8ca50"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 149787,
+      "byte_size": 150568,
       "relative_path": "docs/master-plan.md",
-      "sha256": "f4e3c8657f70e48d81fb9ba3c9cd6240a4a07c6e3664a7ed399d0d77bf93be0f"
+      "sha256": "6f63bc42d2c06871edc72048d90bf9c74236c663f64c37c5bc41a8eb3fffe1e5"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 107802,
+      "byte_size": 107899,
       "relative_path": "docs/architecture.md",
-      "sha256": "7f96fd6da7960628934dfd9f1f859936465f2103a0bb3c1f8363d6abd8f33f1c"
+      "sha256": "2541b12cb0df3b6169e02fe06cc4f352db340a776e4a99fede05946557c9c8d6"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 12646,
+      "byte_size": 13792,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "f92878c4902b6c2c12392435d858cf54c310237485bb4e9110b19b77312bb33a"
+      "sha256": "7d510ccbf83f95845f1b7d78b7825bfb22792b1a2c0edfe1d5993c2788220945"
+    },
+    {
+      "artifact_id": "readme",
+      "byte_size": 20481,
+      "relative_path": "README.md",
+      "sha256": "69297a207f4881a268290b91e14d16d23c206664d227c68ebe5cfd81dbde7b22"
+    },
+    {
+      "artifact_id": "product-scope",
+      "byte_size": 30787,
+      "relative_path": "docs/product-scope.md",
+      "sha256": "1e226b8ef2ae0b21f18b2fb7d30216ceacfbbd1d0bf84c23d0bf088632ca5108"
+    },
+    {
+      "artifact_id": "sec-domain-adr",
+      "byte_size": 15452,
+      "relative_path": "docs/adr/0007-sec-disclosure-financial-fact-verification.md",
+      "sha256": "38db8d79f6b98682e8d7d6e65e99bf2a00b32c4143c4f97cb8021539c552b6ee"
+    },
+    {
+      "artifact_id": "sec-agent-evaluation-plan",
+      "byte_size": 35175,
+      "relative_path": "docs/sec-agent-evaluation.md",
+      "sha256": "eefcfd106a93b3666d5125fba722d7b344b11815c84ff75e17d5799f0f9d3988"
+    },
+    {
+      "artifact_id": "release-candidate-draft",
+      "byte_size": 4067,
+      "relative_path": "docs/release-notes/v0.2.0-sec-disclosure-verifier.md",
+      "sha256": "8e65e8093de6ccdb73c584d70ee5b1b2390095bf6bb5065400ea1d4b4a98717b"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 30025,
+      "byte_size": 31280,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "e00debfd7cd8f3115eb7e322759ebbeb13656a4fb8f9afc4ebc44215f09ccaef"
+      "sha256": "711090922f85e0de19413a13afbf941a9f1fac3d78479a5a618b92e79fbed28f"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -38,9 +68,9 @@
     },
     {
       "artifact_id": "release-readiness-tests",
-      "byte_size": 7309,
+      "byte_size": 10216,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "71b31a0a9f74b34be7c34060be46b15a967ae82b76449c09e545c6275552516d"
+      "sha256": "1119200e015c86d7532fe27b48396e93ef2e30e6cfb5c205afc674d5ff5616e8"
     },
     {
       "artifact_id": "release-evidence-generator",
@@ -230,15 +260,15 @@
     },
     {
       "artifact_id": "python-project-policy",
-      "byte_size": 2525,
+      "byte_size": 2554,
       "relative_path": "pyproject.toml",
-      "sha256": "e8237974c0f370ae2224f088527467b0ebdeda38700c01ec70156f192f8efbd2"
+      "sha256": "c7608b54e4efbb0aa2ad53a8bd45254c4f7bbaa3328213d75f396f43d32117f6"
     },
     {
       "artifact_id": "python-lockfile",
-      "byte_size": 286300,
+      "byte_size": 286389,
       "relative_path": "uv.lock",
-      "sha256": "38f232bc11419a6204e359301a66d626246b9dcde39ebcc7dde1232f376b85f3"
+      "sha256": "b6f28bda9343ca6eefd1e50e9759867d97eda3595b357f99653e4681440112b6"
     },
     {
       "artifact_id": "node-lockfile",
@@ -314,9 +344,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 20356,
+      "byte_size": 22619,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "d2517ec1779f7df4de03e75b7cfaed6d0d287d403e5a26c03744482783fd986e"
+      "sha256": "05610206ac3b88c5a2ec1b79332b90b8bc7094c1e0c79cc075e951fe3cd16ce2"
     },
     {
       "artifact_id": "day-4-report",
@@ -486,7 +516,7 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 through 4 have local implementation evidence; production evaluation runs, executed recovery evidence, remote CI, final audit, and owner acceptance remain incomplete.",
+      "detail": "Day 10 Steps 1 through 5 have local implementation and final audit evidence; production evaluation runs, executed recovery evidence, remote branch/PR/main CI, and owner acceptance remain incomplete.",
       "external_gate_ids": ["final-owner-acceptance"],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -694,15 +724,15 @@
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "e00debfd7cd8f3115eb7e322759ebbeb13656a4fb8f9afc4ebc44215f09ccaef",
-  "matrix_sha256": "eef9f6ab586d6409305aa96361f4a4cd197a62c67126d4dde01405191f6e501b",
+  "manifest_sha256": "711090922f85e0de19413a13afbf941a9f1fac3d78479a5a618b92e79fbed28f",
+  "matrix_sha256": "47ca7e832c3b68a2760fe59f0de57e744582ecf94419635ea750b882cda8ca50",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 16,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "ccd917cc18cffd2a83f5a16246e67a70c3d145529a4c472c06c70bc7a5d5841f",
+  "requirement_digest": "856b548d60b4899b700b6cb38e18048c4142aa08df241621a7fdc826c5e12b21",
   "requirements": [
     {
       "current_status": "complete",
@@ -1834,6 +1864,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -1902,6 +1937,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -1970,6 +2010,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -2038,6 +2083,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -2106,6 +2156,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -2174,6 +2229,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -2242,6 +2302,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -2302,7 +2367,7 @@
       ]
     },
     {
-      "current_status": "planned",
+      "current_status": "thin_slice",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -2310,6 +2375,11 @@
         "master-plan",
         "architecture",
         "release-readiness-contract",
+        "readme",
+        "product-scope",
+        "sec-domain-adr",
+        "sec-agent-evaluation-plan",
+        "release-candidate-draft",
         "release-readiness-manifest",
         "release-readiness-generator",
         "release-readiness-tests",
@@ -2376,7 +2446,7 @@
     "complete": 45,
     "contract_only": 0,
     "implemented_pending_verification": 33,
-    "planned": 1,
-    "thin_slice": 9
+    "planned": 0,
+    "thin_slice": 10
   }
 }

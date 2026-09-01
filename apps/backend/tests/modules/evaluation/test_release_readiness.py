@@ -4,9 +4,12 @@ import hashlib
 import json
 import shutil
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 import pytest
+from markdown_it import MarkdownIt
 from pydantic import ValidationError
 
 from industry_platform.modules.evaluation.release_readiness import (
@@ -30,6 +33,18 @@ REPORT = ROOT / "evals" / "reports" / "sec-release-readiness-v1.json"
 MARKDOWN = ROOT / "evals" / "reports" / "sec-release-readiness-v1.md"
 MANIFEST_SCHEMA = ROOT / "evals" / "schemas" / "release-readiness-manifest-v1.schema.json"
 REPORT_SCHEMA = ROOT / "evals" / "schemas" / "release-readiness-report-v1.schema.json"
+AUDITED_RELEASE_DOCUMENTS = (
+    "README.md",
+    "docs/product-scope.md",
+    "docs/architecture.md",
+    "docs/adr/0007-sec-disclosure-financial-fact-verification.md",
+    "docs/sec-agent-evaluation.md",
+    "docs/release-readiness.md",
+    "docs/runbooks/day-10-release-recovery.md",
+    "docs/security/third-party-notices.md",
+    "docs/release-notes/v0.2.0-sec-disclosure-verifier.md",
+    "docs/learning-log/day-10.md",
+)
 
 
 def test_release_readiness_recomputes_checked_ledger() -> None:
@@ -41,16 +56,59 @@ def test_release_readiness_recomputes_checked_ledger() -> None:
     assert report.status_counts == {
         RequirementStatus.COMPLETE: 45,
         RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 33,
-        RequirementStatus.THIN_SLICE: 9,
+        RequirementStatus.THIN_SLICE: 10,
         RequirementStatus.CONTRACT_ONLY: 0,
         RequirementStatus.BLOCKED: 0,
-        RequirementStatus.PLANNED: 1,
+        RequirementStatus.PLANNED: 0,
     }
     assert report.incomplete_requirement_count == 43
     assert report.release_blocker_count == 16
     assert report.pending_external_gate_count == 5
     assert report.release_decision is ReleaseDecision.NO_GO
     assert report.rc_ready is False
+
+
+def test_release_documentation_links_resolve_inside_repository() -> None:
+    parser = MarkdownIt("commonmark")
+    repository_root = ROOT.resolve()
+
+    for relative_path in AUDITED_RELEASE_DOCUMENTS:
+        document = (ROOT / relative_path).resolve()
+        assert document.is_file(), f"Missing audited release document: {relative_path}"
+        for destination in _markdown_destinations(
+            parser.parse(document.read_text(encoding="utf-8"))
+        ):
+            parsed = urlsplit(destination)
+            if parsed.scheme or parsed.netloc or not parsed.path:
+                continue
+            target = (document.parent / unquote(parsed.path)).resolve()
+            try:
+                target.relative_to(repository_root)
+            except ValueError:
+                pytest.fail(
+                    f"Release document link escapes repository: {relative_path} -> {destination}"
+                )
+            assert target.exists(), (
+                f"Broken release document link: {relative_path} -> {destination}"
+            )
+
+
+def test_release_candidate_draft_cannot_override_no_go_report() -> None:
+    report = load_release_readiness_report(REPORT)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    candidate = (ROOT / "docs" / "release-notes" / "v0.2.0-sec-disclosure-verifier.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert report.release_decision is ReleaseDecision.NO_GO
+    assert report.rc_ready is False
+    assert "发布状态" in candidate
+    assert "`NO_GO`" in candidate
+    assert "文档状态" in candidate
+    assert "草案" in candidate
+    assert "不是发布候选" in candidate
+    assert "发布判定仍为\n`NO_GO`" in readme
+    assert "不得创建\n`v0.2.0-sec-disclosure-verifier` 标签" in readme
 
 
 def test_release_readiness_binds_every_artifact_hash() -> None:
@@ -67,7 +125,7 @@ def test_release_readiness_rejects_matrix_status_drift(tmp_path: Path) -> None:
     matrix_path = root / "docs" / "feature-matrix.md"
     original = matrix_path.read_text(encoding="utf-8")
     changed = original.replace(
-        "| `planned` | `complete` |",
+        "| `thin_slice` | `complete` |",
         "| `complete` | `complete` |",
         1,
     )
@@ -183,3 +241,19 @@ def _copy_readiness_root(tmp_path: Path) -> tuple[Path, Path]:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(MANIFEST, manifest_path)
     return root, manifest_path
+
+
+def _markdown_destinations(tokens: Sequence[object]) -> tuple[str, ...]:
+    destinations: list[str] = []
+    for token in tokens:
+        children = getattr(token, "children", None) or ()
+        for child in children:
+            attribute = (
+                "href" if child.type == "link_open" else "src" if child.type == "image" else None
+            )
+            if attribute is None:
+                continue
+            value = child.attrGet(attribute)
+            if value is not None:
+                destinations.append(value)
+    return tuple(destinations)

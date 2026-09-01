@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.12`
+> 版本：`2.2.13`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1105,7 +1105,7 @@ FinQA/TAT-QA/FinanceBench/FinSearchComp adapters 与 dataset cards、`sec-tempor
 
 ## 17. Day 10：披露核验工作台、发布评测与完整交付
 
-> 执行状态（2026-08-31）：Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`；push/PR/main 三层 CI 均通过 7 个适用 Job。Day 10 Step 1～Step 4 已在 `day-10` 工作树实现。Step 4 在冻结模块集合上把核心覆盖率提升并锁到 90%，新增锁定 Semgrep、Python/Node 许可证与 NOTICE 门禁，并以 `sec-release-recovery-v1` 冻结 12 个恢复/回滚场景。checked 恢复 observation 仍为 `not_executed`/0 of 12，四个指标均 `not_measured`，不能以 Runbook 或单测替代演练。readiness 当前登记 63 个 artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned，共 43 未完成；16 个 blocker open、5 个 external gate pending，机器结论仍为 `no_go`。D10-03 为 `implemented_pending_verification`，D10-06 为 `thin_slice`；真实 Runtime/public/live、无拦截浏览器、正式恢复演练、许可/中文签字、远端 CI 和 owner review 尚未完成。
+> 执行状态（2026-08-31）：Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head `6a79e4a`、合并提交 `4500505`；push/PR/main 三层 CI 均通过 7 个适用 Job。Day 10 Step 1～Step 5 已在 `day-10` 工作树完成本地实施和最终完整性审计。Step 4 在冻结模块集合上把核心覆盖率提升并锁到 90%，新增锁定 Semgrep、Python/Node 许可证与 NOTICE 门禁，并以 `sec-release-recovery-v1` 冻结 12 个恢复/回滚场景；Step 5 只消费既有 artifact，同步 README/ADR/架构/评测/Runbook/限制和明确 `NO_GO` 的候选说明草案。checked 恢复 observation 仍为 `not_executed`/0 of 12，不能以 Runbook、单测或候选草案替代演练。readiness 当前登记 68 个 artifact，状态为 45 complete、33 implemented pending verification、10 thin slice、0 planned，共 43 未完成；16 个 blocker open、5 个 external gate pending，机器结论仍为 `no_go`。D10-03 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`；真实 Runtime/public/live、无拦截浏览器、正式恢复演练、许可/中文签字、Day 10 远端 CI 和 owner review 尚未完成。
 
 ### 学习主题
 
@@ -1355,3 +1355,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.10 | 2026-08-31 | 同步 Day 10 Step 2：复用正式 SEC/Research/Verification/Evidence/Approval/Monitor/Case 链，从 ready Filing import 生成 typed scope 草稿并预填唯一 Research Runtime；新增 Verification Report generated-client wrapper，Workbench 只按服务端报告展示四态、Claim/Citation/Calculation/issue/Evidence，并对 active/paused Run 自动重建，非金融 Run 不请求金融报告。amendment 不静默降级；Case Evidence 可反查。readiness 扩展为 41 个 hash artifact，当前 45 complete、32 implemented pending verification、7 thin slice、4 planned，16 blocker/5 pending gate 与 `no_go` 不变。Web `94 passed`、相关 Python `37 passed`、TypeScript/ESLint 通过；无拦截真实依赖 Playwright、受控 SEC source、Worker 恢复、远端 CI 和 owner review 仍缺，故 D10-01/D10-02 为 `implemented_pending_verification`，D10-04 为 `thin_slice` | 用户授权继续 Day 10 Step 2 |
 | 2.2.11 | 2026-08-31 | 同步 Day 10 Step 3：在唯一 evaluation bounded context 新增 checked `sec-release-evidence-v1`，引用同一 10-case/gold/budget 冻结 A0～A4，要求 offline 50 或 live 150 个 Run 绑定 Trace/Evidence/Calculation/final state/ranked candidates，并重算 Recall@5、Citation、拒答、freshness、Workspace、注入、未授权写、重复副作用与恢复指标/告警。当前 checked observation 为 `not_executed`/0 of 50，11 指标均 `not_measured`、告警 `unknown`，production default 为 null；release suite 只把 common manifest 缺失精确改为 production Runs 缺失，9 个 evaluation blocker、16 个总 blocker、5 个 external gate 与 `no_go` 不变。readiness 登记 49 个 artifact，状态 45 complete、32 implemented pending verification、8 thin slice、3 planned；聚焦 22 passed、evaluation 72 passed、后端 1191 passed/88 skipped、Web 94 passed，真实 Runtime/public/live/治理/远端证据仍缺，故 D10-04/D10-05/D10-07 仅为 `thin_slice` | 用户授权继续 Day 10 Step 3 |
 | 2.2.12 | 2026-08-31 | 同步 Day 10 Step 4：冻结核心模块集合达到并在 CI 强制 90%，保留后端 80%/关键 Web 75%；锁定 Semgrep、Python/Node license scanner 与 NOTICE 门禁。新增 checked `sec-release-recovery-v1`、12 场景 manifest、0/12 unexecuted observation、报告/schema 和 staging Runbook；未把测试或命令冒充演练。readiness 登记 63 个 artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；16 blocker/5 external gate 与 `no_go` 不变，D10-03/D10-06 分别为 `implemented_pending_verification`/`thin_slice` | 用户授权继续 Day 10 Step 4 |
+| 2.2.13 | 2026-08-31 | 同步 Day 10 Step 5 最终完整性审计：继续使用唯一 readiness 判定，更新 README、产品范围、ADR 0007、架构、评测、恢复/NOTICE 和明确 `NO_GO` 的候选说明草案，并将这些文档纳入 hash 与 Markdown AST 本地链接门。D10-08 从 planned 推进到 thin slice；当前 45 complete、33 implemented pending verification、10 thin slice、0 planned，68 个 artifact、43 个未完成目标、16 blocker、5 pending external gate 与 `no_go` 均如实保留。未创建标签、提交、推送或伪造外部/owner 证据 | 用户授权继续 Day 10 Step 5 |

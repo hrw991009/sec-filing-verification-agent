@@ -4,17 +4,17 @@
 >
 > 日期：2026-08-25
 >
-> 修订日期：2026-08-29
+> 修订日期：2026-08-31
 >
 > 决策人：用户
 >
 > 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
 >
-> 2026-08-29 修订同步基线：`docs/master-plan.md` v2.1.9
+> 2026-08-31 修订同步基线：`docs/master-plan.md` v2.2.13
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。ADR 接受时，Day 5 仍处于功能分支实施阶段；截至 2026-08-28，Day 5 五步已由 PR #9 合入 `main` 且分支/PR/main CI 成功，D5-01～D5-07 为 `complete`。D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，保持 `implemented_pending_verification`。Day 6 已由 PR #10 合入 `main`，但确定性报告仍为 contract 18/18、closeout 4/6，bulk watermark/post-gap 与合法 live SEC smoke 尚缺；项目所有者将其改期为 Day 10 发布硬门并保留原评测分母。Day 7 五步代码已由 PR #11 合入 `main`，功能 head 的两组 PR 检查通过，但合并提交 `ae33b98` 的 main CI 最终为 6/7 Job 通过、Browser E2E 失败；ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 与 owner review 仍未关闭，因此 D7-01/D7-03～D7-08 保持 `implemented_pending_verification`，D7-02 保持 `thin_slice`。项目所有者明确先完成 Day 8～Day 9 代码、Day 10 再统一查漏补缺；该排期不豁免旧门禁。Day 8 Step 1～3 已在 `feat/day-8` 工作树实现：Verifier、one-revise L5、Monitor/watermark/幂等 Case 与双侧 Evidence 已进入既有 Runtime、Schedule/Job/Outbox、SEC sync/diff 和 Evidence 边界，D8-01～D8-05 为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵、A2/A3/A4、远端 CI 与 owner review 尚未关闭。
+Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。Day 5～Day 9 的后续代码均已合入 `main`，但原冻结分母中的 SEC fixture 浏览器链、Day 6 bulk watermark/post-gap、Day 7 ranking/table/Citation、Day 8 专用浏览器与正式恢复、公开/live 评测、外部治理和 owner review 未被后续实现覆盖。Day 10 五步已在 `day-10` 分支完成本地实施：沿唯一正式链连接产品工作台，建立同分母 production Run evidence 合同、90% 核心 coverage 门、12 场景 recovery 合同和最终 readiness 审计。当前 production Run observation 为 0/50、recovery observation 为 0/12，机器结论为 `no_go`；该结论保留原缺口，不以最后一天排期、文档同步或候选说明草案豁免门禁。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 

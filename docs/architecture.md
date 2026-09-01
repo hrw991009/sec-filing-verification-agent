@@ -6,11 +6,11 @@
 >
 > 更新日期：2026-08-31
 >
-> 权威来源：`docs/master-plan.md` 2.2.12
+> 权威来源：`docs/master-plan.md` 2.2.13
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍留到 Day 10。Day 10 Step 1～Step 3 分别建立 readiness 台账、复用正式 owner 连接产品页面并加入 common-case Run evidence scorer；Step 4 只增加仓库质量门和 checked recovery evidence 投影，不创建第二套 Runtime、业务状态或运维状态机。当前结论仍为 `no_go`；空 observation、页面连通、组件测试和 Runbook 都不代表真实 Runtime、浏览器或恢复演练已经通过。
+系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`，但 SEC fixture 浏览器链、bulk watermark/live SEC、Retrieval/Citation、Monitor 故障恢复、公开/live 评测和外部治理证据仍是发布阻断项。Day 10 Step 1～Step 3 分别建立 readiness 台账、复用正式 owner 连接产品页面并加入 common-case Run evidence scorer；Step 4 只增加仓库质量门和 checked recovery evidence 投影；Step 5 只消费这些 artifact 完成最终文档和 `NO_GO` 判定，没有创建第二套 Runtime、业务状态、运维状态机或发布状态机。空 observation、页面连通、组件测试、Runbook 和候选说明草案都不代表真实 Runtime、浏览器、恢复演练或发布已经通过。
 
 架构需要同时满足：
 
