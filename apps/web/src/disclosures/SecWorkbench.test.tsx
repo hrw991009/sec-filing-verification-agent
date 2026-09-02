@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   readSecFilingSection: vi.fn(),
   searchSecFiling: vi.fn(),
   syncSecXbrl: vi.fn(),
+  triggerSecMonitorRun: vi.fn(),
 }));
 
 vi.mock("../knowledge/knowledge-api", () => ({
@@ -55,6 +56,7 @@ vi.mock("./sec-api", () => ({
   readSecFilingSection: mocks.readSecFilingSection,
   searchSecFiling: mocks.searchSecFiling,
   syncSecXbrl: mocks.syncSecXbrl,
+  triggerSecMonitorRun: mocks.triggerSecMonitorRun,
 }));
 
 import { SecWorkbench } from "./SecWorkbench";
@@ -402,6 +404,11 @@ describe("SecWorkbench", () => {
     mocks.listSecMonitors.mockResolvedValue([monitor]);
     mocks.listSecDisclosureCases.mockResolvedValue([disclosureCase]);
     mocks.changeSecMonitorStatus.mockResolvedValue({ ...monitor, revision: 2, status: "paused" });
+    mocks.triggerSecMonitorRun.mockResolvedValue({
+      created: true,
+      job_id: "33333333-3333-4333-8333-333333333334",
+      occurrence_id: "33333333-3333-4333-8333-333333333335",
+    });
   });
 
   it("rebuilds Monitor and Case state from formal APIs and pauses with its revision", async () => {
@@ -419,6 +426,15 @@ describe("SecWorkbench", () => {
     await user.click(await screen.findByRole("tab", { name: "Monitor / Case" }));
     expect(await screen.findByRole("heading", { name: "Apple Inc." })).toBeInTheDocument();
     expect(screen.getByText(`${comparisonAccession} → ${accession}`)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "立即检查" }));
+    await waitFor(() => {
+      expect(mocks.triggerSecMonitorRun).toHaveBeenCalledWith(
+        workspaceId,
+        monitor.monitor_id,
+        monitor.revision,
+      );
+    });
 
     await user.click(screen.getByRole("button", { name: "baseline:20202020" }));
     expect(onOpenEvidence).toHaveBeenCalledWith(disclosureCase.evidence[0]?.evidence_id);

@@ -935,6 +935,21 @@ class ChangeSecMonitorStatusRequest(BaseModel):
     expected_revision: int = Field(ge=1)
 
 
+class TriggerSecMonitorRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    expected_revision: int = Field(ge=1)
+    trigger_id: UUID
+
+
+class TriggerSecMonitorRunResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    occurrence_id: UUID
+    job_id: UUID
+    created: bool
+
+
 class SecMonitorSubscriptionDecisionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 

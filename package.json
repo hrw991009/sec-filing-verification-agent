@@ -28,6 +28,7 @@
     "test": "pnpm --recursive --if-present run test",
     "test:coverage:web": "pnpm --filter @industry-platform/web run test:coverage",
     "test:e2e": "playwright test",
+    "test:e2e:sec-real": "uv run --locked --package industry-platform-backend python apps/backend/tests/sec_browser_e2e_runner.py",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
     "typecheck": "pnpm --recursive --if-present run typecheck && tsc --project tsconfig.json"

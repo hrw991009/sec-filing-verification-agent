@@ -314,6 +314,8 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 
 2026-09-01 合并收口映射：[PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 已将 Day 10 合入 `main`。功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job；main 的真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`。因此 D10-03 升为 `complete`，Day 4 核心覆盖率债务关闭。当前为 46 complete、32 implemented pending verification、10 thin slice、0 planned；42 个未完成目标、15 个 open blocker、5 个 pending external gate，结论仍为 `no_go`。该远端浏览器 Job 仍使用现有 interception 套件，不关闭 D10-02 无拦截中文全链；生产 Run、正式恢复、外部治理和 owner acceptance 也仍未完成。
 
+2026-09-01 无拦截闭环实现映射：当前分支新增 hash 受控衍生 SEC 时序来源、test-only loopback HTTP Provider、正式 API/Web/Dispatcher/Celery Worker 编排和 Monitor 手动 Schedule 触发。独立 Playwright spec 无 API interception，按页面完成 Knowledge Base、两期 Filing import、中文 Research、审批/resume、Verification/Evidence、Monitor/verified Case；Browser CI 配置 PostgreSQL、Redis、MinIO、Milvus、Elasticsearch 五个真实依赖并留存 Provider/API/截图 artifact。聚焦 Python `141 passed`、默认后端全量 `1278 passed, 89 skipped`、全仓 mypy 530 个源文件和 Web TypeScript 已通过；本机 Docker Desktop 未运行，五依赖旅程与本轮远端 CI 尚未产生成功证据，因此 D10-02 保持 `implemented_pending_verification`，不改写生产 0/50、恢复 0/12、live/公开评测和 `no_go`。
+
 ## 13. 明确不继承的参考项目行为
 
 下列内容是旧实现的问题，不属于目标能力：

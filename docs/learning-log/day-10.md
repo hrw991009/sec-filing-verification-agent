@@ -127,6 +127,14 @@ main PostgreSQL integration Job 在 PostgreSQL、Redis、MinIO、Milvus 与 Elas
 
 该 CI 证据不越层：Browser E2E 仍是现有 interception 套件，不能关闭 D10-02 要求的无拦截中文完整链；生产 Runtime observation 仍为 0/50，正式恢复仍为 0/12，外部凭据/权利/中文签字和最终 owner acceptance 仍待完成。因此本次只关闭工程质量与核心覆盖率债务，不提升候选发布状态。
 
+### 9.2 无拦截中文浏览器闭环实现
+
+2026-09-01 当前分支新增独立 `sec-real-journey` Playwright project，正式 spec 不调用 `page.route` 或 `route.fulfill`。受控来源 manifest 对两期 Apple 10-K 衍生摘录、submissions 和 companyfacts 逐文件固定 SHA-256，并按 `source_available_at` 选择 2023/2024 快照；它只允许在 `APP_ENVIRONMENT=test` 使用，不是 live SEC 原文或生产来源。受控 OpenAI-compatible Provider 通过真实 loopback HTTP 返回严格结构化 search、monitor subscription 和 final 三阶段决策，生产 HTTPS/受控 DNS 约束保持不变。
+
+运行器先迁移正式 PostgreSQL，再启动 Provider、Outbox Dispatcher 和 Celery Worker；Playwright 启动正式 API/Web，仅通过 UI 和认证 API 完成 Knowledge Base → 2023 Filing import → 中文 Research → Monitor 人工审批与同 Run resume → Verification/Evidence → 2024 Filing import → Monitor 立即检查 → verified Case。Monitor 初始 watermark 绑定审批前实际审阅且在 `as_of` 可见的 accession，不再从空水位扫描全部历史 filing；“立即检查”复用 Schedule occurrence/Job/Outbox，不在 API 线程直接执行分析。CI Browser Job 新增 Milvus/Elasticsearch，与 PostgreSQL、Redis、MinIO 共五个真实依赖，并始终上传 Provider 计数、无拦截标记、API 请求清单和桌面/移动截图。
+
+当前无外部服务聚焦回归为 `141 passed`，默认后端全量为 `1278 passed, 89 skipped`，全仓 mypy 为 530 个源文件通过，Web TypeScript 通过；本机 Docker Desktop 未运行，Redis/MinIO/Milvus/Elasticsearch 不可达，因此没有在本机执行五依赖旅程，PostgreSQL 强制夹具也因本机数据库连接不可用而中止。默认全量中的 skip 不能替代强制外部依赖验收，必须以本分支后续 Browser CI 的实际成功 artifact 才能关闭该证据层；当前只表示实现已接通，D10-02 仍为 `implemented_pending_verification`。该旅程也不计入生产 Run 0/50、正式恢复 0/12、live SEC/model 或公开 benchmark，`NO_GO` 不变。
+
 ## 10. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：

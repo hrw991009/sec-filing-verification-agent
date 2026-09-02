@@ -1,6 +1,7 @@
 """Composition root for SEC filer discovery and its typed Tool."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import cast
 
 import httpx2
@@ -12,6 +13,10 @@ from industry_platform.core.database import AsyncSessionFactory
 from industry_platform.modules.disclosures.adapters.bulk_sqlalchemy import (
     SqlAlchemySecBulkSyncRepository,
 )
+from industry_platform.modules.disclosures.adapters.controlled import (
+    ControlledSecSourceBundle,
+    load_controlled_sec_source_bundle,
+)
 from industry_platform.modules.disclosures.adapters.filing_content_sqlalchemy import (
     SqlAlchemySecFilingContentRepository,
 )
@@ -22,6 +27,7 @@ from industry_platform.modules.disclosures.adapters.monitor_sqlalchemy import (
     SqlAlchemySecMonitorRepository,
 )
 from industry_platform.modules.disclosures.adapters.sec_archives import (
+    FrozenSecFilingArchiveAdapter,
     LiveSecFilingArchiveAdapter,
     UnavailableSecFilingArchiveAdapter,
 )
@@ -33,6 +39,7 @@ from industry_platform.modules.disclosures.adapters.sec_bulk import (
     UnavailableSecBulkSnapshotStore,
 )
 from industry_platform.modules.disclosures.adapters.sec_edgar import (
+    FrozenSecEdgarAdapter,
     LiveSecEdgarAdapter,
     OfficialSecJsonClient,
     RedisSecRequestBudget,
@@ -41,6 +48,7 @@ from industry_platform.modules.disclosures.adapters.sec_edgar import (
     UnavailableSecEdgarAdapter,
 )
 from industry_platform.modules.disclosures.adapters.sec_submissions import (
+    FrozenSecSubmissionsAdapter,
     LiveSecSubmissionsAdapter,
 )
 from industry_platform.modules.disclosures.adapters.snapshots import (
@@ -58,6 +66,7 @@ from industry_platform.modules.disclosures.adapters.subscription_sqlalchemy impo
     SqlAlchemySecMonitorSubscriptionRepository,
 )
 from industry_platform.modules.disclosures.adapters.xbrl import (
+    FrozenSecCompanyFactsAdapter,
     LiveSecCompanyFactsAdapter,
     UnavailableSecCompanyFactsAdapter,
 )
@@ -108,6 +117,7 @@ from industry_platform.modules.ingestion.index_contract import (
     ELASTICSEARCH_INDEX,
     MILVUS_COLLECTION,
 )
+from industry_platform.modules.jobs.ports import ScheduleApplicationUseCase
 from industry_platform.modules.knowledge.service import KnowledgeApplicationService
 from industry_platform.modules.retrieval.adapters.elasticsearch import ElasticsearchLexicalIndex
 from industry_platform.modules.retrieval.adapters.milvus import MilvusDenseIndex
@@ -154,6 +164,7 @@ def create_disclosure_resources(
     redis_client: Redis,
     internal_http_client: httpx2.AsyncClient,
     knowledge_service: KnowledgeApplicationService,
+    schedule_service: ScheduleApplicationUseCase,
     object_store: PrivateFileObjectStore | None = None,
     *,
     source: SecEdgarPort | None = None,
@@ -164,6 +175,7 @@ def create_disclosure_resources(
     companyfacts_source: SecCompanyFactsPort | None = None,
     xbrl_snapshot_store: SecXbrlSnapshotStore | None = None,
 ) -> DisclosureResources:
+    controlled = _controlled_source_bundle(settings)
     sec_redis = cast(SecRedisClient, redis_client)
     request_budget = RedisSecRequestBudget(
         sec_redis,
@@ -177,12 +189,14 @@ def create_disclosure_resources(
             timeout_seconds=settings.sec_request_timeout_seconds,
             maximum_attempts=settings.sec_request_max_attempts,
         )
-        if settings.sec_source_configured
+        if settings.sec_source_configured and controlled is None
         else None
     )
     selected_source = source
     if selected_source is None:
-        if settings.sec_source_configured:
+        if controlled is not None:
+            selected_source = FrozenSecEdgarAdapter(controlled.catalog)
+        elif settings.sec_source_configured:
             selected_source = LiveSecEdgarAdapter(
                 http_client,
                 request_budget,
@@ -196,7 +210,9 @@ def create_disclosure_resources(
             selected_source = UnavailableSecEdgarAdapter()
     selected_submissions_source = submissions_source
     if selected_submissions_source is None:
-        if settings.sec_source_configured:
+        if controlled is not None:
+            selected_submissions_source = FrozenSecSubmissionsAdapter(controlled.submissions)
+        elif settings.sec_source_configured:
             if official_client is None:
                 raise AssertionError("Configured SEC client disappeared")
             selected_submissions_source = LiveSecSubmissionsAdapter(
@@ -208,7 +224,9 @@ def create_disclosure_resources(
             selected_submissions_source = UnavailableSecEdgarAdapter()
     selected_companyfacts_source = companyfacts_source
     if selected_companyfacts_source is None:
-        if settings.sec_source_configured:
+        if controlled is not None:
+            selected_companyfacts_source = FrozenSecCompanyFactsAdapter(controlled.companyfacts)
+        elif settings.sec_source_configured:
             if official_client is None:
                 raise AssertionError("Configured SEC client disappeared")
             selected_companyfacts_source = LiveSecCompanyFactsAdapter(
@@ -234,7 +252,9 @@ def create_disclosure_resources(
             )
     selected_archive_source = archive_source
     if selected_archive_source is None:
-        if settings.sec_source_configured:
+        if controlled is not None:
+            selected_archive_source = FrozenSecFilingArchiveAdapter(controlled.archives)
+        elif settings.sec_source_configured:
             selected_archive_source = LiveSecFilingArchiveAdapter(
                 http_client,
                 request_budget,
@@ -274,7 +294,7 @@ def create_disclosure_resources(
             timeout_seconds=settings.sec_bulk_request_timeout_seconds,
             maximum_attempts=settings.sec_request_max_attempts,
         )
-        if settings.sec_source_configured
+        if settings.sec_source_configured and controlled is None
         else UnavailableSecBulkArchiveAdapter()
     )
     selected_bulk_store = (
@@ -380,12 +400,27 @@ def create_disclosure_resources(
             ),
         ),
         monitor_subscription_service=SecMonitorSubscriptionService(
-            repository=SqlAlchemySecMonitorSubscriptionRepository(session_factory)
+            repository=SqlAlchemySecMonitorSubscriptionRepository(session_factory),
+            schedules=schedule_service,
         ),
     )
     # Fail application composition if profile references drift from concrete Tool definitions.
     _ = resources.sec_source_tool_adapters
     return resources
+
+
+def _controlled_source_bundle(settings: Settings) -> ControlledSecSourceBundle | None:
+    configured = settings.sec_controlled_source_manifest_path
+    if configured is None:
+        return None
+    repository_root = Path(__file__).resolve().parents[6]
+    candidate = configured if configured.is_absolute() else Path.cwd() / configured
+    if not candidate.exists() and not configured.is_absolute():
+        candidate = repository_root / configured
+    manifest = candidate.resolve(strict=True)
+    if not manifest.is_relative_to(repository_root):
+        raise ValueError("Controlled SEC manifest must be inside the repository")
+    return load_controlled_sec_source_bundle(manifest)
 
 
 def create_sec_filing_tools(

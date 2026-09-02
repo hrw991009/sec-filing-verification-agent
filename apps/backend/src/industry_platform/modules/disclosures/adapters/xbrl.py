@@ -60,15 +60,23 @@ _MAX_CONTINUATION_DEPTH: Final = 100
 
 
 class FrozenSecCompanyFactsAdapter:
-    def __init__(self, source: SecXbrlSourceSnapshot) -> None:
-        if source.source_kind is not SecXbrlSourceKind.COMPANYFACTS_AGGREGATE:
+    def __init__(
+        self,
+        source: SecXbrlSourceSnapshot | dict[str, SecXbrlSourceSnapshot],
+    ) -> None:
+        sources = dict(source) if isinstance(source, dict) else {"*": source}
+        if not sources or any(
+            item.source_kind is not SecXbrlSourceKind.COMPANYFACTS_AGGREGATE
+            for item in sources.values()
+        ):
             raise ValueError("Frozen companyfacts source is invalid")
-        self._source = source
+        self._sources = sources
 
     async def fetch(self, filing: SecCanonicalFiling) -> SecXbrlSourceSnapshot:
-        if filing.cik != self._source.cik:
+        source = self._sources.get(filing.accession, self._sources.get("*"))
+        if source is None or filing.cik != source.cik:
             raise SecSourceError(SecSourceErrorCode.RESPONSE_INVALID, retryable=False)
-        return self._source
+        return source
 
     async def fetch_after(
         self,

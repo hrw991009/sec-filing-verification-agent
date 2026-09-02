@@ -11,13 +11,14 @@ blocker 仍为 open，5 个 external gate 仍为 pending。不得创建
 当前代码已收敛到唯一 SEC 披露核验链：Filer/Filings → Research/Verification →
 Evidence/Calculation → Approval/Monitor/Case，并复用统一 Agent Runtime、Tool、Checkpoint、
 PostgreSQL 事实和可重建索引。生产 Run observation 仍为 0/50，正式恢复 observation 仍为
-0/12；无 interception 中文浏览器全链、公开/live 评测、正式恢复、外部权利/凭据与 owner
-acceptance 尚未关闭。精确状态以[机器 readiness 报告](evals/reports/sec-release-readiness-v1.md)
+0/12；无 interception 中文浏览器全链已在当前分支接入受控衍生 SEC 来源、真实 HTTP Provider、
+Dispatcher/Worker 和五依赖 CI，但尚无本轮远端成功产物，不能视为 live SEC/model 验证；公开/live
+评测、正式恢复、外部权利/凭据与 owner acceptance 仍未关闭。精确状态以[机器 readiness 报告](evals/reports/sec-release-readiness-v1.md)
 和[候选说明草案](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)为准。
 
 ## 文档入口
 
-- [Day 1～Day 10 主计划 v2.2.15（当前权威执行基线）](docs/master-plan.md)
+- [Day 1～Day 10 主计划 v2.2.16（当前权威执行基线）](docs/master-plan.md)
 - [产品范围说明](docs/product-scope.md)
 - [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
 - [系统架构说明与 ADR 索引](docs/architecture.md)

@@ -324,6 +324,7 @@ def create_app(
                 redis_client,
                 internal_http_client,
                 knowledge_resources.service,
+                job_resources.schedule_service,
                 file_resources.object_store,
             )
 

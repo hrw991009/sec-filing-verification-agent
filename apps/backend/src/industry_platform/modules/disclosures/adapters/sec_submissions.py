@@ -34,22 +34,34 @@ type SecResponseCacheFactory = Callable[[str], SecResponseCache]
 
 
 class FrozenSecSubmissionsAdapter:
-    def __init__(self, snapshot: SecSubmissionSet) -> None:
-        self._snapshot = snapshot
+    def __init__(self, snapshot: SecSubmissionSet | tuple[SecSubmissionSet, ...]) -> None:
+        snapshots = snapshot if isinstance(snapshot, tuple) else (snapshot,)
+        if not snapshots:
+            raise ValueError("Frozen SEC submissions require at least one snapshot")
+        self._snapshots = tuple(
+            sorted(snapshots, key=lambda item: item.current.source_available_at)
+        )
 
     async def fetch_submission_set(self, scope: FilingSelectionScope) -> SecSubmissionSet:
-        if scope.cik != self._snapshot.current.cik:
+        visible = tuple(
+            snapshot
+            for snapshot in self._snapshots
+            if snapshot.current.cik == scope.cik
+            and snapshot.current.source_available_at <= scope.as_of
+        )
+        if not visible:
             raise SecSourceError(SecSourceErrorCode.COVERAGE_INCOMPLETE, retryable=False)
+        snapshot = visible[-1]
         expected = tuple(
             item.name
             for item in required_supplemental_descriptors(
-                self._snapshot.current.descriptors,
+                snapshot.current.descriptors,
                 scope,
             )
         )
-        if expected != self._snapshot.required_supplemental_names:
+        if expected != snapshot.required_supplemental_names:
             raise SecSourceError(SecSourceErrorCode.COVERAGE_INCOMPLETE, retryable=False)
-        return self._snapshot
+        return snapshot
 
     async def fetch_submission_set_after(
         self,

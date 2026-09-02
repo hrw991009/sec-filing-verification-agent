@@ -2,7 +2,7 @@
 
 > 计划编号：`IIP-MASTER-001`
 >
-> 版本：`2.2.15`
+> 版本：`2.2.16`
 >
 > 制定日期：`2026-07-23`
 >
@@ -1358,3 +1358,4 @@ Agent 测试比例不作为目标本身。优先级是：领域/策略不变量 
 | 2.2.13 | 2026-08-31 | 同步 Day 10 Step 5 最终完整性审计：继续使用唯一 readiness 判定，更新 README、产品范围、ADR 0007、架构、评测、恢复/NOTICE 和明确 `NO_GO` 的候选说明草案，并将这些文档纳入 hash 与 Markdown AST 本地链接门。D10-08 从 planned 推进到 thin slice；当前 45 complete、33 implemented pending verification、10 thin slice、0 planned，68 个 artifact、43 个未完成目标、16 blocker、5 pending external gate 与 `no_go` 均如实保留。未创建标签、提交、推送或伪造外部/owner 证据 | 用户授权继续 Day 10 Step 5 |
 | 2.2.14 | 2026-09-01 | 记录 Day 10 PR #16、功能 head `e1a6dcc`、合并提交 `778a196` 与 push/PR/main 三层 CI 全绿；main 真实依赖门为 1347 passed、总体/核心 branch coverage 为 80.72%/90%。D10-03 升为 complete，Day 4 核心覆盖率债务关闭；readiness 更新为 46 complete、42 未完成、15 open blocker、5 pending gate，仍为 `no_go`，不改写生产评测、恢复、外部治理或 owner 缺口 | 用户要求逐项补齐十天技术债 |
 | 2.2.15 | 2026-09-01 | 关闭 Day 6 来源技术债：新增两类 SEC bulk 流式快照、PostgreSQL watermark/gap ledger、水位后强制官方增量读取与失败/幂等测试，`sec-source-v1` 从 22/24 提升至 24/24；已配置 SEC 联系身份经 `OfficialSecJsonClient` 完成独立 live smoke。D6-02/D6-06 升为 implemented pending verification；真实大体积 bulk、来源权利/所有者、浏览器与本轮远端 CI 继续阻断 complete，发布仍为 no_go | 用户要求先解决 Day 6 来源收口 |
+| 2.2.16 | 2026-09-01 | 补齐 D10-02 无拦截中文浏览器实现：新增 hash 受控衍生 SEC 时序来源、test-only loopback HTTP Provider、正式 API/Web/Dispatcher/Celery Worker 编排、Monitor 手动 Schedule 触发、已审阅 filing 初始 watermark，以及 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch Browser CI。旅程覆盖 Filing import → Research → Approval/resume → Verification/Evidence → target import → Monitor/Case，并保存 Provider 计数、正式 API 请求和截图产物。当前本机仅 PostgreSQL 端口可达，五依赖浏览器未实跑且本轮远端 CI/owner 尚缺，故 D10-02 保持 implemented pending verification，live/生产评测/恢复与 no_go 不变 | 用户要求直接完成真实浏览器闭环 |

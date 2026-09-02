@@ -12,6 +12,7 @@ export type SecXbrlFactCollection = components["schemas"]["SecXbrlFactCollection
 export type SecXbrlSourceKind = components["schemas"]["SecXbrlSourceKind"];
 export type SecXbrlSync = components["schemas"]["SecXbrlSyncResponse"];
 export type SecMonitor = components["schemas"]["SecMonitorResponse"];
+export type SecMonitorRun = components["schemas"]["TriggerSecMonitorRunResponse"];
 export type SecDisclosureCase = components["schemas"]["SecDisclosureCaseResponse"];
 
 export interface FilingSelection {
@@ -260,6 +261,25 @@ export function changeSecMonitorStatus(
         headers: authorization(accessToken),
         params: { path: { monitor_id: monitorId, workspace_id: workspaceId } },
       }),
+    ),
+  );
+}
+
+export function triggerSecMonitorRun(
+  workspaceId: string,
+  monitorId: string,
+  revision: number,
+): Promise<SecMonitorRun> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<SecMonitorRun>(
+      await apiClient.POST(
+        "/api/v1/workspaces/{workspace_id}/disclosures/monitors/{monitor_id}/runs",
+        {
+          body: { expected_revision: revision, trigger_id: crypto.randomUUID() },
+          headers: authorization(accessToken),
+          params: { path: { monitor_id: monitorId, workspace_id: workspaceId } },
+        },
+      ),
     ),
   );
 }

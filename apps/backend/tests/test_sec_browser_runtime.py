@@ -1,0 +1,74 @@
+import json
+import runpy
+from collections.abc import Callable
+from pathlib import Path
+from typing import cast
+from uuid import uuid4
+
+import pytest
+
+_TEST_ROOT = Path(__file__).resolve().parent
+_RUNNER_GLOBALS = runpy.run_path(str(_TEST_ROOT / "sec_browser_e2e_runner.py"))
+_PROVIDER_GLOBALS = runpy.run_path(str(_TEST_ROOT / "sec_browser_provider.py"))
+_environment = cast(Callable[[], dict[str, str]], _RUNNER_GLOBALS["_environment"])
+_require_provider_decisions = cast(
+    Callable[[dict[str, object]], None],
+    _RUNNER_GLOBALS["_require_provider_decisions"],
+)
+_decision = cast(Callable[[str], tuple[str, str]], _PROVIDER_GLOBALS["_decision"])
+
+
+def test_controlled_provider_exercises_search_approval_and_final_decisions() -> None:
+    search, search_kind = _decision("initial prompt")
+    assert search_kind == "filing_search"
+    assert json.loads(search)["decision"]["name"] == "sec.search_filing"
+
+    knowledge_base_id = uuid4()
+    monitor, monitor_kind = _decision(
+        "Server-locked Financial Scope.\n"
+        + json.dumps(
+            {
+                "financial_scope": {"cik": "0000320193"},
+                "knowledge_base_ids": [str(knowledge_base_id)],
+            },
+            separators=(",", ":"),
+        )
+        + '\n{"retrieval_profile_version":"hybrid-v1"}'
+    )
+    monitor_decision = json.loads(monitor)["decision"]
+    assert monitor_kind == "monitor_subscription"
+    assert monitor_decision["name"] == "sec.monitor.subscribe"
+    assert monitor_decision["arguments"]["knowledge_base_id"] == str(knowledge_base_id)
+
+    final, final_kind = _decision("sec-monitor:00000000-0000-4000-8000-000000000001")
+    assert final_kind == "final"
+    assert "[S1]" in json.loads(final)["decision"]["content_markdown"]
+
+
+def test_runner_forces_only_explicit_test_source_and_provider_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "owner@example.com")
+
+    environment = _environment()
+
+    assert environment["APP_ENVIRONMENT"] == "test"
+    assert environment["AGENT_MODEL_CONTROLLED_LOOPBACK"] == "true"
+    assert environment["SEC_REAL_BROWSER_E2E"] == "true"
+    assert environment["SEC_CONTROLLED_SOURCE_MANIFEST_PATH"].endswith("manifest.json")
+    assert environment["SEC_USER_AGENT_EMAIL"] == "owner@example.com"
+
+
+def test_runner_requires_all_three_provider_decision_kinds() -> None:
+    _require_provider_decisions(
+        {
+            "decisions": {
+                "filing_search": 1,
+                "monitor_subscription": 1,
+                "final": 1,
+            }
+        }
+    )
+
+    with pytest.raises(RuntimeError, match="final"):
+        _require_provider_decisions({"decisions": {"filing_search": 1, "monitor_subscription": 1}})

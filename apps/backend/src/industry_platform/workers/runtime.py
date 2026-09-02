@@ -752,6 +752,7 @@ def create_job_delivery_runtime(
             redis_client,
             tool_http_client,
             knowledge.service,
+            job_resources.schedule_service,
             object_store,
         )
         monitor_service = disclosures.monitor_service

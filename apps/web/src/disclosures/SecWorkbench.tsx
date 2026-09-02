@@ -15,6 +15,7 @@ import {
   readSecFilingSection,
   searchSecFiling,
   syncSecXbrl,
+  triggerSecMonitorRun,
   type SecFiling,
   type SecFilingDiff,
   type SecFilingImport,
@@ -119,6 +120,11 @@ export function SecWorkbench({
   const [cases, setCases] = useState<SecDisclosureCase[]>([]);
   const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
   const [changingMonitorId, setChangingMonitorId] = useState<string | null>(null);
+  const [monitorRunPending, setMonitorRunPending] = useState<{
+    readonly deadline: number;
+    readonly initialCaseCount: number;
+    readonly monitorId: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -139,6 +145,13 @@ export function SecWorkbench({
     ]);
     setMonitors(monitorValues);
     setCases(caseValues);
+    setMonitorRunPending((current) =>
+      current !== null &&
+      caseValues.filter((item) => item.monitor_id === current.monitorId).length >
+        current.initialCaseCount
+        ? null
+        : current,
+    );
     setSelectedMonitorId((current) =>
       current !== null && monitorValues.some((item) => item.monitor_id === current)
         ? current
@@ -183,6 +196,23 @@ export function SecWorkbench({
     };
   }, [imports, reloadImports]);
 
+  useEffect(() => {
+    if (monitorRunPending === null) return;
+    const timer = window.setInterval(() => {
+      void reloadMonitoring()
+        .then(() => {
+          if (Date.now() >= monitorRunPending.deadline) setMonitorRunPending(null);
+        })
+        .catch((caught: unknown) => {
+          setError(publicError(caught));
+          setMonitorRunPending(null);
+        });
+    }, 2_000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [monitorRunPending, reloadMonitoring]);
+
   const selectedFiling = filings.find((item) => item.accession === selectedAccession) ?? null;
   const selectedImport =
     imports.find(
@@ -216,6 +246,26 @@ export function SecWorkbench({
     try {
       await deleteSecMonitor(workspaceId, monitor.monitor_id, monitor.revision);
       await reloadMonitoring();
+    } catch (caught: unknown) {
+      setError(publicError(caught));
+    } finally {
+      setChangingMonitorId(null);
+    }
+  }
+
+  async function runMonitorNow(monitor: SecMonitor): Promise<void> {
+    setChangingMonitorId(monitor.monitor_id);
+    setError(null);
+    try {
+      const initialCaseCount = cases.filter(
+        (item) => item.monitor_id === monitor.monitor_id,
+      ).length;
+      await triggerSecMonitorRun(workspaceId, monitor.monitor_id, monitor.revision);
+      setMonitorRunPending({
+        deadline: Date.now() + 60_000,
+        initialCaseCount,
+        monitorId: monitor.monitor_id,
+      });
     } catch (caught: unknown) {
       setError(publicError(caught));
     } finally {
@@ -1265,6 +1315,21 @@ export function SecWorkbench({
                           </span>
                         </div>
                         <div className="sec-monitor-actions">
+                          {selectedMonitor.status === "active" ? (
+                            <button
+                              disabled={
+                                !canManage ||
+                                changingMonitorId === selectedMonitor.monitor_id ||
+                                monitorRunPending?.monitorId === selectedMonitor.monitor_id
+                              }
+                              onClick={() => void runMonitorNow(selectedMonitor)}
+                              type="button"
+                            >
+                              {monitorRunPending?.monitorId === selectedMonitor.monitor_id
+                                ? "等待检查…"
+                                : "立即检查"}
+                            </button>
+                          ) : null}
                           {selectedMonitor.status === "deleted" ? null : (
                             <button
                               disabled={

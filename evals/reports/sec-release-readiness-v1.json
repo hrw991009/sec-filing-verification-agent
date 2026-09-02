@@ -2,15 +2,15 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 79283,
+      "byte_size": 80169,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "ff3a83c4a53ce01d72c4d553106f6346513cd4a554e5ade4fe937e5df1ddb39e"
+      "sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 151076,
+      "byte_size": 151841,
       "relative_path": "docs/master-plan.md",
-      "sha256": "db5749dbe8aa409e7b6e387cbb64527564005917b87f9b67f8d5694d4a9945ef"
+      "sha256": "900c0ac11147ee86ef23cbd7205b69b8babd5a736994b434bc6a302a7e899872"
     },
     {
       "artifact_id": "architecture",
@@ -26,9 +26,9 @@
     },
     {
       "artifact_id": "readme",
-      "byte_size": 20504,
+      "byte_size": 20684,
       "relative_path": "README.md",
-      "sha256": "f2cb2ea1ee9edbe6850d519f47154238516175cd0fa7ffc70ec77751a8c9015b"
+      "sha256": "cbba77ebbe78728fa1d8c5ac0de641d9de80383714ffc388c66dd2f6bde015f6"
     },
     {
       "artifact_id": "product-scope",
@@ -188,15 +188,15 @@
     },
     {
       "artifact_id": "sec-workbench-ui",
-      "byte_size": 52666,
+      "byte_size": 55044,
       "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx",
-      "sha256": "3fef8ec441c6d351f0b6251d70c9d6178b6c326f15de4464515322cbf39ea0c2"
+      "sha256": "c87b9730bfcb24d04c8267732dad77a7b9f619f3f3de9af1b0e9aa2c480d272c"
     },
     {
       "artifact_id": "sec-workbench-tests",
-      "byte_size": 20582,
+      "byte_size": 21120,
       "relative_path": "apps/web/src/disclosures/SecWorkbench.test.tsx",
-      "sha256": "4733563f1b2e924860fa7fe746f6093b3ea2c717b2f3c5665e934d7eb6a8607a"
+      "sha256": "b90b2cc80cd5f7f4d9ea4bbe66013c1a4138a68acc68932eeb912c438b989615"
     },
     {
       "artifact_id": "sec-review-navigation",
@@ -254,9 +254,9 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 10153,
+      "byte_size": 10285,
       "relative_path": "package.json",
-      "sha256": "b204907088fc3ac5934c1f0b7b0ae40c771572e3a56d0efaa2ff0a577e8132f6"
+      "sha256": "9982ba56e3682e5e9e6dfbaf0ea9e354f6e907eab68fb347bbca4d9eeac65747"
     },
     {
       "artifact_id": "python-project-policy",
@@ -278,9 +278,9 @@
     },
     {
       "artifact_id": "ci-workflow",
-      "byte_size": 24001,
+      "byte_size": 26494,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "662e93f7a1c50739b461f919891c71e94d63acd625782a076d980bfe90f806a5"
+      "sha256": "8e53534596b3dd0499e0a3134431d2e975e9365189f43725de619a9d0c834d6e"
     },
     {
       "artifact_id": "credential-audit",
@@ -344,9 +344,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 24621,
+      "byte_size": 26741,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "04aae00801acc3c2d0dc374bb1daebc4f3748cd3d4ba887c0f7a1e0c4dc087bd"
+      "sha256": "7af23180b1c1ab3d87de9211a8135569c3e3596956ed9fab14fdb949fff1f76d"
     },
     {
       "artifact_id": "day-4-report",
@@ -777,7 +777,7 @@
     "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
   "manifest_sha256": "bc1de0d832bbb4b87fa125ac928fc1717436badf879bd533d350ab0bb2e4d003",
-  "matrix_sha256": "ff3a83c4a53ce01d72c4d553106f6346513cd4a554e5ade4fe937e5df1ddb39e",
+  "matrix_sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 15,

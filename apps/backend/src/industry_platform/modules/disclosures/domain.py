@@ -8,7 +8,7 @@ import re
 import unicodedata
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
@@ -498,7 +498,11 @@ class SecFilingObservation:
         if self.filed_date < self.report_date:
             raise ValueError("SEC filing dates are invalid")
         require_utc(self.accepted_at, field_name="SEC filing accepted_at")
-        if self.accepted_at.date() < self.filed_date:
+        # EDGAR can assign the next filing date to an evening acceptance.
+        if self.accepted_at.date() not in {
+            self.filed_date,
+            self.filed_date - timedelta(days=1),
+        }:
             raise ValueError("SEC filing acceptance time is invalid")
         if _PRIMARY_DOCUMENT_PATTERN.fullmatch(self.primary_document) is None:
             raise ValueError("SEC filing primary document is invalid")

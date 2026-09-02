@@ -353,4 +353,5 @@ def _provider_config(settings: Settings) -> OpenAICompatibleProviderConfig | Non
             ),
         ),
         request_timeout_seconds=settings.agent_model_request_timeout_seconds,
+        allow_test_loopback=settings.agent_model_controlled_loopback,
     )

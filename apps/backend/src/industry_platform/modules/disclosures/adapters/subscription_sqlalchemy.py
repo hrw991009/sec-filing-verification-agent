@@ -25,6 +25,7 @@ from industry_platform.modules.disclosures.models import (
     SecDisclosureMonitorRuleRecord,
     SecDisclosureMonitorWatermarkRecord,
     SecFilerRecord,
+    SecFilingRecord,
 )
 from industry_platform.modules.disclosures.monitor import (
     SEC_MONITOR_DIFF_VERSION,
@@ -50,6 +51,7 @@ from industry_platform.modules.disclosures.tool import (
     SEC_MONITOR_SUBSCRIBE_TOOL_VERSION,
     SecMonitorSubscribeInput,
 )
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyJobWriter,
@@ -82,6 +84,7 @@ from industry_platform.modules.research.durability import (
 from industry_platform.modules.research.models import (
     ResearchApprovalDecisionRecord,
     ResearchApprovalRequestRecord,
+    ResearchBriefRecord,
     ResearchRunRecord,
     ResearchSideEffectRecord,
 )
@@ -245,8 +248,26 @@ class SqlAlchemySecMonitorSubscriptionRepository:
                     raise ResearchResumeStateError
 
                 parsed = _subscription_input(approval)
+                brief = await session.scalar(
+                    select(ResearchBriefRecord)
+                    .where(
+                        ResearchBriefRecord.research_run_id == research.id,
+                        ResearchBriefRecord.workspace_id == scope.workspace_id,
+                    )
+                    .order_by(ResearchBriefRecord.revision.desc())
+                    .limit(1)
+                )
+                if brief is None or brief.financial_scope is None:
+                    raise ResearchResumeStateError
+                locked_scope = FinancialScope.from_mapping(brief.financial_scope)
                 filer = await session.scalar(
                     select(SecFilerRecord).where(SecFilerRecord.cik == parsed.cik)
+                )
+                reviewed_filing = await session.scalar(
+                    select(SecFilingRecord).where(
+                        SecFilingRecord.accession == locked_scope.accession,
+                        SecFilingRecord.cik == parsed.cik,
+                    )
                 )
                 knowledge_base = await session.scalar(
                     select(KnowledgeBaseRecord).where(
@@ -255,7 +276,13 @@ class SqlAlchemySecMonitorSubscriptionRepository:
                         KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
                     )
                 )
-                if filer is None or knowledge_base is None:
+                if (
+                    filer is None
+                    or knowledge_base is None
+                    or reviewed_filing is None
+                    or reviewed_filing.accepted_at > locked_scope.as_of
+                    or reviewed_filing.form not in parsed.allowed_forms
+                ):
                     raise ResearchResumeStateError
                 monitor_id = uuid5(NAMESPACE_URL, f"sec-monitor-approval:{approval.id}")
                 schedule = await SqlAlchemyScheduleWriter(session).ensure_schedule(
@@ -318,9 +345,9 @@ class SqlAlchemySecMonitorSubscriptionRepository:
                         monitor_id=monitor_id,
                         workspace_id=scope.workspace_id,
                         revision=1,
-                        coverage_version=f"sec-monitor-initial-{filer.source_version}"[:128],
-                        accepted_at=None,
-                        accession=None,
+                        coverage_version="sec-monitor-reviewed-filing-v1",
+                        accepted_at=reviewed_filing.accepted_at,
+                        accession=reviewed_filing.accession,
                         monitor_run_id=None,
                         created_at=decided_at,
                     )
