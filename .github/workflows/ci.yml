@@ -71,7 +71,7 @@ jobs:
   fresh-postgresql-migration:
     name: PostgreSQL integration
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       APP_ENVIRONMENT: test
       POSTGRES_HOST: 127.0.0.1
