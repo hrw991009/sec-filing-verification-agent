@@ -27,6 +27,8 @@ from industry_platform.modules.evidence.domain import (
     InvalidateEvidence,
     NormalizeObservation,
     ResearchClaim,
+    SecFilingTableCellCoordinateV1,
+    SecFilingTextLocatorV1,
 )
 from industry_platform.modules.evidence.ports import EvidenceUseCase
 from industry_platform.modules.evidence.router import get_evidence_service
@@ -69,9 +71,18 @@ class StubEvidenceService:
     invalidate_calls: list[tuple[WorkspaceScope, InvalidateEvidence]] = field(default_factory=list)
     claim_calls: list[tuple[WorkspaceScope, CreateClaim]] = field(default_factory=list)
     evidence: Evidence | None = None
+    available: bool = True
 
     async def get_evidence(self, _scope: WorkspaceScope, _evidence_id: UUID) -> Evidence:
         return self.evidence or active_evidence()
+
+    async def is_evidence_available(self, _scope: WorkspaceScope, _evidence_id: UUID) -> bool:
+        return self.available
+
+    async def resolve_evidence(
+        self, _scope: WorkspaceScope, _evidence_id: UUID
+    ) -> tuple[Evidence, bool]:
+        return self.evidence or active_evidence(), self.available
 
     async def normalize_observation(
         self,
@@ -178,6 +189,50 @@ def active_evidence() -> Evidence:
     )
 
 
+def table_evidence() -> Evidence:
+    return replace(
+        active_evidence(),
+        kind=EvidenceKind.FILING,
+        title="SEC filing table",
+        canonical_url="https://www.sec.gov/Archives/edgar/data/320193/filing.htm",
+        locator=SecFilingTextLocatorV1(
+            cik="0000320193",
+            accession="0000320193-23-000106",
+            form="10-K",
+            report_period="2023-09-30",
+            as_of="2023-11-04T00:00:00+00:00",
+            filed_at="2023-11-03T00:00:00+00:00",
+            accepted_at="2023-11-03T06:01:00+00:00",
+            canonical_url="https://www.sec.gov/Archives/edgar/data/320193/filing.htm",
+            snapshot_id=UUID("10000000-0000-4000-8000-000000000001"),
+            source_version="sec-filing-primary-v1",
+            source_content_sha256="b" * 64,
+            knowledge_base_id=UUID("10000000-0000-4000-8000-000000000002"),
+            document_id=UUID("10000000-0000-4000-8000-000000000003"),
+            document_version_id=UUID("10000000-0000-4000-8000-000000000004"),
+            chunk_id=UUID("10000000-0000-4000-8000-000000000005"),
+            section="Financial data",
+            page_number=1,
+            content_sha256="a" * 64,
+            parser_version="1.0.0",
+            chunker_version="1.0.0",
+            index_version="knowledge-index-v1",
+            retrieval_profile_version="hybrid-v1",
+            retrieval_channels=("dense", "lexical"),
+            table_cells=(
+                SecFilingTableCellCoordinateV1(
+                    table_index=1,
+                    row_index=3,
+                    column_index=2,
+                    row_span=1,
+                    column_span=1,
+                    content_sha256="c" * 64,
+                ),
+            ),
+        ),
+    )
+
+
 def principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         user_id=USER_ID,
@@ -272,6 +327,56 @@ def test_calculation_evidence_response_preserves_reconciliation_lineage(
     assert locator["input_evidence_refs"] == [str(EVIDENCE_ID), str(SOURCE_ITEM_ID)]
     assert locator["reconciliation_status"] == "consistent"
     assert locator["reconciliation_version"] == "financial-reconciliation-v1"
+
+
+def test_citation_resolver_checks_persisted_table_cell_coordinates(
+    test_settings: Settings,
+) -> None:
+    service = StubEvidenceService(evidence=table_evidence())
+    root = f"/api/v1/workspaces/{WORKSPACE_ID}/evidence/{EVIDENCE_ID}/resolve"
+    with evidence_client(test_settings, service) as client:
+        resolved = client.get(
+            root,
+            headers=headers(),
+            params={"table_index": 1, "row_index": 3, "column_index": 2},
+        )
+        missing = client.get(
+            root,
+            headers=headers(),
+            params={"table_index": 1, "row_index": 4, "column_index": 2},
+        )
+        incomplete = client.get(root, headers=headers(), params={"table_index": 1})
+
+    assert resolved.status_code == 200
+    assert resolved.headers["cache-control"] == "no-store"
+    assert resolved.json()["resolvable"] is True
+    assert resolved.json()["resolved_table_cell"] == {
+        "table_index": 1,
+        "row_index": 3,
+        "column_index": 2,
+        "row_span": 1,
+        "column_span": 1,
+        "content_sha256": "c" * 64,
+    }
+    assert missing.status_code == 200
+    assert missing.json()["resolvable"] is False
+    assert missing.json()["failure_reason"] == "table_cell_not_found"
+    assert incomplete.status_code == 422
+
+
+def test_citation_resolver_reports_current_source_unavailability(
+    test_settings: Settings,
+) -> None:
+    service = StubEvidenceService(evidence=table_evidence(), available=False)
+    with evidence_client(test_settings, service) as client:
+        response = client.get(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/evidence/{EVIDENCE_ID}/resolve",
+            headers=headers(),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["resolvable"] is False
+    assert response.json()["failure_reason"] == "evidence_unavailable"
 
 
 def test_invalidation_requires_revision_and_outside_workspace_is_denied(

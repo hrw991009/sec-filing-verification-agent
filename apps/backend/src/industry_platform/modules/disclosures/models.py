@@ -976,3 +976,135 @@ class SecDisclosureCaseEvidenceRecord(UUIDPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class SecBulkSourceRecord(UUIDPrimaryKeyMixin, Base):
+    """One immutable official nightly bulk archive stored in private object storage."""
+
+    __tablename__ = "sec_bulk_sources"
+    __table_args__ = (
+        UniqueConstraint("source_url", "source_version"),
+        CheckConstraint(
+            "dataset_kind IN ('submissions', 'companyfacts')",
+            name="dataset_kind_supported",
+        ),
+        CheckConstraint(
+            "(dataset_kind = 'submissions' AND source_url = "
+            "'https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip') OR "
+            "(dataset_kind = 'companyfacts' AND source_url = "
+            "'https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip')",
+            name="source_url_allowlisted",
+        ),
+        CheckConstraint("octet_length(content_sha256) = 32", name="content_sha256_length"),
+        CheckConstraint("byte_size > 0", name="byte_size_positive"),
+        CheckConstraint("length(btrim(object_bucket)) > 0", name="object_bucket_not_blank"),
+        CheckConstraint("length(btrim(object_key)) > 0", name="object_key_not_blank"),
+        CheckConstraint(
+            "coverage_through < bulk_published_at AND bulk_published_at <= retrieved_at",
+            name="watermark_order",
+        ),
+        Index(None, "dataset_kind", "bulk_published_at"),
+    )
+
+    dataset_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    content_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger(), nullable=False)
+    object_bucket: Mapped[str] = mapped_column(String(128), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    bulk_published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    coverage_through: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    adapter_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    watermark_policy_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecBulkEntryRecord(UUIDPrimaryKeyMixin, Base):
+    """Hash and identity of one validated CIK member inside a bulk archive."""
+
+    __tablename__ = "sec_bulk_entries"
+    __table_args__ = (
+        UniqueConstraint("bulk_source_id", "cik"),
+        CheckConstraint("cik ~ '^[0-9]{10}$' AND cik <> '0000000000'", name="cik_valid"),
+        CheckConstraint("entry_name = 'CIK' || cik || '.json'", name="entry_name_valid"),
+        CheckConstraint("octet_length(content_sha256) = 32", name="content_sha256_length"),
+        CheckConstraint("byte_size > 0", name="byte_size_positive"),
+        Index(None, "cik", "bulk_source_id"),
+    )
+
+    bulk_source_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("sec_bulk_sources.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    entry_name: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecBulkGapClosureRecord(UUIDPrimaryKeyMixin, Base):
+    """One append-only proof that an archive watermark was followed by an API read."""
+
+    __tablename__ = "sec_bulk_gap_closures"
+    __table_args__ = (
+        UniqueConstraint("bulk_entry_id", "gap_observed_through"),
+        CheckConstraint(
+            "coverage_from_exclusive < gap_observed_through",
+            name="gap_order",
+        ),
+        Index(None, "bulk_entry_id", "gap_observed_through"),
+    )
+
+    bulk_entry_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("sec_bulk_entries.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    coverage_from_exclusive: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    gap_observed_through: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SecBulkGapSourceRecord(UUIDPrimaryKeyMixin, Base):
+    """An immutable official API response supporting a post-watermark closure."""
+
+    __tablename__ = "sec_bulk_gap_sources"
+    __table_args__ = (
+        UniqueConstraint("gap_closure_id", "source_url", "source_version"),
+        CheckConstraint(
+            "source_url LIKE 'https://data.sec.gov/%'",
+            name="source_url_allowlisted",
+        ),
+        CheckConstraint("octet_length(content_sha256) = 32", name="content_sha256_length"),
+        CheckConstraint(
+            "source_available_at <= retrieved_at",
+            name="availability_order",
+        ),
+    )
+
+    gap_closure_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("sec_bulk_gap_closures.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    source_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    content_sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    source_available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

@@ -346,6 +346,7 @@ class Settings(BaseSettings):
         validation_alias="AGENT_MODEL_ROUTE_JSON",
     )
     agent_model_request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
+    agent_model_controlled_loopback: bool = False
 
     world_bank_news_terms_approved: bool = False
     alpha_vantage_api_key: SecretStr | None = None
@@ -363,6 +364,8 @@ class Settings(BaseSettings):
     sec_catalog_cache_ttl_seconds: Annotated[int, Field(ge=60, le=86_400)] = 3_600
     sec_request_timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 20.0
     sec_request_max_attempts: Annotated[int, Field(ge=1, le=5)] = 3
+    sec_bulk_request_timeout_seconds: Annotated[float, Field(ge=30, le=3_600)] = 900.0
+    sec_controlled_source_manifest_path: Path | None = None
 
     text2sql_database_url: SecretStr | None = None
     text2sql_statement_timeout_ms: Annotated[int, Field(ge=100, le=30_000)] = 2_000
@@ -458,6 +461,14 @@ class Settings(BaseSettings):
             value is not None for value in values
         ):
             raise ValueError("Agent model Provider configuration must be complete")
+        if self.agent_model_controlled_loopback:
+            if self.app_environment is not AppEnvironment.TEST:
+                raise ValueError("Controlled model loopback is allowed only in test")
+            if (
+                self.agent_model_provider_base_url is None
+                or not self.agent_model_provider_base_url.startswith("http://127.0.0.1:")
+            ):
+                raise ValueError("Controlled model loopback requires an explicit loopback URL")
         return self
 
     @model_validator(mode="after")
@@ -469,6 +480,11 @@ class Settings(BaseSettings):
             value is not None for value in values
         ):
             raise ValueError("SEC User-Agent configuration must be complete")
+        if (
+            self.sec_controlled_source_manifest_path is not None
+            and self.app_environment is not AppEnvironment.TEST
+        ):
+            raise ValueError("Controlled SEC sources are allowed only in test")
         return self
 
     @model_validator(mode="after")
@@ -527,6 +543,10 @@ class Settings(BaseSettings):
     @property
     def sec_source_configured(self) -> bool:
         return self.sec_user_agent_app is not None
+
+    @property
+    def sec_controlled_source_configured(self) -> bool:
+        return self.sec_controlled_source_manifest_path is not None
 
     @property
     def sec_user_agent(self) -> str:

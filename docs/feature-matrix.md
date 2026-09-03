@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-31
+> 更新日期：2026-09-01
 >
-> 权威来源：`docs/master-plan.md` 2.2.13
+> 权威来源：`docs/master-plan.md` 2.2.15
 
 ## 1. 使用规则
 
@@ -206,15 +206,17 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | ID | 目标能力与用户结果 | 来源 | 冻结范围 | 验收证据 | 当前状态 | Day 10 |
 |---|---|---|---|---|---|---|
 | D6-01 | Filer/CIK 身份解析 | SEC + NEW | 公司名/ticker/历史 alias → 候选 → 明确 CIK；歧义必须澄清 | identity fixture、历史 alias、多候选与错误公司负向 | `implemented_pending_verification` | `complete` |
-| D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `thin_slice` | `complete` |
+| D6-02 | Filing/accession 时点选择 | SEC + NEW | 启用 `10-K/10-Q/10-K/A`，`10-Q/A` 仅保证 amendment 合同兼容；report/filed/accepted/public-available time、visibility/amendment policy、`as_of`、base relation，以及 submissions current + `filings.files` supplemental + bulk/incremental watermark coverage | cutoff、form、期间、可见性依据、amendment、历史 supplemental、重复 accession、coverage 缺失/损坏、post-watermark gap 与 future leakage 测试 | `implemented_pending_verification` | `complete` |
 | D6-03 | 不可变原始 Filing 快照 | SEC + R1 | canonical identity/current projection、append-only source version 与 Workspace import 分层；官方 HTML/iXBRL/XML/response/必要附件、URL、source-version visibility、retrieved_at、hash、MinIO ref | correction/deletion、重复同步、引用/删除、内容变化异常、损坏/partial 与授权测试 | `implemented_pending_verification` | `complete` |
 | D6-04 | XBRL Context/Fact | SEC + NEW | concept/value/unit/instant-duration/accession；聚合 response 与 raw iXBRL/instance XML 来源分离，context/dimensions/decimals/scale 按 source capability 可空 | standard/custom tag、aggregate/raw locator、单位/期间/context、provenance 与 locator 测试 | `implemented_pending_verification` | `complete` |
 | D6-05 | SEC typed read Tools | SEC + NEW | `resolve_filer/list_filings/get_xbrl_facts/search_filing/read_filing_section` | Tool schema、参数、allowlist、错误语义和同一 Runtime Trace | `implemented_pending_verification` | `complete` |
-| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `thin_slice` | `complete` |
+| D6-06 | Fair Access 与来源治理 | SEC + NEW | 服务端 User-Agent、全局速率预算、缓存、429/5xx 退避；<100 CIK API、≥100 CIK 或全量刷新走 bulk；bulk 保存 published/coverage watermark，时间缺口须由官方增量补齐；无浏览器直连 | client contract、rate-limit、bulk threshold/watermark/hash/partial/failure、post-watermark gap、timeout、license/source review | `implemented_pending_verification` | `complete` |
 | D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `implemented_pending_verification` | `complete` |
 
 2026-08-27 收口映射：Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head `7a4766b` 的 push/PR CI `33053621106`、`33053623731` 和合并提交 `84a7945` 的 main CI `33054136204` 均通过 7 个适用 Job，项目所有者已要求核对 Day 6 并准备 Day 7 文档。提交、合并和 CI 条件已关闭，但确定性报告仍为 contract `18/18`、closeout `4/6`、总计 `22/24`，两条 bulk watermark case 保持 `capability_missing` 且没有从分母删除；当前也没有合法 SEC 联系身份对应的 live smoke。因此 D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 继续为 `implemented_pending_verification`，D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。Day 6 分支结束不等于 D6-01～D6-08 全部 `complete`。详见 [Day 6 执行计划](learning-log/day-6.md)。
+
+2026-09-01 技术债收口：新增 `submissions.zip`/`companyfacts.zip` 流式下载与内容寻址 MinIO snapshot、PostgreSQL archive/CIK entry/gap source 不可变账本、`Last-Modified` published watermark、`coverage_through=bulk_published_at-1s` 策略，以及水位后强制绕开普通 cache 的官方 API 增量读取。冻结 ZIP 的成功、截断、水位缺失、危险 member、CIK 缺失与重复同步测试已绑定原两条 closeout case，`sec-source-v1` 提升为 contract `18/18`、closeout `6/6`、总计 `24/24`、bulk readiness `2/2`。同日 `OfficialSecJsonClient` 使用已配置联系身份完成 CIK `0000320193` live smoke；非 PII 结果保存在 Git 忽略的 `.data/evals/sec-live-identity-v1.json`。D6-02/D6-06 升为 `implemented_pending_verification`；真实 1.4～1.6 GB bulk 运行、外部来源权利/所有者复核、适用浏览器与新分支/PR/main CI 尚未完成，因此 D6-01～D6-08 不改写为 `complete`。
 
 ## 9. Day 7：Filing Hybrid Retrieval、计算与核对
 
@@ -293,7 +295,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 |---|---|---|---|---|---|---|
 | D10-01 | SEC 产品路由与状态 | NEW | Filer/Filings、Verification、Evidence/Calculation、Monitor/Case、Eval；ambiguous/partial/conflict/insufficient | 组件、权限、刷新恢复和路由 E2E | `implemented_pending_verification` | `complete` |
 | D10-02 | 完整中文用户路径 | SEC + NEW | resolve→accession/as_of→XBRL+RAG→calculate→verify→report→approve monitor→diff Case | 无人工改库/假数据的 Playwright + 真实来源演示分报 | `implemented_pending_verification` | `complete` |
-| D10-03 | 完整 CI 与供应链门禁 | NEW | format/type/test/build/migration/OpenAPI/Gitleaks/Semgrep/audit/license/NOTICE/coverage | 干净 branch/main CI、核心≥90%、后端≥80%、关键前端≥75% | `implemented_pending_verification` | `complete` |
+| D10-03 | 完整 CI 与供应链门禁 | NEW | format/type/test/build/migration/OpenAPI/Gitleaks/Semgrep/audit/license/NOTICE/coverage | 干净 branch/main CI、核心≥90%、后端≥80%、关键前端≥75% | `complete` | `complete` |
 | D10-04 | SEC Agent 可观测与审计 | NEW | request/job/run/tool/evidence/calculation/checkpoint/monitor/case、rate-limit/freshness/future leakage | Workbench/告警定位和固定报告可重放 | `thin_slice` | `complete` |
 | D10-05 | Agent/SEC 安全收口 | NEW | Workspace、Tool、Prompt Injection、Secret、对象访问、写审批、来源许可、免责声明 | 跨租户/未来信息/未授权写/Secret/敏感原文均为 0 | `thin_slice` | `complete` |
 | D10-06 | 环境、恢复与回滚 | NEW | fresh startup、备份恢复、Filing 索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障、上一镜像 | Runbook 演练、正式 Scenario 继续且零重复副作用 | `thin_slice` | `complete` |
@@ -309,6 +311,10 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 2026-08-31 Step 4 映射：固定核心模块集合通过 Evidence 与 Research fail-closed 边界回归达到 90%，CI 阈值同步从 85% 提升到 90%，后端总门仍为 80%、关键 Web 门仍为 75%。仓库新增锁定的 Semgrep 1.175.0、Python/Node license scanner、NOTICE 记录和生成物漂移检查。`sec-release-recovery-v1` 冻结 fresh migration、备份恢复、索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障、dead-letter、通知不确定性和上一镜像共 12 个场景，并要求实际 evidence hash、Run/Case/Workspace 绑定、终态和副作用计数。当前 observation 明确为 `not_executed`/0 of 12，四个恢复指标均 `not_measured`、告警均 `unknown`，故恢复门未通过。本机五个真实依赖强制开启且无 skip 的后端全量为 `1345 passed`，总体/核心 branch coverage 为 `80.76%`/`90%`；Web 为 `94 passed`、关键状态覆盖率 `100%`，现有 Chromium 套件为 `8 passed`，但其中 SEC 工作台用 API replay/interception，不作为无拦截完整产品旅程证据。readiness 登记 63 个 artifact，状态为 45 complete、33 implemented pending verification、9 thin slice、1 planned；16 个总 blocker、5 个 pending external gate 与 `no_go` 不变。D10-03 仅为 `implemented_pending_verification`，D10-06 仅为 `thin_slice`，仍需远端 branch/main CI、正式恢复演练和上一镜像 artifact。
 
 2026-08-31 Step 5 映射：最终审计继续使用唯一 `sec-release-readiness-v1`，没有新增第二套发布状态机或手工覆盖报告。README、产品范围、ADR 0007、架构、评测、恢复 Runbook、许可证/NOTICE 和 `v0.2.0-sec-disclosure-verifier` 候选说明草案已同步；候选草案显式为 `NO_GO`，并禁止 tag、镜像和生产能力声明。上述文档进入 hash artifact 台账，本地相对链接由 Markdown AST 检查。状态调整后为 45 complete、33 implemented pending verification、10 thin slice、0 planned；43 个未完成目标、16 个 blocker、5 个 pending external gate 保持不变。D10-07 仍为 `thin_slice`；D10-08 从 `planned` 推进为 `thin_slice`，因为 Day 10 branch/PR/main CI、owner acceptance、外部权利/凭据和可提升的发布候选均尚缺。
+
+2026-09-01 合并收口映射：[PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 已将 Day 10 合入 `main`。功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job；main 的真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`。因此 D10-03 升为 `complete`，Day 4 核心覆盖率债务关闭。当前为 46 complete、32 implemented pending verification、10 thin slice、0 planned；42 个未完成目标、15 个 open blocker、5 个 pending external gate，结论仍为 `no_go`。该远端浏览器 Job 仍使用现有 interception 套件，不关闭 D10-02 无拦截中文全链；生产 Run、正式恢复、外部治理和 owner acceptance 也仍未完成。
+
+2026-09-01 无拦截闭环实现映射：当前分支新增 hash 受控衍生 SEC 时序来源、test-only loopback HTTP Provider、正式 API/Web/Dispatcher/Celery Worker 编排和 Monitor 手动 Schedule 触发。独立 Playwright spec 无 API interception，按页面完成 Knowledge Base、两期 Filing import、中文 Research、审批/resume、Verification/Evidence、Monitor/verified Case；Browser CI 配置 PostgreSQL、Redis、MinIO、Milvus、Elasticsearch 五个真实依赖并留存 Provider/API/截图 artifact。聚焦 Python `141 passed`、默认后端全量 `1278 passed, 89 skipped`、全仓 mypy 530 个源文件和 Web TypeScript 已通过；本机 Docker Desktop 未运行，五依赖旅程与本轮远端 CI 尚未产生成功证据，因此 D10-02 保持 `implemented_pending_verification`，不改写生产 0/50、恢复 0/12、live/公开评测和 `no_go`。
 
 ## 13. 明确不继承的参考项目行为
 

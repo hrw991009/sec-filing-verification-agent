@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
@@ -43,13 +44,41 @@ _XBRL_DOCUMENT_TYPES = {
 
 
 class FrozenSecFilingArchiveAdapter:
-    def __init__(self, archive: SecFilingArchive) -> None:
-        self._archive = archive
+    def __init__(
+        self,
+        archive: SecFilingArchive | dict[str, SecFilingArchive],
+    ) -> None:
+        self._archives = (
+            dict(archive) if isinstance(archive, dict) else {archive.filing.accession: archive}
+        )
 
     async def fetch_archive(self, filing: SecCanonicalFiling) -> SecFilingArchive:
-        if filing != self._archive.filing:
+        archive = self._archives.get(filing.accession)
+        if archive is None or not _same_filing_identity(filing, archive.filing):
             raise SecFilingArchiveNotFoundError
-        return self._archive
+        return replace(archive, filing=filing)
+
+
+def _same_filing_identity(left: SecCanonicalFiling, right: SecCanonicalFiling) -> bool:
+    return (
+        left.cik,
+        left.accession,
+        left.form,
+        left.report_date,
+        left.filed_date,
+        left.accepted_at,
+        left.public_available_at,
+        left.primary_document,
+    ) == (
+        right.cik,
+        right.accession,
+        right.form,
+        right.report_date,
+        right.filed_date,
+        right.accepted_at,
+        right.public_available_at,
+        right.primary_document,
+    )
 
 
 class SecFilingArchiveNotFoundError(SecSourceError):

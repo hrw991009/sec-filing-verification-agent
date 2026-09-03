@@ -71,6 +71,31 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_evidence.py"
     },
     {
+      "artifact_id": "release-execution-runner",
+      "description": "Production UnifiedAgentRuntime executor for the frozen A0 through A4 release matrix.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_execution.py"
+    },
+    {
+      "artifact_id": "release-execution-tests",
+      "description": "Strategy, source-order, scope, runtime, and batch execution contract tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_execution.py"
+    },
+    {
+      "artifact_id": "release-case-dataset",
+      "description": "Frozen ten-case Chinese SEC production evaluation dataset.",
+      "relative_path": "evals/scenarios/sec-release-cases-v1.json"
+    },
+    {
+      "artifact_id": "release-observation-collector",
+      "description": "PostgreSQL-backed production Run, ranked candidate, Citation, and final-state observation collector.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_observation_collector.py"
+    },
+    {
+      "artifact_id": "release-observation-collector-tests",
+      "description": "Coverage, strict-template, ranked-source, and collector contract tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_observation_collector.py"
+    },
+    {
       "artifact_id": "release-evidence-manifest",
       "description": "Frozen ten-case A0 through A4 scope, repetitions, and hard thresholds.",
       "relative_path": "evals/manifests/sec-release-evidence-v1.json"
@@ -111,6 +136,26 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery.py"
     },
     {
+      "artifact_id": "release-recovery-executor",
+      "description": "Isolated twelve-scenario command, state-probe, redaction, and observation executor.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_executor.py"
+    },
+    {
+      "artifact_id": "release-recovery-executor-tests",
+      "description": "Recovery plan coverage, command safety, redaction, evidence, and template tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_executor.py"
+    },
+    {
+      "artifact_id": "release-recovery-exercise",
+      "description": "Fixed twelve-scenario fault, restore, rebuild, rollback, and integrity exercise implementation.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_exercise.py"
+    },
+    {
+      "artifact_id": "release-recovery-exercise-tests",
+      "description": "Recovery exercise registration, service fault, probe, integrity, and data-loss tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_exercise.py"
+    },
+    {
       "artifact_id": "release-recovery-manifest",
       "description": "Frozen twelve-scenario release recovery and rollback contract.",
       "relative_path": "evals/manifests/sec-release-recovery-v1.json"
@@ -134,6 +179,41 @@
       "artifact_id": "release-recovery-runbook",
       "description": "Reproducible staging-only dependency fault, restore, rebuild, and rollback procedures.",
       "relative_path": "docs/runbooks/day-10-release-recovery.md"
+    },
+    {
+      "artifact_id": "release-acceptance-runner",
+      "description": "Fail-closed preflight, browser, Run evidence, recovery, and live SEC acceptance orchestrator.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_acceptance.py"
+    },
+    {
+      "artifact_id": "release-acceptance-tests",
+      "description": "Acceptance phase, blocked input, report, and false-completion regression tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_acceptance.py"
+    },
+    {
+      "artifact_id": "release-acceptance-runbook",
+      "description": "One-command automated engineering acceptance and final manual evidence review procedure.",
+      "relative_path": "docs/runbooks/sec-release-acceptance.md"
+    },
+    {
+      "artifact_id": "sec-filing-table-parser",
+      "description": "Bounded SEC HTML table-cell coordinate and content-hash extraction.",
+      "relative_path": "apps/backend/src/industry_platform/modules/disclosures/filing_tables.py"
+    },
+    {
+      "artifact_id": "sec-filing-table-tests",
+      "description": "Rowspan, colspan, marker integrity, script exclusion, and nested-table tests.",
+      "relative_path": "apps/backend/tests/modules/disclosures/test_filing_tables.py"
+    },
+    {
+      "artifact_id": "citation-resolver",
+      "description": "Workspace-scoped Citation resolution endpoint with optional SEC table-cell coordinates.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evidence/router.py"
+    },
+    {
+      "artifact_id": "citation-resolver-tests",
+      "description": "Citation resolution, missing-cell, and incomplete-coordinate API tests.",
+      "relative_path": "apps/backend/tests/modules/evidence/test_api.py"
     },
     {
       "artifact_id": "semgrep-rules",
@@ -341,7 +421,7 @@
       "relative_path": "evals/reports/sec-release-failure-taxonomy-v1.json"
     }
   ],
-  "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+  "baseline_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
   "blockers": [
     {
       "blocker_id": "credential-disposition-open",
@@ -349,24 +429,24 @@
       "detail": "Six reference-repository credential candidates still require provider-side disposition and a clean rescan.",
       "external_gate_ids": ["provider-credential-disposition"],
       "owner": "project-owner",
-      "requirement_ids": ["D1-09", "D10-03", "D10-05", "D10-07"],
+      "requirement_ids": ["D1-09", "D10-05", "D10-07"],
       "source": "cross_day_audit",
       "status": "open"
     },
     {
       "blocker_id": "day4-core-coverage-debt",
-      "closure_artifact_ids": [],
-      "detail": "The frozen core module set reaches the 90 percent local threshold without omissions, and CI now enforces it; a clean remote real-dependency run is still required before closure.",
-      "external_gate_ids": [],
+      "closure_artifact_ids": ["ci-workflow", "day-10-log", "feature-matrix"],
+      "detail": "Day 10 main CI 33463386752 passed all seven jobs with five real dependencies, 1347 backend tests, 80.72 percent total branch coverage, and 90 percent frozen core coverage.",
+      "external_gate_ids": ["day10-main-ci"],
       "owner": "implementation-agent",
-      "requirement_ids": ["D10-03", "D10-07"],
+      "requirement_ids": ["D10-03"],
       "source": "cross_day_audit",
-      "status": "open"
+      "status": "closed"
     },
     {
       "blocker_id": "day5-browser-evidence-missing",
       "closure_artifact_ids": [],
-      "detail": "The product path now joins a locked filing to Research, Verification, Evidence, approval, Monitor, and Case APIs, but still lacks one no-interception browser acceptance chain against all real dependencies.",
+      "detail": "The no-interception browser runner and five-dependency product path are implemented, but the current source commit still lacks one successful uploaded acceptance artifact and owner visual review.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D5-08", "D5-09", "D10-02"],
@@ -375,9 +455,29 @@
     },
     {
       "blocker_id": "day6-source-closeout-incomplete",
+      "closure_artifact_ids": ["sec-source-report", "day-6-log", "feature-matrix"],
+      "detail": "Closed on 2026-09-01: both bulk watermark and post-watermark gap cases pass, sec-source-v1 is 24 of 24, and the separate SEC identity live smoke succeeded.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D6-01",
+        "D6-02",
+        "D6-03",
+        "D6-04",
+        "D6-05",
+        "D6-06",
+        "D6-07",
+        "D6-08",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "status": "closed"
+    },
+    {
+      "blocker_id": "day6-verification-evidence-pending",
       "closure_artifact_ids": [],
-      "detail": "Day 6 remains 22 of 24 with bulk watermark, post-watermark gap, and live SEC evidence still open.",
-      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "detail": "Day 6 implementation is 24 of 24, but real large-archive execution, source-rights owner review, applicable browser evidence, and the current branch CI remain open.",
+      "external_gate_ids": ["external-license-owner-review"],
       "owner": "implementation-agent",
       "requirement_ids": [
         "D6-01",
@@ -396,7 +496,7 @@
     {
       "blocker_id": "day7-retrieval-citation-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Ranked retrieval quality, table locators, citation resolution, runtime binding, and final owner evidence remain open.",
+      "detail": "SEC HTML table-cell locators, Citation resolution, and the production Run/ranked-source collector are implemented; actual Recall at 5, 50 or 150 Runtime observations, CI, and owner evidence remain open.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -417,7 +517,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state. A frozen twelve-scenario recovery contract and Runbook now exist, but observations remain 0 of 12 and dedicated no-interception browser evidence is absent.",
+      "detail": "The Workbench, no-interception browser runner, frozen recovery contract, safe execution-plan runner, and observation materializer exist; current-source browser evidence and actual recovery observations remain unexecuted.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -442,19 +542,15 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 through 5 have local implementation and final audit evidence; production evaluation runs, executed recovery evidence, remote branch/PR/main CI, and owner acceptance remain incomplete.",
-      "external_gate_ids": ["final-owner-acceptance"],
-      "owner": "implementation-agent",
-      "requirement_ids": [
-        "D10-01",
-        "D10-02",
-        "D10-03",
-        "D10-04",
-        "D10-05",
-        "D10-06",
-        "D10-07",
-        "D10-08"
+      "detail": "Day 10 Steps 1 through 5 are merged and branch, pull-request, and main CI are verified; production evaluation runs, executed recovery evidence, and final owner acceptance remain incomplete.",
+      "external_gate_ids": [
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
       ],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D10-01", "D10-02", "D10-04", "D10-05", "D10-06", "D10-07", "D10-08"],
       "source": "cross_day_audit",
       "status": "open"
     },
@@ -541,8 +637,16 @@
     {
       "blocker_id": "remote-ci-owner-closeout-missing",
       "closure_artifact_ids": [],
-      "detail": "Day 9 three-layer CI is verified; final release owner acceptance remains pending.",
-      "external_gate_ids": ["day9-push-ci", "day9-pr-ci", "day9-main-ci", "final-owner-acceptance"],
+      "detail": "Day 9 and Day 10 three-layer CI are verified; final release owner acceptance remains pending.",
+      "external_gate_ids": [
+        "day9-push-ci",
+        "day9-pr-ci",
+        "day9-main-ci",
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
+      ],
       "owner": "project-owner",
       "requirement_ids": [
         "D9-01",
@@ -562,14 +666,14 @@
   ],
   "expected_current_status_counts": {
     "blocked": 0,
-    "complete": 45,
+    "complete": 46,
     "contract_only": 0,
-    "implemented_pending_verification": 33,
+    "implemented_pending_verification": 34,
     "planned": 0,
-    "thin_slice": 10
+    "thin_slice": 8
   },
   "expected_requirement_count": 88,
-  "expected_requirement_digest": "856b548d60b4899b700b6cb38e18048c4142aa08df241621a7fdc826c5e12b21",
+  "expected_requirement_digest": "74a4eda91d0d2c441d9d8a1a4a6ab480d2ff90c62400f219fd8466299dbd4f24",
   "external_gates": [
     {
       "detail": "Day 9 feature-head push CI passed all seven applicable jobs.",
@@ -596,6 +700,33 @@
       "gate_id": "day9-main-ci",
       "owner": "github-actions",
       "source_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 feature-head push CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380",
+      "gate_id": "day10-push-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 pull-request CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633",
+      "gate_id": "day10-pr-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 merge-commit main CI passed all seven applicable jobs, including the five-real-dependency backend integration and frozen coverage gates.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752",
+      "gate_id": "day10-main-ci",
+      "owner": "github-actions",
+      "source_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
       "status": "verified"
     },
     {
@@ -635,7 +766,7 @@
       "status": "pending"
     },
     {
-      "detail": "Approved live model credentials and a compliant SEC identity are pending.",
+      "detail": "The SEC identity live smoke is verified separately; approved live model credentials remain pending.",
       "evidence_artifact_ids": [],
       "evidence_url": null,
       "gate_id": "live-provider-and-sec-identity",
@@ -648,7 +779,7 @@
   "limitations": [
     "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
-    "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
+    "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
   "manifest_id": "sec-release-readiness-manifest-v1",
   "manifest_version": "v1",
@@ -712,7 +843,15 @@
     {
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "verification_commands": [
         "pnpm run eval:sec-tool",
@@ -762,6 +901,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -770,11 +914,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",

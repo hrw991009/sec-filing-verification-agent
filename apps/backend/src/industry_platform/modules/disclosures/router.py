@@ -39,10 +39,13 @@ from industry_platform.modules.disclosures.schemas import (
     SecXbrlFactQueryParameters,
     SecXbrlSyncRequest,
     SecXbrlSyncResponse,
+    TriggerSecMonitorRunRequest,
+    TriggerSecMonitorRunResponse,
 )
 from industry_platform.modules.disclosures.subscription import (
     ChangeSecMonitorStatus,
     DecideSecMonitorSubscription,
+    TriggerSecMonitorRun,
 )
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
@@ -463,6 +466,36 @@ async def resume_monitor(
         principal=principal,
         resources=resources,
         target=SecMonitorStatus.ACTIVE,
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/disclosures/monitors/{monitor_id}/runs",
+    response_model=TriggerSecMonitorRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=_MONITOR_RESPONSES,
+)
+async def trigger_monitor_run(
+    workspace_id: UUID,
+    monitor_id: UUID,
+    payload: TriggerSecMonitorRunRequest,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+) -> TriggerSecMonitorRunResponse:
+    result = await resources.monitor_subscription_service.trigger_run(
+        _workspace_scope(principal, workspace_id),
+        TriggerSecMonitorRun(
+            monitor_id=monitor_id,
+            expected_revision=payload.expected_revision,
+            trigger_id=payload.trigger_id,
+        ),
+    )
+    set_no_store_headers(response)
+    return TriggerSecMonitorRunResponse(
+        occurrence_id=result.occurrence_id,
+        job_id=result.job_id,
+        created=result.created,
     )
 
 

@@ -358,11 +358,115 @@ def tool_action_response_schema(definition: ToolDefinition) -> Mapping[str, obje
                 "kind": {"type": "string", "const": "tool_call"},
                 "name": {"type": "string", "const": definition.name},
                 "version": {"type": "string", "const": definition.version},
-                "arguments": dict(definition.input_schema),
+                "arguments": _structured_output_input_schema(definition.input_schema),
             },
         },
         field_name="Tool Action response schema",
     )
+
+
+def _structured_output_input_schema(schema: Mapping[str, object]) -> dict[str, object]:
+    """Project a rich Tool input schema into the Provider's strict JSON subset."""
+
+    alternatives = schema.get("anyOf")
+    if alternatives is not None:
+        if not isinstance(alternatives, list | tuple) or not alternatives:
+            raise ValueError("Tool input schema alternatives are invalid")
+        return {
+            "anyOf": [
+                _structured_output_input_schema(_tool_schema_mapping(item)) for item in alternatives
+            ]
+        }
+
+    raw_type = schema.get("type")
+    if isinstance(raw_type, list | tuple):
+        if not raw_type or not all(isinstance(item, str) for item in raw_type):
+            raise ValueError("Tool input schema types are invalid")
+        projected = [
+            branch
+            for schema_type in raw_type
+            if (branch := _structured_output_type_branch(schema, schema_type)) is not None
+        ]
+        if not projected:
+            raise ValueError("Tool input schema has no compatible type branch")
+        return {"anyOf": projected}
+    if not isinstance(raw_type, str):
+        raise ValueError("Tool input schema type is invalid")
+    branch = _structured_output_type_branch(schema, raw_type)
+    if branch is None:
+        raise ValueError("Tool input schema constraints exclude its declared type")
+    return branch
+
+
+def _structured_output_type_branch(
+    schema: Mapping[str, object],
+    schema_type: str,
+) -> dict[str, object] | None:
+    if schema_type not in {
+        "array",
+        "boolean",
+        "integer",
+        "null",
+        "number",
+        "object",
+        "string",
+    }:
+        raise ValueError("Tool input schema type is unsupported")
+    projected: dict[str, object] = {"type": schema_type}
+    description = schema.get("description")
+    if description is not None:
+        if not isinstance(description, str):
+            raise ValueError("Tool input schema description is invalid")
+        projected["description"] = description
+    if "const" in schema:
+        constant = schema["const"]
+        if not _schema_value_matches_type(constant, schema_type):
+            return None
+        projected["const"] = constant
+    if "enum" in schema:
+        raw_enum = schema["enum"]
+        if not isinstance(raw_enum, list | tuple) or not raw_enum:
+            raise ValueError("Tool input schema enum is invalid")
+        enum_values = [item for item in raw_enum if _schema_value_matches_type(item, schema_type)]
+        if not enum_values:
+            return None
+        projected["enum"] = enum_values
+    if schema_type == "object":
+        properties = _tool_schema_mapping(schema.get("properties", {}))
+        projected_properties = {
+            key: _structured_output_input_schema(_tool_schema_mapping(value))
+            for key, value in properties.items()
+        }
+        projected["properties"] = projected_properties
+        projected["required"] = list(projected_properties)
+        projected["additionalProperties"] = False
+    elif schema_type == "array":
+        projected["items"] = _structured_output_input_schema(
+            _tool_schema_mapping(schema.get("items"))
+        )
+    return projected
+
+
+def _tool_schema_mapping(value: object) -> Mapping[str, object]:
+    if not isinstance(value, Mapping) or not all(isinstance(key, str) for key in value):
+        raise ValueError("Tool input schema object is invalid")
+    return cast(Mapping[str, object], value)
+
+
+def _schema_value_matches_type(value: object, schema_type: str) -> bool:
+    if schema_type == "object":
+        return isinstance(value, Mapping)
+    if schema_type == "array":
+        return isinstance(value, list | tuple)
+    if schema_type == "string":
+        return isinstance(value, str)
+    if schema_type == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if schema_type == "number":
+        return isinstance(value, int | float) and not isinstance(value, bool)
+    if schema_type == "boolean":
+        return isinstance(value, bool)
+    return value is None
 
 
 @dataclass(frozen=True, slots=True)

@@ -48,6 +48,7 @@ from industry_platform.modules.research.domain import (
     ResearchRunStatus,
     initial_research_state_document,
     research_brief_id_for_run,
+    research_queued_event_payload,
     research_run_id_for_agent_run,
 )
 from industry_platform.modules.research.models import ResearchBriefRecord, ResearchRunRecord
@@ -146,11 +147,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                 tool_call_limit=CONVERSATION_WEB_TOOL_CALL_LIMIT,
             )
         elif run.run_type is AgentRunType.RESEARCH:
-            queued_payload.update(
-                loop_level="l3",
-                graph_version=RESEARCH_GRAPH_VERSION,
-                tool_call_limit=CONVERSATION_WEB_TOOL_CALL_LIMIT,
-            )
+            queued_payload = research_queued_event_payload(run)
         self.session.add(
             Turn(
                 id=prepared.turn_id,

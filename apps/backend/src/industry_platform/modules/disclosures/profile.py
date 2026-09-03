@@ -34,13 +34,16 @@ SEC_SOURCE_PROMPT_VERSION: Final = "sec-source-l2-prompt-v1"
 SEC_SOURCE_TOOLSET_VERSION: Final = "sec-source-toolset-v1"
 SEC_SOURCE_HARNESS_VERSION: Final = "sec-source-harness-v1"
 SEC_SOURCE_MODEL_FIXTURE_VERSION: Final = "sec-source-model-v1"
+SEC_SOURCE_MAX_INPUT_TOKENS: Final = 8_192
 SEC_L4_PROFILE_VERSION: Final = "sec-l4-v1"
 SEC_L4_PROMPT_VERSION: Final = "sec-l4-prompt-v1"
 SEC_L4_TOOLSET_VERSION: Final = "sec-l4-toolset-v1"
+SEC_L4_MAX_INPUT_TOKENS: Final = 32_768
 SEC_L4_MAX_TOOL_CALLS: Final = 8
 SEC_L5_PROFILE_VERSION: Final = "sec-l5-v1"
 SEC_L5_PROMPT_VERSION: Final = "sec-l5-prompt-v1"
 SEC_L5_TOOLSET_VERSION: Final = "sec-l5-toolset-v1"
+SEC_L5_MAX_INPUT_TOKENS: Final = 32_768
 SEC_L5_MAX_TOOL_CALLS: Final = 8
 
 SEC_SOURCE_TOOL_REFERENCES: Final = (
@@ -111,7 +114,7 @@ def create_sec_source_profile(*, model: str) -> ToolL2Profile:
             output_contract_version="final-markdown-v1",
             toolset_version=SEC_SOURCE_TOOLSET_VERSION,
             model=model,
-            max_input_tokens=4_096,
+            max_input_tokens=SEC_SOURCE_MAX_INPUT_TOKENS,
             max_decision_output_tokens=768,
             max_tool_calls=5,
             system_instructions=(
@@ -137,6 +140,7 @@ def require_sec_source_profile(profile: ToolL2Profile) -> ToolL2Profile:
         or profile.prompt_version != SEC_SOURCE_PROMPT_VERSION
         or profile.toolset_version != SEC_SOURCE_TOOLSET_VERSION
         or profile.available_tools != SEC_SOURCE_TOOL_REFERENCES
+        or profile.max_input_tokens != SEC_SOURCE_MAX_INPUT_TOKENS
         or profile.max_tool_calls != 5
     ):
         raise ValueError("SEC source profile does not match the frozen five-Tool contract")
@@ -168,7 +172,7 @@ def create_sec_l4_profile(*, model: str) -> ToolL2Profile:
             output_contract_version="final-markdown-v1",
             toolset_version=SEC_L4_TOOLSET_VERSION,
             model=model,
-            max_input_tokens=4_096,
+            max_input_tokens=SEC_L4_MAX_INPUT_TOKENS,
             max_decision_output_tokens=768,
             max_tool_calls=SEC_L4_MAX_TOOL_CALLS,
             system_instructions=_SEC_L4_SYSTEM_INSTRUCTIONS,
@@ -185,6 +189,7 @@ def require_sec_l4_profile(profile: ToolL2Profile) -> ToolL2Profile:
         or profile.context_compiler_version != "financial-context-v1"
         or profile.toolset_version != SEC_L4_TOOLSET_VERSION
         or profile.available_tools != SEC_L4_TOOL_REFERENCES
+        or profile.max_input_tokens != SEC_L4_MAX_INPUT_TOKENS
         or profile.max_tool_calls != SEC_L4_MAX_TOOL_CALLS
     ):
         raise ValueError("SEC L4 profile does not match the frozen contract")
@@ -213,7 +218,7 @@ def create_sec_l5_profile(*, model: str) -> ToolL2Profile:
             output_contract_version="final-markdown-v1",
             toolset_version=SEC_L5_TOOLSET_VERSION,
             model=model,
-            max_input_tokens=4_096,
+            max_input_tokens=SEC_L5_MAX_INPUT_TOKENS,
             max_decision_output_tokens=768,
             max_tool_calls=SEC_L5_MAX_TOOL_CALLS,
             system_instructions=_SEC_L5_SYSTEM_INSTRUCTIONS,
@@ -230,6 +235,7 @@ def require_sec_l5_profile(profile: ToolL2Profile) -> ToolL2Profile:
         or profile.context_compiler_version != "financial-context-v1"
         or profile.toolset_version != SEC_L5_TOOLSET_VERSION
         or profile.available_tools != SEC_L5_TOOL_REFERENCES
+        or profile.max_input_tokens != SEC_L5_MAX_INPUT_TOKENS
         or profile.max_tool_calls != SEC_L5_MAX_TOOL_CALLS
     ):
         raise ValueError("SEC L5 profile does not match the frozen contract")

@@ -85,6 +85,7 @@ from industry_platform.modules.research.domain import (
     ResearchPlanAction,
     research_claim_id_for_run,
     research_draft_id_for_run,
+    research_queued_event_payload,
 )
 from industry_platform.modules.research.durability import (
     ApprovalToolRequest,
@@ -194,14 +195,7 @@ class ResearchL3Runtime(ToolL2Runtime):
                 events,
                 event_type=AgentEventType.RUN_QUEUED,
                 occurred_at=run.created_at,
-                payload={
-                    "run_type": run.run_type.value,
-                    "runtime_version": run.runtime_version,
-                    "harness_version": run.harness_version,
-                    "loop_level": "l4" if self._checkpoint_store is not None else "l3",
-                    "graph_version": RESEARCH_GRAPH_VERSION,
-                    "tool_call_limit": command.loop_command.policy.tool_call_limit,
-                },
+                payload=research_queued_event_payload(run),
             )
             await self._commit(events, queued)
             yield queued
@@ -246,21 +240,26 @@ class ResearchL3Runtime(ToolL2Runtime):
                 updated_at=initial_at,
             )
             resumed_run = replace(run, status=AgentRunStatus.RUNNING, state_revision=revision)
+            resume_payload: dict[str, object] = {
+                "state_revision": revision,
+                "checkpoint_revision": resume_snapshot.checkpoint_revision,
+                "resume_kind": resume_snapshot.kind.value,
+                "resume_node": (
+                    None if resume_snapshot.next_node is None else resume_snapshot.next_node.value
+                ),
+            }
+            if resume_snapshot.approved_tool_action is not None:
+                approved_observation = resume_snapshot.observations[-1]
+                resume_payload.update(
+                    approved_observation_id=str(approved_observation.observation_id),
+                    approved_observation_envelope_sha256=approved_observation.envelope_sha256,
+                )
             resumed_event = self._event(
                 resumed_run,
                 events,
                 event_type=AgentEventType.RUN_RESUMED,
                 occurred_at=initial_at,
-                payload={
-                    "state_revision": revision,
-                    "checkpoint_revision": resume_snapshot.checkpoint_revision,
-                    "resume_kind": resume_snapshot.kind.value,
-                    "resume_node": (
-                        None
-                        if resume_snapshot.next_node is None
-                        else resume_snapshot.next_node.value
-                    ),
-                },
+                payload=resume_payload,
             )
             validate_state_transition(state, resumed_state, expected_revision=state.revision)
             validate_run_state(resumed_run, resumed_state)
@@ -856,7 +855,8 @@ class _ResearchExecution:
             return
         service = self.runtime._verification_service
         if service is None:
-            raise ValueError("Financial Research requires the Verification service")
+            self.graph_state.graph["verification_action"] = None
+            return
         expected_revision = self.graph_state.graph["verification_revision"] + 1
         report = await service.verify(
             self.scope,

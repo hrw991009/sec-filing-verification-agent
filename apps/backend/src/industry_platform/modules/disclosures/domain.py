@@ -8,7 +8,7 @@ import re
 import unicodedata
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
@@ -164,6 +164,10 @@ class SecSourceErrorCode(StrEnum):
     CONTENT_TYPE_INVALID = "sec_content_type_invalid"
     RESPONSE_TOO_LARGE = "sec_response_too_large"
     RESPONSE_INVALID = "sec_response_invalid"
+    BULK_WATERMARK_INVALID = "sec_bulk_watermark_invalid"
+    BULK_ARCHIVE_PARTIAL = "sec_bulk_archive_partial"
+    BULK_ARCHIVE_INVALID = "sec_bulk_archive_invalid"
+    BULK_ENTRY_MISSING = "sec_bulk_entry_missing"
     COVERAGE_INCOMPLETE = "sec_coverage_incomplete"
     SNAPSHOT_STORE_UNAVAILABLE = "sec_snapshot_store_unavailable"
     FILING_NOT_FOUND = "sec_filing_not_found"
@@ -494,7 +498,11 @@ class SecFilingObservation:
         if self.filed_date < self.report_date:
             raise ValueError("SEC filing dates are invalid")
         require_utc(self.accepted_at, field_name="SEC filing accepted_at")
-        if self.accepted_at.date() < self.filed_date:
+        # EDGAR can assign the next filing date to an evening acceptance.
+        if self.accepted_at.date() not in {
+            self.filed_date,
+            self.filed_date - timedelta(days=1),
+        }:
             raise ValueError("SEC filing acceptance time is invalid")
         if _PRIMARY_DOCUMENT_PATTERN.fullmatch(self.primary_document) is None:
             raise ValueError("SEC filing primary document is invalid")
@@ -1032,6 +1040,32 @@ class SecFilingRetrievalTrace:
 
 
 @dataclass(frozen=True, slots=True)
+class SecFilingTableCell:
+    table_index: int
+    row_index: int
+    column_index: int
+    row_span: int
+    column_span: int
+    text: str = field(repr=False)
+    content_sha256: str
+
+    def __post_init__(self) -> None:
+        coordinates = (
+            self.table_index,
+            self.row_index,
+            self.column_index,
+            self.row_span,
+            self.column_span,
+        )
+        if any(isinstance(value, bool) or not 1 <= value <= 10_000 for value in coordinates):
+            raise ValueError("SEC filing table cell coordinates are invalid")
+        if not self.text.strip() or len(self.text) > 4_000:
+            raise ValueError("SEC filing table cell text is invalid")
+        if not _SHA256_PATTERN.fullmatch(self.content_sha256):
+            raise ValueError("SEC filing table cell hash is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class SecFilingSearchHit:
     chunk_id: UUID
     document_version_id: UUID
@@ -1052,6 +1086,7 @@ class SecFilingSearchHit:
     rrf_score: float | None = None
     rerank_score: float | None = None
     index_version: str = "knowledge-index-v1"
+    table_cells: tuple[SecFilingTableCell, ...] = ()
 
     def __post_init__(self) -> None:
         if any(
@@ -1084,7 +1119,14 @@ class SecFilingSearchHit:
                 raise ValueError("SEC filing retrieval score is invalid")
         if not _SOURCE_VERSION_PATTERN.fullmatch(self.index_version):
             raise ValueError("SEC filing index version is invalid")
+        table_cells = tuple(self.table_cells)
+        cell_keys = tuple(
+            (cell.table_index, cell.row_index, cell.column_index) for cell in table_cells
+        )
+        if len(table_cells) > 64 or len(cell_keys) != len(set(cell_keys)):
+            raise ValueError("SEC filing table cells are invalid")
         object.__setattr__(self, "retrieval_channels", channels)
+        object.__setattr__(self, "table_cells", table_cells)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1150,6 +1192,7 @@ class SecFilingSection:
     source_content_sha256: str
     source_url: str
     source_version: str
+    table_cells: tuple[SecFilingTableCell, ...] = ()
 
     def __post_init__(self) -> None:
         if any(
@@ -1170,6 +1213,13 @@ class SecFilingSection:
             or not _SHA256_PATTERN.fullmatch(self.source_content_sha256)
         ):
             raise ValueError("SEC filing section provenance is invalid")
+        table_cells = tuple(self.table_cells)
+        cell_keys = tuple(
+            (cell.table_index, cell.row_index, cell.column_index) for cell in table_cells
+        )
+        if len(table_cells) > 64 or len(cell_keys) != len(set(cell_keys)):
+            raise ValueError("SEC filing section table cells are invalid")
+        object.__setattr__(self, "table_cells", table_cells)
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,9 +4,9 @@
 >
 > 文档状态：已接受
 >
-> 更新日期：2026-08-31
+> 更新日期：2026-09-01
 >
-> 权威来源：`docs/master-plan.md` 2.2.13
+> 权威来源：`docs/master-plan.md` 2.2.15
 
 ## 1. 产品定位
 
@@ -16,7 +16,7 @@
 
 Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence、Research L3，以及 Day 5 已合并的 Knowledge/Research L4 实现继续复用；Day 5 的 SEC fixture 浏览器 DoD 仍须补齐。后续能力目标是以同一正式链路接入 SEC 披露和系统性评测，而不是复制一套“金融 Agent”旁路。
 
-“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.2.13 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
+“择优重构”指选择更可靠的职责划分、交互方式和技术实现，并合并重复能力；Day 1～Day 5 已发生事实不能被业务转向静默改写，后续范围只能按主计划 2.2.15 与能力矩阵显式变更。项目不会直接拼接旧仓库，也不会复制其中受版权保护的源码、文案、图片或素材。
 
 ## 2. Day 1～Day 10 目标与诚实边界
 
@@ -26,7 +26,7 @@ Day 1～Day 4 已完成的 Runtime、Tool、Memory、Evidence、Research L3，�
 v0.2.0-sec-disclosure-verifier
 ```
 
-截至 2026-08-31 的 Step 5 最终审计，该名称仍是目标版本而不是已发布版本或 release candidate。机器 readiness 为 `no_go`：88 个冻结目标中 43 个未完成，16 个 blocker open、5 个 external gate pending；生产 Run 为 0/50、正式恢复为 0/12。仓库中的[候选说明](release-notes/v0.2.0-sec-disclosure-verifier.md)仅为明确限制和提升条件的草案，不授权创建标签或扩大产品声明。
+截至 2026-09-01 的合并收口，该名称仍是目标版本而不是已发布版本或 release candidate。Day 10 三层 CI 已通过，D10-03 和 Day 4 核心覆盖率债务已关闭；机器 readiness 仍为 `no_go`：88 个冻结目标中 42 个未完成，15 个 blocker open、5 个 external gate pending，生产 Run 为 0/50、正式恢复为 0/12。仓库中的[候选说明](release-notes/v0.2.0-sec-disclosure-verifier.md)仅为明确限制和提升条件的草案，不授权创建标签或扩大产品声明。
 
 该版本需要建立一条真实可运行的中文核心用户路径：
 
@@ -335,8 +335,8 @@ Day 10 验收必须做一次双向能力审计：
 - Day 3 的同一 Runtime L0/L1/L2、受控 Tool Use、行业采集切片和 24 条累计 Scenario 已完成；PR #5 合并提交为 `6968c63f`，CI 为 `32112639811`。
 - Day 4 的 Memory、Evidence/Claim、Research L3、Workbench 与累计 50 条 Scenario 已完成；PR #7 合并提交为 `c0b854e`，CI 为 `32549438592`。核心 Domain/Application/Research workflow 合集覆盖率仍为 85%，必须在最终发布前补到 90%。
 - Day 5 五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`：功能 head `cff25c1` 的 push CI `32920879147` 与 PR CI `32924323618` 成功，合并提交 `a38d0ae` 的 main CI `32924732755` 再次通过 7 个适用 Job。D5-01～D5-07 为 `complete`；D5-08/D5-09 因缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器旅程，保持 `implemented_pending_verification`。
-- Day 6 已由 PR #10 合入 `main`，功能 head `7a4766b` 的 push/PR CI 与合并提交 `84a7945` 的 main CI 均通过 7 个适用 Job，提交、合并和 CI 条件已关闭。确定性报告仍为 contract 18/18、closeout 4/6；D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 保持 `implemented_pending_verification`，D6-02/D6-06 因 bulk watermark/post-watermark gap 保持 `thin_slice`，live smoke 也尚未完成。Day 6 分支结束不能写成冻结范围全部完成。
+- Day 6 已由 PR #10 合入 `main`，功能 head `7a4766b` 的 push/PR CI 与合并提交 `84a7945` 的 main CI 均通过 7 个适用 Job。2026-09-01 后续技术债收口实现流式 bulk snapshot、published/coverage watermark、post-watermark 官方 API 补缝和独立 live SEC identity smoke；确定性报告当前为 contract 18/18、closeout 6/6、总计 24/24。D6-01～D6-08 均为 `implemented_pending_verification`；真实大体积 bulk、外部权利/所有者、适用浏览器及本轮远端 CI 尚缺。
 
-项目所有者随后明确要求按五步继续 Day 6，只调整执行顺序，不等于放弃 Day 5 浏览器硬门。Day 6 专用 profile 与确定性评测链已实现，但 live SEC/bulk 和评测 closeout 仍未完成；两条 closeout case 已改期为 Day 10 发布硬门且保留原分母。Day 7 五步保持 Hybrid Retrieval/locator、Financial Context Compiler、calculator/reconciliation、diff/中文 L4/Workbench、`sec-tool-v1`/A0-A2 收口。Step 1 已实现 `hybrid-v1` 和 filing text/XBRL fact locator，D7-01=`implemented_pending_verification`、D7-02=`thin_slice`；Step 2 当前工作树已实现 `financial-context-v1`，D7-03=`implemented_pending_verification`。D7-04～D7-08 仍为 `planned`，ranking/table/Citation、真实 PostgreSQL和远端 CI 缺口保留。Verifier/Monitor、后台审批超时扫描和跨刷新/Worker 重启组合门属于 Day 8，公开 benchmark release suite 属于 Day 9。
+项目所有者随后明确要求按五步继续 Day 6，只调整执行顺序，不等于放弃 Day 5 浏览器硬门。Day 6 专用 profile、确定性评测、bulk watermark/post-gap 与 live SEC identity 已实现；这不关闭 Day 5 浏览器硬门、真实 bulk/模型运行或外部复核。Day 7 五步保持 Hybrid Retrieval/locator、Financial Context Compiler、calculator/reconciliation、diff/中文 L4/Workbench、`sec-tool-v1`/A0-A2 收口。Step 1 已实现 `hybrid-v1` 和 filing text/XBRL fact locator，D7-01=`implemented_pending_verification`、D7-02=`thin_slice`；Step 2 当前工作树已实现 `financial-context-v1`，D7-03=`implemented_pending_verification`。D7-04～D7-08 仍为 `planned`，ranking/table/Citation、真实 PostgreSQL和远端 CI 缺口保留。Verifier/Monitor、后台审批超时扫描和跨刷新/Worker 重启组合门属于 Day 8，公开 benchmark release suite 属于 Day 9。
 
 本文定义的是后续 SEC 披露事实核验 Agent 的范围和验收合同，不是已经具备该金融能力的实现声明。只有在相应代码、migration、正式 Tool、固定/公开/live Eval、安全审计、恢复演练和合并门禁全部留下证据后，相关目标才能升级为 `complete`。

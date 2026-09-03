@@ -159,6 +159,10 @@ def create_direct_answer_runtime_resources(
     tool_adapters: Sequence[RegisteredToolAdapter] = (),
     tool_surfaces: Mapping[TurnSearchMode, Sequence[ToolReference]] | None = None,
     fixture_catalog: SecFixtureCatalog | None = None,
+    direct_policy: DirectAnswerRuntimePolicy | None = None,
+    tool_policy_overrides: Mapping[TurnSearchMode, ToolL2RuntimePolicy] | None = None,
+    research_verifier_enabled: bool = True,
+    research_durability_enabled: bool = True,
 ) -> DirectAnswerRuntimeResources:
     """Build the same Runtime used by Harness while replacing only external adapters."""
 
@@ -168,7 +172,7 @@ def create_direct_answer_runtime_resources(
         if settings.agent_model_route is None
         else settings.agent_model_route.model
     )
-    policy = DirectAnswerRuntimePolicy(
+    policy = direct_policy or DirectAnswerRuntimePolicy(
         schema_version=1,
         profile_version="direct-answer-v0",
         prompt_version="direct-answer-prompt-v0",
@@ -182,6 +186,8 @@ def create_direct_answer_runtime_resources(
             "Do not claim to have searched the web or private knowledge sources."
         ),
     )
+    if policy.model != model:
+        raise ValueError("Direct Runtime policy model differs from the configured route")
     model_provider = OpenAICompatibleModelProvider(
         client=provider_http_client,
         config=provider_config,
@@ -271,6 +277,16 @@ def create_direct_answer_runtime_resources(
                     available_tools=tuple(references),
                 )
             )
+        for mode, override in dict(tool_policy_overrides or {}).items():
+            override_references = selected_surfaces.get(mode)
+            if (
+                override_references is None
+                or tuple(override_references) != override.available_tools
+            ):
+                raise ValueError("Runtime Tool policy override differs from its Tool surface")
+            if override.model != model:
+                raise ValueError("Runtime Tool policy model differs from the configured route")
+            tool_policies[mode] = override
         tool_runtime = ToolL2Runtime(
             context_compiler=shared_tool_compiler,
             context_manifest_store=manifest_store,
@@ -290,10 +306,14 @@ def create_direct_answer_runtime_resources(
         research_runtime = ResearchL3Runtime(
             workflow_store=research_repository,
             evidence_service=research_evidence_service,
-            verification_service=ResearchVerificationService(
-                research_repository=research_repository,
-                evidence_service=research_evidence_service,
-                report_repository=SqlAlchemyVerificationReportRepository(session_factory),
+            verification_service=(
+                ResearchVerificationService(
+                    research_repository=research_repository,
+                    evidence_service=research_evidence_service,
+                    report_repository=SqlAlchemyVerificationReportRepository(session_factory),
+                )
+                if research_verifier_enabled
+                else None
             ),
             context_compiler=shared_tool_compiler,
             context_manifest_store=manifest_store,
@@ -302,10 +322,16 @@ def create_direct_answer_runtime_resources(
             tool_executor=shared_tool_executor,
             event_committer=event_committer,
             cancellation_probe=cancellation_probe,
-            checkpoint_store=SqlAlchemyCheckpointStore(session_factory),
-            durability_service=ResearchDurabilityService(
-                repository=SqlAlchemyResearchDurabilityRepository(session_factory),
-                token_codec=ResumeTokenCodec(settings.csrf_token_hmac_key.get_secret_value()),
+            checkpoint_store=(
+                SqlAlchemyCheckpointStore(session_factory) if research_durability_enabled else None
+            ),
+            durability_service=(
+                ResearchDurabilityService(
+                    repository=SqlAlchemyResearchDurabilityRepository(session_factory),
+                    token_codec=ResumeTokenCodec(settings.csrf_token_hmac_key.get_secret_value()),
+                )
+                if research_durability_enabled
+                else None
             ),
         )
     runtime = UnifiedAgentRuntime(
@@ -353,4 +379,5 @@ def _provider_config(settings: Settings) -> OpenAICompatibleProviderConfig | Non
             ),
         ),
         request_timeout_seconds=settings.agent_model_request_timeout_seconds,
+        allow_test_loopback=settings.agent_model_controlled_loopback,
     )

@@ -1109,7 +1109,7 @@
         "future_leakage",
         "dependency_as_no_result"
       ],
-      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_submissions_bulk_closeout_is_reported_as_blocker"
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_bulk.py::test_submissions_bulk_watermark_persists_snapshot_and_closes_post_watermark_gap"
     },
     {
       "case_id": "companyfacts-bulk-watermark",
@@ -1152,7 +1152,7 @@
         "future_leakage",
         "dependency_as_no_result"
       ],
-      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_source_eval.py::test_companyfacts_bulk_closeout_is_reported_as_blocker"
+      "evidence_ref": "apps/backend/tests/modules/disclosures/test_sec_bulk.py::test_companyfacts_bulk_watermark_persists_snapshot_and_closes_post_watermark_gap"
     }
   ]
 }

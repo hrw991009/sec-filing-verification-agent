@@ -136,6 +136,7 @@ def test_settings_load_and_convert_environment_values(
     assert settings.sec_catalog_cache_ttl_seconds == 3_600
     assert settings.sec_request_timeout_seconds == 20.0
     assert settings.sec_request_max_attempts == 3
+    assert settings.sec_bulk_request_timeout_seconds == 900.0
 
 
 def test_settings_hide_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -203,6 +204,40 @@ def test_partial_agent_model_configuration_is_rejected(
         Settings(_env_file=None)
 
 
+def test_controlled_model_loopback_is_test_only_and_requires_loopback_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER_BASE_URL", "http://127.0.0.1:18081/v1")
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER_API_KEY", "controlled-test-key")
+    monkeypatch.setenv(
+        "AGENT_MODEL_ROUTE_JSON",
+        json.dumps(
+            {
+                "model": "openai-compatible/sec-browser",
+                "upstream_model": "sec-browser-model",
+                "response_models": ["sec-browser-model"],
+                "pricing_version": "sec-browser-pricing-v1",
+                "input_micro_usd_per_million": 1,
+                "cached_input_micro_usd_per_million": 1,
+                "output_micro_usd_per_million": 1,
+            }
+        ),
+    )
+    monkeypatch.setenv("AGENT_MODEL_CONTROLLED_LOOPBACK", "true")
+
+    with pytest.raises(ValidationError, match="allowed only in test"):
+        Settings(_env_file=None)
+
+    monkeypatch.setenv("APP_ENVIRONMENT", "test")
+    settings = Settings(_env_file=None)
+    assert settings.agent_model_controlled_loopback is True
+
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER_BASE_URL", "https://provider.test/v1")
+    with pytest.raises(ValidationError, match="requires an explicit loopback URL"):
+        Settings(_env_file=None)
+
+
 def test_sec_user_agent_configuration_is_complete_and_below_official_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -225,6 +260,30 @@ def test_sec_user_agent_configuration_is_complete_and_below_official_limit(
     monkeypatch.setenv("SEC_REQUESTS_PER_SECOND", "10")
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_controlled_sec_source_is_test_only_and_can_override_local_live_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv(
+        "SEC_CONTROLLED_SOURCE_MANIFEST_PATH",
+        "evals/fixtures/sec/sec-browser-v1/manifest.json",
+    )
+
+    with pytest.raises(ValidationError, match="allowed only in test"):
+        Settings(_env_file=None)
+
+    monkeypatch.setenv("APP_ENVIRONMENT", "test")
+    settings = Settings(_env_file=None)
+    assert settings.sec_controlled_source_configured is True
+    assert settings.sec_source_configured is False
+
+    monkeypatch.setenv("SEC_USER_AGENT_APP", "IndustryIntelligencePlatform/0.1")
+    monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "edgar-ops@example.test")
+    settings_with_identity = Settings(_env_file=None)
+    assert settings_with_identity.sec_controlled_source_configured is True
+    assert settings_with_identity.sec_source_configured is True
 
 
 def test_optional_minio_configuration_is_complete_and_secret_safe(

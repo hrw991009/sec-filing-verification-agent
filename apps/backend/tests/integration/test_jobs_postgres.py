@@ -612,6 +612,67 @@ def test_worker_lease_is_single_owner_and_old_fence_cannot_mutate(
         runner.run(exercise())
 
 
+def test_failed_job_persists_sql_null_result(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        service = job_service(session_factory)
+
+        try:
+            submitted = await service.submit(submission(raw_key=None))
+            async with session_factory.begin() as session:
+                database_now = await session.scalar(select(func.clock_timestamp()))
+                assert isinstance(database_now, datetime)
+                dispatch_outbox = await session.get(OutboxEvent, submitted.outbox_event_id)
+                assert dispatch_outbox is not None
+                dispatch_outbox.status = OutboxStatus.PUBLISHED
+                dispatch_outbox.published_at = database_now
+                dispatch_outbox.terminal_at = database_now
+
+            acquired = await service.acquire(
+                AcquireJobCommand(
+                    job_id=submitted.job_id,
+                    dispatch_generation=1,
+                    worker_id="failed-worker",
+                    outbox_id=submitted.outbox_event_id,
+                    trace_id=TraceId("job-integration-trace"),
+                )
+            )
+            await service.finish(
+                FinishJobCommand(
+                    proof=acquired.lease_proof,
+                    outcome=JobStatus.FAILED,
+                    error_code=JobExecutionErrorCode.HANDLER_FAILED.value,
+                )
+            )
+
+            async with session_factory() as session:
+                job = await session.get(Job, submitted.job_id)
+                failed_events = (
+                    await session.scalar(
+                        select(func.count())
+                        .select_from(JobEvent)
+                        .where(
+                            JobEvent.job_id == submitted.job_id,
+                            JobEvent.event_type == JobEventType.FAILED,
+                        )
+                    )
+                ) or 0
+
+            assert job is not None
+            assert job.status is JobStatus.FAILED
+            assert job.result is None
+            assert job.last_error_code == JobExecutionErrorCode.HANDLER_FAILED.value
+            assert failed_events == 1
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
+
+
 def test_retry_generation_outbox_and_bounded_dead_letter_are_atomic(
     migrated_postgres_probe: PostgresProbe,
 ) -> None:

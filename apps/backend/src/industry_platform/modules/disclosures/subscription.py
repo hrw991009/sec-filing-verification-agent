@@ -10,6 +10,11 @@ from uuid import UUID, uuid4
 
 from industry_platform.modules.agent_runtime.domain import require_non_nil_uuid, require_utc
 from industry_platform.modules.disclosures.monitor import SecMonitorRule, SecMonitorStatus
+from industry_platform.modules.jobs.domain import (
+    ManualScheduleTriggerCommand,
+    ManualScheduleTriggerResult,
+)
+from industry_platform.modules.jobs.ports import ScheduleApplicationUseCase
 from industry_platform.modules.research.domain import ResearchApprovalOutcome
 from industry_platform.modules.research.durability import ResearchApprovalRequest
 from industry_platform.modules.workspaces.domain import (
@@ -105,6 +110,22 @@ class SecMonitorSubscriptionDecisionResult:
     created: bool
 
 
+@dataclass(frozen=True, slots=True)
+class TriggerSecMonitorRun:
+    monitor_id: UUID
+    expected_revision: int
+    trigger_id: UUID
+
+    def __post_init__(self) -> None:
+        for value, field_name in (
+            (self.monitor_id, "SEC Monitor ID"),
+            (self.trigger_id, "SEC Monitor trigger ID"),
+        ):
+            require_non_nil_uuid(value, field_name=field_name)
+        if self.expected_revision < 1:
+            raise ValueError("SEC Monitor expected revision is invalid")
+
+
 class SecMonitorSubscriptionRepository(Protocol):
     async def decide(
         self,
@@ -146,6 +167,7 @@ def utc_now() -> datetime:
 @dataclass(frozen=True, slots=True)
 class SecMonitorSubscriptionService:
     repository: SecMonitorSubscriptionRepository
+    schedules: ScheduleApplicationUseCase | None = None
     clock: Callable[[], datetime] = utc_now
     id_source: Callable[[], UUID] = uuid4
 
@@ -180,6 +202,27 @@ class SecMonitorSubscriptionService:
     ) -> SecMonitorView:
         self._require_mutation(scope)
         return await self.repository.change_status(scope, command, changed_at=self._now())
+
+    async def trigger_run(
+        self,
+        scope: WorkspaceScope,
+        command: TriggerSecMonitorRun,
+    ) -> ManualScheduleTriggerResult:
+        self._require_mutation(scope)
+        monitor = await self.repository.get_monitor(scope, command.monitor_id)
+        if (
+            monitor.revision != command.expected_revision
+            or monitor.status is not SecMonitorStatus.ACTIVE
+        ):
+            raise SecMonitorRevisionConflictError
+        if self.schedules is None:
+            raise SecMonitorSubscriptionError("SEC Monitor scheduler is unavailable")
+        return await self.schedules.trigger_manual(
+            ManualScheduleTriggerCommand(
+                schedule_id=monitor.schedule_id,
+                trigger_id=command.trigger_id,
+            )
+        )
 
     async def list_cases(
         self,

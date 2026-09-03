@@ -1,0 +1,38 @@
+{
+  "cik": 320193,
+  "entityName": "Apple Inc.",
+  "facts": {
+    "us-gaap": {
+      "Revenue": {
+        "label": "Revenue",
+        "description": "Revenue for the annual period.",
+        "units": {
+          "USD": [
+            {"start":"2021-09-26","end":"2022-09-24","val":394328000000,"accn":"0000320193-23-000106","fy":2023,"fp":"FY","form":"10-K","filed":"2023-11-03"},
+            {"start":"2022-09-25","end":"2023-09-30","val":383285000000,"accn":"0000320193-23-000106","fy":2023,"fp":"FY","form":"10-K","filed":"2023-11-03"}
+          ]
+        }
+      },
+      "GrossProfit": {
+        "label": "Gross profit",
+        "description": "Gross profit for the annual period.",
+        "units": {"USD":[{"start":"2022-09-25","end":"2023-09-30","val":169148000000,"accn":"0000320193-23-000106","fy":2023,"fp":"FY","form":"10-K","filed":"2023-11-03"}]}
+      },
+      "OperatingIncomeLoss": {
+        "label": "Operating income",
+        "description": "Operating income for the annual period.",
+        "units": {"USD":[{"start":"2022-09-25","end":"2023-09-30","val":114301000000,"accn":"0000320193-23-000106","fy":2023,"fp":"FY","form":"10-K","filed":"2023-11-03"}]}
+      },
+      "NetIncomeLoss": {
+        "label": "Net income",
+        "description": "Net income for the annual period.",
+        "units": {"USD":[{"start":"2022-09-25","end":"2023-09-30","val":96995000000,"accn":"0000320193-23-000106","fy":2023,"fp":"FY","form":"10-K","filed":"2023-11-03"}]}
+      },
+      "CashAndCashEquivalentsAtCarryingValue": {
+        "label": "Cash and cash equivalents",
+        "description": "Cash and cash equivalents at fiscal year end.",
+        "units": {"USD":[{"end":"2023-09-30","val":29965000000,"accn":"0000320193-23-000106","fy":2023,"fp":"FY","form":"10-K","filed":"2023-11-03"}]}
+      }
+    }
+  }
+}

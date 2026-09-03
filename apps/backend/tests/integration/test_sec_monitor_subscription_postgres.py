@@ -1,7 +1,7 @@
 """Prove approved SEC Monitor creation and Research resume are one transaction."""
 
 import asyncio
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -23,6 +23,8 @@ from industry_platform.modules.disclosures.models import (
     SecDisclosureMonitorRuleRecord,
     SecDisclosureMonitorWatermarkRecord,
     SecFilerRecord,
+    SecFilingRecord,
+    SecSubmissionSourceRecord,
 )
 from industry_platform.modules.disclosures.monitor import SecMonitorStatus
 from industry_platform.modules.disclosures.subscription import (
@@ -99,8 +101,27 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
         workspace_id = uuid4()
         user_id = uuid4()
         knowledge_base_id = uuid4()
+        submission_source_id = uuid4()
         try:
             async with session_factory.begin() as session:
+                session.add(
+                    SecSubmissionSourceRecord(
+                        id=submission_source_id,
+                        cik="0000320193",
+                        source_kind="submissions_current",
+                        source_name="CIK0000320193.json",
+                        source_url="https://data.sec.gov/submissions/CIK0000320193.json",
+                        source_version="sec-submissions-current-v1",
+                        content_sha256=b"s" * 32,
+                        object_bucket="test-private",
+                        object_key="sec/submissions/apple.json",
+                        retrieved_at=NOW,
+                        source_available_at=datetime(2023, 11, 2, 23, tzinfo=UTC),
+                        filing_from=None,
+                        filing_to=None,
+                    )
+                )
+                await session.flush()
                 session.add_all(
                     (
                         User(
@@ -141,6 +162,21 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
                             source_url="https://www.sec.gov/files/company_tickers.json",
                             source_content_sha256=b"a" * 32,
                             source_observed_at=NOW,
+                        ),
+                        SecFilingRecord(
+                            id=uuid4(),
+                            source_id=submission_source_id,
+                            cik="0000320193",
+                            accession="0000320193-23-000106",
+                            form="10-K",
+                            report_date=date(2023, 9, 30),
+                            filed_date=date(2023, 11, 3),
+                            accepted_at=datetime(2023, 11, 2, 22, 8, 27, tzinfo=UTC),
+                            public_available_at=datetime(2023, 11, 2, 22, 8, 27, tzinfo=UTC),
+                            visibility_policy_version="sec-acceptance-source-v1",
+                            primary_document="aapl-20230930.htm",
+                            amendment_relation_status="not_amendment",
+                            base_accession=None,
                         ),
                     )
                 )
@@ -215,6 +251,10 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
             assert allowed.created is True
             assert allowed.approval.status is ResearchApprovalStatus.ALLOWED
             assert allowed.monitor is not None
+            assert allowed.monitor.watermark_accession == "0000320193-23-000106"
+            assert allowed.monitor.watermark_accepted_at == datetime(
+                2023, 11, 2, 22, 8, 27, tzinfo=UTC
+            )
             assert repeated.created is False
             assert repeated.monitor == allowed.monitor
             assert repeated.resume_job_id == allowed.resume_job_id
@@ -275,10 +315,12 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
                 approval_record,
                 effect_record,
                 workspace_id=workspace_id,
+                observation_ordinal=2,
             )
             assert approved_action is not None
             assert approved_action.name == "sec.monitor.subscribe"
             assert approved_observation is not None
+            assert approved_observation.ordinal == 2
             assert approved_observation.model_text == f"sec-monitor:{allowed.monitor.monitor_id}"
 
             monitors = await service.list_monitors(scope)

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from industry_platform.modules.evaluation.release_readiness import (
     ArtifactSnapshot,
+    BlockerStatus,
     ExternalGateSpec,
     ExternalGateStatus,
     ReleaseDecision,
@@ -54,18 +55,39 @@ def test_release_readiness_recomputes_checked_ledger() -> None:
     assert render_release_readiness_markdown(report) == MARKDOWN.read_text(encoding="utf-8")
     assert len(report.requirements) == 88
     assert report.status_counts == {
-        RequirementStatus.COMPLETE: 45,
-        RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 33,
-        RequirementStatus.THIN_SLICE: 10,
+        RequirementStatus.COMPLETE: 46,
+        RequirementStatus.IMPLEMENTED_PENDING_VERIFICATION: 34,
+        RequirementStatus.THIN_SLICE: 8,
         RequirementStatus.CONTRACT_ONLY: 0,
         RequirementStatus.BLOCKED: 0,
         RequirementStatus.PLANNED: 0,
     }
-    assert report.incomplete_requirement_count == 43
-    assert report.release_blocker_count == 16
+    assert report.incomplete_requirement_count == 42
+    assert report.release_blocker_count == 15
     assert report.pending_external_gate_count == 5
     assert report.release_decision is ReleaseDecision.NO_GO
     assert report.rc_ready is False
+
+    gates = {gate.gate_id: gate for gate in report.external_gates}
+    assert gates["day10-push-ci"].status is ExternalGateStatus.VERIFIED
+    assert gates["day10-pr-ci"].status is ExternalGateStatus.VERIFIED
+    assert gates["day10-main-ci"].status is ExternalGateStatus.VERIFIED
+    assert gates["day10-main-ci"].source_commit == "778a1966a5fd42df6b47d4a4002cb47e67435ac4"
+
+    blockers = {blocker.blocker_id: blocker for blocker in report.blockers}
+    assert blockers["day4-core-coverage-debt"].status is BlockerStatus.CLOSED
+    assert blockers["day4-core-coverage-debt"].closure_artifact_ids == (
+        "ci-workflow",
+        "day-10-log",
+        "feature-matrix",
+    )
+    assert blockers["day6-source-closeout-incomplete"].status is BlockerStatus.CLOSED
+    assert blockers["day6-source-closeout-incomplete"].closure_artifact_ids == (
+        "sec-source-report",
+        "day-6-log",
+        "feature-matrix",
+    )
+    assert blockers["day6-verification-evidence-pending"].status is BlockerStatus.OPEN
 
 
 def test_release_documentation_links_resolve_inside_repository() -> None:

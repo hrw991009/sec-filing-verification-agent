@@ -2,63 +2,63 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 77192,
+      "byte_size": 80169,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "47ca7e832c3b68a2760fe59f0de57e744582ecf94419635ea750b882cda8ca50"
+      "sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 150568,
+      "byte_size": 151841,
       "relative_path": "docs/master-plan.md",
-      "sha256": "6f63bc42d2c06871edc72048d90bf9c74236c663f64c37c5bc41a8eb3fffe1e5"
+      "sha256": "900c0ac11147ee86ef23cbd7205b69b8babd5a736994b434bc6a302a7e899872"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 107899,
+      "byte_size": 108131,
       "relative_path": "docs/architecture.md",
-      "sha256": "2541b12cb0df3b6169e02fe06cc4f352db340a776e4a99fede05946557c9c8d6"
+      "sha256": "f81b609c8f22ea8675c4b15e7aed7ea160a4891808edb5595ae80f457d17bbe0"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 13792,
+      "byte_size": 14902,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "7d510ccbf83f95845f1b7d78b7825bfb22792b1a2c0edfe1d5993c2788220945"
+      "sha256": "8ea88cb67a7196b256d389bd391bafcfc2bc57a7935ac74a1b1c7a6ebb4c6f44"
     },
     {
       "artifact_id": "readme",
-      "byte_size": 20481,
+      "byte_size": 20826,
       "relative_path": "README.md",
-      "sha256": "69297a207f4881a268290b91e14d16d23c206664d227c68ebe5cfd81dbde7b22"
+      "sha256": "1c74b0ea1a76a680f01c44a9d2600c4d84816871bb7aecf9436020de638b5ea4"
     },
     {
       "artifact_id": "product-scope",
-      "byte_size": 30787,
+      "byte_size": 30908,
       "relative_path": "docs/product-scope.md",
-      "sha256": "1e226b8ef2ae0b21f18b2fb7d30216ceacfbbd1d0bf84c23d0bf088632ca5108"
+      "sha256": "a568d126bfb0e09b3b7392dd5ee2f285c8983ceefc164207f609a54fa4ff8740"
     },
     {
       "artifact_id": "sec-domain-adr",
       "byte_size": 15452,
       "relative_path": "docs/adr/0007-sec-disclosure-financial-fact-verification.md",
-      "sha256": "38db8d79f6b98682e8d7d6e65e99bf2a00b32c4143c4f97cb8021539c552b6ee"
+      "sha256": "7833670f0d7017012b0b332bcca5b142f9826329fa784aa90d635fbf4618e7a9"
     },
     {
       "artifact_id": "sec-agent-evaluation-plan",
-      "byte_size": 35175,
+      "byte_size": 35126,
       "relative_path": "docs/sec-agent-evaluation.md",
-      "sha256": "eefcfd106a93b3666d5125fba722d7b344b11815c84ff75e17d5799f0f9d3988"
+      "sha256": "c6be41fa24de28f0d754c44314159374576ab0a14a34a4b8eaf9211c45b2f3cb"
     },
     {
       "artifact_id": "release-candidate-draft",
-      "byte_size": 4067,
+      "byte_size": 4214,
       "relative_path": "docs/release-notes/v0.2.0-sec-disclosure-verifier.md",
-      "sha256": "8e65e8093de6ccdb73c584d70ee5b1b2390095bf6bb5065400ea1d4b4a98717b"
+      "sha256": "32d851e15e174759b72274dc14772ac3135304f7af262b7f42f33623c2a8ebfc"
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 31280,
+      "byte_size": 38476,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "711090922f85e0de19413a13afbf941a9f1fac3d78479a5a618b92e79fbed28f"
+      "sha256": "b32f15124f463ada59bab69565a907c36b15cc2604d2b47fe2a7df3eb718b4d3"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -68,39 +68,69 @@
     },
     {
       "artifact_id": "release-readiness-tests",
-      "byte_size": 10216,
+      "byte_size": 11251,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "1119200e015c86d7532fe27b48396e93ef2e30e6cfb5c205afc674d5ff5616e8"
+      "sha256": "8e227b708e88bb7f7ea21a9707654a10280bc3427c94a475d7d63cffe5a981ff"
     },
     {
       "artifact_id": "release-evidence-generator",
-      "byte_size": 34898,
+      "byte_size": 37834,
       "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_evidence.py",
-      "sha256": "33419432dc2034e5a7ff63d58656d26c5a59d8ca39dd44ccdc384f95b024ebde"
+      "sha256": "9569c41013e81736dd2df16487795ce4a3d308c0fbf995bc3f1353e9bbbd7c4d"
     },
     {
       "artifact_id": "release-evidence-tests",
-      "byte_size": 10515,
+      "byte_size": 12445,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_evidence.py",
-      "sha256": "540638f7c80f146b41e0c5d2af07a50a6c18cfbc0961dc954f5553a1f8963da2"
+      "sha256": "f5b97982af0f762b85490cae8874d772f0af04f8d6098290bb8b660c17a1c0db"
+    },
+    {
+      "artifact_id": "release-execution-runner",
+      "byte_size": 25462,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_execution.py",
+      "sha256": "12797e936be18d40a07bc99a4fda74f13baf88cfac14642c164ecec7aca5a8be"
+    },
+    {
+      "artifact_id": "release-execution-tests",
+      "byte_size": 19002,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_execution.py",
+      "sha256": "2f3d7f4487317c76d2e3309420684f1a1c59ecba3d93f3a4fcc1a0771f4d9a5b"
+    },
+    {
+      "artifact_id": "release-case-dataset",
+      "byte_size": 9476,
+      "relative_path": "evals/scenarios/sec-release-cases-v1.json",
+      "sha256": "1ff9a2ebd587a137f148a158d7552e96692d5e609d9ea95e2aaec87ca4faf6c3"
+    },
+    {
+      "artifact_id": "release-observation-collector",
+      "byte_size": 60820,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_observation_collector.py",
+      "sha256": "2099db1c27debe5625e2cf6d48e73b281db0753a5f3d9c776c5b26b86e8081bb"
+    },
+    {
+      "artifact_id": "release-observation-collector-tests",
+      "byte_size": 17878,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_observation_collector.py",
+      "sha256": "b5d7a35dcbc7c3885de3bc59a997b3ebd764e57540f8896368485165bed9cc4a"
     },
     {
       "artifact_id": "release-evidence-manifest",
-      "byte_size": 2598,
+      "byte_size": 3547,
       "relative_path": "evals/manifests/sec-release-evidence-v1.json",
-      "sha256": "71f63a5988e2ccdf1ca28cac48cf47e027cc34aed1356111b5ee099cb17e0557"
+      "sha256": "3b1b08873869d99d75b8b1d8d1cf76dbf459bb434cb6f186cb7fe1daf5a9066c"
     },
     {
       "artifact_id": "release-evidence-observations",
-      "byte_size": 718,
+      "byte_size": 716,
       "relative_path": "evals/observations/sec-release-evidence-v1.json",
-      "sha256": "d33692519f8ad9fff2bb654b3f773505175b5b830aeccbfd5f9f0a02b887a3fa"
+      "sha256": "65af4711020930c5b3494f7eca5748945a3d20afebb5e6fea7e6a2ca90e7af96"
     },
     {
       "artifact_id": "release-evidence-report",
-      "byte_size": 11347,
+      "byte_size": 11258,
       "relative_path": "evals/reports/sec-release-evidence-v1.json",
-      "sha256": "d2b9ba48f2072b3470790db6d7e25b4e60e92124771ccbc964e27437d84dfb65"
+      "sha256": "ee94773fdb5684ef7a99c5ef213d37e2b2d41564124be76fac52de1322304b6e"
     },
     {
       "artifact_id": "release-evidence-schema",
@@ -133,6 +163,30 @@
       "sha256": "cc8f42df4acef93864c0d6bf1bd1f900062f01630a8f069909ef4e297ae609dd"
     },
     {
+      "artifact_id": "release-recovery-executor",
+      "byte_size": 28608,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_executor.py",
+      "sha256": "c6a0a31ec1c9e4c383c882f06c8f6366b373fc375071835dd000cc1d50c5dc5d"
+    },
+    {
+      "artifact_id": "release-recovery-executor-tests",
+      "byte_size": 8071,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_executor.py",
+      "sha256": "9b07965a4147afd4259486a165fa7fa05cd5fb819fe21724bb7a07058bc35039"
+    },
+    {
+      "artifact_id": "release-recovery-exercise",
+      "byte_size": 23656,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_exercise.py",
+      "sha256": "733880943422755e1b6f8b8ef83d45a7d62fa7dbb451262d0ed9b6c4a1e922f7"
+    },
+    {
+      "artifact_id": "release-recovery-exercise-tests",
+      "byte_size": 21474,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_exercise.py",
+      "sha256": "6da4250b195f1dddcf35dfd75ba61a014a054fe33aeb53d4f97491cdbc1e0754"
+    },
+    {
       "artifact_id": "release-recovery-manifest",
       "byte_size": 6166,
       "relative_path": "evals/manifests/sec-release-recovery-v1.json",
@@ -158,9 +212,51 @@
     },
     {
       "artifact_id": "release-recovery-runbook",
-      "byte_size": 9328,
+      "byte_size": 10106,
       "relative_path": "docs/runbooks/day-10-release-recovery.md",
-      "sha256": "07de3d158afb0ec14939dc2d63cf83ea6cc652b700f19948f5c3305f6f2c600b"
+      "sha256": "fc88d9fdc9072147d163ae2a3247b56f6a0fd2786f80e7793d079918a3f0b5c4"
+    },
+    {
+      "artifact_id": "release-acceptance-runner",
+      "byte_size": 26741,
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_acceptance.py",
+      "sha256": "30ccecdf16a2d13359c0b8e87f19ff66aad819636d41d440795082f84e681009"
+    },
+    {
+      "artifact_id": "release-acceptance-tests",
+      "byte_size": 9195,
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_acceptance.py",
+      "sha256": "de1d30e992db8a0df5c27958ce4058798ff51c3d3812c061d3c099faee6b456e"
+    },
+    {
+      "artifact_id": "release-acceptance-runbook",
+      "byte_size": 4887,
+      "relative_path": "docs/runbooks/sec-release-acceptance.md",
+      "sha256": "64cacf517dbed29a6533be0625ad0a8fd25a29ddba392c8d81ae789b28675b8e"
+    },
+    {
+      "artifact_id": "sec-filing-table-parser",
+      "byte_size": 10400,
+      "relative_path": "apps/backend/src/industry_platform/modules/disclosures/filing_tables.py",
+      "sha256": "6c8dc89adb10842efcf973d00ab66598693cb2935d7f1a66d9afad392ff569a9"
+    },
+    {
+      "artifact_id": "sec-filing-table-tests",
+      "byte_size": 2674,
+      "relative_path": "apps/backend/tests/modules/disclosures/test_filing_tables.py",
+      "sha256": "3a716ff7fdf40a278dc101cd46803c3b66c0c9a911e14ec8f3b782f0d108270f"
+    },
+    {
+      "artifact_id": "citation-resolver",
+      "byte_size": 18778,
+      "relative_path": "apps/backend/src/industry_platform/modules/evidence/router.py",
+      "sha256": "b1d3fe1906d9e02beb6e61acb241b869b64d26b7871769011f1b84fe5c01c439"
+    },
+    {
+      "artifact_id": "citation-resolver-tests",
+      "byte_size": 16684,
+      "relative_path": "apps/backend/tests/modules/evidence/test_api.py",
+      "sha256": "f2a370d4f1456dcdfa449e81356c5b535eeb6ba3755aa25cae030cccf1bcaabe"
     },
     {
       "artifact_id": "semgrep-rules",
@@ -176,9 +272,9 @@
     },
     {
       "artifact_id": "evidence-domain-boundary-tests",
-      "byte_size": 17462,
+      "byte_size": 18069,
       "relative_path": "apps/backend/tests/modules/evidence/test_domain.py",
-      "sha256": "a8a4c9ed3d958b8903b763bc3fb69336334c730403acd64bf740d81eb9f89baf"
+      "sha256": "c74f3c3020808731bdf2645a74d5d4007a3da854c7a959bf4dc32c094294235a"
     },
     {
       "artifact_id": "research-service-boundary-tests",
@@ -188,15 +284,15 @@
     },
     {
       "artifact_id": "sec-workbench-ui",
-      "byte_size": 52666,
+      "byte_size": 55370,
       "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx",
-      "sha256": "3fef8ec441c6d351f0b6251d70c9d6178b6c326f15de4464515322cbf39ea0c2"
+      "sha256": "19cf45a1d7b07ebdb5bfdf5f421154837f501f98452c4c049d611add2c10496b"
     },
     {
       "artifact_id": "sec-workbench-tests",
-      "byte_size": 20582,
+      "byte_size": 22253,
       "relative_path": "apps/web/src/disclosures/SecWorkbench.test.tsx",
-      "sha256": "4733563f1b2e924860fa7fe746f6093b3ea2c717b2f3c5665e934d7eb6a8607a"
+      "sha256": "4536a222be371fd6fd2765646a57cebfc734108a67821630fd4492dabecf74bf"
     },
     {
       "artifact_id": "sec-review-navigation",
@@ -208,13 +304,13 @@
       "artifact_id": "research-workbench-ui",
       "byte_size": 57951,
       "relative_path": "apps/web/src/research/ResearchWorkspace.tsx",
-      "sha256": "86b646843be34fac6a2cc448fefee9f91b566f249b0d1a109b8dad2c476c0d0f"
+      "sha256": "82e2fdf2cc59195de56a3e3d3476c614f3ef4a98432f98e8f75db874a12fce55"
     },
     {
       "artifact_id": "research-workbench-tests",
-      "byte_size": 28007,
+      "byte_size": 28071,
       "relative_path": "apps/web/src/research/ResearchWorkspace.test.tsx",
-      "sha256": "1ba0a7af9d42866f4974eed40430ee069dca34cdc40a01e9b8e748e524f17e9c"
+      "sha256": "70caa9bc3b26af8edba35b838f6ca6cc4992c4f6102e3990522afbf78007f156"
     },
     {
       "artifact_id": "research-web-api",
@@ -254,9 +350,9 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 10153,
+      "byte_size": 10849,
       "relative_path": "package.json",
-      "sha256": "b204907088fc3ac5934c1f0b7b0ae40c771572e3a56d0efaa2ff0a577e8132f6"
+      "sha256": "9c9ea2caaafb6fb33dc2ab996852f9fe20da9278e3d32b7c5426e1077321e4fa"
     },
     {
       "artifact_id": "python-project-policy",
@@ -278,9 +374,9 @@
     },
     {
       "artifact_id": "ci-workflow",
-      "byte_size": 24001,
+      "byte_size": 26522,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "662e93f7a1c50739b461f919891c71e94d63acd625782a076d980bfe90f806a5"
+      "sha256": "678c6a5383313d43d2b734f3055d4320c9a917cff2e25bf80d3a64b04224def1"
     },
     {
       "artifact_id": "credential-audit",
@@ -320,15 +416,15 @@
     },
     {
       "artifact_id": "day-6-log",
-      "byte_size": 33028,
+      "byte_size": 34693,
       "relative_path": "docs/learning-log/day-6.md",
-      "sha256": "dcc7ce1e026edd57f4b5c4a635fb57ef32ad84d0bb8f83ba48a36171243c6869"
+      "sha256": "0fffb5b161da182ae4165b87b21f34a9108674c73f7916bee43c5059fc020742"
     },
     {
       "artifact_id": "day-7-log",
-      "byte_size": 21853,
+      "byte_size": 22146,
       "relative_path": "docs/learning-log/day-7.md",
-      "sha256": "b32a9dc28d7c9cf3a14f5355f1c88b78433ac9553adbe714e371785a17d203ef"
+      "sha256": "1a10bb9f21a554caff98bdaeb09da81eafeed5bb2fcae036bd75f0df83677ae2"
     },
     {
       "artifact_id": "day-8-log",
@@ -344,9 +440,9 @@
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 22619,
+      "byte_size": 29173,
       "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "05610206ac3b88c5a2ec1b79332b90b8bc7094c1e0c79cc075e951fe3cd16ce2"
+      "sha256": "310de4b77bfd2b5b5fd58dc5095abf9181f363aa5210cbced1bc474f6a8fccbf"
     },
     {
       "artifact_id": "day-4-report",
@@ -368,9 +464,9 @@
     },
     {
       "artifact_id": "sec-source-report",
-      "byte_size": 20606,
+      "byte_size": 20644,
       "relative_path": "evals/reports/sec-source-v1.json",
-      "sha256": "6b309b47a3394ed6093e2408a931c76f055a8a819b6721cc3720de75188edf22"
+      "sha256": "683f92b1254c67b4524cded288b9f0eca4f2fc0b671b956d91fc2a17ab7037f0"
     },
     {
       "artifact_id": "sec-tool-report",
@@ -388,7 +484,7 @@
       "artifact_id": "sec-release-deterministic",
       "byte_size": 8883,
       "relative_path": "evals/reports/sec-release-deterministic-v1.json",
-      "sha256": "1c4946ce990e9e0a10a18acb80bda5c920d88da43980dee4078d7e0fc5373a2b"
+      "sha256": "f7b606bd63ea7a115f63a4a9f639ed8db1575f7d1d02acc62455159a272a23fe"
     },
     {
       "artifact_id": "sec-release-offline",
@@ -409,7 +505,7 @@
       "sha256": "bdbbf5e38a695c297b39436e645bc8e7b3332f8716988eb2d34020c5292b542b"
     }
   ],
-  "baseline_commit": "45005057bbae8ed37c034bd62202bf084609dd0e",
+  "baseline_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
   "blockers": [
     {
       "blocker_id": "credential-disposition-open",
@@ -417,26 +513,26 @@
       "detail": "Six reference-repository credential candidates still require provider-side disposition and a clean rescan.",
       "external_gate_ids": ["provider-credential-disposition"],
       "owner": "project-owner",
-      "requirement_ids": ["D1-09", "D10-03", "D10-05", "D10-07"],
+      "requirement_ids": ["D1-09", "D10-05", "D10-07"],
       "source": "cross_day_audit",
       "source_detail": null,
       "status": "open"
     },
     {
       "blocker_id": "day4-core-coverage-debt",
-      "closure_artifact_ids": [],
-      "detail": "The frozen core module set reaches the 90 percent local threshold without omissions, and CI now enforces it; a clean remote real-dependency run is still required before closure.",
-      "external_gate_ids": [],
+      "closure_artifact_ids": ["ci-workflow", "day-10-log", "feature-matrix"],
+      "detail": "Day 10 main CI 33463386752 passed all seven jobs with five real dependencies, 1347 backend tests, 80.72 percent total branch coverage, and 90 percent frozen core coverage.",
+      "external_gate_ids": ["day10-main-ci"],
       "owner": "implementation-agent",
-      "requirement_ids": ["D10-03", "D10-07"],
+      "requirement_ids": ["D10-03"],
       "source": "cross_day_audit",
       "source_detail": null,
-      "status": "open"
+      "status": "closed"
     },
     {
       "blocker_id": "day5-browser-evidence-missing",
       "closure_artifact_ids": [],
-      "detail": "The product path now joins a locked filing to Research, Verification, Evidence, approval, Monitor, and Case APIs, but still lacks one no-interception browser acceptance chain against all real dependencies.",
+      "detail": "The no-interception browser runner and five-dependency product path are implemented, but the current source commit still lacks one successful uploaded acceptance artifact and owner visual review.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D5-08", "D5-09", "D10-02"],
@@ -446,9 +542,30 @@
     },
     {
       "blocker_id": "day6-source-closeout-incomplete",
+      "closure_artifact_ids": ["sec-source-report", "day-6-log", "feature-matrix"],
+      "detail": "Closed on 2026-09-01: both bulk watermark and post-watermark gap cases pass, sec-source-v1 is 24 of 24, and the separate SEC identity live smoke succeeded.",
+      "external_gate_ids": [],
+      "owner": "implementation-agent",
+      "requirement_ids": [
+        "D6-01",
+        "D6-02",
+        "D6-03",
+        "D6-04",
+        "D6-05",
+        "D6-06",
+        "D6-07",
+        "D6-08",
+        "D10-07"
+      ],
+      "source": "cross_day_audit",
+      "source_detail": null,
+      "status": "closed"
+    },
+    {
+      "blocker_id": "day6-verification-evidence-pending",
       "closure_artifact_ids": [],
-      "detail": "Day 6 remains 22 of 24 with bulk watermark, post-watermark gap, and live SEC evidence still open.",
-      "external_gate_ids": ["live-provider-and-sec-identity"],
+      "detail": "Day 6 implementation is 24 of 24, but real large-archive execution, source-rights owner review, applicable browser evidence, and the current branch CI remain open.",
+      "external_gate_ids": ["external-license-owner-review"],
       "owner": "implementation-agent",
       "requirement_ids": [
         "D6-01",
@@ -468,7 +585,7 @@
     {
       "blocker_id": "day7-retrieval-citation-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Ranked retrieval quality, table locators, citation resolution, runtime binding, and final owner evidence remain open.",
+      "detail": "SEC HTML table-cell locators, Citation resolution, and the production Run/ranked-source collector are implemented; actual Recall at 5, 50 or 150 Runtime observations, CI, and owner evidence remain open.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -490,7 +607,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state. A frozen twelve-scenario recovery contract and Runbook now exist, but observations remain 0 of 12 and dedicated no-interception browser evidence is absent.",
+      "detail": "The Workbench, no-interception browser runner, frozen recovery contract, safe execution-plan runner, and observation materializer exist; current-source browser evidence and actual recovery observations remain unexecuted.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -516,19 +633,15 @@
     {
       "blocker_id": "day10-delivery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Day 10 Steps 1 through 5 have local implementation and final audit evidence; production evaluation runs, executed recovery evidence, remote branch/PR/main CI, and owner acceptance remain incomplete.",
-      "external_gate_ids": ["final-owner-acceptance"],
-      "owner": "implementation-agent",
-      "requirement_ids": [
-        "D10-01",
-        "D10-02",
-        "D10-03",
-        "D10-04",
-        "D10-05",
-        "D10-06",
-        "D10-07",
-        "D10-08"
+      "detail": "Day 10 Steps 1 through 5 are merged and branch, pull-request, and main CI are verified; production evaluation runs, executed recovery evidence, and final owner acceptance remain incomplete.",
+      "external_gate_ids": [
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
       ],
+      "owner": "implementation-agent",
+      "requirement_ids": ["D10-01", "D10-02", "D10-04", "D10-05", "D10-06", "D10-07", "D10-08"],
       "source": "cross_day_audit",
       "source_detail": null,
       "status": "open"
@@ -624,8 +737,16 @@
     {
       "blocker_id": "remote-ci-owner-closeout-missing",
       "closure_artifact_ids": [],
-      "detail": "Day 9 three-layer CI is verified; final release owner acceptance remains pending.",
-      "external_gate_ids": ["day9-push-ci", "day9-pr-ci", "day9-main-ci", "final-owner-acceptance"],
+      "detail": "Day 9 and Day 10 three-layer CI are verified; final release owner acceptance remains pending.",
+      "external_gate_ids": [
+        "day9-push-ci",
+        "day9-pr-ci",
+        "day9-main-ci",
+        "day10-push-ci",
+        "day10-pr-ci",
+        "day10-main-ci",
+        "final-owner-acceptance"
+      ],
       "owner": "project-owner",
       "requirement_ids": [
         "D9-01",
@@ -673,6 +794,33 @@
       "status": "verified"
     },
     {
+      "detail": "Day 10 feature-head push CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380",
+      "gate_id": "day10-push-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 pull-request CI passed all seven applicable jobs.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633",
+      "gate_id": "day10-pr-ci",
+      "owner": "github-actions",
+      "source_commit": "e1a6dcc930dd1be7522330ec08b1e847e53ea82b",
+      "status": "verified"
+    },
+    {
+      "detail": "Day 10 merge-commit main CI passed all seven applicable jobs, including the five-real-dependency backend integration and frozen coverage gates.",
+      "evidence_artifact_ids": [],
+      "evidence_url": "https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752",
+      "gate_id": "day10-main-ci",
+      "owner": "github-actions",
+      "source_commit": "778a1966a5fd42df6b47d4a4002cb47e67435ac4",
+      "status": "verified"
+    },
+    {
       "detail": "Final release owner acceptance has not been recorded.",
       "evidence_artifact_ids": [],
       "evidence_url": null,
@@ -709,7 +857,7 @@
       "status": "pending"
     },
     {
-      "detail": "Approved live model credentials and a compliant SEC identity are pending.",
+      "detail": "The SEC identity live smoke is verified separately; approved live model credentials remain pending.",
       "evidence_artifact_ids": [],
       "evidence_url": null,
       "gate_id": "live-provider-and-sec-identity",
@@ -718,21 +866,21 @@
       "status": "pending"
     }
   ],
-  "incomplete_requirement_count": 43,
+  "incomplete_requirement_count": 42,
   "limitations": [
     "Artifact hashes bind the checked repository evidence, but do not turn frozen replay into live capability.",
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
-    "External credentials, rights, live runs, and owner acceptance cannot be inferred from local code or CI."
+    "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "711090922f85e0de19413a13afbf941a9f1fac3d78479a5a618b92e79fbed28f",
-  "matrix_sha256": "47ca7e832c3b68a2760fe59f0de57e744582ecf94419635ea750b882cda8ca50",
+  "manifest_sha256": "b32f15124f463ada59bab69565a907c36b15cc2604d2b47fe2a7df3eb718b4d3",
+  "matrix_sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57",
   "pending_external_gate_count": 5,
   "rc_ready": false,
-  "release_blocker_count": 16,
+  "release_blocker_count": 15,
   "release_decision": "no_go",
   "report_id": "sec-release-readiness-v1",
   "report_version": "v1",
-  "requirement_digest": "856b548d60b4899b700b6cb38e18048c4142aa08df241621a7fdc826c5e12b21",
+  "requirement_digest": "74a4eda91d0d2c441d9d8a1a4a6ab480d2ff90c62400f219fd8466299dbd4f24",
   "requirements": [
     {
       "current_status": "complete",
@@ -1403,7 +1551,7 @@
       "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
     },
     {
-      "current_status": "thin_slice",
+      "current_status": "implemented_pending_verification",
       "day": 6,
       "dependency_days": [1, 2, 3, 4, 5],
       "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
@@ -1447,7 +1595,7 @@
       "verification_commands": ["uv run --locked --all-packages pytest", "pnpm run test:e2e"]
     },
     {
-      "current_status": "thin_slice",
+      "current_status": "implemented_pending_verification",
       "day": 6,
       "dependency_days": [1, 2, 3, 4, 5],
       "evidence_artifact_ids": ["feature-matrix", "day-6-log", "sec-source-report"],
@@ -1483,7 +1631,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-01",
       "target_status": "complete",
@@ -1498,7 +1654,15 @@
       "current_status": "thin_slice",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-02",
       "target_status": "complete",
@@ -1513,7 +1677,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-03",
       "target_status": "complete",
@@ -1528,7 +1700,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-04",
       "target_status": "complete",
@@ -1543,7 +1723,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-05",
       "target_status": "complete",
@@ -1558,7 +1746,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-06",
       "target_status": "complete",
@@ -1573,7 +1769,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-07",
       "target_status": "complete",
@@ -1588,7 +1792,15 @@
       "current_status": "implemented_pending_verification",
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "requirement_id": "D7-08",
       "target_status": "complete",
@@ -1874,6 +2086,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -1882,11 +2099,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -1947,6 +2175,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -1955,11 +2188,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2002,7 +2246,7 @@
       ]
     },
     {
-      "current_status": "implemented_pending_verification",
+      "current_status": "complete",
       "day": 10,
       "dependency_days": [1, 2, 3, 4, 5, 6, 7, 8, 9],
       "evidence_artifact_ids": [
@@ -2020,6 +2264,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -2028,11 +2277,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2093,6 +2353,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -2101,11 +2366,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2166,6 +2442,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -2174,11 +2455,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2239,6 +2531,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -2247,11 +2544,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2312,6 +2620,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -2320,11 +2633,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2385,6 +2709,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -2393,11 +2722,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",
@@ -2443,10 +2783,10 @@
   "schema_version": 1,
   "status_counts": {
     "blocked": 0,
-    "complete": 45,
+    "complete": 46,
     "contract_only": 0,
-    "implemented_pending_verification": 33,
+    "implemented_pending_verification": 34,
     "planned": 0,
-    "thin_slice": 10
+    "thin_slice": 8
   }
 }

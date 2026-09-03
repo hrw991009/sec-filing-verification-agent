@@ -156,6 +156,7 @@ class OpenAICompatibleProviderConfig:
     max_response_bytes: int = MAX_PROVIDER_RESPONSE_BYTES
     max_stream_bytes: int = MAX_PROVIDER_STREAM_BYTES
     max_sse_event_bytes: int = MAX_PROVIDER_SSE_EVENT_BYTES
+    allow_test_loopback: bool = False
 
     def __post_init__(self) -> None:
         parsed = urlsplit(self.base_url)
@@ -163,29 +164,39 @@ class OpenAICompatibleProviderConfig:
             port = parsed.port
         except ValueError:
             raise ValueError("Provider base URL has an invalid port") from None
-        if (
+        if not isinstance(self.allow_test_loopback, bool):
+            raise ValueError("Provider test loopback flag is invalid")
+        common_invalid = (
             self.base_url != self.base_url.strip()
-            or parsed.scheme != "https"
             or not parsed.hostname
             or parsed.username is not None
             or parsed.password is not None
             or parsed.query
             or parsed.fragment
-            or port not in {None, 443}
+        )
+        loopback = (
+            self.allow_test_loopback
+            and parsed.scheme == "http"
+            and parsed.hostname == "127.0.0.1"
+            and port is not None
+        )
+        if common_invalid or (
+            not loopback and (parsed.scheme != "https" or port not in {None, 443})
         ):
             raise ValueError("Provider base URL must be one fixed HTTPS origin or path")
         hostname_value = parsed.hostname
         if hostname_value is None:
             raise ValueError("Provider base URL must include a DNS hostname")
         hostname = hostname_value.casefold()
-        if hostname == "localhost" or hostname.endswith(".localhost"):
+        if not loopback and (hostname == "localhost" or hostname.endswith(".localhost")):
             raise ValueError("Provider base URL cannot target localhost")
-        try:
-            ipaddress.ip_address(hostname)
-        except ValueError:
-            pass
-        else:
-            raise ValueError("Provider base URL must use a controlled DNS hostname")
+        if not loopback:
+            try:
+                ipaddress.ip_address(hostname)
+            except ValueError:
+                pass
+            else:
+                raise ValueError("Provider base URL must use a controlled DNS hostname")
         try:
             httpx2.URL(self.base_url)
         except (httpx2.InvalidURL, TypeError, ValueError):

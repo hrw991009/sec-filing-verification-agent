@@ -478,6 +478,15 @@ class UnavailableSecEdgarAdapter:
         del scope
         raise SecSourceError(SecSourceErrorCode.NOT_CONFIGURED, retryable=False)
 
+    async def fetch_submission_set_after(
+        self,
+        scope: FilingSelectionScope,
+        *,
+        watermark: datetime,
+    ) -> SecSubmissionSet:
+        del watermark
+        return await self.fetch_submission_set(scope)
+
 
 class LiveSecEdgarAdapter:
     """Bounded official company-ticker reader with shared budget and cache."""

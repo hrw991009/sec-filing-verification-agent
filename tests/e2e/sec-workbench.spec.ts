@@ -52,6 +52,32 @@ async function installSecReplay(page: Page): Promise<void> {
   await page.route("**/api/v1/workspaces/*/disclosures/filing-imports?*", (route) =>
     response(route, { imports: importedReady ? [imported] : [] }),
   );
+  await page.route("**/api/v1/workspaces/*/disclosures/filers/resolve?*", (route) =>
+    response(route, {
+      candidates: [
+        {
+          alias_valid_from: null,
+          alias_valid_to: null,
+          canonical_name: "Apple Inc.",
+          cik: "0000320193",
+          confidence: 1,
+          content_sha256: "f".repeat(64),
+          matched_by: "cik",
+          matched_value: "0000320193",
+          source_observed_at: "2026-08-26T03:00:00Z",
+          source_url: "https://www.sec.gov/files/company_tickers_exchange.json",
+          source_version: "sec-company-tickers-replay-v1",
+          tickers: ["AAPL"],
+        },
+      ],
+      catalog_content_sha256: "f".repeat(64),
+      catalog_retrieved_at: "2026-08-26T03:00:00Z",
+      catalog_source_version: "sec-company-tickers-replay-v1",
+      normalized_query: "0000320193",
+      query: "0000320193",
+      status: "resolved",
+    }),
+  );
   await page.route("**/api/v1/workspaces/*/disclosures/filings?*", (route) =>
     response(route, {
       coverage_version: "sec-coverage-replay-v1",

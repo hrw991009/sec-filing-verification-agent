@@ -127,6 +127,12 @@ class RecordingDirectAnswerUseCase:
         )
 
 
+class FailingDirectAnswerUseCase:
+    async def execute_run(self, run_id: UUID) -> DirectAnswerExecutionResult:
+        del run_id
+        raise ValueError(SENSITIVE_VALUE)
+
+
 class FailingIngestionUseCase:
     def __init__(self, code: ParserErrorCode) -> None:
         self.code = code
@@ -438,6 +444,30 @@ async def test_direct_answer_job_rejects_invalid_payload_without_running_agent(
     assert result is JobExecutionDisposition.FAILED
     assert execution.run_ids == []
     assert jobs.finish_commands[0].error_code == JobExecutionErrorCode.INVALID_PAYLOAD.value
+
+
+@pytest.mark.asyncio
+async def test_unexpected_handler_failure_logs_only_the_exception_type(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.ERROR)
+    jobs = RecordingJobUseCase(
+        acquired_job(
+            task_name=DIRECT_ANSWER_TASK_NAME,
+            payload={"schema_version": 1, "agent_run_id": str(JOB_ID)},
+        )
+    )
+
+    result = await runtime(
+        jobs,
+        RecordingCleanupUseCase(),
+        direct_answer=FailingDirectAnswerUseCase(),
+    ).execute(delivery())
+
+    assert result is JobExecutionDisposition.FAILED
+    assert jobs.finish_commands[0].error_code == JobExecutionErrorCode.HANDLER_FAILED.value
+    assert "error_type=ValueError" in caplog.text
+    assert SENSITIVE_VALUE not in caplog.text
 
 
 @pytest.mark.asyncio

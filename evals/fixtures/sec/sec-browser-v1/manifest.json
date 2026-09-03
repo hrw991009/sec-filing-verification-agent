@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "dataset_version": "sec-browser-controlled-v1",
+  "mode": "controlled_derivative",
+  "catalog": {
+    "path": "company-tickers.json",
+    "sha256": "16c3a1d8c1696c0cb3ec1c61ae46df79ca2b5aac09963d90ce7c3773914315a6",
+    "retrieved_at": "2026-08-31T00:00:00Z"
+  },
+  "filings": [
+    {
+      "cik": "0000320193",
+      "accession": "0000320193-23-000106",
+      "form": "10-K",
+      "report_date": "2023-09-30",
+      "filed_date": "2023-11-03",
+      "accepted_at": "2023-11-02T22:08:27Z",
+      "primary_document": "aapl-20230930.htm",
+      "submissions": {
+        "path": "submissions-2023.json",
+        "sha256": "0f7a242eb9830e923909d4e22a7df92c5def070a3f8b7b293bb3cf6dac9708de",
+        "source_available_at": "2023-11-03T00:00:00Z"
+      },
+      "primary": {
+        "path": "apple-2023-primary.html",
+        "sha256": "e0188624e8b156dcc4d2d36bd593f274e90b258b818826aaef41c5d229a4e6e4",
+        "source_available_at": "2023-11-02T22:08:27Z"
+      },
+      "complete_submission": {
+        "path": "apple-2023-complete.txt",
+        "sha256": "6eaa741293c811a7ecc091349d9f8ccf1d01a73ccf5cc9cb4b7e384d1c447bb9",
+        "source_available_at": "2023-11-02T22:08:27Z"
+      },
+      "companyfacts": {
+        "path": "apple-2023-companyfacts.json",
+        "sha256": "e70097d22296a883707aa4fbf5899d8442c5fdaa060cd43fa899bd88a1d7d3db",
+        "source_available_at": "2023-11-03T00:00:00Z"
+      }
+    },
+    {
+      "cik": "0000320193",
+      "accession": "0000320193-24-000123",
+      "form": "10-K",
+      "report_date": "2024-09-28",
+      "filed_date": "2024-11-01",
+      "accepted_at": "2024-11-01T06:01:36Z",
+      "primary_document": "aapl-20240928.htm",
+      "submissions": {
+        "path": "submissions-2024.json",
+        "sha256": "180bc59f1c22eb165382845650e9e00f836e903d2308ea9b0e19a515152ac17f",
+        "source_available_at": "2024-11-01T06:02:00Z"
+      },
+      "primary": {
+        "path": "apple-2024-primary.html",
+        "sha256": "36621ca3e18186fd2c22495492508f8e4fe0af1729b5dd839b9824186fe38989",
+        "source_available_at": "2024-11-01T06:01:36Z"
+      },
+      "complete_submission": {
+        "path": "apple-2024-complete.txt",
+        "sha256": "e612f47f8cf7b6d33e9fcfae90f519ba157ae539f1bd44475ba768f952f7250d",
+        "source_available_at": "2024-11-01T06:01:36Z"
+      },
+      "companyfacts": {
+        "path": "apple-2024-companyfacts.json",
+        "sha256": "5e2e0bfbc18ea8715eb1ace3899199ae03891812519dd736dd02d2d5d9572098",
+        "source_available_at": "2024-11-01T06:02:00Z"
+      }
+    }
+  ]
+}

@@ -71,7 +71,7 @@ jobs:
   fresh-postgresql-migration:
     name: PostgreSQL integration
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       APP_ENVIRONMENT: test
       POSTGRES_HOST: 127.0.0.1
@@ -298,6 +298,7 @@ jobs:
 
       - name: Exercise PostgreSQL, Redis, and MinIO integration paths
         run: |
+          set -euo pipefail
           uv run --locked --all-packages pytest \
             --cov=industry_platform \
             --cov-branch \
@@ -387,7 +388,7 @@ jobs:
   browser-e2e:
     name: Browser E2E
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       APP_ENVIRONMENT: test
       POSTGRES_HOST: 127.0.0.1
@@ -404,6 +405,8 @@ jobs:
       MINIO_BUCKET: browser-ci-private
       MINIO_REGION: us-east-1
       MINIO_SECURE: "false"
+      MILVUS_ENDPOINT: http://127.0.0.1:19530
+      ELASTICSEARCH_ENDPOINT: http://127.0.0.1:9200
       REFRESH_TOKEN_HMAC_KEY_B64: cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnI
       CSRF_TOKEN_HMAC_KEY_B64: Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M
       DEVICE_TOKEN_HMAC_KEY_B64: ZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGQ
@@ -540,20 +543,76 @@ jobs:
             quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z \
             -c 'set -eu; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; mc mb --ignore-existing "local/$MINIO_BUCKET"; mc anonymous set none "local/$MINIO_BUCKET"'
 
+      - name: Start Milvus and Elasticsearch
+        run: |
+          docker run --detach --rm --name browser-day5-etcd --network host \
+            quay.io/coreos/etcd:v3.5.25 \
+            etcd --advertise-client-urls=http://127.0.0.1:2379 \
+            --listen-client-urls=http://0.0.0.0:2379
+          docker run --detach --rm --name browser-day5-milvus --network host \
+            --security-opt seccomp=unconfined \
+            --env ETCD_ENDPOINTS=127.0.0.1:2379 \
+            --env MINIO_ADDRESS=127.0.0.1:9000 \
+            --env MINIO_ACCESS_KEY_ID="$MINIO_ACCESS_KEY" \
+            --env MINIO_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY" \
+            --env MINIO_REGION=us-east-1 \
+            milvusdb/milvus:v3.0.0 milvus run standalone
+          docker run --detach --rm --name browser-day5-elasticsearch --network host \
+            --env discovery.type=single-node \
+            --env xpack.security.enabled=false \
+            --env cluster.routing.allocation.disk.threshold_enabled=false \
+            --env ES_JAVA_OPTS='-Xms512m -Xmx512m' \
+            docker.elastic.co/elasticsearch/elasticsearch:9.5.1
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --connect-timeout 2 --max-time 5 \
+              http://127.0.0.1:9091/healthz >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              docker logs browser-day5-milvus
+              exit 1
+            fi
+            sleep 2
+          done
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --connect-timeout 2 --max-time 7 \
+              'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s' \
+              >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              docker logs browser-day5-elasticsearch
+              exit 1
+            fi
+            sleep 2
+          done
+
       - name: Install Chromium and system dependencies
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Reject API interception in the formal SEC journey
+        run: |
+          if rg --line-number 'page\.route|route\.fulfill' \
+            tests/e2e/sec-real-journey.spec.ts; then
+            echo 'Formal SEC browser journey must not intercept API traffic.' >&2
+            exit 1
+          fi
+
+      - name: Test the controlled SEC journey through real processes
+        run: pnpm run test:e2e:sec-real
 
       - name: Test the real identity lifecycle in Chromium
         run: pnpm run test:e2e
 
-      - name: Upload Playwright failure artifacts
-        if: failure()
+      - name: Upload Playwright and SEC runtime artifacts
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          name: playwright-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             playwright-report/
             test-results/playwright/
+            test-results/sec-real-runtime/
           if-no-files-found: ignore
           retention-days: 3
 

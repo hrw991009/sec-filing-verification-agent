@@ -849,22 +849,9 @@ def _resume_snapshot(
     ):
         raise DirectAnswerRunNotExecutableError
     try:
-        approved_action, approved_observation = _approved_monitor_tool_result(
-            approval,
-            approved_effect,
-            workspace_id=record.workspace_id,
-        )
-        monitor_resume = approved_action is not None
         if FinancialScope.from_mapping(raw_financial_scope) != financial_scope:
             raise ValueError("Checkpoint Financial Scope is invalid")
         _validate_l5_verification_graph(graph)
-        node = ResearchNode(raw_node)
-        expected_next = (
-            node if monitor_resume else next_research_node(node, cast(ResearchGraphState, graph))
-        )
-        next_node = None if raw_next_node is None else ResearchNode(cast(str, raw_next_node))
-        if next_node is not expected_next:
-            raise ValueError("Checkpoint next node is invalid")
         verification = raw_payload.get("verification")
         if not isinstance(verification, dict) or verification != {
             "report_id": graph["verification_report_id"],
@@ -880,10 +867,22 @@ def _resume_snapshot(
         if not isinstance(execution, dict):
             raise ValueError("Checkpoint execution payload is missing")
         observations = _restore_observations(execution.get("observations"), record.workspace_id)
+        approved_action, approved_observation = _approved_monitor_tool_result(
+            approval,
+            approved_effect,
+            workspace_id=record.workspace_id,
+            observation_ordinal=len(observations) + 1,
+        )
+        monitor_resume = approved_action is not None
+        node = ResearchNode(raw_node)
+        expected_next = (
+            node if monitor_resume else next_research_node(node, cast(ResearchGraphState, graph))
+        )
+        next_node = None if raw_next_node is None else ResearchNode(cast(str, raw_next_node))
+        if next_node is not expected_next:
+            raise ValueError("Checkpoint next node is invalid")
         if approved_observation is not None:
-            if observations:
-                raise ValueError("Approved Tool Checkpoint already contains observations")
-            observations = (approved_observation,)
+            observations = (*observations, approved_observation)
         steps = _restore_steps(execution.get("steps"), record.id, record.workspace_id)
         decision = _restore_final_decision(execution.get("final_decision"))
         response = _restore_model_response(execution.get("final_response"))
@@ -929,6 +928,7 @@ def _approved_monitor_tool_result(
     effect: ResearchSideEffectRecord | None,
     *,
     workspace_id: UUID,
+    observation_ordinal: int = 1,
 ) -> tuple[ToolAction | None, ToolObservationContextSource | None]:
     if approval is None or approval.reason is not ResearchApprovalReason.MONITOR_SUBSCRIPTION:
         if effect is not None:
@@ -967,7 +967,7 @@ def _approved_monitor_tool_result(
         observation_id=uuid5(approval.id, "approved-tool-observation-v1"),
         tool_call_id=approval.tool_call_id,
         workspace_id=workspace_id,
-        ordinal=1,
+        ordinal=observation_ordinal,
         tool_name=approval.tool_name,
         tool_version=approval.tool_version,
         source_name="normalized_tool_result",

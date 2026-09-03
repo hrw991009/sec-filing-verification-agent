@@ -1623,6 +1623,16 @@ async def test_l5_monitor_tool_request_checkpoints_and_pauses_for_durable_approv
     ]
 
     assert resumed_events[-1].event_type is AgentEventType.RUN_COMPLETED
+    resumed_event = next(
+        event for event in resumed_events if event.event_type is AgentEventType.RUN_RESUMED
+    )
+    assert resumed_event.payload["approved_observation_id"] == str(
+        approved_observation.observation_id
+    )
+    assert (
+        resumed_event.payload["approved_observation_envelope_sha256"]
+        == approved_observation.envelope_sha256
+    )
     assert [event.event_type for event in committer.events].count(
         AgentEventType.TOOL_APPROVAL_REQUIRED
     ) == 1

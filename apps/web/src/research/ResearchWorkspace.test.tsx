@@ -568,6 +568,7 @@ describe("ResearchWorkspace", () => {
       exclusions: ["Investment advice"],
       industry_id: industryId,
       max_steps: 20,
+      max_total_tokens: 32_768,
       mode: "web",
       original_question: "Find a transport update.",
     });
@@ -625,6 +626,7 @@ describe("ResearchWorkspace", () => {
         unit: "USD",
       },
       knowledge_base_ids: [knowledgeBaseId],
+      max_total_tokens: 32_768,
       mode: "local",
     });
     expect(researchMocks.startResearch.mock.calls[0]?.[1]).not.toHaveProperty("industry_id");

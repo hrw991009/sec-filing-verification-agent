@@ -560,6 +560,8 @@ def test_financial_context_is_deterministic_and_records_locked_scope_identity() 
     assert observation_source.source_identity == source.locator
     visible = "\n".join(message.content for message in first.request.messages)
     assert scope.accession in visible
+    assert str(MEMORY_ID) in visible
+    assert '"knowledge_base_ids"' in visible
     assert '\\"concept\\":\\"Revenue\\"' in visible
     assert SECRET_REFERENCE not in visible
     assert sum(item.estimated_token_count for item in first.manifest.sources) == (

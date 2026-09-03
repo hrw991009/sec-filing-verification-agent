@@ -216,10 +216,16 @@ class AgentTrace:
             raise ValueError("Trace Context manifests do not belong to its Run Steps")
         completed_observations: dict[str, str] = {}
         for event in events:
-            if event.event_type is not AgentEventType.TOOL_COMPLETED:
+            if event.event_type is AgentEventType.TOOL_COMPLETED:
+                observation_id = event.details.get("observation_id")
+                envelope_sha256 = event.details.get("observation_envelope_sha256")
+            elif event.event_type is AgentEventType.RUN_RESUMED:
+                observation_id = event.details.get("approved_observation_id")
+                envelope_sha256 = event.details.get("approved_observation_envelope_sha256")
+                if observation_id is None and envelope_sha256 is None:
+                    continue
+            else:
                 continue
-            observation_id = event.details.get("observation_id")
-            envelope_sha256 = event.details.get("observation_envelope_sha256")
             if (
                 not isinstance(observation_id, str)
                 or not isinstance(envelope_sha256, str)

@@ -5,6 +5,7 @@ const backendUv =
   process.env.CI === "true"
     ? "uv run --locked --package industry-platform-backend"
     : "uv run --env-file .env --locked --package industry-platform-backend";
+const realSecJourney = process.env.SEC_REAL_BROWSER_E2E === "true";
 
 export default defineConfig({
   expect: {
@@ -16,11 +17,24 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: "**/sec-real-journey.spec.ts",
       use: {
         ...devices["Desktop Chrome"],
         ignoreHTTPSErrors: true,
       },
     },
+    ...(realSecJourney
+      ? [
+          {
+            name: "sec-real-journey",
+            testMatch: "**/sec-real-journey.spec.ts",
+            use: {
+              ...devices["Desktop Chrome"],
+              ignoreHTTPSErrors: true,
+            },
+          },
+        ]
+      : []),
   ],
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   retries: 0,

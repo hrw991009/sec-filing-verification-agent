@@ -32,6 +32,7 @@ from industry_platform.modules.disclosures.resources import (
     get_disclosure_resources,
 )
 from industry_platform.modules.disclosures.service import SecFilerResolutionService
+from industry_platform.modules.disclosures.subscription import TriggerSecMonitorRun
 from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.identity.domain import (
     AccessToken,
@@ -40,6 +41,7 @@ from industry_platform.modules.identity.domain import (
     NormalizedEmail,
 )
 from industry_platform.modules.identity.http_auth import get_principal_resolver
+from industry_platform.modules.jobs.domain import ManualScheduleTriggerResult
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 from .support import InMemoryFilerCatalogRepository, catalog_snapshot
@@ -89,6 +91,7 @@ class StubResources:
 @dataclass(slots=True)
 class TrackingMonitorSubscriptionService:
     scopes: list[WorkspaceScope] = field(default_factory=list)
+    trigger_calls: list[tuple[WorkspaceScope, TriggerSecMonitorRun]] = field(default_factory=list)
 
     async def list_monitors(self, scope: WorkspaceScope) -> tuple[object, ...]:
         self.scopes.append(scope)
@@ -103,6 +106,18 @@ class TrackingMonitorSubscriptionService:
         del monitor_id
         self.scopes.append(scope)
         return ()
+
+    async def trigger_run(
+        self,
+        scope: WorkspaceScope,
+        command: TriggerSecMonitorRun,
+    ) -> ManualScheduleTriggerResult:
+        self.trigger_calls.append((scope, command))
+        return ManualScheduleTriggerResult(
+            occurrence_id=UUID("55555555-5555-4555-8555-555555555556"),
+            job_id=UUID("55555555-5555-4555-8555-555555555557"),
+            created=True,
+        )
 
 
 @dataclass(slots=True)
@@ -497,5 +512,52 @@ def test_monitor_and_case_lists_are_rebuilt_only_in_the_authenticated_workspace(
     assert service.scopes == [
         WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
         WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+    ]
+    assert denied.status_code == 403
+
+
+def test_active_monitor_run_is_enqueued_through_the_authenticated_workspace(
+    test_settings: Settings,
+) -> None:
+    service = TrackingMonitorSubscriptionService()
+    monitor_id = UUID("55555555-5555-4555-8555-555555555558")
+    trigger_id = UUID("55555555-5555-4555-8555-555555555559")
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources,
+        StubResources(monitor_subscription_service=service),
+    )
+
+    with TestClient(application, base_url="https://localhost") as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/monitors/{monitor_id}/runs",
+            headers=headers(),
+            json={"expected_revision": 3, "trigger_id": str(trigger_id)},
+        )
+        denied = client.post(
+            f"/api/v1/workspaces/{OTHER_WORKSPACE_ID}/disclosures/monitors/{monitor_id}/runs",
+            headers=headers(),
+            json={"expected_revision": 3, "trigger_id": str(trigger_id)},
+        )
+
+    assert response.status_code == 202
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {
+        "occurrence_id": "55555555-5555-4555-8555-555555555556",
+        "job_id": "55555555-5555-4555-8555-555555555557",
+        "created": True,
+    }
+    assert service.trigger_calls == [
+        (
+            WorkspaceScope(WORKSPACE_ID, USER_ID, "member"),
+            TriggerSecMonitorRun(
+                monitor_id=monitor_id,
+                expected_revision=3,
+                trigger_id=trigger_id,
+            ),
+        )
     ]
     assert denied.status_code == 403

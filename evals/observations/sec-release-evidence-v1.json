@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "manifest_id": "sec-release-evidence-v1",
-  "manifest_sha256": "08d38da54c2efb27e64431f15f9513ad78aee82fe8adceb0f5e1f009f3e664f4",
+  "manifest_sha256": "0f70c041cedf6b6856982701508e2c27eb30c13d2f0c694efa403cd224449bcb",
   "execution_status": "not_executed",
   "evidence_layer": "offline_capability",
   "provider": null,
@@ -13,8 +13,8 @@
   "toolset_version": null,
   "observations": [],
   "limitations": [
-    "No production UnifiedAgentRuntime Run was executed in this checked artifact.",
-    "Offline public predictions, live provider runs, and three repetitions remain external work.",
+    "No production UnifiedAgentRuntime Run was executed in this checked baseline artifact.",
+    "The one-command acceptance runner generates production observations outside Git.",
     "Unknown metrics and alerts are release blockers, not zero-failure success."
   ]
 }

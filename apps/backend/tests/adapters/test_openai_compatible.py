@@ -658,6 +658,24 @@ def test_provider_config_rejects_an_invalid_port_before_http_construction() -> N
         replace(config(), base_url="https://provider.test:not-a-port/v1")
 
 
+def test_provider_config_allows_only_explicit_test_loopback_http() -> None:
+    controlled = replace(
+        config(),
+        base_url="http://127.0.0.1:18081/v1",
+        allow_test_loopback=True,
+    )
+    assert controlled.base_url == "http://127.0.0.1:18081/v1"
+
+    with pytest.raises(ValueError, match="fixed HTTPS"):
+        replace(config(), base_url="http://127.0.0.1:18081/v1")
+    with pytest.raises(ValueError, match="fixed HTTPS"):
+        replace(
+            config(),
+            base_url="http://localhost:18081/v1",
+            allow_test_loopback=True,
+        )
+
+
 @pytest.mark.asyncio
 async def test_unsupported_schema_is_rejected_before_an_http_request() -> None:
     calls = 0

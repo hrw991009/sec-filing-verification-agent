@@ -2,13 +2,13 @@
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.0 Day 6
+> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.15 Day 6
 >
 > 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：Day 6 已由 PR #10 合入 `main`，功能 head、PR 和合并提交 CI 均通过，项目所有者已要求核对 Day 6 并准备 Day 7 文档。D6-01、D6-03、D6-04、D6-05、D6-07、D6-08 保持 `implemented_pending_verification`；D6-02/D6-06 因 bulk published/coverage watermark 与 post-watermark gap 保持 `thin_slice`。确定性报告 contract `18/18`、closeout `4/6`、总计 `22/24`，Day 6 gate 仍未通过；分支结束不等于冻结范围全部完成。
+> 当前状态（2026-09-01）：Day 6 原分支与三层 CI 历史证据不变；后续技术债收口已实现 bulk snapshot/published/coverage watermark/post-watermark gap，并完成独立 live SEC identity smoke。`sec-source-v1` 当前为 contract `18/18`、closeout `6/6`、总计 `24/24`，deterministic gate 通过；D6-01～D6-08 均为 `implemented_pending_verification`，仍等待真实大体积 bulk、外部权利/所有者、适用浏览器和本轮远端 CI 证据，不能统一写成 `complete`。
 
 ## 1. 进入条件与今日边界
 
@@ -192,7 +192,15 @@ Point-in-time 必须区分：
 - push CI [`33053621106`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053621106)、PR CI [`33053623731`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053623731) 和 main CI [`33054136204`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33054136204) 均通过 7 个适用 Job。
 - 本地 `main` 与 `origin/main` 一致且工作树干净；项目所有者已明确要求核对 Day 6 并先编写 Day 7 文档。这些证据关闭提交、合并、CI 和本轮复核条件，但不会把两个缺失能力改写成成功。
 
-完成两条 bulk snapshot/watermark/post-gap 能力、把 `sec-source-v1` closeout 提升到 `6/6`、总计 `24/24`，并补齐合法 live SEC smoke 与适用 DoD 后，D6-01～D6-08 才能统一改为 `complete`。Day 7 文档可先冻结，代码入口按主计划继续受该门禁约束。
+#### 技术债收口（2026-09-01）
+
+- 新增 `sec-bulk-v1`：只允许两个官方 bulk URL，按 `Content-Length` 流式校验完整性并计算 SHA-256，8 MiB 后落临时文件，避免将约 1.4～1.6 GB ZIP 常驻内存；MinIO object key 由 dataset/source version/hash 决定。
+- PostgreSQL 新增 bulk archive、CIK entry、gap closure 与 incremental source 四张 append-only 表。ZIP member 必须是唯一 `CIK##########.json`，拒绝路径穿越、加密、重复、超限、损坏和缺目标 CIK；重复同一 receipt 返回既有事实，不产生 duplicate commit。
+- `Last-Modified` 作为版本化 `bulk_published_at` 依据，`sec-bulk-last-modified-v1` 明确令 `coverage_through=bulk_published_at-1s`。水位后的 submissions/companyfacts 读取使用以 watermark 命名的新 cache namespace，不能复用水位前 fresh cache；gap source URL/version/hash/available/retrieved time 全部落账。
+- 两条 closeout case 已绑定 `test_sec_bulk.py` 的生产可组合路径，确定性报告为 `24/24`、source locator `22/22`、snapshot presence `24/24`、bulk readiness `2/2`，gate 通过。普通 PR 仍不联网，报告继续写 `live_sec_executed=false`。
+- 独立 live smoke 于 `2026-09-01T04:11:35.617171+00:00` 经 `OfficialSecJsonClient` 读取 Apple CIK `0000320193`：164228 bytes，SHA-256 `2503475b32d84986bc12632a6430d620526d4fd08026014d0d5d64cb7ab602ab`，配置速率 8 req/s。artifact 不含联系邮箱并保存在 Git 忽略的 `.data/evals/sec-live-identity-v1.json`；一次性 smoke 使用明确标注的 process-local 单请求预算，生产 API/Worker 仍使用 Redis 跨进程预算。
+
+本轮尚未实际下载两个实时大体积 ZIP，也没有新的分支/PR/main CI、外部来源权利/所有者复核或适用浏览器证据。因此 D6-02/D6-06 从 `thin_slice` 升为 `implemented_pending_verification`，D6-01～D6-08 仍不能统一改为 `complete`。
 
 ## 4. 明确不进入 Day 6
 

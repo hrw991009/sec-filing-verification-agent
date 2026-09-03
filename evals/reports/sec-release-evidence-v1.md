@@ -49,8 +49,6 @@
 - `cross_workspace_rate_not_measured`
 - `unauthorized_write_rate_not_measured`
 - `duplicate_effect_rate_not_measured`
-- `injection_attack_success_rate_not_measured`
-- `recovery_success_not_measured`
 - `public_benchmark_predictions_not_executed`
 - `live_three_repetitions_not_executed`
 - `external_license_review_not_complete`

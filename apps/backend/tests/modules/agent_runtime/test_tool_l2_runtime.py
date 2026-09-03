@@ -539,6 +539,8 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
     for request in provider.requests:
         assert request.response_schema is not None
         validate_supported_schema(request.response_schema)
+        assert '"input_schema_version":' in request.messages[0].content
+        assert '"input_schema":' not in request.messages[0].content
     assert "provider/tool-l2-key" not in repr(events)
     assert "provider/tool-l2-key" not in repr(provider.requests)
 

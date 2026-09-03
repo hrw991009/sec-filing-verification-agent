@@ -6,11 +6,11 @@
 >
 > 日期：2026-08-26
 >
-> 修订日期：2026-08-31
+> 修订日期：2026-09-01
 >
-> 权威范围：`docs/master-plan.md` v2.2.13 Day 5 Step 4～Day 10
+> 权威范围：`docs/master-plan.md` v2.2.15 Day 5 Step 4～Day 10
 >
-> 状态：Day 6 `sec-source-v1` 报告仍为 22/24；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 9 已由 PR #15 合入 `main`且三层 CI 通过。Day 10 Step 1～5 已建立 readiness 台账、产品路径、同分母 A0～A4 Run evidence 合同、90% 核心门、12 场景恢复合同和最终完整性审计；真实 Run observation 仍为 0/50，恢复 observation 为 0/12。Recall@5、Runtime binding、公开集 prediction、live≥3、正式恢复演练、许可/中文/owner 复核仍缺。88 个目标仍有 43 个未完成，16 个 blocker open、5 个 external gate pending，结论为 `no_go`，候选说明仅为草案
+> 状态：Day 6 `sec-source-v1` 已由 bulk watermark/post-gap 执行证据提升为 24/24，独立 SEC identity live smoke 通过；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 10 已由 PR #16 合入 `main` 且三层 CI 通过，D10-03 与 Day 4 核心覆盖率债务已关闭。真实 Run observation 仍为 0/50，恢复 observation 为 0/12；Recall@5、Runtime binding、公开集 prediction、live model≥3、真实大体积 bulk、正式恢复演练、许可/中文/owner 复核仍缺。88 个目标仍有 42 个未完成，结论保持 `no_go`，候选说明仅为草案
 
 Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
@@ -278,7 +278,7 @@ offline 报告仅声明四个 Adapter 的可用 denominator，model/prediction/o
 
 Day 10 在同一 `evaluation` bounded context 将能力矩阵、Day 1～10 日志、代码/测试、CI workflow 和既有评测报告投影为单一发布台账。manifest 固定 88 个正式 requirement 的规范化 digest、六种状态计数、Day owner/依赖/验证命令、当前 68 个 artifact、9 个 taxonomy blocker 的双向映射、7 个跨 Day blocker 和 8 个 external gate。生成报告为每个 artifact 计算 byte size/SHA-256，并要求全部非 `complete` requirement 被 open blocker 精确覆盖、全部 pending gate 被 open blocker 引用。
 
-当前结果是 45 个 `complete`、33 个 `implemented_pending_verification`、10 个 `thin_slice`、0 个 `planned`；43 个未完成目标、16 个 open blocker、5 个 pending gate，故 `release_decision=no_go`、`rc_ready=false`。Day 9 push/PR/main CI 三项已有 URL/commit 证据并标记 verified；最终 owner acceptance 仍 pending。该层只审计证据完整性，不运行模型、Runtime、公开 benchmark、恢复演练或 live SEC，也不把历史 `complete` 自动升级为当前发布能力。
+当前结果是 46 个 `complete`、32 个 `implemented_pending_verification`、10 个 `thin_slice`、0 个 `planned`；42 个未完成目标、15 个 open blocker、5 个 pending gate，故 `release_decision=no_go`、`rc_ready=false`。Day 9 与 Day 10 push/PR/main CI 均已有 URL/commit 证据并标记 verified；最终 owner acceptance 仍 pending。该层只审计证据完整性，不运行模型、Runtime、公开 benchmark、恢复演练或 live SEC，也不把历史 `complete` 自动升级为当前发布能力。
 
 本地验证为聚焦/evaluation `8/65 passed`、readiness branch coverage `84%`、无强制真实服务全量 `1184 passed, 88 skipped`；Python/Web/构建/OpenAPI、依赖审计和 98-commit Gitleaks 通过。真实依赖、Chromium、远端分支/PR/main CI 和 owner review 未在本步执行，继续保留为发布证据缺口。
 
@@ -308,7 +308,7 @@ Day 10 Step 4 新增的 recovery scorer 只消费 12 个冻结场景的真实 ex
 
 Step 5 不增加新 scorer，也不重新解释 deterministic/offline/live/recovery 指标。它只同步 README、产品范围、ADR 0007、架构、评测、Runbook、NOTICE 和候选说明草案，将这些文件加入 readiness hash 台账，并以 Markdown AST 校验受审计文档的仓库内链接。候选说明草案必须与 checked readiness 报告一致标记 `NO_GO`；当 `rc_ready=false` 时，测试拒绝把文档写成可发布候选。
 
-D10-08 从 `planned` 变为 `thin_slice` 只表示文档包、链接门和候选提升条件已实现。Day 10 branch/PR/main CI、owner acceptance、外部权利/凭据、中文签字、50 个 production Run、12 个实际恢复场景和上一镜像 artifact 仍缺，所以本层不产生 capability score、不选择 production default，也不允许 tag 或发布声明。
+D10-08 为 `thin_slice` 只表示文档包、链接门和候选提升条件已实现。Day 10 branch/PR/main CI 已验证，但 owner acceptance、外部权利/凭据、中文签字、50 个 production Run、12 个实际恢复场景和上一镜像 artifact 仍缺，所以本层不产生 capability score、不选择 production default，也不允许 tag 或发布声明。
 
 ## 5. Scorer 分层
 

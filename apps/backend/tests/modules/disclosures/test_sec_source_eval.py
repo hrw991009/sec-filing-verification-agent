@@ -33,19 +33,12 @@ def test_sec_source_dataset_and_report_are_recomputed_from_24_fixed_cases() -> N
     assert score.contract_case_count == 18
     assert score.closeout_case_count == 6
     assert score.metrics == checked.metrics
-    assert score.gate_passed is checked.gate_passed is False
-    assert (
-        score.blockers
-        == checked.blockers
-        == (
-            "submissions-bulk-watermark",
-            "companyfacts-bulk-watermark",
-        )
-    )
+    assert score.gate_passed is checked.gate_passed is True
+    assert score.blockers == checked.blockers == ()
     assert score.metrics["contract_pass_rate"].value == 1
-    assert score.metrics["closeout_pass_rate"].value == 0.666667
+    assert score.metrics["closeout_pass_rate"].value == 1
     assert score.metrics["tool_surface_adherence"].value == 1
-    assert score.metrics["bulk_coverage_readiness"].value == 0
+    assert score.metrics["bulk_coverage_readiness"].value == 1
     assert checked.execution_boundary["live_sec_executed"] is False
 
 
@@ -73,7 +66,7 @@ def test_sec_source_cases_bind_unique_executable_pytest_evidence() -> None:
         assert f"def {test_name}(" in source, case.evidence_ref
 
 
-def test_submissions_bulk_closeout_is_reported_as_blocker() -> None:
+def test_submissions_bulk_closeout_is_backed_by_executable_evidence() -> None:
     dataset = load_sec_source_dataset(DATASET_PATH)
     report = load_sec_source_report(REPORT_PATH)
     case = next(case for case in dataset.cases if case.case_id == "submissions-bulk-watermark")
@@ -83,12 +76,15 @@ def test_submissions_bulk_closeout_is_reported_as_blocker() -> None:
 
     assert case.split is SecSourceSplit.CLOSEOUT_REGRESSION
     assert case.bulk_coverage.required is True
-    assert observed.observed_outcome.value == "capability_missing"
-    assert observed.observed_error_code == "submissions_bulk_not_implemented"
-    assert observed.observed_bulk_coverage_complete is False
+    assert observed.observed_outcome.value == "success"
+    assert observed.observed_error_code is None
+    assert observed.observed_bulk_coverage_complete is True
+    assert observed.evidence_ref.endswith(
+        "test_submissions_bulk_watermark_persists_snapshot_and_closes_post_watermark_gap"
+    )
 
 
-def test_companyfacts_bulk_closeout_is_reported_as_blocker() -> None:
+def test_companyfacts_bulk_closeout_is_backed_by_executable_evidence() -> None:
     dataset = load_sec_source_dataset(DATASET_PATH)
     report = load_sec_source_report(REPORT_PATH)
     case = next(case for case in dataset.cases if case.case_id == "companyfacts-bulk-watermark")
@@ -98,9 +94,12 @@ def test_companyfacts_bulk_closeout_is_reported_as_blocker() -> None:
 
     assert case.split is SecSourceSplit.CLOSEOUT_REGRESSION
     assert case.bulk_coverage.required is True
-    assert observed.observed_outcome.value == "capability_missing"
-    assert observed.observed_error_code == "companyfacts_bulk_not_implemented"
-    assert observed.observed_bulk_coverage_complete is False
+    assert observed.observed_outcome.value == "success"
+    assert observed.observed_error_code is None
+    assert observed.observed_bulk_coverage_complete is True
+    assert observed.evidence_ref.endswith(
+        "test_companyfacts_bulk_watermark_persists_snapshot_and_closes_post_watermark_gap"
+    )
 
 
 def test_sec_source_scorer_rejects_a_missing_case_observation() -> None:

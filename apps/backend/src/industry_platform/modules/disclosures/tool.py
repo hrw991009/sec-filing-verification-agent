@@ -632,6 +632,18 @@ class SecSearchFilingInput(BaseModel):
     query: str = Field(min_length=1, max_length=2_000)
 
 
+class SecFilingTableCellOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    table_index: int = Field(ge=1)
+    row_index: int = Field(ge=1)
+    column_index: int = Field(ge=1)
+    row_span: int = Field(ge=1)
+    column_span: int = Field(ge=1)
+    text: str = Field(min_length=1, max_length=4_000)
+    content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class SecFilingContentHitOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -654,6 +666,7 @@ class SecFilingContentHitOutput(BaseModel):
     rrf_score: float | None = Field(default=None, ge=0, le=1)
     rerank_score: float | None = Field(default=None, ge=0, le=1)
     index_version: str
+    table_cells: list[SecFilingTableCellOutput]
 
 
 class SecFilingRetrievalTraceOutput(BaseModel):
@@ -812,6 +825,18 @@ class SecSearchFilingTool(PydanticToolAdapter[SecSearchFilingInput, SecSearchFil
                         rrf_score=hit.rrf_score,
                         rerank_score=hit.rerank_score,
                         index_version=hit.index_version,
+                        table_cells=[
+                            SecFilingTableCellOutput(
+                                table_index=cell.table_index,
+                                row_index=cell.row_index,
+                                column_index=cell.column_index,
+                                row_span=cell.row_span,
+                                column_span=cell.column_span,
+                                text=cell.text,
+                                content_sha256=cell.content_sha256,
+                            )
+                            for cell in hit.table_cells
+                        ],
                     )
                     for hit in result.hits
                 ],
@@ -894,6 +919,7 @@ class SecReadFilingSectionOutput(BaseModel):
     source_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_url: str
     source_version: str
+    table_cells: list[SecFilingTableCellOutput]
     financial_scope: FinancialScopePayload | None = None
 
 
@@ -931,6 +957,7 @@ def sec_read_filing_section_definition() -> ToolDefinition:
                 "source_content_sha256",
                 "source_url",
                 "source_version",
+                "table_cells",
                 "financial_scope",
             ],
             "properties": {
@@ -947,6 +974,7 @@ def sec_read_filing_section_definition() -> ToolDefinition:
                 "source_content_sha256": {"type": "string"},
                 "source_url": {"type": "string"},
                 "source_version": {"type": "string"},
+                "table_cells": {"type": "array"},
                 "financial_scope": {"type": ["object", "null"]},
             },
         },
@@ -1012,6 +1040,18 @@ class SecReadFilingSectionTool(
                 source_content_sha256=section.source_content_sha256,
                 source_url=section.source_url,
                 source_version=section.source_version,
+                table_cells=[
+                    SecFilingTableCellOutput(
+                        table_index=cell.table_index,
+                        row_index=cell.row_index,
+                        column_index=cell.column_index,
+                        row_span=cell.row_span,
+                        column_span=cell.column_span,
+                        text=cell.text,
+                        content_sha256=cell.content_sha256,
+                    )
+                    for cell in section.table_cells
+                ],
                 financial_scope=FinancialScopePayload.from_domain(financial_scope),
             ),
             0,

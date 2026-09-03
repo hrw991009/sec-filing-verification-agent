@@ -67,6 +67,30 @@ def observation(accession: str, form: SecFilingForm, accepted_at: datetime) -> S
     )
 
 
+def test_filing_observation_accepts_utc_evening_rollover_but_rejects_later_acceptance() -> None:
+    rollover = SecFilingObservation(
+        cik=CIK,
+        accession="0000320193-23-000106",
+        form=SecFilingForm.TEN_K,
+        report_date=date(2023, 9, 30),
+        filed_date=date(2023, 11, 3),
+        accepted_at=datetime(2023, 11, 2, 22, 8, 27, tzinfo=UTC),
+        primary_document="aapl-20230930.htm",
+    )
+    assert rollover.filed_date == date(2023, 11, 3)
+
+    with pytest.raises(ValueError, match="acceptance time"):
+        SecFilingObservation(
+            cik=CIK,
+            accession="0000320193-23-000107",
+            form=SecFilingForm.TEN_K,
+            report_date=date(2023, 9, 30),
+            filed_date=date(2023, 11, 3),
+            accepted_at=datetime(2023, 11, 4, 1, tzinfo=UTC),
+            primary_document="aapl-20230930-late.htm",
+        )
+
+
 def source_snapshot() -> SecSubmissionSourceSnapshot:
     body = b'{"fixture":"point-in-time"}'
     content_hash = sha256_hex(body)
