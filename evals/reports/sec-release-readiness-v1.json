@@ -376,7 +376,7 @@
       "artifact_id": "ci-workflow",
       "byte_size": 26522,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "824eda90adcaffb0641abc8e61fb4ed2301f1a6346be87d8c27ab486c32d3d03"
+      "sha256": "678c6a5383313d43d2b734f3055d4320c9a917cff2e25bf80d3a64b04224def1"
     },
     {
       "artifact_id": "credential-audit",
