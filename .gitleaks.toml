@@ -1,4 +1,4 @@
-title = "Industry Intelligence Platform Gitleaks configuration"
+title = "SEC Filing Verification Agent Gitleaks configuration"
 
 [extend]
 useDefault = true

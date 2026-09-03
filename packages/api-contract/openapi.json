@@ -10025,7 +10025,7 @@
     }
   },
   "info": {
-    "title": "Industry Intelligence Platform API",
+    "title": "SEC Filing Verification Agent API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",

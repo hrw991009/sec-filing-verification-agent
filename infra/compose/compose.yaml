@@ -104,7 +104,7 @@ services:
     environment:
       RI_REDIS_HOST: redis
       RI_REDIS_PORT: "6379"
-      RI_REDIS_ALIAS: Industry Platform Redis
+      RI_REDIS_ALIAS: SEC Filing Verification Redis
       RI_REDIS_USERNAME: default
       RI_REDIS_PASSWORD: ${REDIS_PASSWORD}
       RI_REDIS_DB: "0"

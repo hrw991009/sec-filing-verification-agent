@@ -1,4 +1,4 @@
-# SEC Disclosure Financial Verification Agent
+# SEC Filing Verification Agent
 
 面向中文研究、企业战略、IR、财务和咨询团队的 SEC 公开披露监控与财务事实核验工作台。
 
@@ -152,7 +152,7 @@ print(
     "ACCESS_TOKEN_PUBLIC_KEYS_JSON="
     + json.dumps({key_id: encode(public_value)}, separators=(",", ":"))
 )
-'@ | uv run --locked --package industry-platform-backend python -
+'@ | uv run --locked --package sec-filing-verification-agent-backend python -
 ```
 
 保留 `.env.example` 中的精确 HTTPS origins；若改变 Web host 或 port，应同步更新 `BROWSER_TRUSTED_ORIGINS_JSON`，不能改成通配来源。
@@ -183,9 +183,9 @@ docker compose --env-file '.env' -f $composeFile --profile observability up -d -
 创建或升级正式表结构只能使用 Alembic：
 
 ```powershell
-uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini heads
-uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head
-uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini current
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini heads
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini upgrade head
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini current
 ```
 
 正常停止使用 `docker compose --env-file '.env' -f $composeFile down`。不要随意加 `--volumes`，它会删除本地持久数据。
@@ -195,7 +195,7 @@ uv run --env-file '.env' --locked --package industry-platform-backend alembic -c
 本地开发默认使用一个受控的 Python 进程管理器启动完整后端。它先检查 PostgreSQL、Redis、MinIO 私有桶和 Alembic 版本，然后分别启动 API、Outbox Dispatcher、Celery Worker、Job Reconciler 与 Celery Beat；这些仍是五个独立子进程，不会把生产职责合并到同一个 Runtime：
 
 ```powershell
-uv run --locked industry-platform-backend-dev
+uv run --locked sec-filing-verification-agent-dev
 ```
 
 请从仓库根目录执行该命令；后端 Settings 会自动读取根目录的 `.env`，因此日常启动不需要重复填写 `--env-file` 或 `--package`。如果依赖未启动，命令会直接给出 Compose 修复命令，而不是让 Worker 无限打印连接重试。如果数据库没有到最新 Alembic head，命令只提示正式迁移命令，不会在每次启动时静默修改数据库。Windows 本地 Worker 默认使用 `solo`、单并发；Linux 的独立 Worker 仍保留 Celery 默认进程池。按 `Ctrl+C` 会统一停止这一组开发进程。
@@ -203,23 +203,23 @@ uv run --locked industry-platform-backend-dev
 需要单独排障或模拟生产进程边界时，仍可让每条长运行命令各占一个 PowerShell 终端：
 
 ```powershell
-uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-api
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-api
 ```
 
 ```powershell
-uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-outbox-dispatcher
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-outbox-dispatcher
 ```
 
 ```powershell
-uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-celery-worker
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-celery-worker
 ```
 
 ```powershell
-uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-job-reconciler
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-job-reconciler
 ```
 
 ```powershell
-uv run --env-file '.env' --locked --package industry-platform-backend industry-platform-celery-beat
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-celery-beat
 ```
 
 Beat 只通过 PostgreSQL 创建持久 ScheduleOccurrence、Job 和 Outbox；真正发布由 Dispatcher 完成，Worker 执行任务，Reconciler 修复未启动或 lease 过期的 Job。
@@ -279,7 +279,7 @@ try {
     uv run --locked --all-packages ruff check --config pyproject.toml apps/backend evals/generators
     uv run --locked --all-packages mypy --config-file pyproject.toml --no-incremental
     uv run --env-file '.env' --locked --all-packages pytest --cov=industry_platform --cov-branch --cov-report=term --cov-fail-under=80
-    uv build --package industry-platform-backend
+    uv build --package sec-filing-verification-agent-backend
     uv audit --locked
 
     pnpm install --frozen-lockfile

@@ -17,7 +17,7 @@ AGENT_MODEL_ROUTE_JSON={"model":"openai-compatible/你的模型","upstream_model
 SEC EDGAR 不需要 API key，但必须保留已配置的应用身份：
 
 ```ini
-SEC_USER_AGENT_APP=IndustryIntelligencePlatform/0.1
+SEC_USER_AGENT_APP=SecFilingVerificationAgent/0.1
 SEC_USER_AGENT_EMAIL=有人查看的真实邮箱
 SEC_REQUESTS_PER_SECOND=8
 ```

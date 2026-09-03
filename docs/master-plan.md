@@ -1,4 +1,4 @@
-# 行业智能平台 Day 1～10 AI Agent 学习与开发主计划：SEC 披露与财务事实核验
+# SEC Filing Verification Agent Day 1～10 学习与开发主计划
 
 > 计划编号：`IIP-MASTER-001`
 >
@@ -42,7 +42,7 @@
 
 ## 1. Agent-first 目标、路线转向与诚实边界
 
-产品从通用“多模态行业智能工作台”收敛为 **SEC 披露公司监控与财务事实核验工作台**。学习主线仍是同一套 AI Agent Runtime/Harness、Tool Use、Memory、Evidence、Knowledge/RAG、durable execution 与 Eval；变化的是从 Day 5 Step 4 起，所有新增业务能力、数据集和发布验收都必须服务于 SEC `10-K/10-Q` 系列披露事实核验，而不再继续扩张通用行业页面。MVP 不代表覆盖所有海外市场或 `20-F/6-K`。
+产品正式命名为 **SEC Filing Verification Agent**，面向 SEC 披露公司监控与财务事实核验。学习主线仍是同一套 AI Agent Runtime/Harness、Tool Use、Memory、Evidence、Knowledge/RAG、durable execution 与 Eval；从 Day 5 Step 4 起，所有新增业务能力、数据集和发布验收都必须服务于 SEC `10-K/10-Q` 系列披露事实核验，不再扩张为通用行业平台。MVP 不代表覆盖所有海外市场或 `20-F/6-K`。
 
 ### 1.1 已完成范围冻结
 
@@ -224,7 +224,7 @@ Celery Beat → Application Service → Job/Outbox → Dispatcher → Celery Wor
 ## 4. 目标 Monorepo 与模块边界
 
 ```text
-industry-intelligence-platform/
+sec-filing-verification-agent/
 ├─ apps/
 │  ├─ backend/
 │  │  ├─ src/industry_platform/

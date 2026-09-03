@@ -48,18 +48,17 @@ export function AuthPage() {
     <main className="auth-layout">
       <section className="brand-panel" aria-labelledby="product-title">
         <div className="brand-mark" aria-hidden="true">
-          IIP
+          SEC
         </div>
-        <p className="eyebrow">Industry Intelligence Platform</p>
-        <h1 id="product-title">把行业信号，变成可追溯的研究结论。</h1>
+        <p className="eyebrow">SEC Filing Verification Agent</p>
+        <h1 id="product-title">SEC 披露与财务事实核验 Agent</h1>
         <p className="brand-panel__summary">
-          在统一 Workspace 中组织证据、研究任务与 Agent
-          协作。身份、会话和租户边界从第一天就由服务端验证。
+          围绕 SEC filing、XBRL 事实和原始披露文本，完成可追溯、可恢复、可验证的财务核验。
         </p>
-        <ul className="capability-list" aria-label="平台基础能力">
-          <li>证据优先的行业研究</li>
-          <li>可审计的 Agent 执行</li>
-          <li>严格隔离的团队 Workspace</li>
+        <ul className="capability-list" aria-label="SEC filing 财务核验能力">
+          <li>SEC 官方披露监控</li>
+          <li>可追溯的财务事实核验</li>
+          <li>可审计、可恢复的 Agent 执行</li>
         </ul>
       </section>
 

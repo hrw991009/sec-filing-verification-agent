@@ -3,8 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 const baseURL = "https://localhost:5173";
 const backendUv =
   process.env.CI === "true"
-    ? "uv run --locked --package industry-platform-backend"
-    : "uv run --env-file .env --locked --package industry-platform-backend";
+    ? "uv run --locked --package sec-filing-verification-agent-backend"
+    : "uv run --env-file .env --locked --package sec-filing-verification-agent-backend";
 const realSecJourney = process.env.SEC_REAL_BROWSER_E2E === "true";
 
 export default defineConfig({
@@ -49,7 +49,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `${backendUv} alembic -c apps/backend/alembic.ini upgrade head && ${backendUv} industry-platform-api`,
+      command: `${backendUv} alembic -c apps/backend/alembic.ini upgrade head && ${backendUv} sec-filing-verification-api`,
       reuseExistingServer: process.env.CI !== "true",
       stderr: "pipe",
       stdout: "pipe",
@@ -57,7 +57,7 @@ export default defineConfig({
       url: "http://127.0.0.1:8000/health/live",
     },
     {
-      command: "pnpm --filter @industry-platform/web run dev",
+      command: "pnpm --filter @sec-filing-verification/web run dev",
       ignoreHTTPSErrors: true,
       reuseExistingServer: process.env.CI !== "true",
       stderr: "pipe",

@@ -145,8 +145,8 @@ v2 Provider 数据集包含 6 个用例：正常 final、格式错误、timeout�
 CLI 只输出不敏感的元数据：
 
 ```powershell
-uv run --locked --package industry-platform-backend industry-platform-agent-harness validate --dataset evals/scenarios/day2-v2.json
-uv run --locked --package industry-platform-backend industry-platform-agent-harness list --dataset evals/scenarios/day2-v2.json
+uv run --locked --package sec-filing-verification-agent-backend sec-filing-verification-agent-harness validate --dataset evals/scenarios/day2-v2.json
+uv run --locked --package sec-filing-verification-agent-backend sec-filing-verification-agent-harness list --dataset evals/scenarios/day2-v2.json
 ```
 
 可靠性数据集的 Schema、测试引用和 DoD 类别覆盖由 `test_day2_replay.py` 校验；被引用的 Runtime/Application/PostgreSQL 测试仍由 pytest 真正执行，JSON 报告不是测试通过与否的事实源。

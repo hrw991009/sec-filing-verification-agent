@@ -1,4 +1,7 @@
-import { createIndustryPlatformApiClient, type components } from "@industry-platform/api-contract";
+import {
+  createSecFilingVerificationApiClient,
+  type components,
+} from "@sec-filing-verification/api-contract";
 
 import {
   clearAccessSession,
@@ -26,7 +29,7 @@ interface ProblemLike {
 
 const CSRF_COOKIE_NAME = "__Host-iip_csrf";
 const CSRF_HEADER_NAME = "X-CSRF-Token";
-export const apiClient = createIndustryPlatformApiClient({
+export const apiClient = createSecFilingVerificationApiClient({
   baseUrl: window.location.origin,
 });
 

@@ -56,7 +56,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@industry-platform/api-contract':
+      '@sec-filing-verification/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
       echarts:

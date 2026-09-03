@@ -1,4 +1,4 @@
-# SEC 披露核验 Agent 发布就绪合同
+# SEC Filing Verification Agent 发布就绪合同
 
 > 合同编号：`IIP-RELEASE-SEC-001`
 >

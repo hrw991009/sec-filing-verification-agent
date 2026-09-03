@@ -66,7 +66,7 @@ jobs:
         run: uv run --locked --all-packages pytest
 
       - name: Build Python package
-        run: uv build --package industry-platform-backend
+        run: uv build --package sec-filing-verification-agent-backend
 
   fresh-postgresql-migration:
     name: PostgreSQL integration
@@ -464,7 +464,7 @@ jobs:
         run: uv python install
 
       - name: Sync locked backend
-        run: uv sync --locked --package industry-platform-backend
+        run: uv sync --locked --package sec-filing-verification-agent-backend
 
       - name: Generate ephemeral authentication keys
         shell: bash

@@ -8,33 +8,33 @@
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 151841,
+      "byte_size": 151781,
       "relative_path": "docs/master-plan.md",
-      "sha256": "900c0ac11147ee86ef23cbd7205b69b8babd5a736994b434bc6a302a7e899872"
+      "sha256": "9a033f6784b2d8ecb97b089dfee3f2f9b821e53898a470b0e830864af68d981d"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 108131,
+      "byte_size": 108155,
       "relative_path": "docs/architecture.md",
-      "sha256": "f81b609c8f22ea8675c4b15e7aed7ea160a4891808edb5595ae80f457d17bbe0"
+      "sha256": "83a5c15ab8a7d88e457d81c96a87f2a8c7350c47a3d90bf99df38ff16080855f"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 14902,
+      "byte_size": 14909,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "8ea88cb67a7196b256d389bd391bafcfc2bc57a7935ac74a1b1c7a6ebb4c6f44"
+      "sha256": "24c2e570140e4435d43f463e6b57108d4e21b0ba64053cc72f2301e2c9ecac8d"
     },
     {
       "artifact_id": "readme",
-      "byte_size": 20826,
+      "byte_size": 20966,
       "relative_path": "README.md",
-      "sha256": "1c74b0ea1a76a680f01c44a9d2600c4d84816871bb7aecf9436020de638b5ea4"
+      "sha256": "cb2b1af446f1a75ecfbd768cd5a570137d6dacaeda3b585f35e13655fa3c5cdf"
     },
     {
       "artifact_id": "product-scope",
-      "byte_size": 30908,
+      "byte_size": 30906,
       "relative_path": "docs/product-scope.md",
-      "sha256": "a568d126bfb0e09b3b7392dd5ee2f285c8983ceefc164207f609a54fa4ff8740"
+      "sha256": "3b27b7c8b651f1e6d30103565a3f013f08c8aece69f97eb00f3926166611c69b"
     },
     {
       "artifact_id": "sec-domain-adr",
@@ -56,9 +56,9 @@
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 38476,
+      "byte_size": 38482,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "b32f15124f463ada59bab69565a907c36b15cc2604d2b47fe2a7df3eb718b4d3"
+      "sha256": "b1a0a41d131297a438aef4f85de7af5169576a2f734c44e33cb751854859f3d1"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -230,9 +230,9 @@
     },
     {
       "artifact_id": "release-acceptance-runbook",
-      "byte_size": 4887,
+      "byte_size": 4885,
       "relative_path": "docs/runbooks/sec-release-acceptance.md",
-      "sha256": "64cacf517dbed29a6533be0625ad0a8fd25a29ddba392c8d81ae789b28675b8e"
+      "sha256": "de93a7f14a32232c9d6fd2f1c60bf64316f237da0468399aeda9f8e6e68da9d9"
     },
     {
       "artifact_id": "sec-filing-table-parser",
@@ -314,9 +314,9 @@
     },
     {
       "artifact_id": "research-web-api",
-      "byte_size": 5594,
+      "byte_size": 5600,
       "relative_path": "apps/web/src/research/research-api.ts",
-      "sha256": "699292435c8a793b9fb89359958281b0b117cfa76924b0886a4bedf7e5df1876"
+      "sha256": "a08c472af581ff4d108dac1fe52ec23c69ffc282e68daa501712fbfcd2051aa7"
     },
     {
       "artifact_id": "research-web-api-tests",
@@ -350,33 +350,33 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 10849,
+      "byte_size": 11095,
       "relative_path": "package.json",
-      "sha256": "9c9ea2caaafb6fb33dc2ab996852f9fe20da9278e3d32b7c5426e1077321e4fa"
+      "sha256": "0c3401f063d376b777ea634a0f2899945d631252063c79d22d2ee0223166ee87"
     },
     {
       "artifact_id": "python-project-policy",
-      "byte_size": 2554,
+      "byte_size": 2584,
       "relative_path": "pyproject.toml",
-      "sha256": "c7608b54e4efbb0aa2ad53a8bd45254c4f7bbaa3328213d75f396f43d32117f6"
+      "sha256": "c75a9d8c23fc504faa939bdf032b3da46815fbde0d52b6098230f20e80de89af"
     },
     {
       "artifact_id": "python-lockfile",
-      "byte_size": 286389,
+      "byte_size": 286411,
       "relative_path": "uv.lock",
-      "sha256": "b6f28bda9343ca6eefd1e50e9759867d97eda3595b357f99653e4681440112b6"
+      "sha256": "ef13a10c1f84ee783b709f93aac657c97580cd6749005cd61bdf8be9f3f59fec"
     },
     {
       "artifact_id": "node-lockfile",
-      "byte_size": 166725,
+      "byte_size": 166731,
       "relative_path": "pnpm-lock.yaml",
-      "sha256": "e4a79a222c01ca76d52e60974aefb957cac7a2cc6a1a19352a33151f2560d9a4"
+      "sha256": "7757e9c385d29ee97da59f8b7dc0fc5ed0e1fc41bd657aa9fb3e1a69fa4ac79e"
     },
     {
       "artifact_id": "ci-workflow",
-      "byte_size": 26522,
+      "byte_size": 26546,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "678c6a5383313d43d2b734f3055d4320c9a917cff2e25bf80d3a64b04224def1"
+      "sha256": "54239028074370782ce2286f1f4a0f7c22aa50077b357fdd6b8a848631753a0f"
     },
     {
       "artifact_id": "credential-audit",
@@ -872,7 +872,7 @@
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "b32f15124f463ada59bab69565a907c36b15cc2604d2b47fe2a7df3eb718b4d3",
+  "manifest_sha256": "b1a0a41d131297a438aef4f85de7af5169576a2f734c44e33cb751854859f3d1",
   "matrix_sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57",
   "pending_external_gate_count": 5,
   "rc_ready": false,
@@ -2148,7 +2148,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2237,7 +2237,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2326,7 +2326,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2415,7 +2415,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2504,7 +2504,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2593,7 +2593,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2682,7 +2682,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",
@@ -2771,7 +2771,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",

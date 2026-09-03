@@ -242,14 +242,14 @@ def test_sec_user_agent_configuration_is_complete_and_below_official_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configure_valid_environment(monkeypatch)
-    monkeypatch.setenv("SEC_USER_AGENT_APP", "IndustryIntelligencePlatform/0.1")
+    monkeypatch.setenv("SEC_USER_AGENT_APP", "SecFilingVerificationAgent/0.1")
     monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "edgar-ops@example.test")
     monkeypatch.setenv("SEC_REQUESTS_PER_SECOND", "9")
 
     settings = Settings(_env_file=None)
 
     assert settings.sec_source_configured is True
-    assert settings.sec_user_agent == ("IndustryIntelligencePlatform/0.1 edgar-ops@example.test")
+    assert settings.sec_user_agent == ("SecFilingVerificationAgent/0.1 edgar-ops@example.test")
     assert settings.sec_requests_per_second == 9
 
     monkeypatch.delenv("SEC_USER_AGENT_EMAIL")
@@ -279,7 +279,7 @@ def test_controlled_sec_source_is_test_only_and_can_override_local_live_identity
     assert settings.sec_controlled_source_configured is True
     assert settings.sec_source_configured is False
 
-    monkeypatch.setenv("SEC_USER_AGENT_APP", "IndustryIntelligencePlatform/0.1")
+    monkeypatch.setenv("SEC_USER_AGENT_APP", "SecFilingVerificationAgent/0.1")
     monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "edgar-ops@example.test")
     settings_with_identity = Settings(_env_file=None)
     assert settings_with_identity.sec_controlled_source_configured is True

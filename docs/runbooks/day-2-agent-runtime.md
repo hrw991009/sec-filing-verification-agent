@@ -12,8 +12,8 @@
 docker compose --env-file '.env' -f infra/compose/compose.yaml up -d --wait postgres redis minio
 docker compose --env-file '.env' -f infra/compose/compose.yaml run --rm --no-deps minio-init
 
-uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head
-uv run --env-file '.env' --locked industry-platform-backend-dev
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini upgrade head
+uv run --env-file '.env' --locked sec-filing-verification-agent-dev
 ```
 
 另开一个终端启动 Web：
@@ -50,7 +50,7 @@ docker compose --env-file '.env' -f infra/compose/compose.yaml ps -a postgres re
 
 ```powershell
 docker compose --env-file '.env' -f infra/compose/compose.yaml ps redis
-uv run --env-file '.env' --locked --package industry-platform-backend python -c "from industry_platform.core.config import get_settings; from industry_platform.workers.celery_app import create_worker_celery_app; app=create_worker_celery_app(get_settings()); print(app.control.inspect(timeout=2).active_queues()); app.close()"
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend python -c "from industry_platform.core.config import get_settings; from industry_platform.workers.celery_app import create_worker_celery_app; app=create_worker_celery_app(get_settings()); print(app.control.inspect(timeout=2).active_queues()); app.close()"
 ```
 
 不要直接修改数据库状态，也不要把 `agents` 消息手工搬到另一个队列。正式修复路径是恢复 Redis、Dispatcher 或 Worker，让 PostgreSQL Job/Outbox 对账继续推进。
@@ -116,7 +116,7 @@ Provider 回放场景在 `evals/scenarios/day2-v2.json`；预算、Worker 中断
 先校验两个场景集和报告合同：
 
 ```powershell
-uv run --locked --package industry-platform-backend industry-platform-agent-harness validate --dataset evals/scenarios/day2-v2.json
+uv run --locked --package sec-filing-verification-agent-backend sec-filing-verification-agent-harness validate --dataset evals/scenarios/day2-v2.json
 uv run --locked --all-packages pytest apps/backend/tests/modules/agent_harness/test_day2_replay.py -q
 ```
 

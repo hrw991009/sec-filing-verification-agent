@@ -30,7 +30,7 @@ OBJECT_STORAGE_INIT_COMMAND: Final = (
     "docker compose --env-file '.env' -f infra/compose/compose.yaml run --rm --no-deps minio-init"
 )
 MIGRATION_UPGRADE_COMMAND: Final = (
-    "uv run --env-file '.env' --locked --package industry-platform-backend "
+    "uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend "
     "alembic -c apps/backend/alembic.ini upgrade head"
 )
 DEFAULT_ALEMBIC_CONFIG: Final = Path("apps/backend/alembic.ini")
