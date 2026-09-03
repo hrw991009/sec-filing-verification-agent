@@ -9,6 +9,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
 
+from industry_platform.adapters.openai_compatible_schema import validate_supported_schema
 from industry_platform.modules.agent_harness.direct_answer import HarnessTrustedIdentity
 from industry_platform.modules.agent_harness.profiles import ToolL2Profile
 from industry_platform.modules.agent_harness.scenarios import (
@@ -209,6 +210,7 @@ def test_sec_profile_input_budget_contains_its_tool_contract(
         definitions,
     )
     response_schema = tool_loop_decision_response_schema(definitions)
+    validate_supported_schema(response_schema)
     reserved_bytes = len(instructions.encode("utf-8")) + len(
         json.dumps(
             dict(response_schema),

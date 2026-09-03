@@ -49,7 +49,7 @@ class StartResearch:
     search_mode: TurnSearchMode = TurnSearchMode.WEB
     knowledge_base_ids: tuple[UUID, ...] = ()
     max_steps: int = 20
-    max_total_tokens: int = 16_384
+    max_total_tokens: int = 32_768
     max_cost_micro_usd: int = 500_000
     timeout_seconds: int = 600
 

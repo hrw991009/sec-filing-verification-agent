@@ -8733,7 +8733,7 @@
             "type": "integer"
           },
           "max_total_tokens": {
-            "default": 16384,
+            "default": 32768,
             "maximum": 100000.0,
             "minimum": 1024.0,
             "title": "Max Total Tokens",

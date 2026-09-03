@@ -5328,7 +5328,7 @@ export interface components {
             max_steps: number;
             /**
              * Max Total Tokens
-             * @default 16384
+             * @default 32768
              */
             max_total_tokens: number;
             /**

@@ -304,13 +304,13 @@
       "artifact_id": "research-workbench-ui",
       "byte_size": 57951,
       "relative_path": "apps/web/src/research/ResearchWorkspace.tsx",
-      "sha256": "86b646843be34fac6a2cc448fefee9f91b566f249b0d1a109b8dad2c476c0d0f"
+      "sha256": "82e2fdf2cc59195de56a3e3d3476c614f3ef4a98432f98e8f75db874a12fce55"
     },
     {
       "artifact_id": "research-workbench-tests",
-      "byte_size": 28007,
+      "byte_size": 28071,
       "relative_path": "apps/web/src/research/ResearchWorkspace.test.tsx",
-      "sha256": "1ba0a7af9d42866f4974eed40430ee069dca34cdc40a01e9b8e748e524f17e9c"
+      "sha256": "70caa9bc3b26af8edba35b838f6ca6cc4992c4f6102e3990522afbf78007f156"
     },
     {
       "artifact_id": "research-web-api",

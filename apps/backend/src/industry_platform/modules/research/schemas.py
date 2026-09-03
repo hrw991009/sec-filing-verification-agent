@@ -58,7 +58,7 @@ class StartResearchRequest(StrictResearchModel):
     financial_scope: FinancialScopePayload | None = None
     approval_reason: ResearchApprovalReason | None = None
     max_steps: int = Field(default=20, ge=12, le=64)
-    max_total_tokens: int = Field(default=16_384, ge=1_024, le=100_000)
+    max_total_tokens: int = Field(default=32_768, ge=1_024, le=100_000)
     max_cost_micro_usd: int = Field(default=500_000, ge=0, le=10_000_000)
     timeout_seconds: int = Field(default=600, ge=30, le=1_500)
 

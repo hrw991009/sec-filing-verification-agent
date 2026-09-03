@@ -7,6 +7,20 @@ from uuid import uuid4
 
 import pytest
 
+from industry_platform.adapters.openai_compatible_schema import validate_structured_output
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    tool_loop_decision_response_schema,
+)
+from industry_platform.modules.disclosures.tool import (
+    sec_diff_filings_definition,
+    sec_get_xbrl_facts_definition,
+    sec_monitor_subscribe_definition,
+    sec_read_filing_section_definition,
+    sec_search_filing_definition,
+)
+from industry_platform.modules.financial_verification.tool import finance_calculate_definition
+from industry_platform.modules.retrieval.tool import knowledge_search_definition
+
 _TEST_ROOT = Path(__file__).resolve().parent
 _RUNNER_GLOBALS = runpy.run_path(str(_TEST_ROOT / "sec_browser_e2e_runner.py"))
 _PROVIDER_GLOBALS = runpy.run_path(str(_TEST_ROOT / "sec_browser_provider.py"))
@@ -19,7 +33,19 @@ _decision = cast(Callable[[str], tuple[str, str]], _PROVIDER_GLOBALS["_decision"
 
 
 def test_controlled_provider_exercises_search_approval_and_final_decisions() -> None:
+    response_schema = tool_loop_decision_response_schema(
+        (
+            knowledge_search_definition(),
+            finance_calculate_definition(),
+            sec_search_filing_definition(),
+            sec_read_filing_section_definition(),
+            sec_get_xbrl_facts_definition(),
+            sec_diff_filings_definition(),
+            sec_monitor_subscribe_definition(),
+        )
+    )
     search, search_kind = _decision("initial prompt")
+    validate_structured_output(search, response_schema)
     assert search_kind == "filing_search"
     assert json.loads(search)["decision"]["name"] == "sec.search_filing"
 
@@ -35,12 +61,14 @@ def test_controlled_provider_exercises_search_approval_and_final_decisions() -> 
         )
         + '\n{"retrieval_profile_version":"hybrid-v1"}'
     )
+    validate_structured_output(monitor, response_schema)
     monitor_decision = json.loads(monitor)["decision"]
     assert monitor_kind == "monitor_subscription"
     assert monitor_decision["name"] == "sec.monitor.subscribe"
     assert monitor_decision["arguments"]["knowledge_base_id"] == str(knowledge_base_id)
 
     final, final_kind = _decision("sec-monitor:00000000-0000-4000-8000-000000000001")
+    validate_structured_output(final, response_schema)
     assert final_kind == "final"
     assert "[S1]" in json.loads(final)["decision"]["content_markdown"]
 

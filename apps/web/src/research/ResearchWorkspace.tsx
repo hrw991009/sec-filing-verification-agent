@@ -175,7 +175,7 @@ export function ResearchWorkspace({
       : SEC_COMPLETION_CRITERIA,
   );
   const [maxSteps, setMaxSteps] = useState(20);
-  const [maxTotalTokens, setMaxTotalTokens] = useState(16_384);
+  const [maxTotalTokens, setMaxTotalTokens] = useState(32_768);
   const [maxCostMicroUsd, setMaxCostMicroUsd] = useState(500_000);
   const [timeoutSeconds, setTimeoutSeconds] = useState(600);
   const detailRequestRef = useRef(0);
