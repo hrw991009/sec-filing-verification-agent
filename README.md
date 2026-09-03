@@ -1,113 +1,101 @@
 # SEC Filing Verification Agent
 
-面向中文研究、企业战略、IR、财务和咨询团队的 SEC 公开披露监控与财务事实核验工作台。
+面向中文财务研究场景的 SEC 披露检索、财务事实核验与持续监控 Agent。
 
-当前状态：Day 10 Step 1～Step 5 已由 PR #16 合入 `main`，三层 CI 与完整工程门禁均已通过，但发布判定仍为
-`NO_GO`。机器台账登记 88 个冻结目标，其中 46 个 `complete`、42 个未完成；15 个 release
-blocker 仍为 open，5 个 external gate 仍为 pending。不得创建
-`v0.2.0-sec-disclosure-verifier` 标签，也不得把 frozen replay、Adapter readiness、组件测试或
-本地验证写成 live/model/公开 benchmark/正式恢复能力。
+项目以 SEC filing 和 XBRL 事实为主要数据源，将公司与申报范围锁定、文档入库、混合检索、
+可重算财务计算、Evidence/Citation、人工审批以及后续披露 Monitor/Case 串成一条可审计链路。
+系统保存 Agent 的 Tool Call、Trace、Checkpoint、计算过程和来源定位，便于复核结论是如何产生的。
 
-当前代码已收敛到唯一 SEC 披露核验链：Filer/Filings → Research/Verification →
-Evidence/Calculation → Approval/Monitor/Case，并复用统一 Agent Runtime、Tool、Checkpoint、
-PostgreSQL 事实和可重建索引。生产 Run observation 仍为 0/50，正式恢复 observation 仍为
-0/12；无 interception 中文浏览器全链已在当前分支接入受控衍生 SEC 来源、真实 HTTP Provider、
-Dispatcher/Worker 和五依赖 CI，但尚无本轮远端成功产物，不能视为 live SEC/model 验证；公开/live
-评测、正式恢复、外部权利/凭据与 owner acceptance 仍未关闭。精确状态以[机器 readiness 报告](evals/reports/sec-release-readiness-v1.md)
-和[候选说明草案](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)为准。
+> [!IMPORTANT]
+> 本项目目前是研究与工程验证版本。冻结回放和自动化测试不等于
+> 真实模型、生产环境或投资业务验证。项目不提供投资建议、估值、目标价、交易动作或审计意见。
+> 当前状态以[发布就绪报告](evals/reports/sec-release-readiness-v1.md)为准。
 
-## 文档入口
+当前发布判定仍为
+`NO_GO`，因此不得创建
+`v0.2.0-sec-disclosure-verifier` 标签、发布镜像，或对外宣称已经完成生产验证。
 
-- [Day 1～Day 10 主计划 v2.2.16（当前权威执行基线）](docs/master-plan.md)
-- [产品范围说明](docs/product-scope.md)
-- [Day 1～Day 10 目标能力矩阵](docs/feature-matrix.md)
-- [系统架构说明与 ADR 索引](docs/architecture.md)
-- [ADR 0007：SEC 披露财务事实核验边界](docs/adr/0007-sec-disclosure-financial-fact-verification.md)
-- [SEC Agent 评测计划](docs/sec-agent-evaluation.md)
-- [SEC Filing Retrieval 与财务计算设计](docs/sec-retrieval-design.md)
-- [Day 1 学习日志](docs/learning-log/day-1.md)
-- [Day 2 Agent Runtime v0](docs/agent-runtime.md)
-- [Day 2 学习日志](docs/learning-log/day-2.md)
-- [Day 2 运行与故障手册](docs/runbooks/day-2-agent-runtime.md)
-- [Day 2 第三方依赖与使用边界复核](docs/security/day-2-third-party-review.md)
-- [Day 3 Agent Harness v1：L1/L2 与行业采集切片](docs/agent-harness.md)
-- [Day 3 学习日志](docs/learning-log/day-3.md)
-- [Day 3 真实来源、使用边界与安全复核](docs/security/day-3-source-review.md)
-- [Day 3 Text2SQL 安全复核](docs/security/day-3-text2sql-review.md)
-- [Day 3 前端、Tool Inspector 与 ECharts 安全复核](docs/security/day-3-ui-review.md)
-- [Day 3 Agent Tool 运行与回滚手册](docs/runbooks/day-3-agent-tools.md)
-- [Day 4 五步执行计划](docs/learning-log/day-4.md)
-- [Day 4 Memory 策略](docs/memory-policy.md)
-- [Day 4 Evidence/Claim 策略](docs/evidence-policy.md)
-- [Day 4 Research L3 状态机](docs/research-state-machine.md)
-- [Day 4 安全与隐私复核](docs/security/day-4-memory-research-review.md)
-- [Day 4 运行与回滚手册](docs/runbooks/day-4-memory-research.md)
-- [Day 5 Knowledge 与 SEC Fixture L4 执行日志](docs/learning-log/day-5.md)
-- [Day 6 SEC 官方披露与 Point-in-Time 五步执行计划](docs/learning-log/day-6.md)
-- [Day 7 Filing Hybrid Retrieval、财务计算与核对五步计划](docs/learning-log/day-7.md)
-- [Day 8 SEC Verified Agent L5、监控与 Durable HITL 五步计划](docs/learning-log/day-8.md)
-- [Day 9 Benchmark、Temporal Eval 与中文验证执行日志](docs/learning-log/day-9.md)
-- [Day 10 SEC 工作台、发布评测与完整交付日志](docs/learning-log/day-10.md)
-- [SEC 披露核验 Agent 发布就绪合同](docs/release-readiness.md)
-- [v0.2.0 候选说明草案（NO_GO）](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)
-- [Day 10 恢复与回滚 Runbook](docs/runbooks/day-10-release-recovery.md)
-- [SEC 最终工程验收 Runbook](docs/runbooks/sec-release-acceptance.md)
-- [第三方依赖 NOTICE 与许可证边界](docs/security/third-party-notices.md)
-- [Day 8 SEC Verifier、Monitor 与恢复设计](docs/sec-verification-monitor-design.md)
-- [Research L4 Checkpoint 与 HITL 合同](docs/research-checkpoint-contract.md)
-- [Day 5 Research L4 运行与回滚手册](docs/runbooks/day-5-research-l4.md)
-- [参考仓凭据暴露审计](docs/security/credential-exposure-audit.md)
+## 项目能力
 
-## 已实现的 Day 1 范围
+| 能力 | 说明 |
+| --- | --- |
+| SEC Point-in-Time | 按 CIK、Form、报告期和 `as_of` 查询申报，避免使用截止时间之后才可见的数据 |
+| Filing 入库 | 保存原始披露快照、内容哈希和来源版本，并进入私有 Knowledge 索引链路 |
+| 混合检索 | 使用 Elasticsearch 与 Milvus 组合关键词和向量候选，再按 Workspace、Knowledge Base 和 filing 身份重新授权 |
+| XBRL 与财务计算 | 读取结构化事实，校验期间、单位和 scale，并通过确定性计算器生成可重算 lineage |
+| Evidence 与 Citation | 将回答绑定到 filing 文本、SEC HTML 表格单元格、XBRL fact 或 Calculation Evidence |
+| Research Agent | 复用统一 Agent Runtime 执行检索、工具调用、核验和一次有界修订，并保留完整 Trace |
+| Durable HITL | 对 Monitor 等有副作用操作持久化审批；拒绝或超时不会创建订阅 |
+| Monitor 与 Case | 按公司、Form 或事实监控新披露，使用 watermark 和幂等键生成差异 Case |
+| 多租户与恢复 | 使用 Workspace 权限边界、PostgreSQL 事实、Job/Outbox、lease、Checkpoint 和 Reconciler |
+| Eval | 提供 SEC temporal、检索、财务核验、安全、恢复和公开 benchmark adapter 的版本化评测合同 |
 
-- FastAPI、Pydantic Settings、真实 `/health/live` 与 `/health/ready`；
-- PostgreSQL、Redis、私有 MinIO 默认 Compose，以及 tools、vector、search、observability profiles；
-- Alembic 身份、Workspace、Job、Outbox、Schedule 与 ScheduleOccurrence 迁移；
-- 注册、登录、`me`、修改密码、Logout、Ed25519 Access Token、Refresh/CSRF 轮换与恢复、登录限流；
-- owner/admin/member/viewer 服务端权限矩阵、跨 Workspace 拒绝与最后 owner 保护；
-- React 登录/注册/受保护首页/修改密码旅程，Access Token 只保存在内存；
-- FastAPI OpenAPI 生成 TypeScript 契约与统一 Web API Client；
-- PostgreSQL Job/JobEvent/Outbox、Dispatcher、Celery Worker、lease/heartbeat/fencing、Reconciler，以及数据库驱动的 Schedule/Beat；
-- Python、Web、PostgreSQL/Redis 集成、浏览器 E2E、依赖审计、Gitleaks 与 GitHub Actions 门禁。
+SEC HTML 顶层表格支持稳定的行、列和单元格定位；任意 PDF、OCR、跨页复杂表格仍需要独立的
+Document Parser adapter，不能从当前实现推断为已支持。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、可恢复 SSE、Learning Workbench、故障收敛和版本化 Eval 已经完成仓库内实现，并通过全量本地门禁、提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 与学习者职责复盘；D2-01～D2-09 均为 `complete`。Day 3 的五个切片已经完成仓库内实现与全量本地验收：同一 `UnifiedAgentRuntime` 执行 L0/L1/L2，生产 Conversation/Job 可物化行业限定的 Web L2 command；Tool Inspector、行业页、数据库浏览、安全 Text2SQL、受校验表格/图表、陈旧 QueryRun 对账、24 条累计 Scenario 和 trajectory report 均已落地。真实 PostgreSQL/Redis/MinIO、4 条浏览器旅程、依赖/许可证/来源/隐私与 Secret 门禁均通过；[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [干净 CI](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 全绿，D3-01～D3-11 已复核为 `complete`。Day 10 前仍须完成参考仓 D1-09 外部凭据处置，以及显式物理 Run purge 与隔离备份恢复演练。
+## 工作流程
 
-Day 4 实现已串起 Conversation/Memory/Context manifest、Observation→Evidence→Claim、显式 ResearchBrief、唯一 typed Research L3 graph 与正式 Workbench。保留 Day 2/3 的 24 条基线，Day 4 新增 26 条独立 Scenario，累计 50 条；Memory、Memory off/on、Evidence 与 Research 使用独立规则 Scorer，并提供同题 L0/L2/L3 的步骤、Token、费用、延迟和 Evidence/Claim/uncertain 对照。本地门禁为 pytest 946、Vitest 75、Playwright 6，真实 PostgreSQL/Redis/MinIO 无 skip；后端总体覆盖率 82.12%，前端关键状态分支 100%。分支 CI 已再次验证 Python/Web 质量、真实 PostgreSQL/Redis/MinIO、Browser E2E、依赖审计和完整历史 Secret 扫描。Day 4 核心 Domain/Application/Research workflow 合集为 85%，低于 90% 目标，具体原因、风险、CI 85% 不退化缓解和复核人已记录在 Day 4 学习日志；它是必须在 Day 10 总门禁前清偿的已登记例外，不因本次分支 CI 通过而消失。
+```text
+Filer / CIK
+  -> Point-in-Time Filing Search
+  -> Immutable Filing + XBRL Snapshot
+  -> Private Knowledge Import
+  -> Hybrid Retrieval + Typed Tools
+  -> Evidence + Deterministic Calculation
+  -> Verification Report
+  -> Human Approval
+  -> Monitor -> New Filing -> Diff Case
+```
 
-## 执行基线与安装
+Verifier 的业务结论只有四种：`verified`、`partial`、`conflict` 和
+`insufficient_evidence`。证据不足、来源冲突或范围不一致时，系统应明确降级或拒答，而不是用模型常识补齐。
 
-- Python 3.13.14
-- Node.js 24.16.0
-- uv 0.11.32
-- pnpm 10.10.0
+## 技术栈
 
-在仓库根目录执行：
+- 后端：Python 3.13、FastAPI、Pydantic、SQLAlchemy、Alembic
+- 前端：React、TypeScript、Vite
+- 任务执行：Celery、Redis、PostgreSQL Job/Outbox
+- 对象存储：MinIO
+- 检索：Milvus、Elasticsearch
+- 契约：FastAPI OpenAPI、自动生成的 TypeScript types
+- 测试与质量：pytest、Vitest、Playwright、Ruff、mypy、ESLint、Semgrep、Gitleaks
+
+## 快速启动
+
+以下步骤以 Windows PowerShell 为准。GitHub Actions 使用 Linux 验证构建和测试，但项目没有单独的
+“Linux 版”。
+
+### 1. 环境要求
+
+- Git
+- Docker Desktop，支持 `docker compose`
+- [uv](https://docs.astral.sh/uv/)
+- Node.js `24.16.0`
+- pnpm `10.10.0`
+
+Python 版本由仓库中的 `.python-version` 固定为 `3.13.14`。
+
+克隆仓库后，在仓库根目录执行：
 
 ```powershell
-uv --version
-node --version
-pnpm --version
-docker --version
-docker compose version
-
 uv sync --locked --all-packages
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
-uv run --locked python --version
 ```
 
-`uv run --locked python --version` 应显示 `Python 3.13.14`。项目解释器由 uv 管理，不以 Conda 或系统 PATH 中的全局 `python` 为准。
+Chromium 只在运行浏览器测试时需要；仅启动应用可以跳过最后一条命令。
 
-## 配置本地环境
+### 2. 创建本地配置
 
-先复制模板；`.env` 已被 Git 忽略，不要提交它：
+复制环境变量模板：
 
 ```powershell
 Copy-Item -LiteralPath '.env.example' -Destination '.env'
 git check-ignore -v -- '.env'
 ```
 
-模板中的本地数据库密码也应改成只用于本机的随机值。下面的命令只把 5 个相互独立的 32 字节 base64url 密钥和一组 Ed25519 密钥打印到终端；请逐项复制到 `.env`，不要把输出提交、粘贴到日志或聊天中，也不要在不同用途之间复用密钥：
+`.env` 中的 PostgreSQL、Redis 和 MinIO 密码只用于本地开发，也应替换为本机随机值。身份系统还要求
+5 个相互独立的 HMAC/AEAD 密钥和一组 Ed25519 密钥。以下命令只将密钥打印到当前终端，不会写入文件：
 
 ```powershell
 @'
@@ -136,15 +124,8 @@ for name in (
     print(f"{name}={encode(secrets.token_bytes(32))}")
 
 private_key = Ed25519PrivateKey.generate()
-private_value = private_key.private_bytes(
-    Encoding.Raw,
-    PrivateFormat.Raw,
-    NoEncryption(),
-)
-public_value = private_key.public_key().public_bytes(
-    Encoding.Raw,
-    PublicFormat.Raw,
-)
+private_value = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+public_value = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
 key_id = "local-development-1"
 print(f"ACCESS_TOKEN_CURRENT_KID={key_id}")
 print(f"ACCESS_TOKEN_PRIVATE_KEY_B64={encode(private_value)}")
@@ -155,185 +136,197 @@ print(
 '@ | uv run --locked --package sec-filing-verification-agent-backend python -
 ```
 
-保留 `.env.example` 中的精确 HTTPS origins；若改变 Web host 或 port，应同步更新 `BROWSER_TRUSTED_ORIGINS_JSON`，不能改成通配来源。
+将输出逐项填写到 `.env` 的同名变量中。不要复用密钥，也不要提交、截图或粘贴真实密钥到 Issue、日志或聊天。
 
-## 启动基础设施与迁移
+### 3. 配置 SEC 身份
 
-默认只启动 PostgreSQL、Redis 和 MinIO，并且端口只绑定 `127.0.0.1`：
+SEC 公共数据接口不需要 API Key，但自动访问必须声明应用名称和真实可联系邮箱。在 `.env` 中填写：
+
+```ini
+SEC_USER_AGENT_APP=SecFilingVerificationAgent/0.1
+SEC_USER_AGENT_EMAIL=your-monitored-email@example.com
+SEC_REQUESTS_PER_SECOND=8
+```
+
+未配置这两项时，live SEC 请求会 fail closed；仓库内的受控 fixture 和确定性测试仍可运行。
+
+### 4. 配置模型 Provider（可选）
+
+需要运行真实 Agent 回答时，在 `.env` 中同时配置：
+
+```ini
+AGENT_MODEL_PROVIDER_BASE_URL=https://api.example.com/v1
+AGENT_MODEL_PROVIDER_API_KEY=replace-with-real-provider-key
+AGENT_MODEL_ROUTE_JSON='{"model":"openai-compatible/replace-model","upstream_model":"replace-model","response_models":["replace-model"],"pricing_version":"replace-pricing-v1","input_micro_usd_per_million":1,"cached_input_micro_usd_per_million":1,"output_micro_usd_per_million":1,"supports_image_input":false}'
+```
+
+请按实际 Provider 和模型能力填写 URL、模型名及价格。三项均不配置时，生产 Run 会明确返回
+`provider_not_configured`，不会静默回退到 Fake Provider。
+
+### 5. 启动依赖
+
+完整 SEC 检索链路需要 PostgreSQL、Redis、MinIO、Milvus 和 Elasticsearch：
 
 ```powershell
 $composeFile = 'infra/compose/compose.yaml'
 docker compose --env-file '.env' -f $composeFile config --quiet
-docker compose --env-file '.env' -f $composeFile up -d --wait postgres redis minio
+docker compose --env-file '.env' -f $composeFile --profile vector --profile search up -d --wait
 docker compose --env-file '.env' -f $composeFile run --rm --no-deps minio-init
 docker compose --env-file '.env' -f $composeFile ps
 ```
 
-`minio-init` 是一次性初始化任务：它创建私有附件桶并配置 `staging/` 清理规则，成功后显示 `Exited (0)` 属于正常完成，不是服务启动失败。命令可以重复执行，不会重复创建桶。
+`minio-init` 是可重复执行的一次性桶初始化任务，显示 `Exited (0)` 表示成功。
 
-需要时按职责启用可选 profile：
+仅开发身份、Workspace 和基础 Agent Runtime 时，可以只启动默认依赖：
+
+```powershell
+docker compose --env-file '.env' -f $composeFile up -d --wait postgres redis minio
+docker compose --env-file '.env' -f $composeFile run --rm --no-deps minio-init
+```
+
+可选管理与观测界面：
 
 ```powershell
 docker compose --env-file '.env' -f $composeFile --profile tools up -d --wait
-docker compose --env-file '.env' -f $composeFile --profile vector up -d --wait
-docker compose --env-file '.env' -f $composeFile --profile search up -d --wait
 docker compose --env-file '.env' -f $composeFile --profile observability up -d --wait
 ```
 
-创建或升级正式表结构只能使用 Alembic：
+### 6. 执行数据库迁移
 
 ```powershell
-uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini heads
 uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini upgrade head
 uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini current
 ```
 
-正常停止使用 `docker compose --env-file '.env' -f $composeFile down`。不要随意加 `--volumes`，它会删除本地持久数据。
+### 7. 启动后端与 Web
 
-## 启动应用与后台进程
-
-本地开发默认使用一个受控的 Python 进程管理器启动完整后端。它先检查 PostgreSQL、Redis、MinIO 私有桶和 Alembic 版本，然后分别启动 API、Outbox Dispatcher、Celery Worker、Job Reconciler 与 Celery Beat；这些仍是五个独立子进程，不会把生产职责合并到同一个 Runtime：
+终端 1 启动 API、Dispatcher、Worker、Reconciler 和 Beat：
 
 ```powershell
 uv run --locked sec-filing-verification-agent-dev
 ```
 
-请从仓库根目录执行该命令；后端 Settings 会自动读取根目录的 `.env`，因此日常启动不需要重复填写 `--env-file` 或 `--package`。如果依赖未启动，命令会直接给出 Compose 修复命令，而不是让 Worker 无限打印连接重试。如果数据库没有到最新 Alembic head，命令只提示正式迁移命令，不会在每次启动时静默修改数据库。Windows 本地 Worker 默认使用 `solo`、单并发；Linux 的独立 Worker 仍保留 Celery 默认进程池。按 `Ctrl+C` 会统一停止这一组开发进程。
-
-需要单独排障或模拟生产进程边界时，仍可让每条长运行命令各占一个 PowerShell 终端：
-
-```powershell
-uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-api
-```
-
-```powershell
-uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-outbox-dispatcher
-```
-
-```powershell
-uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-celery-worker
-```
-
-```powershell
-uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-job-reconciler
-```
-
-```powershell
-uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend sec-filing-verification-celery-beat
-```
-
-Beat 只通过 PostgreSQL 创建持久 ScheduleOccurrence、Job 和 Outbox；真正发布由 Dispatcher 完成，Worker 执行任务，Reconciler 修复未启动或 lease 过期的 Job。
-
-启动 Web：
+终端 2 启动 Web：
 
 ```powershell
 pnpm run dev:web
 ```
 
-浏览器打开 `https://localhost:5173`。本地证书由 Vite 生成，浏览器首次访问会提示确认自签名证书。Web 将 `/api` 代理到 `http://127.0.0.1:8000`。
+打开以下地址：
 
-如果关闭终端后 Vite 进程仍在占用 `5173` 端口，可在 PowerShell 中按监听端口查找并停止残留进程：
+- Web：`https://localhost:5173`
+- API 文档：`http://127.0.0.1:8000/docs`
+- 存活检查：`http://127.0.0.1:8000/health/live`
+- 依赖就绪检查：`http://127.0.0.1:8000/health/ready`
+
+Vite 使用本地自签名证书，浏览器首次访问时需要确认。Web 会将 `/api` 代理到本地 API。
+
+停止应用进程后，可停止 Compose 服务：
 
 ```powershell
-Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue |
-  Select-Object -ExpandProperty OwningProcess -Unique |
-  ForEach-Object { Stop-Process -Id $_ }
+docker compose --env-file '.env' -f $composeFile down
 ```
 
-API 基本检查：
+不要随意添加 `--volumes`，它会删除本地 PostgreSQL、MinIO 和索引数据。
+
+## 首次使用
+
+1. 打开 Web，创建本地账户；系统会自动创建默认 Workspace。
+2. 进入“知识库”，创建用于保存 SEC filing 的 Knowledge Base。
+3. 进入“SEC”，输入 CIK，选择 Form、报告期和截止时间后查询申报。
+4. 选择 accession，执行“锁定并导入”，等待状态变为“可检索”。
+5. 在 SEC 工作台检索原文、查看 XBRL facts，或将锁定范围交给 Research Workbench。
+6. 查看 Verification Report、Claim、Evidence、Calculation 和 Citation 反查结果。
+7. 当 Agent 请求创建 Monitor 时，由当前用户明确允许或拒绝；批准后可在后续新 filing 到达时查看 Case。
+
+真实 Research 需要模型 Provider；live filing 查询需要 SEC 身份。缺少任一配置时，相关链路会显式失败，
+不会伪造成功结果。
+
+## 常用验证命令
+
+不依赖外部服务的基础检查：
 
 ```powershell
-Invoke-RestMethod 'http://127.0.0.1:8000/health/live'
-Invoke-RestMethod 'http://127.0.0.1:8000/health/ready'
+uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend evals/generators
+uv run --locked --all-packages ruff check --config pyproject.toml apps/backend evals/generators
+uv run --locked --all-packages mypy --config-file pyproject.toml --no-incremental
+uv run --locked --all-packages pytest -q
+pnpm run format:check
+pnpm run lint
+pnpm run typecheck
+pnpm run test
+pnpm run build
 ```
 
-交互式 API 文档位于 `http://127.0.0.1:8000/docs`。
-
-## OpenAPI 契约
-
-OpenAPI 是后端与前端的唯一 DTO 来源。生成物是 `packages/api-contract/openapi.json` 和 `packages/api-contract/src/schema.d.ts`：
+验证 OpenAPI 生成物：
 
 ```powershell
 pnpm run api:generate
 pnpm run api:check
 ```
 
-修改 FastAPI schema 后先运行 `api:generate` 并评审生成 diff；CI 使用 `api:check` 阻止生成物漂移。
-
-## 统一验证
-
-先保持 PostgreSQL、Redis、MinIO、Milvus 和 Elasticsearch 运行，并让 `.env` 指向实际 Compose endpoint。以下是一组完整的本地收口命令；不要只挑绿色的子集代替完整验证：
+依赖服务运行后执行浏览器测试：
 
 ```powershell
-$ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $true
-$env:POSTGRES_TESTS_REQUIRED = '1'
-$env:REDIS_TESTS_REQUIRED = '1'
-$env:MINIO_TESTS_REQUIRED = '1'
-$env:VECTOR_TESTS_REQUIRED = '1'
-$env:ELASTICSEARCH_TESTS_REQUIRED = '1'
-
-try {
-    uv sync --locked --all-packages
-    uv run --locked --all-packages ruff format --check --config pyproject.toml apps/backend evals/generators
-    uv run --locked --all-packages ruff check --config pyproject.toml apps/backend evals/generators
-    uv run --locked --all-packages mypy --config-file pyproject.toml --no-incremental
-    uv run --env-file '.env' --locked --all-packages pytest --cov=industry_platform --cov-branch --cov-report=term --cov-fail-under=80
-    uv build --package sec-filing-verification-agent-backend
-    uv audit --locked
-
-    pnpm install --frozen-lockfile
-    pnpm run security:semgrep
-    pnpm run supply-chain:licenses
-    pnpm run api:check
-    pnpm run eval:release-recovery
-    pnpm run eval:release-readiness
-    pnpm run acceptance:sec:preflight
-    pnpm run acceptance:sec
-    pnpm run format:check
-    pnpm run lint
-    pnpm run typecheck
-    pnpm run test
-    pnpm run test:coverage:web
-    pnpm run build
-    pnpm audit --audit-level high
-    pnpm run test:e2e
-
-    gitleaks dir --redact --verbose apps
-    gitleaks dir --redact --verbose packages
-    gitleaks dir --redact --verbose docs
-    gitleaks dir --redact --verbose evals
-    gitleaks dir --redact --verbose .github
-    gitleaks dir --redact --verbose infra
-    gitleaks dir --redact --verbose tests
-    gitleaks dir --redact --verbose .env.example
-    gitleaks dir --redact --verbose package.json
-    gitleaks dir --redact --verbose pnpm-workspace.yaml
-    gitleaks dir --redact --verbose pyproject.toml
-    gitleaks dir --redact --verbose playwright.config.ts
-    gitleaks git --redact --verbose --log-opts='--all' .
-    git diff --check
-    git diff --cached --check
-    git status --short
-}
-finally {
-    Remove-Item Env:POSTGRES_TESTS_REQUIRED -ErrorAction SilentlyContinue
-    Remove-Item Env:REDIS_TESTS_REQUIRED -ErrorAction SilentlyContinue
-    Remove-Item Env:MINIO_TESTS_REQUIRED -ErrorAction SilentlyContinue
-}
+pnpm run test:e2e
+pnpm run test:e2e:sec-real
 ```
 
-上述命令仍是后续变更必须重复执行的统一验证方法。Day 1 当前基线已在本地完整执行，并由提交 [`2c4e6e9`](https://github.com/hrw991009/industry-intelligence-platform/commit/2c4e6e92237584bbac2816577e1509286f08b14b) 的 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339) 在干净环境通过；D1-01～D1-08、D1-10～D1-12 已按能力矩阵复核为 `complete`。Day 2 的本地证据见 [Agent Runtime v0](docs/agent-runtime.md) 和 [Day 2 学习日志](docs/learning-log/day-2.md)，提交 [`bf4feaff`](https://github.com/hrw991009/industry-intelligence-platform/commit/bf4feaff2e0fa5487a6f01ed0fd4cd63f5b4f659) 的 [CI 31922391846](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31922391846) 已在干净环境通过，D2-01～D2-09 已复核为 `complete`。
+`test:e2e:sec-real` 使用受控衍生 SEC fixture、真实本地 HTTP 进程以及 PostgreSQL、Redis、MinIO、
+Milvus 和 Elasticsearch，不代表 live SEC 或真实模型质量。
 
-Day 3 已实际执行同一套统一门禁：Python 898、Vitest 54、Playwright 4 条均通过，真实 PostgreSQL/Redis/MinIO 无 skip，migration 往返、OpenAPI `api:check`、Python/Web build 与 audit、受控路径和 44-commit Gitleaks 也通过。证据和限制见 [Day 3 学习日志](docs/learning-log/day-3.md)。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 的 head 已合入 `main`，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 对应的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在干净环境通过全部 7 个适用 Job；D3-01～D3-11 已复核为 `complete`，可以进入 Day 4。
+发布验收命令会保持 fail closed。只有已配置 SEC 身份、模型 Provider、所需依赖和人工证据时才应执行：
 
-Day 4 的五个实现步骤和收口文档已通过功能分支 CI；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 随后合入 `main`。合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 对应的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 已通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。正式 Trace、50 条累计 Scenario、四套独立 Scorer、真实浏览器旅程、DoD 与项目所有者授权收口均已复核，D4-01～D4-07 已为 `complete`，可以进入 Day 5。
+```powershell
+pnpm run acceptance:sec:preflight
+pnpm run acceptance:sec
+```
 
-D1-09 仍为 `thin_slice`，6 组参考仓凭据候选全部保持 `open`。该外部治理尾项不否定已有本地实现，但在 Provider 侧吊销/轮换、登记非敏感证据并完成复扫前，不得复制或启用相关配置，也不得创建发布标签。后续工作以 [Day 1～Day 10 主计划 v2.2.15](docs/master-plan.md) 和 [发布就绪合同](docs/release-readiness.md) 为权威基线。
+完整测试矩阵、恢复演练与环境要求见 [SEC 最终工程验收 Runbook](docs/runbooks/sec-release-acceptance.md)。
 
-## 常见问题
+## 项目结构
 
-- uv 不要求激活虚拟环境；若 Conda 干扰 PATH，可先退出 Conda，再直接运行 `uv ...`。
-- Playwright 缺 Chromium 时运行 `pnpm exec playwright install chromium`。
-- 分路径运行的 `gitleaks dir` 检查当前受控源码与配置，`gitleaks git --log-opts='--all'` 检查完整历史，两者不能互相替代。不要对仓库根目录直接运行 `gitleaks dir ... .`，因为它会扫描被 Git 忽略且本来就应包含本地密钥的真实 `.env`，从而产生无意义告警并把敏感文件带入扫描输出。
-- 不要用 `git reset --hard` 或删除整个工作区处理未知改动；先用 `git status --short` 和 `git diff` 确认归属。
+```text
+apps/backend/          FastAPI、领域模块、Agent Runtime、Worker 与 Alembic
+apps/web/              React 工作台
+packages/api-contract/ OpenAPI 文档、TypeScript schema 与 API client
+infra/                 Docker Compose 与可观测性配置
+evals/                 数据集注册、场景、观察、Scorer、报告和 schema
+tests/e2e/             Playwright 浏览器旅程
+docs/                  架构、ADR、运行手册、评测与发布边界
+```
+
+## 设计原则
+
+- PostgreSQL 是业务事实来源；Milvus 和 Elasticsearch 索引可以重建。
+- Workspace、accession、Form、报告期和 `as_of` 是服务端校验的可信范围，不能由模型覆盖。
+- 检索命中必须回到正式存储重新加载、授权和验证来源身份。
+- 所有派生数字必须经过确定性计算器并保存 operand、单位、scale 和 rounding。
+- 有副作用的 Tool 必须经过持久化人工审批，并使用幂等账本避免重复写入。
+- 未知、未执行和未配置必须保留为失败或未测状态，不能由本地 fixture 推断为生产通过。
+
+## 文档
+
+- [产品范围与能力边界](docs/product-scope.md)
+- [系统架构与 ADR 索引](docs/architecture.md)
+- [SEC Retrieval 与财务计算设计](docs/sec-retrieval-design.md)
+- [Verifier、Monitor 与恢复设计](docs/sec-verification-monitor-design.md)
+- [SEC Agent 评测设计](docs/sec-agent-evaluation.md)
+- [发布就绪合同](docs/release-readiness.md)
+- [机器生成的发布就绪报告](evals/reports/sec-release-readiness-v1.md)
+- [SEC 最终工程验收 Runbook](docs/runbooks/sec-release-acceptance.md)
+- [第三方依赖与许可证说明](docs/security/third-party-notices.md)
+- [Day 1～Day 10 实施历史](docs/master-plan.md)
+
+## 安全说明
+
+- 不要提交 `.env`、Provider Key、真实私钥、数据库备份或受限制的数据集。
+- 不要将 `BROWSER_TRUSTED_ORIGINS_JSON` 改成通配来源。
+- 外部数据源和 benchmark 必须遵守各自许可证与使用条款。
+- 发现安全问题时不要在公开 Issue 中附带密钥、个人数据或可直接利用的细节。
+- Evidence 和 Citation 提供可追踪来源，但不构成审计签字或专业投资意见。
+
+## 贡献
+
+提交较大改动前，请先通过 Issue 说明业务范围、数据来源、权限影响和验证方式。Pull Request 应保持
+OpenAPI 生成物、迁移、测试、评测报告与文档同步，并至少通过与改动范围对应的本地质量门禁。
