@@ -1,4 +1,4 @@
-# 系统架构说明
+# SEC Filing Verification Agent 架构说明
 
 > 计划编号：`IIP-MASTER-001`
 >

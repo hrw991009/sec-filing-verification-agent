@@ -960,7 +960,7 @@
         "pnpm run eval:release-recovery",
         "pnpm run eval:release-suite",
         "uv run --locked --all-packages pytest apps/backend/tests/modules/evaluation",
-        "pnpm --filter @industry-platform/web test",
+        "pnpm --filter @sec-filing-verification/web test",
         "pnpm run test:e2e",
         "pnpm run format:check",
         "pnpm run api:check",

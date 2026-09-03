@@ -1,6 +1,6 @@
 import { createContext, use } from "react";
 
-import type { components } from "@industry-platform/api-contract";
+import type { components } from "@sec-filing-verification/api-contract";
 
 export type CurrentUser = components["schemas"]["CurrentUserResponse"];
 

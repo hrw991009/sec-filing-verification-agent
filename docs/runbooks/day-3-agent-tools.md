@@ -11,8 +11,8 @@
 ```powershell
 docker compose --env-file '.env' -f infra/compose/compose.yaml up -d --wait postgres redis minio
 docker compose --env-file '.env' -f infra/compose/compose.yaml run --rm --no-deps minio-init
-uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head
-uv run --env-file '.env' --locked industry-platform-backend-dev
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini upgrade head
+uv run --env-file '.env' --locked sec-filing-verification-agent-dev
 ```
 
 另开终端运行 `pnpm run dev:web`，访问 `https://localhost:5173`。统一后端会启动 API、Dispatcher、Worker、Beat 和 Reconciler；不要另写脚本直接消费 Agent Job 或复制 Tool loop。

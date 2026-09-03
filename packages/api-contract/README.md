@@ -10,5 +10,5 @@
 契约后，在仓库根目录运行 `pnpm run api:generate`。`pnpm run api:check` 会重新生成
 两份文件并检查 Git 差异，CI 也执行相同的漂移检查。
 
-业务代码通过 `createIndustryPlatformApiClient()` 创建客户端。它默认发送浏览器凭据，
+业务代码通过 `createSecFilingVerificationApiClient()` 创建客户端。它默认发送浏览器凭据，
 调用路径、请求体和响应体类型全部来自生成的 OpenAPI 类型，不需要另写 DTO。

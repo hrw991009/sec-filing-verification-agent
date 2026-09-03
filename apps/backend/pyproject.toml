@@ -1,7 +1,7 @@
 [project]
-name = "industry-platform-backend"
+name = "sec-filing-verification-agent-backend"
 version = "0.1.0"
-description = "Backend application for Industry Intelligence Platform."
+description = "Backend application for the SEC Filing Verification Agent."
 requires-python = "==3.13.14"
 dependencies = [
     "alembic>=1.19.0,<2.0.0",
@@ -31,14 +31,14 @@ dependencies = [
 ]
 
 [project.scripts]
-industry-platform-api = "industry_platform.server:main"
-industry-platform-agent-harness = "industry_platform.modules.agent_harness.cli:main"
-industry-platform-backend-dev = "industry_platform.dev:main"
-industry-platform-celery-beat = "industry_platform.workers.beat:main"
-industry-platform-celery-worker = "industry_platform.workers.celery_app:main"
-industry-platform-outbox-dispatcher = "industry_platform.workers.dispatcher:main"
-industry-platform-job-reconciler = "industry_platform.workers.reconciler:main"
-industry-platform-sec-live-smoke = "industry_platform.modules.disclosures.live_sec_smoke:main"
+sec-filing-verification-api = "industry_platform.server:main"
+sec-filing-verification-agent-harness = "industry_platform.modules.agent_harness.cli:main"
+sec-filing-verification-agent-dev = "industry_platform.dev:main"
+sec-filing-verification-celery-beat = "industry_platform.workers.beat:main"
+sec-filing-verification-celery-worker = "industry_platform.workers.celery_app:main"
+sec-filing-verification-outbox-dispatcher = "industry_platform.workers.dispatcher:main"
+sec-filing-verification-job-reconciler = "industry_platform.workers.reconciler:main"
+sec-filing-verification-live-sec-smoke = "industry_platform.modules.disclosures.live_sec_smoke:main"
 
 [build-system]
 requires = ["uv_build>=0.11.32,<0.12"]

@@ -2,11 +2,11 @@ import createClient, { type Client, type ClientOptions } from "openapi-fetch";
 
 import type { paths } from "./schema";
 
-export type IndustryPlatformApiClient = Client<paths>;
+export type SecFilingVerificationApiClient = Client<paths>;
 
-export function createIndustryPlatformApiClient(
+export function createSecFilingVerificationApiClient(
   options: ClientOptions = {},
-): IndustryPlatformApiClient {
+): SecFilingVerificationApiClient {
   const { credentials = "include", ...remainingOptions } = options;
 
   return createClient<paths>({

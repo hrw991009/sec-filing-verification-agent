@@ -11,8 +11,8 @@
 ```powershell
 docker compose --env-file '.env' -f infra/compose/compose.yaml up -d --wait postgres redis minio
 docker compose --env-file '.env' -f infra/compose/compose.yaml run --rm --no-deps minio-init
-uv run --env-file '.env' --locked --package industry-platform-backend alembic -c apps/backend/alembic.ini upgrade head
-uv run --env-file '.env' --locked industry-platform-backend-dev
+uv run --env-file '.env' --locked --package sec-filing-verification-agent-backend alembic -c apps/backend/alembic.ini upgrade head
+uv run --env-file '.env' --locked sec-filing-verification-agent-dev
 ```
 
 另开终端执行 `pnpm run dev:web`，访问 `https://localhost:5173`。不要单独启动 Research graph 脚本：正式链路固定为 API → ResearchRun/AgentRun/Job/Outbox → Worker → `UnifiedAgentRuntime` → LangGraph typed orchestration → Tool/Evidence/Claim → PostgreSQL/Event/Trace。

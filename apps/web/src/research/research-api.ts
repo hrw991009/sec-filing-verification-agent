@@ -1,4 +1,4 @@
-import type { components } from "@industry-platform/api-contract";
+import type { components } from "@sec-filing-verification/api-contract";
 
 import { apiClient, unwrapData, withAccessToken } from "../api/api";
 

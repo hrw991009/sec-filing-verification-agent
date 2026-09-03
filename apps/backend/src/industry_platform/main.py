@@ -367,7 +367,7 @@ def create_app(
                             await database_engine.dispose()
 
     application = FastAPI(
-        title="Industry Intelligence Platform API",
+        title="SEC Filing Verification Agent API",
         version="0.1.0",
         lifespan=lifespan,
     )

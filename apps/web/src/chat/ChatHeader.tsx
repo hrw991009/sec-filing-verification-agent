@@ -33,11 +33,11 @@ export function ChatTopbar({
   const workspace = currentUser.workspaces.find((candidate) => candidate.id === workspaceId);
   return (
     <header className="chat-topbar">
-      <a className="chat-brand" href="/" aria-label="行业智能平台">
-        <span className="chat-brand__mark">IIP</span>
+      <a className="chat-brand" href="/" aria-label="SEC Filing Verification Agent">
+        <span className="chat-brand__mark">SEC</span>
         <span className="chat-brand__copy">
-          <strong>行业智能平台</strong>
-          <small>Intelligence Workspace</small>
+          <strong>SEC Filing 核验</strong>
+          <small>Verification Agent</small>
         </span>
       </a>
       <div className="workspace-switcher">
