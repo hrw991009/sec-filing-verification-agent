@@ -1,5 +1,6 @@
 """The Day 6 profile reuses Tool L2 while exposing only SEC read Tools."""
 
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -9,6 +10,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 import pytest
 
 from industry_platform.modules.agent_harness.direct_answer import HarnessTrustedIdentity
+from industry_platform.modules.agent_harness.profiles import ToolL2Profile
 from industry_platform.modules.agent_harness.scenarios import (
     Scenario,
     ScenarioBudget,
@@ -19,15 +21,23 @@ from industry_platform.modules.agent_harness.tool_use import (
     ToolL2ScenarioMaterializer,
 )
 from industry_platform.modules.agent_runtime.domain import AgentRunType
-from industry_platform.modules.agent_runtime.tool_runtime_contracts import TOOL_L2_RUNTIME_VERSION
+from industry_platform.modules.agent_runtime.tool_runtime import ToolL2Runtime
+from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
+    TOOL_L2_RUNTIME_VERSION,
+    ToolL2RunCommand,
+    tool_loop_decision_response_schema,
+)
 from industry_platform.modules.disclosures.profile import (
+    SEC_L4_MAX_INPUT_TOKENS,
     SEC_L4_MAX_TOOL_CALLS,
     SEC_L4_PROFILE_VERSION,
     SEC_L4_TOOL_REFERENCES,
+    SEC_L5_MAX_INPUT_TOKENS,
     SEC_L5_MAX_TOOL_CALLS,
     SEC_L5_PROFILE_VERSION,
     SEC_L5_TOOL_REFERENCES,
     SEC_SOURCE_HARNESS_VERSION,
+    SEC_SOURCE_MAX_INPUT_TOKENS,
     SEC_SOURCE_MODEL_FIXTURE_VERSION,
     SEC_SOURCE_PROFILE_VERSION,
     SEC_SOURCE_PROMPT_VERSION,
@@ -58,7 +68,7 @@ from industry_platform.modules.identity.domain import (
     TraceId,
 )
 from industry_platform.modules.retrieval.tool import knowledge_search_definition
-from industry_platform.modules.tools.domain import ToolReference
+from industry_platform.modules.tools.domain import ToolDefinition, ToolReference
 from industry_platform.modules.tools.registry import RegisteredToolAdapter
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
 
@@ -74,6 +84,7 @@ def test_sec_source_profile_projects_exactly_five_tools_to_shared_runtime() -> N
     assert profile.available_tools == SEC_SOURCE_TOOL_REFERENCES
     assert policy.available_tools == SEC_SOURCE_TOOL_REFERENCES
     assert policy.profile_version == SEC_SOURCE_PROFILE_VERSION
+    assert policy.max_input_tokens == SEC_SOURCE_MAX_INPUT_TOKENS
     assert policy.max_tool_calls == 5
     assert {reference.name for reference in policy.available_tools} == {
         "sec.resolve_filer",
@@ -91,6 +102,7 @@ def test_sec_l4_profile_freezes_one_bilingual_scope_and_six_tool_surface() -> No
 
     assert chinese_policy == english_policy
     assert chinese_policy.profile_version == SEC_L4_PROFILE_VERSION
+    assert chinese_policy.max_input_tokens == SEC_L4_MAX_INPUT_TOKENS
     assert chinese_policy.available_tools == SEC_L4_TOOL_REFERENCES
     assert chinese_policy.max_tool_calls == SEC_L4_MAX_TOOL_CALLS
     assert chinese_policy.context_compiler_version == "financial-context-v1"
@@ -136,6 +148,7 @@ def test_sec_l5_profile_versions_the_approval_gated_monitor_tool_surface() -> No
     )
 
     assert policy.profile_version == SEC_L5_PROFILE_VERSION
+    assert policy.max_input_tokens == SEC_L5_MAX_INPUT_TOKENS
     assert policy.available_tools == SEC_L5_TOOL_REFERENCES
     assert policy.max_tool_calls == SEC_L5_MAX_TOOL_CALLS
     assert "仅产生待审批请求" in policy.system_instructions
@@ -145,6 +158,68 @@ def test_sec_l5_profile_versions_the_approval_gated_monitor_tool_surface() -> No
         tuple(adapter.definition.reference for adapter in require_sec_l5_tool_adapters(adapters))
         == SEC_L5_TOOL_REFERENCES
     )
+
+
+@pytest.mark.parametrize(
+    ("profile", "definitions"),
+    [
+        (
+            create_sec_source_profile(model="sec-source-model-v1"),
+            (
+                sec_resolve_filer_definition(),
+                sec_list_filings_definition(),
+                sec_get_xbrl_facts_definition(),
+                sec_search_filing_definition(),
+                sec_read_filing_section_definition(),
+            ),
+        ),
+        (
+            create_sec_l4_profile(model="sec-l4-model-v1"),
+            (
+                knowledge_search_definition(),
+                finance_calculate_definition(),
+                sec_search_filing_definition(),
+                sec_read_filing_section_definition(),
+                sec_get_xbrl_facts_definition(),
+                sec_diff_filings_definition(),
+            ),
+        ),
+        (
+            create_sec_l5_profile(model="sec-l5-model-v1"),
+            (
+                knowledge_search_definition(),
+                finance_calculate_definition(),
+                sec_search_filing_definition(),
+                sec_read_filing_section_definition(),
+                sec_get_xbrl_facts_definition(),
+                sec_diff_filings_definition(),
+                sec_monitor_subscribe_definition(),
+            ),
+        ),
+    ],
+)
+def test_sec_profile_input_budget_contains_its_tool_contract(
+    profile: ToolL2Profile,
+    definitions: tuple[ToolDefinition, ...],
+) -> None:
+    policy = profile.to_runtime_policy()
+    command = cast(ToolL2RunCommand, SimpleNamespace(policy=policy))
+    instructions = ToolL2Runtime._loop_instructions(
+        command,
+        definitions,
+    )
+    response_schema = tool_loop_decision_response_schema(definitions)
+    reserved_bytes = len(instructions.encode("utf-8")) + len(
+        json.dumps(
+            dict(response_schema),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    )
+
+    assert reserved_bytes + 1_024 <= policy.max_input_tokens
 
 
 def test_sec_source_profile_rejects_an_extra_non_sec_tool() -> None:

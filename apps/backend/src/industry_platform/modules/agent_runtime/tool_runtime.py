@@ -3101,13 +3101,13 @@ class ToolL2Runtime(ToolL1Runtime):
         command: ToolL2RunCommand,
         definitions: tuple[ToolDefinition, ...],
     ) -> str:
+        # Argument schemas already travel in the strict response_format contract.
         catalog = [
             {
                 "name": definition.name,
                 "version": definition.version,
                 "description": definition.description,
                 "input_schema_version": definition.input_schema_version,
-                "input_schema": dict(definition.input_schema),
                 "retry_classification": definition.retry_classification.value,
             }
             for definition in definitions
