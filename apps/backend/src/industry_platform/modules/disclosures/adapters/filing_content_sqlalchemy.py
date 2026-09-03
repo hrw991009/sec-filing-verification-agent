@@ -35,6 +35,7 @@ from industry_platform.modules.disclosures.domain import (
     SecSourceErrorCode,
     SecWorkspaceFilingImport,
 )
+from industry_platform.modules.disclosures.filing_tables import table_cells_from_markdown
 from industry_platform.modules.disclosures.models import (
     SecFilingDocumentRecord,
     SecFilingRecord,
@@ -664,6 +665,7 @@ class SqlAlchemySecFilingContentRepository:
                         candidate.score if isinstance(candidate, HybridCandidate) else None
                     ),
                     index_version=vector_record.index_version,
+                    table_cells=table_cells_from_markdown(chunk.text_content),
                 )
             )
         return tuple(hits)
@@ -744,6 +746,7 @@ class SqlAlchemySecFilingContentRepository:
                     source_content_sha256=snapshot.content_sha256.hex(),
                     source_url=snapshot.source_url,
                     source_version=snapshot.source_version,
+                    table_cells=table_cells_from_markdown(chunk.text_content),
                 )
         except SecFilingContentError:
             raise

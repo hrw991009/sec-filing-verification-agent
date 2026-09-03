@@ -23,7 +23,7 @@
       },
       "primary": {
         "path": "apple-2023-primary.html",
-        "sha256": "e64c20358f1c5ef93871169e28f92cbc70096e9141b03e38b70b53a98ecf4af8",
+        "sha256": "e0188624e8b156dcc4d2d36bd593f274e90b258b818826aaef41c5d229a4e6e4",
         "source_available_at": "2023-11-02T22:08:27Z"
       },
       "complete_submission": {
@@ -33,7 +33,7 @@
       },
       "companyfacts": {
         "path": "apple-2023-companyfacts.json",
-        "sha256": "b58efab0e375188a34923dcc1d3da198398e7c5e9c64dd9a37622e76807b652e",
+        "sha256": "e70097d22296a883707aa4fbf5899d8442c5fdaa060cd43fa899bd88a1d7d3db",
         "source_available_at": "2023-11-03T00:00:00Z"
       }
     },
@@ -52,7 +52,7 @@
       },
       "primary": {
         "path": "apple-2024-primary.html",
-        "sha256": "b1d24d632c38688455af43a0ac0d5d91194678580d5ef796f824ffd7a408a9d9",
+        "sha256": "36621ca3e18186fd2c22495492508f8e4fe0af1729b5dd839b9824186fe38989",
         "source_available_at": "2024-11-01T06:01:36Z"
       },
       "complete_submission": {
@@ -62,7 +62,7 @@
       },
       "companyfacts": {
         "path": "apple-2024-companyfacts.json",
-        "sha256": "08b3e2cdb410b2f45a4300c0a118569b29ca5e0542aab751dc686d2a8d657f5f",
+        "sha256": "5e2e0bfbc18ea8715eb1ace3899199ae03891812519dd736dd02d2d5d9572098",
         "source_available_at": "2024-11-01T06:02:00Z"
       }
     }

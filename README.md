@@ -51,6 +51,7 @@ Dispatcher/Worker 和五依赖 CI，但尚无本轮远端成功产物，不能�
 - [SEC 披露核验 Agent 发布就绪合同](docs/release-readiness.md)
 - [v0.2.0 候选说明草案（NO_GO）](docs/release-notes/v0.2.0-sec-disclosure-verifier.md)
 - [Day 10 恢复与回滚 Runbook](docs/runbooks/day-10-release-recovery.md)
+- [SEC 最终工程验收 Runbook](docs/runbooks/sec-release-acceptance.md)
 - [第三方依赖 NOTICE 与许可证边界](docs/security/third-party-notices.md)
 - [Day 8 SEC Verifier、Monitor 与恢复设计](docs/sec-verification-monitor-design.md)
 - [Research L4 Checkpoint 与 HITL 合同](docs/research-checkpoint-contract.md)
@@ -287,6 +288,8 @@ try {
     pnpm run api:check
     pnpm run eval:release-recovery
     pnpm run eval:release-readiness
+    pnpm run acceptance:sec:preflight
+    pnpm run acceptance:sec
     pnpm run format:check
     pnpm run lint
     pnpm run typecheck

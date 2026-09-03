@@ -69,4 +69,11 @@ async def test_controlled_source_selects_point_in_time_snapshots_and_runtime_fil
     companyfacts = FrozenSecCompanyFactsAdapter(bundle.companyfacts)
     source = await companyfacts.fetch(runtime_filing)
     parsed = parse_companyfacts(source, runtime_filing)
-    assert tuple(fact.value for fact in parsed.facts) == ("383285000000",)
+    assert {(fact.concept, fact.value) for fact in parsed.facts} == {
+        ("CashAndCashEquivalentsAtCarryingValue", "29965000000"),
+        ("GrossProfit", "169148000000"),
+        ("NetIncomeLoss", "96995000000"),
+        ("OperatingIncomeLoss", "114301000000"),
+        ("Revenue", "383285000000"),
+        ("Revenue", "394328000000"),
+    }

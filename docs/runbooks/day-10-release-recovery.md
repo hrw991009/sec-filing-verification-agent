@@ -32,6 +32,22 @@ uv run --locked coverage report --include='apps/backend/src/industry_platform/mo
 
 The pytest references in `evals/manifests/sec-release-recovery-v1.json` must also pass individually. They establish deterministic prerequisites, not the manual outage or rollback result.
 
+## Isolated executor
+
+The release acceptance runner builds the complete 12-scenario plan from the production release
+Run collection and executes it automatically:
+
+```powershell
+pnpm run acceptance:sec
+```
+
+No Run ID, Workspace ID, target, probe, command, or observation JSON is entered manually. The
+runner derives production Run ownership from PostgreSQL, assigns the frozen targets, creates a
+unique state directory per execution, and requires a clean tree whose HEAD matches
+`source_commit`. Commands use argv execution without a shell; destructive/secret-bearing commands
+are rejected. Captured output is redacted and hashed under `.data/evals`. See the
+[SEC release acceptance runbook](sec-release-acceptance.md) for inputs and artifacts.
+
 ## Fresh migration
 
 Run the manifest's migration node against its randomly named disposable database. Preserve the Alembic output showing `upgrade head -> downgrade base -> upgrade head`, the final head revision, and the database name prefix. A skipped test is a failed exercise.
@@ -109,6 +125,6 @@ Restore a pre-exercise database backup into a disposable database, confirm its A
 
 1. Restore every stopped service and confirm Compose health.
 2. Verify recovery success is 12/12, data loss/unauthorized writes/duplicate side effects are zero, and all runtime-bound scenarios reference the original Run/Workspace.
-3. Hash the redacted evidence files and recovery command transcript; update the observation file only after owner review.
-4. Run `pnpm run eval:release-recovery` and archive the report/schema plus remote release-job URL. A local report does not close branch/main CI or owner acceptance.
+3. Open the generated redacted evidence files and verify their hashes against the automatic observation/report.
+4. Archive the dynamic report/schema plus remote release-job URL. Do not copy dynamic observations into the checked `not_executed` snapshot. A local report does not close branch/main CI or owner acceptance.
 5. Delete only the verified disposable databases, recovery indexes/collections, and named temporary dumps. Preserve the redacted evidence bundle according to the release retention policy.

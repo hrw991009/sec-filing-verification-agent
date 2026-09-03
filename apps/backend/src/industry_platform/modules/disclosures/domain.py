@@ -1040,6 +1040,32 @@ class SecFilingRetrievalTrace:
 
 
 @dataclass(frozen=True, slots=True)
+class SecFilingTableCell:
+    table_index: int
+    row_index: int
+    column_index: int
+    row_span: int
+    column_span: int
+    text: str = field(repr=False)
+    content_sha256: str
+
+    def __post_init__(self) -> None:
+        coordinates = (
+            self.table_index,
+            self.row_index,
+            self.column_index,
+            self.row_span,
+            self.column_span,
+        )
+        if any(isinstance(value, bool) or not 1 <= value <= 10_000 for value in coordinates):
+            raise ValueError("SEC filing table cell coordinates are invalid")
+        if not self.text.strip() or len(self.text) > 4_000:
+            raise ValueError("SEC filing table cell text is invalid")
+        if not _SHA256_PATTERN.fullmatch(self.content_sha256):
+            raise ValueError("SEC filing table cell hash is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class SecFilingSearchHit:
     chunk_id: UUID
     document_version_id: UUID
@@ -1060,6 +1086,7 @@ class SecFilingSearchHit:
     rrf_score: float | None = None
     rerank_score: float | None = None
     index_version: str = "knowledge-index-v1"
+    table_cells: tuple[SecFilingTableCell, ...] = ()
 
     def __post_init__(self) -> None:
         if any(
@@ -1092,7 +1119,14 @@ class SecFilingSearchHit:
                 raise ValueError("SEC filing retrieval score is invalid")
         if not _SOURCE_VERSION_PATTERN.fullmatch(self.index_version):
             raise ValueError("SEC filing index version is invalid")
+        table_cells = tuple(self.table_cells)
+        cell_keys = tuple(
+            (cell.table_index, cell.row_index, cell.column_index) for cell in table_cells
+        )
+        if len(table_cells) > 64 or len(cell_keys) != len(set(cell_keys)):
+            raise ValueError("SEC filing table cells are invalid")
         object.__setattr__(self, "retrieval_channels", channels)
+        object.__setattr__(self, "table_cells", table_cells)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1158,6 +1192,7 @@ class SecFilingSection:
     source_content_sha256: str
     source_url: str
     source_version: str
+    table_cells: tuple[SecFilingTableCell, ...] = ()
 
     def __post_init__(self) -> None:
         if any(
@@ -1178,6 +1213,13 @@ class SecFilingSection:
             or not _SHA256_PATTERN.fullmatch(self.source_content_sha256)
         ):
             raise ValueError("SEC filing section provenance is invalid")
+        table_cells = tuple(self.table_cells)
+        cell_keys = tuple(
+            (cell.table_index, cell.row_index, cell.column_index) for cell in table_cells
+        )
+        if len(table_cells) > 64 or len(cell_keys) != len(set(cell_keys)):
+            raise ValueError("SEC filing section table cells are invalid")
+        object.__setattr__(self, "table_cells", table_cells)
 
 
 @dataclass(frozen=True, slots=True)

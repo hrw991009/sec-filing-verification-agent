@@ -104,6 +104,24 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
         submission_source_id = uuid4()
         try:
             async with session_factory.begin() as session:
+                session.add(
+                    SecSubmissionSourceRecord(
+                        id=submission_source_id,
+                        cik="0000320193",
+                        source_kind="submissions_current",
+                        source_name="CIK0000320193.json",
+                        source_url="https://data.sec.gov/submissions/CIK0000320193.json",
+                        source_version="sec-submissions-current-v1",
+                        content_sha256=b"s" * 32,
+                        object_bucket="test-private",
+                        object_key="sec/submissions/apple.json",
+                        retrieved_at=NOW,
+                        source_available_at=datetime(2023, 11, 2, 23, tzinfo=UTC),
+                        filing_from=None,
+                        filing_to=None,
+                    )
+                )
+                await session.flush()
                 session.add_all(
                     (
                         User(
@@ -144,21 +162,6 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
                             source_url="https://www.sec.gov/files/company_tickers.json",
                             source_content_sha256=b"a" * 32,
                             source_observed_at=NOW,
-                        ),
-                        SecSubmissionSourceRecord(
-                            id=submission_source_id,
-                            cik="0000320193",
-                            source_kind="submissions_current",
-                            source_name="CIK0000320193.json",
-                            source_url=("https://data.sec.gov/submissions/CIK0000320193.json"),
-                            source_version="sec-submissions-current-v1",
-                            content_sha256=b"s" * 32,
-                            object_bucket="test-private",
-                            object_key="sec/submissions/apple.json",
-                            retrieved_at=NOW,
-                            source_available_at=datetime(2023, 11, 2, 23, tzinfo=UTC),
-                            filing_from=None,
-                            filing_to=None,
                         ),
                         SecFilingRecord(
                             id=uuid4(),

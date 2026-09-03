@@ -71,6 +71,31 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_evidence.py"
     },
     {
+      "artifact_id": "release-execution-runner",
+      "description": "Production UnifiedAgentRuntime executor for the frozen A0 through A4 release matrix.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_execution.py"
+    },
+    {
+      "artifact_id": "release-execution-tests",
+      "description": "Strategy, source-order, scope, runtime, and batch execution contract tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_execution.py"
+    },
+    {
+      "artifact_id": "release-case-dataset",
+      "description": "Frozen ten-case Chinese SEC production evaluation dataset.",
+      "relative_path": "evals/scenarios/sec-release-cases-v1.json"
+    },
+    {
+      "artifact_id": "release-observation-collector",
+      "description": "PostgreSQL-backed production Run, ranked candidate, Citation, and final-state observation collector.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_observation_collector.py"
+    },
+    {
+      "artifact_id": "release-observation-collector-tests",
+      "description": "Coverage, strict-template, ranked-source, and collector contract tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_observation_collector.py"
+    },
+    {
       "artifact_id": "release-evidence-manifest",
       "description": "Frozen ten-case A0 through A4 scope, repetitions, and hard thresholds.",
       "relative_path": "evals/manifests/sec-release-evidence-v1.json"
@@ -111,6 +136,26 @@
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery.py"
     },
     {
+      "artifact_id": "release-recovery-executor",
+      "description": "Isolated twelve-scenario command, state-probe, redaction, and observation executor.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_executor.py"
+    },
+    {
+      "artifact_id": "release-recovery-executor-tests",
+      "description": "Recovery plan coverage, command safety, redaction, evidence, and template tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_executor.py"
+    },
+    {
+      "artifact_id": "release-recovery-exercise",
+      "description": "Fixed twelve-scenario fault, restore, rebuild, rollback, and integrity exercise implementation.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_exercise.py"
+    },
+    {
+      "artifact_id": "release-recovery-exercise-tests",
+      "description": "Recovery exercise registration, service fault, probe, integrity, and data-loss tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_exercise.py"
+    },
+    {
       "artifact_id": "release-recovery-manifest",
       "description": "Frozen twelve-scenario release recovery and rollback contract.",
       "relative_path": "evals/manifests/sec-release-recovery-v1.json"
@@ -134,6 +179,41 @@
       "artifact_id": "release-recovery-runbook",
       "description": "Reproducible staging-only dependency fault, restore, rebuild, and rollback procedures.",
       "relative_path": "docs/runbooks/day-10-release-recovery.md"
+    },
+    {
+      "artifact_id": "release-acceptance-runner",
+      "description": "Fail-closed preflight, browser, Run evidence, recovery, and live SEC acceptance orchestrator.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_acceptance.py"
+    },
+    {
+      "artifact_id": "release-acceptance-tests",
+      "description": "Acceptance phase, blocked input, report, and false-completion regression tests.",
+      "relative_path": "apps/backend/tests/modules/evaluation/test_release_acceptance.py"
+    },
+    {
+      "artifact_id": "release-acceptance-runbook",
+      "description": "One-command automated engineering acceptance and final manual evidence review procedure.",
+      "relative_path": "docs/runbooks/sec-release-acceptance.md"
+    },
+    {
+      "artifact_id": "sec-filing-table-parser",
+      "description": "Bounded SEC HTML table-cell coordinate and content-hash extraction.",
+      "relative_path": "apps/backend/src/industry_platform/modules/disclosures/filing_tables.py"
+    },
+    {
+      "artifact_id": "sec-filing-table-tests",
+      "description": "Rowspan, colspan, marker integrity, script exclusion, and nested-table tests.",
+      "relative_path": "apps/backend/tests/modules/disclosures/test_filing_tables.py"
+    },
+    {
+      "artifact_id": "citation-resolver",
+      "description": "Workspace-scoped Citation resolution endpoint with optional SEC table-cell coordinates.",
+      "relative_path": "apps/backend/src/industry_platform/modules/evidence/router.py"
+    },
+    {
+      "artifact_id": "citation-resolver-tests",
+      "description": "Citation resolution, missing-cell, and incomplete-coordinate API tests.",
+      "relative_path": "apps/backend/tests/modules/evidence/test_api.py"
     },
     {
       "artifact_id": "semgrep-rules",
@@ -366,7 +446,7 @@
     {
       "blocker_id": "day5-browser-evidence-missing",
       "closure_artifact_ids": [],
-      "detail": "The product path now joins a locked filing to Research, Verification, Evidence, approval, Monitor, and Case APIs, but still lacks one no-interception browser acceptance chain against all real dependencies.",
+      "detail": "The no-interception browser runner and five-dependency product path are implemented, but the current source commit still lacks one successful uploaded acceptance artifact and owner visual review.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": ["D5-08", "D5-09", "D10-02"],
@@ -416,7 +496,7 @@
     {
       "blocker_id": "day7-retrieval-citation-incomplete",
       "closure_artifact_ids": [],
-      "detail": "Ranked retrieval quality, table locators, citation resolution, runtime binding, and final owner evidence remain open.",
+      "detail": "SEC HTML table-cell locators, Citation resolution, and the production Run/ranked-source collector are implemented; actual Recall at 5, 50 or 150 Runtime observations, CI, and owner evidence remain open.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -437,7 +517,7 @@
     {
       "blocker_id": "day8-browser-recovery-incomplete",
       "closure_artifact_ids": [],
-      "detail": "The Workbench exposes persisted approval, Monitor, Case, and Evidence state. A frozen twelve-scenario recovery contract and Runbook now exist, but observations remain 0 of 12 and dedicated no-interception browser evidence is absent.",
+      "detail": "The Workbench, no-interception browser runner, frozen recovery contract, safe execution-plan runner, and observation materializer exist; current-source browser evidence and actual recovery observations remain unexecuted.",
       "external_gate_ids": [],
       "owner": "implementation-agent",
       "requirement_ids": [
@@ -763,7 +843,15 @@
     {
       "day": 7,
       "dependency_days": [1, 2, 3, 4, 5, 6],
-      "evidence_artifact_ids": ["feature-matrix", "day-7-log", "sec-tool-report"],
+      "evidence_artifact_ids": [
+        "feature-matrix",
+        "day-7-log",
+        "sec-tool-report",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests"
+      ],
       "owners": ["project-owner", "implementation-agent"],
       "verification_commands": [
         "pnpm run eval:sec-tool",
@@ -813,6 +901,11 @@
         "release-readiness-tests",
         "release-evidence-generator",
         "release-evidence-tests",
+        "release-execution-runner",
+        "release-execution-tests",
+        "release-case-dataset",
+        "release-observation-collector",
+        "release-observation-collector-tests",
         "release-evidence-manifest",
         "release-evidence-observations",
         "release-evidence-report",
@@ -821,11 +914,22 @@
         "release-suite-tests",
         "release-recovery-generator",
         "release-recovery-tests",
+        "release-recovery-executor",
+        "release-recovery-executor-tests",
+        "release-recovery-exercise",
+        "release-recovery-exercise-tests",
         "release-recovery-manifest",
         "release-recovery-observations",
         "release-recovery-report",
         "release-recovery-schema",
         "release-recovery-runbook",
+        "release-acceptance-runner",
+        "release-acceptance-tests",
+        "release-acceptance-runbook",
+        "sec-filing-table-parser",
+        "sec-filing-table-tests",
+        "citation-resolver",
+        "citation-resolver-tests",
         "semgrep-rules",
         "third-party-notices",
         "evidence-domain-boundary-tests",

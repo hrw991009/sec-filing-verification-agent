@@ -27,7 +27,7 @@ from industry_platform.modules.evaluation.release_evidence import (
 
 ROOT = Path(__file__).resolve().parents[5]
 MANIFEST_PATH = ROOT / "evals" / "manifests" / "sec-release-evidence-v1.json"
-SOURCE_PATH = ROOT / "evals" / "scenarios" / "sec-tool-v1.json"
+SOURCE_PATH = ROOT / "evals" / "scenarios" / "sec-release-cases-v1.json"
 OBSERVATIONS_PATH = ROOT / "evals" / "observations" / "sec-release-evidence-v1.json"
 REPORT_PATH = ROOT / "evals" / "reports" / "sec-release-evidence-v1.json"
 SCHEMA_PATH = ROOT / "evals" / "schemas" / "release-evidence-v1.schema.json"
@@ -37,10 +37,12 @@ SOURCE_SHA256 = hashlib.sha256(SOURCE_PATH.read_bytes()).hexdigest()
 def _executed_observations(*, breach: bool = False) -> ReleaseObservationSet:
     manifest = load_release_evidence_manifest(MANIFEST_PATH)
     source = load_sec_tool_dataset(SOURCE_PATH)
+    contracts = {item.strategy_id: item for item in manifest.strategies}
     observations: list[ReleaseRunObservation] = []
     identifier = 1
     for case in source.cases:
         for strategy in ReleaseStrategy:
+            contract = contracts[strategy]
             answered = case.expected_outcome is SecToolOutcome.ANSWERED
             candidates = tuple(
                 RankedCandidate(rank=rank, locator=locator)
@@ -61,6 +63,14 @@ def _executed_observations(*, breach: bool = False) -> ReleaseObservationSet:
                     ),
                     run_status=AgentRunStatus.COMPLETED,
                     stop_reason=RunStopReason.FINAL,
+                    runtime_version=contract.runtime_version,
+                    harness_version=contract.harness_version,
+                    profile_version=contract.profile_version,
+                    graph_version=contract.graph_version,
+                    prompt_version=contract.prompt_version,
+                    toolset_version=contract.toolset_version,
+                    verifier_executed=contract.verifier_required,
+                    durable_monitor_enabled=contract.durable_monitor_required,
                     observed_outcome=case.expected_outcome,
                     answer_key=case.expected_answer_key,
                     selected_cik=case.expected_cik,
@@ -69,9 +79,11 @@ def _executed_observations(*, breach: bool = False) -> ReleaseObservationSet:
                     evidence_keys=case.expected_evidence_keys,
                     program=case.expected_program,
                     ranked_candidates=candidates,
-                    evidence_ids=(UUID(int=10_000 + identifier),) if answered else (),
+                    evidence_ids=(UUID(int=10_000 + identifier),)
+                    if answered and strategy is not ReleaseStrategy.A0
+                    else (),
                     calculation_ids=(UUID(int=20_000 + identifier),)
-                    if case.expected_program
+                    if case.expected_program and strategy is not ReleaseStrategy.A0
                     else (),
                     tool_calls=(),
                     citations_resolvable=True,
@@ -100,10 +112,10 @@ def _executed_observations(*, breach: bool = False) -> ReleaseObservationSet:
         provider="openai-compatible",
         model="release-model",
         model_version="v1",
-        runtime_version="agent-runtime-v1",
-        harness_version="sec-release-harness-v1",
-        prompt_version="sec-release-prompt-v1",
-        toolset_version="sec-release-toolset-v1",
+        runtime_version="strategy-bound-v1",
+        harness_version="strategy-bound-v1",
+        prompt_version="strategy-bound-v1",
+        toolset_version="strategy-bound-v1",
         observations=tuple(observations),
         limitations=("Synthetic unit fixture; not a checked release capability result.",),
     )
@@ -150,6 +162,38 @@ def test_executed_common_cases_compute_recall_binding_security_and_recovery() ->
     assert report.security_gate_passed is True
     assert report.release_ready is False
     assert report.production_default_strategy is None
+
+
+def test_cross_suite_metrics_do_not_block_the_release_run_evidence_gate() -> None:
+    observations = _executed_observations()
+    without_cross_suite_trials = ReleaseObservationSet.model_validate(
+        {
+            **observations.model_dump(),
+            "observations": [
+                {
+                    **item.model_dump(),
+                    "injection_attempted": False,
+                    "injection_succeeded": False,
+                    "recovery_required": False,
+                    "recovered": False,
+                }
+                for item in observations.observations
+            ],
+        }
+    )
+
+    report = build_release_evidence_report(
+        load_release_evidence_manifest(MANIFEST_PATH),
+        load_sec_tool_dataset(SOURCE_PATH),
+        without_cross_suite_trials,
+        source_manifest_sha256=SOURCE_SHA256,
+    )
+
+    assert report.metrics["injection_attack_success_rate"].value is None
+    assert report.metrics["recovery_success"].value is None
+    assert report.security_gate_passed is True
+    assert "injection_attack_success_rate_not_measured" not in report.blockers
+    assert "recovery_success_not_measured" not in report.blockers
 
 
 def test_cross_workspace_result_fires_a_critical_security_alert() -> None:

@@ -85,6 +85,7 @@ from industry_platform.modules.research.domain import (
     ResearchPlanAction,
     research_claim_id_for_run,
     research_draft_id_for_run,
+    research_queued_event_payload,
 )
 from industry_platform.modules.research.durability import (
     ApprovalToolRequest,
@@ -194,14 +195,7 @@ class ResearchL3Runtime(ToolL2Runtime):
                 events,
                 event_type=AgentEventType.RUN_QUEUED,
                 occurred_at=run.created_at,
-                payload={
-                    "run_type": run.run_type.value,
-                    "runtime_version": run.runtime_version,
-                    "harness_version": run.harness_version,
-                    "loop_level": "l4" if self._checkpoint_store is not None else "l3",
-                    "graph_version": RESEARCH_GRAPH_VERSION,
-                    "tool_call_limit": command.loop_command.policy.tool_call_limit,
-                },
+                payload=research_queued_event_payload(run),
             )
             await self._commit(events, queued)
             yield queued
@@ -856,7 +850,8 @@ class _ResearchExecution:
             return
         service = self.runtime._verification_service
         if service is None:
-            raise ValueError("Financial Research requires the Verification service")
+            self.graph_state.graph["verification_action"] = None
+            return
         expected_revision = self.graph_state.graph["verification_revision"] + 1
         report = await service.verify(
             self.scope,

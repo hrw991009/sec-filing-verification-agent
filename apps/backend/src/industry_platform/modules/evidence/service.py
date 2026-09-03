@@ -84,6 +84,12 @@ class EvidenceApplicationService:
         self._require(scope, WorkspaceAction.VIEW)
         return await self._repository.is_evidence_available(scope, evidence_id)
 
+    async def resolve_evidence(
+        self, scope: WorkspaceScope, evidence_id: UUID
+    ) -> tuple[Evidence, bool]:
+        self._require(scope, WorkspaceAction.VIEW)
+        return await self._repository.resolve_evidence(scope, evidence_id)
+
     async def invalidate_evidence(
         self,
         scope: WorkspaceScope,

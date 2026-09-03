@@ -148,9 +148,10 @@ class SecToolDataset(_FrozenModel):
 
     @model_validator(mode="after")
     def _validate_dataset(self) -> Self:
+        release_dataset = self.dataset_id == "sec-release-cases-v1"
         if (
             self.schema_version != 1
-            or self.dataset_id != SEC_TOOL_DATASET_ID
+            or self.dataset_id not in {SEC_TOOL_DATASET_ID, "sec-release-cases-v1"}
             or self.dataset_version != SEC_TOOL_DATASET_VERSION
             or self.scorer_version != SEC_TOOL_SCORER_VERSION
         ):
@@ -159,7 +160,9 @@ class SecToolDataset(_FrozenModel):
             SecToolStrategyManifest(
                 strategy=SecToolStrategy.A0,
                 profile_version="sec-oracle-v1",
-                prompt_version="sec-tool-eval-prompt-v1",
+                prompt_version=(
+                    "sec-oracle-prompt-v1" if release_dataset else "sec-tool-eval-prompt-v1"
+                ),
                 context_version="oracle-full-context-v1",
                 toolset_version="no-tools-v1",
                 available_tools=(),
@@ -167,7 +170,9 @@ class SecToolDataset(_FrozenModel):
             SecToolStrategyManifest(
                 strategy=SecToolStrategy.A1,
                 profile_version="sec-hybrid-rag-v1",
-                prompt_version="sec-tool-eval-prompt-v1",
+                prompt_version=(
+                    "sec-hybrid-rag-prompt-v1" if release_dataset else "sec-tool-eval-prompt-v1"
+                ),
                 context_version="financial-context-v1",
                 toolset_version="sec-hybrid-rag-toolset-v1",
                 available_tools=_A1_TOOL_SURFACE,

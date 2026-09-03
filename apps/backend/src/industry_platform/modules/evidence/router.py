@@ -1,6 +1,6 @@
 """Authenticated HTTP delivery for the Evidence and Claim ledger."""
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
@@ -30,6 +30,7 @@ from industry_platform.modules.evidence.ports import EvidenceUseCase
 from industry_platform.modules.evidence.resources import EvidenceResources, get_evidence_resources
 from industry_platform.modules.evidence.schemas import (
     AuthorizationSnapshotResponse,
+    CitationResolutionResponse,
     ClaimEvidenceResponse,
     ClaimGraphResponse,
     CreateClaimRequest,
@@ -46,6 +47,7 @@ from industry_platform.modules.evidence.schemas import (
     ResearchClaimCollectionResponse,
     ResearchClaimResponse,
     SecFilingChunkLocatorResponse,
+    SecFilingTableCellCoordinateResponse,
     SecFilingTextLocatorResponse,
     SecXbrlFactLocatorResponse,
     SqlResultLocatorResponse,
@@ -144,6 +146,70 @@ async def get_evidence(
     set_no_store_headers(response)
     _set_revision_header(response, evidence.revision)
     return _evidence_response(evidence)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/evidence/{evidence_id}/resolve",
+    response_model=CitationResolutionResponse,
+    responses=_RESPONSES,
+)
+async def resolve_citation(
+    workspace_id: UUID,
+    evidence_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[EvidenceUseCase, Depends(get_evidence_service)],
+    table_index: Annotated[int | None, Query(ge=1)] = None,
+    row_index: Annotated[int | None, Query(ge=1)] = None,
+    column_index: Annotated[int | None, Query(ge=1)] = None,
+) -> CitationResolutionResponse:
+    requested_cell = (table_index, row_index, column_index)
+    if any(value is not None for value in requested_cell) and any(
+        value is None for value in requested_cell
+    ):
+        raise EvidenceRequestRejectedError
+    scope = _workspace_scope(principal, workspace_id)
+    evidence, available = await service.resolve_evidence(scope, evidence_id)
+    resolved_cell = None
+    failure_reason: Literal["evidence_unavailable", "table_cell_not_found"] | None = None
+    if not available:
+        failure_reason = "evidence_unavailable"
+    elif table_index is not None and row_index is not None and column_index is not None:
+        locator = evidence.locator
+        if isinstance(locator, SecFilingTextLocatorV1):
+            resolved_cell = next(
+                (
+                    cell
+                    for cell in locator.table_cells
+                    if (
+                        cell.table_index,
+                        cell.row_index,
+                        cell.column_index,
+                    )
+                    == (table_index, row_index, column_index)
+                ),
+                None,
+            )
+        if resolved_cell is None:
+            available = False
+            failure_reason = "table_cell_not_found"
+    evidence_response = _evidence_response(evidence)
+    set_no_store_headers(response)
+    return CitationResolutionResponse(
+        evidence_id=evidence_id,
+        resolvable=available,
+        canonical_url=evidence.canonical_url,
+        content_sha256=evidence.content_sha256,
+        locator=evidence_response.locator,
+        resolved_table_cell=(
+            None
+            if resolved_cell is None
+            else SecFilingTableCellCoordinateResponse.model_validate(
+                dict(resolved_cell.to_mapping())
+            )
+        ),
+        failure_reason=failure_reason,
+    )
 
 
 @router.post(

@@ -24,6 +24,7 @@ from industry_platform.modules.data_explorer.models import (
     QueryRunRecord,
     SchemaSnapshotRecord,
 )
+from industry_platform.modules.disclosures.filing_tables import table_cells_from_markdown
 from industry_platform.modules.disclosures.models import (
     SecFilingDocumentRecord,
     SecFilingRecord,
@@ -70,6 +71,7 @@ from industry_platform.modules.evidence.domain import (
     ResearchClaim,
     ResearchRunNotFoundError,
     SecFilingChunkLocatorV1,
+    SecFilingTableCellCoordinateV1,
     SecFilingTextLocatorV1,
     SecXbrlFactLocatorV1,
     SqlResultLocatorV1,
@@ -384,6 +386,19 @@ class SqlAlchemyEvidenceRepository:
                 if record is None:
                     raise EvidenceNotFoundError
                 return await self.is_evidence_record_available(session, record)
+        except EvidenceNotFoundError:
+            raise
+        except SQLAlchemyError as error:
+            raise EvidencePersistenceError(sqlstate=safe_sqlstate(error)) from error
+
+    async def resolve_evidence(
+        self, scope: WorkspaceScope, evidence_id: UUID
+    ) -> tuple[Evidence, bool]:
+        try:
+            async with self._session_factory() as session:
+                record = await self._evidence_record(session, scope, evidence_id)
+                available = await self.is_evidence_record_available(session, record)
+                return self._evidence_snapshot(record), available
         except EvidenceNotFoundError:
             raise
         except SQLAlchemyError as error:
@@ -906,6 +921,7 @@ class SqlAlchemyEvidenceRepository:
                 retrieval_channels = tuple(hit.retrieval_channels)
                 expected_content_hash = hit.content_sha256
                 expected_source_version = hit.source_version
+                table_cells = hit.table_cells
             elif call.resolved_tool_name == SEC_READ_FILING_SECTION_TOOL_NAME:
                 read_output = SecReadFilingSectionOutput.model_validate_json(
                     observation.model_text, strict=True
@@ -917,6 +933,7 @@ class SqlAlchemyEvidenceRepository:
                 retrieval_channels = ()
                 expected_content_hash = read_output.content_sha256
                 expected_source_version = read_output.source_version
+                table_cells = read_output.table_cells
             else:
                 raise ValueError
             if financial_scope_payload is None:
@@ -1032,6 +1049,36 @@ class SqlAlchemyEvidenceRepository:
         if row is None:
             return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
         chunk, version, document, vector, _imported, filing, snapshot = row
+        try:
+            stored_table_cells = table_cells_from_markdown(chunk.text_content)
+        except ValueError:
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
+        observed_cell_keys = tuple(
+            (
+                cell.table_index,
+                cell.row_index,
+                cell.column_index,
+                cell.row_span,
+                cell.column_span,
+                cell.text,
+                cell.content_sha256,
+            )
+            for cell in table_cells
+        )
+        stored_cell_keys = tuple(
+            (
+                cell.table_index,
+                cell.row_index,
+                cell.column_index,
+                cell.row_span,
+                cell.column_span,
+                cell.text,
+                cell.content_sha256,
+            )
+            for cell in stored_table_cells
+        )
+        if observed_cell_keys != stored_cell_keys:
+            return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
         locator = SecFilingTextLocatorV1(
             cik=filing.cik,
             accession=filing.accession,
@@ -1058,6 +1105,17 @@ class SqlAlchemyEvidenceRepository:
             index_version=vector.index_version,
             retrieval_profile_version=retrieval_profile_version,
             retrieval_channels=retrieval_channels,
+            table_cells=tuple(
+                SecFilingTableCellCoordinateV1(
+                    table_index=cell.table_index,
+                    row_index=cell.row_index,
+                    column_index=cell.column_index,
+                    row_span=cell.row_span,
+                    column_span=cell.column_span,
+                    content_sha256=cell.content_sha256,
+                )
+                for cell in table_cells
+            ),
         )
         return await self._persist_sec_evidence(
             session,
@@ -2093,12 +2151,16 @@ class SqlAlchemyEvidenceRepository:
             except ValueError:
                 raise EvidencePersistenceError from None
             if isinstance(locator, SecFilingTextLocatorV1):
+                if record.canonical_url != locator.canonical_url:
+                    return False
                 vector_record = aliased(DocumentIndexRecord)
                 lexical_record = aliased(DocumentIndexRecord)
                 as_of = datetime.fromisoformat(locator.as_of)
+                accepted_at = datetime.fromisoformat(locator.accepted_at)
+                filed_date = datetime.fromisoformat(locator.filed_at).date()
                 live_row = (
                     await session.execute(
-                        select(DocumentChunkRecord.id)
+                        select(DocumentChunkRecord.text_content)
                         .join(
                             DocumentVersionRecord,
                             and_(
@@ -2190,9 +2252,12 @@ class SqlAlchemyEvidenceRepository:
                             SecFilingRecord.form == locator.form,
                             SecFilingRecord.report_date
                             == date.fromisoformat(locator.report_period),
+                            SecFilingRecord.filed_date == filed_date,
+                            SecFilingRecord.accepted_at == accepted_at,
                             SecFilingRecord.public_available_at <= as_of,
                             SecSourceSnapshotRecord.status == "active",
                             SecSourceSnapshotRecord.source_version == locator.source_version,
+                            SecSourceSnapshotRecord.source_url == locator.canonical_url,
                             SecSourceSnapshotRecord.content_sha256
                             == bytes.fromhex(locator.source_content_sha256),
                             SecSourceSnapshotRecord.source_available_at <= as_of,
@@ -2204,7 +2269,35 @@ class SqlAlchemyEvidenceRepository:
                         .limit(1)
                     )
                 ).scalar_one_or_none()
-                return live_row is not None
+                if live_row is None:
+                    return False
+                try:
+                    stored_cells = table_cells_from_markdown(live_row)
+                except ValueError:
+                    return False
+                stored_keys = {
+                    (
+                        cell.table_index,
+                        cell.row_index,
+                        cell.column_index,
+                        cell.row_span,
+                        cell.column_span,
+                        cell.content_sha256,
+                    )
+                    for cell in stored_cells
+                }
+                return all(
+                    (
+                        cell.table_index,
+                        cell.row_index,
+                        cell.column_index,
+                        cell.row_span,
+                        cell.column_span,
+                        cell.content_sha256,
+                    )
+                    in stored_keys
+                    for cell in locator.table_cells
+                )
             if not isinstance(locator, SecFilingChunkLocatorV1):
                 raise EvidencePersistenceError
             fixture_row = (

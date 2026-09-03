@@ -7,7 +7,9 @@ from typing import Final
 from uuid import UUID, uuid5
 
 from industry_platform.modules.agent_runtime.domain import (
+    AgentRun,
     AgentRunStatus,
+    AgentRunType,
     RunBudget,
     RunStopReason,
     require_non_nil_uuid,
@@ -34,6 +36,19 @@ MAX_RESEARCH_LIST_ITEMS: Final = 16
 MAX_RESEARCH_TEXT_LENGTH: Final = 4_000
 MAX_RESEARCH_DRAFT_LENGTH: Final = 60_000
 _RESEARCH_RUN_NAMESPACE: Final = UUID("b8990b32-12c8-4692-b895-4a3626ae6a13")
+
+
+def research_queued_event_payload(run: AgentRun) -> dict[str, object]:
+    """Build the stable Research identity committed before a Worker owns the Run."""
+
+    if run.run_type is not AgentRunType.RESEARCH:
+        raise ValueError("Research queued Event requires a Research Run")
+    return {
+        "run_type": run.run_type.value,
+        "runtime_version": run.runtime_version,
+        "harness_version": run.harness_version,
+        "graph_version": RESEARCH_GRAPH_VERSION,
+    }
 
 
 class ResearchRunStatus(StrEnum):

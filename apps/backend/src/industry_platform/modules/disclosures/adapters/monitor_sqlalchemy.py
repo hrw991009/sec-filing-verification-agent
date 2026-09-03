@@ -54,6 +54,7 @@ from industry_platform.modules.evidence.domain import (
     AuthorizationSnapshot,
     EvidenceKind,
     EvidenceStatus,
+    SecFilingTableCellCoordinateV1,
     SecFilingTextLocatorV1,
     SecXbrlFactLocatorV1,
     canonical_fingerprint,
@@ -565,6 +566,17 @@ class SqlAlchemySecMonitorRepository:
             index_version=index.index_version,
             retrieval_profile_version="monitor-diff-v1",
             retrieval_channels=hit.retrieval_channels,
+            table_cells=tuple(
+                SecFilingTableCellCoordinateV1(
+                    table_index=cell.table_index,
+                    row_index=cell.row_index,
+                    column_index=cell.column_index,
+                    row_span=cell.row_span,
+                    column_span=cell.column_span,
+                    content_sha256=cell.content_sha256,
+                )
+                for cell in hit.table_cells
+            ),
         )
         return await self._persist_evidence(
             session,

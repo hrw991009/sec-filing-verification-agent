@@ -135,6 +135,35 @@ main PostgreSQL integration Job 在 PostgreSQL、Redis、MinIO、Milvus 与 Elas
 
 当前无外部服务聚焦回归为 `141 passed`，默认后端全量为 `1278 passed, 89 skipped`，全仓 mypy 为 530 个源文件通过，Web TypeScript 通过；本机 Docker Desktop 未运行，Redis/MinIO/Milvus/Elasticsearch 不可达，因此没有在本机执行五依赖旅程，PostgreSQL 强制夹具也因本机数据库连接不可用而中止。默认全量中的 skip 不能替代强制外部依赖验收，必须以本分支后续 Browser CI 的实际成功 artifact 才能关闭该证据层；当前只表示实现已接通，D10-02 仍为 `implemented_pending_verification`。该旅程也不计入生产 Run 0/50、正式恢复 0/12、live SEC/model 或公开 benchmark，`NO_GO` 不变。
 
+### 9.3 表格 Citation、运行采集与验收执行器收口
+
+后续技术债收口没有更改冻结 gold、checked observation 或既有分母。SEC HTML 入库新增稳定
+table/cell 坐标、span 与内容 hash marker，`sec_filing_text_v1` Evidence locator 保存命中
+chunk 的结构化坐标；Workspace-scoped Citation resolver 会反查当前 chunk 并核对坐标、span
+和 hash，解决原来 HTML table 被纯文本扁平化后无法可靠定位单元格的问题。该范围不扩张到
+PDF/OCR/跨页复杂表格。
+
+新增 production `release_execution` 与 `release_observation_collector`。执行器以同一受控中文
+10-case 分母通过正式 submission/Worker/Runtime 自动产生 A0～A4 的 50 Run，live 模式为每格
+3 次、共 150 Run；collector 从最终 Message/Draft、Run/Trace/Event、每次 Tool Observation
+原始 source 顺序、Evidence/Calculation、Scope/Workspace 和数据库终态确定性生成 answer/gold
+映射、ranked candidates、Citation 与 runtime binding。Citation 只统计最终 Draft 引用且反查
+当前 URL、source/content hash、accession、as_of、Workspace 与 table cell 坐标。checked report
+仍保持 0/50，实际动态结果只写 Git 忽略目录。
+
+新增 12 场景 `release_recovery_executor` 与固定 exercise registry。计划由实际 collection 的
+Run/Workspace 自动生成，使用 `disposable:*`、唯一 state 目录、无 shell argv 和前后严格 JSON
+探针；禁止通配删除、volume/prune、`git clean/reset`、Secret 参数及原始 DROP/TRUNCATE。恢复
+探针比较业务内容 hash/计数，并从 PostgreSQL 查询重复副作用与未授权写；stdout/stderr 对
+Secret、Bearer 与数据库密码脱敏。pytest 是相应隔离演练中的固定验证步骤，不能脱离故障注入
+冒充 outage/rollback 成功；checked recovery report 仍保持 0/12。
+
+`pnpm run acceptance:sec` 先自动启动并等待五个 Compose 依赖，再串联 migration/受控入库、
+无 interception 中文浏览器链、50 个 production Run、自动 collector/scorer、12 场景 recovery
+executor/scorer 与 live SEC one-shot；`pnpm run acceptance:sec:live` 将相同矩阵扩为 150 Run。
+所有动态结果只写 Git 忽略目录。实际 Run、隔离演练、截图人工查看、中文/权利/CI/owner 签字
+仍未在本段执行，因此 readiness 继续 `NO_GO`，不得因执行器存在而关闭运行证据 blocker。
+
 ## 10. 当日完成定义
 
 Day 10 只有同时满足以下条件才可关闭：

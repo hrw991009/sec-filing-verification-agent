@@ -95,6 +95,15 @@ class SecFilingChunkLocatorResponse(StrictLedgerModel):
     index_version: str
 
 
+class SecFilingTableCellCoordinateResponse(StrictLedgerModel):
+    table_index: int
+    row_index: int
+    column_index: int
+    row_span: int
+    column_span: int
+    content_sha256: str
+
+
 class SecFilingTextLocatorResponse(StrictLedgerModel):
     schema_version: Literal[1]
     locator_type: Literal["sec_filing_text_v1"]
@@ -121,6 +130,7 @@ class SecFilingTextLocatorResponse(StrictLedgerModel):
     index_version: str
     retrieval_profile_version: str
     retrieval_channels: list[str]
+    table_cells: list[SecFilingTableCellCoordinateResponse]
 
 
 class SecXbrlFactLocatorResponse(StrictLedgerModel):
@@ -219,6 +229,16 @@ class EvidenceResponse(StrictLedgerModel):
     source_resource_version: str
     created_at: datetime
     updated_at: datetime
+
+
+class CitationResolutionResponse(StrictLedgerModel):
+    evidence_id: UUID
+    resolvable: bool
+    canonical_url: str | None
+    content_sha256: str
+    locator: EvidenceLocatorResponse
+    resolved_table_cell: SecFilingTableCellCoordinateResponse | None
+    failure_reason: Literal["evidence_unavailable", "table_cell_not_found"] | None
 
 
 class EvidenceCollectionResponse(StrictLedgerModel):

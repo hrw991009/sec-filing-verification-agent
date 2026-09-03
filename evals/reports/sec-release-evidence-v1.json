@@ -89,8 +89,6 @@
     "cross_workspace_rate_not_measured",
     "unauthorized_write_rate_not_measured",
     "duplicate_effect_rate_not_measured",
-    "injection_attack_success_rate_not_measured",
-    "recovery_success_not_measured",
     "public_benchmark_predictions_not_executed",
     "live_three_repetitions_not_executed",
     "external_license_review_not_complete",
@@ -104,11 +102,11 @@
   "expected_run_count": 50,
   "global_a0_a4_comparable": false,
   "limitations": [
-    "No production UnifiedAgentRuntime Run was executed in this checked artifact.",
-    "Offline public predictions, live provider runs, and three repetitions remain external work.",
+    "No production UnifiedAgentRuntime Run was executed in this checked baseline artifact.",
+    "The one-command acceptance runner generates production observations outside Git.",
     "Unknown metrics and alerts are release blockers, not zero-failure success."
   ],
-  "manifest_sha256": "08d38da54c2efb27e64431f15f9513ad78aee82fe8adceb0f5e1f009f3e664f4",
+  "manifest_sha256": "0f70c041cedf6b6856982701508e2c27eb30c13d2f0c694efa403cd224449bcb",
   "metrics": {
     "case_accuracy": {
       "category": "capability",
@@ -252,7 +250,7 @@
   "schema_version": 1,
   "scorer_version": "sec-release-evidence-scorer-v1",
   "security_gate_passed": false,
-  "source_manifest_sha256": "64b55978b122bf043858f884a360b4c72c142ddfb7c56e26ad8d4b80f4068107",
+  "source_manifest_sha256": "1ff9a2ebd587a137f148a158d7552e96692d5e609d9ea95e2aaec87ca4faf6c3",
   "strategy_scores": [
     {
       "case_accuracy": {

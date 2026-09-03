@@ -516,7 +516,13 @@ class JobExecutionRuntime:
         except JobPersistenceError:
             # The lease state is unknown; a later reconciler must decide recovery.
             raise
-        except Exception:
+        except Exception as error:
+            logger.error(
+                "job_handler_failed job_id=%s trace_id=%s error_type=%s",
+                acquired.job_id,
+                acquired.trace_id,
+                type(error).__name__,
+            )
             return await self._fail(
                 acquired,
                 JobExecutionErrorCode.HANDLER_FAILED,

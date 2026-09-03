@@ -34,7 +34,7 @@ from industry_platform.modules.agent_runtime.domain import (
     RunBudget,
 )
 from industry_platform.modules.agent_runtime.model import MAX_MODEL_IMAGE_BYTES
-from industry_platform.modules.agent_runtime.models import AgentRunRecord
+from industry_platform.modules.agent_runtime.models import AgentEventRecord, AgentRunRecord
 from industry_platform.modules.agent_runtime.runtime_contracts import (
     DirectAnswerRunCommand,
     DirectAnswerRuntimePolicy,
@@ -68,6 +68,7 @@ from industry_platform.modules.identity.models import (
 from industry_platform.modules.industry.domain import SMART_TRANSPORT_INDUSTRY_ID
 from industry_platform.modules.jobs.models import Job, OutboxEvent
 from industry_platform.modules.research.domain import (
+    RESEARCH_GRAPH_VERSION,
     RESEARCH_HARNESS_VERSION,
     RESEARCH_RUNTIME_VERSION,
     RESEARCH_TASK_NAME,
@@ -471,12 +472,19 @@ def test_research_submission_is_atomic_and_loads_one_stable_l3_command(
                     )
                 )
                 agent_run = await session.get(AgentRunRecord, receipt.run_id)
+                queued_event = await session.scalar(
+                    select(AgentEventRecord).where(
+                        AgentEventRecord.run_id == receipt.run_id,
+                        AgentEventRecord.sequence == 1,
+                    )
+                )
                 job = await session.get(Job, receipt.job_id)
                 outbox = await session.get(OutboxEvent, receipt.outbox_event_id)
 
             assert research_run is not None
             assert brief is not None
             assert agent_run is not None
+            assert queued_event is not None
             assert job is not None
             assert outbox is not None
             assert research_run.workspace_id == WORKSPACE_ID
@@ -484,6 +492,12 @@ def test_research_submission_is_atomic_and_loads_one_stable_l3_command(
             assert research_run.state["run_id"] == str(agent_run.id)
             assert research_run.state["status"] == "queued"
             assert research_run.state["brief_revision"] == 1
+            assert queued_event.payload == {
+                "run_type": "research",
+                "runtime_version": RESEARCH_RUNTIME_VERSION,
+                "harness_version": RESEARCH_HARNESS_VERSION,
+                "graph_version": RESEARCH_GRAPH_VERSION,
+            }
             assert brief.original_question == request.question
             assert brief.budget["max_steps"] == 20
             assert job.task_name == RESEARCH_TASK_NAME

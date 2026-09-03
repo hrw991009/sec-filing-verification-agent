@@ -88,4 +88,13 @@ scope -> resolve -> select -> decompose
 
 当前 deterministic contract 已冻结 10 个 case 和 30 个策略观察，报告从独立 observation 输入重算 identity、答案/Evidence、计算 lineage、Citation、拒答、Tool surface、预算与成本延迟；其 A2 复杂题净收益通过，且简单题无退化。该结果不包含 live/model、公开 benchmark、真实依赖浏览器全链或中英 paired run，不能据此把 Day 7 标为完成。
 
+### 表格坐标与 Citation 解析收口
+
+SEC HTML 解析现在为顶层表格单元格保存稳定的 `table_index/row_index/column_index`、
+`row_span/column_span` 和单元格内容 SHA-256，并将坐标 marker 与可见文本一起进入正式
+chunk。嵌套 layout table 不会重复产出单元格；脚本/样式仍被排除。`sec_filing_text_v1`
+locator 把当前命中 chunk 的坐标作为 Evidence 的一部分持久化，Citation resolver 会重新加载
+当前 chunk，逐个验证坐标、span 和 hash 后才返回 resolvable。该实现恢复 SEC HTML 表格定位，
+不宣称支持任意 PDF/OCR/跨页复杂表格；后者仍应通过独立 Document Parser adapter 接入。
+
 回滚时通过 profile/retrieval version 停止新 `hybrid-v1` 和 `sec-l4-v1` 运行，保留 PostgreSQL 中的 Run、Trace、Evidence、Calculation 与审计记录；恢复 `dense-v1` 只影响新请求，不能原地改写历史结果或删除 locator。

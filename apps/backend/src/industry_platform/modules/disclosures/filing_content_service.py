@@ -7,7 +7,6 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from html.parser import HTMLParser
 from typing import Protocol
 from uuid import UUID, uuid5
 
@@ -27,6 +26,7 @@ from industry_platform.modules.disclosures.domain import (
     SecSourceErrorCode,
     SecWorkspaceFilingImport,
 )
+from industry_platform.modules.disclosures.filing_tables import extract_filing_html
 from industry_platform.modules.disclosures.ports import (
     SecFilingArchivePort,
     SecFilingContentRepository,
@@ -50,40 +50,6 @@ from industry_platform.modules.workspaces.domain import WorkspaceScope
 SEC_IMPORT_FILE_NAMESPACE = UUID("4e129542-97e1-4d72-9702-0ff1c21d37aa")
 _MAX_INDEXABLE_CHARACTERS = 5_000_000
 _SPACE_PATTERN = re.compile(r"[ \t\f\v]+")
-_BLOCK_TAGS = frozenset(
-    {
-        "address",
-        "article",
-        "aside",
-        "blockquote",
-        "br",
-        "div",
-        "dl",
-        "dt",
-        "dd",
-        "figcaption",
-        "figure",
-        "footer",
-        "header",
-        "hr",
-        "li",
-        "main",
-        "nav",
-        "ol",
-        "p",
-        "pre",
-        "section",
-        "table",
-        "tbody",
-        "td",
-        "tfoot",
-        "th",
-        "thead",
-        "tr",
-        "ul",
-    }
-)
-_SKIPPED_TAGS = frozenset({"script", "style", "noscript", "template", "ix:hidden"})
 _HYBRID_CANDIDATE_LIMIT = 20
 _FINAL_RESULT_LIMIT = 5
 _MAX_RESULTS_PER_SECTION = 2
@@ -534,48 +500,6 @@ def _validate_reranked_hits(
         raise ValueError("SEC reranker introduced an unauthorized candidate")
 
 
-class _FilingHtmlTextExtractor(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self._parts: list[str] = []
-        self._skipped_depth = 0
-        self._heading_level: int | None = None
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        del attrs
-        normalized = tag.casefold()
-        if normalized in _SKIPPED_TAGS:
-            self._skipped_depth += 1
-            return
-        if self._skipped_depth:
-            return
-        if normalized in _BLOCK_TAGS or (normalized.startswith("h") and normalized[1:].isdigit()):
-            self._parts.append("\n")
-        if len(normalized) == 2 and normalized[0] == "h" and normalized[1] in "123456":
-            self._heading_level = int(normalized[1])
-            self._parts.append(f"{'#' * self._heading_level} ")
-
-    def handle_endtag(self, tag: str) -> None:
-        normalized = tag.casefold()
-        if normalized in _SKIPPED_TAGS:
-            if self._skipped_depth:
-                self._skipped_depth -= 1
-            return
-        if self._skipped_depth:
-            return
-        if normalized in _BLOCK_TAGS or (normalized.startswith("h") and normalized[1:].isdigit()):
-            self._parts.append("\n")
-        if len(normalized) == 2 and normalized[0] == "h" and normalized[1] in "123456":
-            self._heading_level = None
-
-    def handle_data(self, data: str) -> None:
-        if not self._skipped_depth:
-            self._parts.append(data)
-
-    def markdown(self) -> str:
-        return _normalize_text("".join(self._parts))
-
-
 def _indexable_markdown(
     body: bytes,
     *,
@@ -593,13 +517,10 @@ def _indexable_markdown(
             html = body.decode("cp1252")
         except UnicodeDecodeError:
             raise SecFilingContentError(SecSourceErrorCode.RESPONSE_INVALID) from None
-    parser = _FilingHtmlTextExtractor()
     try:
-        parser.feed(html)
-        parser.close()
-    except Exception:
+        content = extract_filing_html(html).markdown
+    except (ValueError, AssertionError):
         raise SecFilingContentError(SecSourceErrorCode.RESPONSE_INVALID) from None
-    content = parser.markdown()
     if not content or len(content) > _MAX_INDEXABLE_CHARACTERS:
         raise SecFilingContentError(SecSourceErrorCode.RESPONSE_TOO_LARGE)
     header = (

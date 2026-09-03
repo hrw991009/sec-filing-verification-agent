@@ -346,6 +346,40 @@ class SecFilingChunkLocatorV1:
 
 
 @dataclass(frozen=True, slots=True)
+class SecFilingTableCellCoordinateV1:
+    table_index: int
+    row_index: int
+    column_index: int
+    row_span: int
+    column_span: int
+    content_sha256: str
+
+    def __post_init__(self) -> None:
+        coordinates = (
+            self.table_index,
+            self.row_index,
+            self.column_index,
+            self.row_span,
+            self.column_span,
+        )
+        if any(isinstance(value, bool) or not 1 <= value <= 10_000 for value in coordinates):
+            raise ValueError("SEC filing table coordinate is invalid")
+        _sha256(self.content_sha256, field_name="SEC filing table cell hash")
+
+    def to_mapping(self) -> Mapping[str, object]:
+        return MappingProxyType(
+            {
+                "table_index": self.table_index,
+                "row_index": self.row_index,
+                "column_index": self.column_index,
+                "row_span": self.row_span,
+                "column_span": self.column_span,
+                "content_sha256": self.content_sha256,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class SecFilingTextLocatorV1:
     cik: str
     accession: str
@@ -370,6 +404,7 @@ class SecFilingTextLocatorV1:
     index_version: str
     retrieval_profile_version: str
     retrieval_channels: tuple[str, ...]
+    table_cells: tuple[SecFilingTableCellCoordinateV1, ...] = ()
     locator_type: EvidenceLocatorType = EvidenceLocatorType.SEC_FILING_TEXT_V1
     schema_version: int = EVIDENCE_SCHEMA_VERSION
 
@@ -428,7 +463,14 @@ class SecFilingTextLocatorV1:
         _sha256(self.content_sha256, field_name="SEC filing content hash")
         if self.schema_version != EVIDENCE_SCHEMA_VERSION:
             raise ValueError("SEC filing locator schema version is unsupported")
+        table_cells = tuple(self.table_cells)
+        cell_keys = tuple(
+            (cell.table_index, cell.row_index, cell.column_index) for cell in table_cells
+        )
+        if len(table_cells) > 64 or len(cell_keys) != len(set(cell_keys)):
+            raise ValueError("SEC filing table coordinates are invalid")
         object.__setattr__(self, "retrieval_channels", channels)
+        object.__setattr__(self, "table_cells", table_cells)
 
     def to_mapping(self) -> Mapping[str, object]:
         return MappingProxyType(
@@ -458,6 +500,7 @@ class SecFilingTextLocatorV1:
                 "index_version": self.index_version,
                 "retrieval_profile_version": self.retrieval_profile_version,
                 "retrieval_channels": list(self.retrieval_channels),
+                "table_cells": [dict(cell.to_mapping()) for cell in self.table_cells],
             }
         )
 
@@ -869,15 +912,49 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
                 "retrieval_profile_version",
                 "retrieval_channels",
             }
+            extended = expected | {"table_cells"}
             page_number = document["page_number"]
             channels = document["retrieval_channels"]
+            cells = document.get("table_cells", [])
             if (
-                set(document) != expected
+                frozenset(document) not in {frozenset(expected), frozenset(extended)}
                 or isinstance(page_number, bool)
                 or not isinstance(page_number, int)
                 or not isinstance(channels, list)
+                or not isinstance(cells, list)
             ):
                 raise ValueError
+            parsed_cells: list[SecFilingTableCellCoordinateV1] = []
+            for cell in cells:
+                if not isinstance(cell, dict) or set(cell) != {
+                    "table_index",
+                    "row_index",
+                    "column_index",
+                    "row_span",
+                    "column_span",
+                    "content_sha256",
+                }:
+                    raise ValueError
+                coordinate_names = (
+                    "table_index",
+                    "row_index",
+                    "column_index",
+                    "row_span",
+                    "column_span",
+                )
+                coordinates = tuple(cell[name] for name in coordinate_names)
+                if any(isinstance(item, bool) or not isinstance(item, int) for item in coordinates):
+                    raise ValueError
+                parsed_cells.append(
+                    SecFilingTableCellCoordinateV1(
+                        table_index=coordinates[0],
+                        row_index=coordinates[1],
+                        column_index=coordinates[2],
+                        row_span=coordinates[3],
+                        column_span=coordinates[4],
+                        content_sha256=str(cell["content_sha256"]),
+                    )
+                )
             return SecFilingTextLocatorV1(
                 cik=str(document["cik"]),
                 accession=str(document["accession"]),
@@ -902,6 +979,7 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
                 index_version=str(document["index_version"]),
                 retrieval_profile_version=str(document["retrieval_profile_version"]),
                 retrieval_channels=tuple(str(item) for item in channels),
+                table_cells=tuple(parsed_cells),
             )
         if locator_type is EvidenceLocatorType.SEC_XBRL_FACT_V1:
             expected = {
