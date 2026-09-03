@@ -9,7 +9,7 @@ from typing import Protocol
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, case, exists, func, or_, select, text, update
+from sqlalchemy import and_, case, exists, func, null, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -359,7 +359,7 @@ class SqlAlchemyJobWriter:
                 .values(
                     status=command.outcome,
                     terminal_at=database_now,
-                    result=(dict(command.result) if command.result is not None else None),
+                    result=(dict(command.result) if command.result is not None else null()),
                     last_error_code=command.error_code,
                     lease_owner=None,
                     lease_token=None,

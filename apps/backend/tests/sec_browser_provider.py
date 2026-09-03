@@ -119,7 +119,7 @@ def _decision(messages: str) -> tuple[str, str]:
             ),
             "final",
         )
-    if '"retrieval_profile_version"' in messages:
+    if _has_filing_search_observation(messages):
         cik, knowledge_base_id = _locked_context(messages)
         return (
             json.dumps(
@@ -170,6 +170,33 @@ def _decision(messages: str) -> tuple[str, str]:
         ),
         "filing_search",
     )
+
+
+def _has_filing_search_observation(messages: str) -> bool:
+    for block in messages.splitlines():
+        if not block.startswith("{"):
+            continue
+        try:
+            envelope = json.loads(block)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(envelope, dict):
+            continue
+        tool = envelope.get("tool")
+        content = envelope.get("content")
+        if not isinstance(tool, dict) or tool.get("name") != "sec.search_filing":
+            continue
+        if not isinstance(content, str):
+            continue
+        try:
+            observation = json.loads(content)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(observation, dict) and isinstance(
+            observation.get("retrieval_profile_version"), str
+        ):
+            return True
+    return False
 
 
 def _locked_context(messages: str) -> tuple[str, str]:

@@ -129,6 +129,26 @@ def filing_text_locator() -> SecFilingTextLocatorV1:
     )
 
 
+def test_sec_filing_text_locator_accepts_edgar_utc_evening_rollover() -> None:
+    locator = replace(
+        filing_text_locator(),
+        as_of="2023-11-03T12:00:00+00:00",
+        filed_at="2023-11-03T00:00:00+00:00",
+        accepted_at="2023-11-02T22:08:27+00:00",
+    )
+
+    assert locator.accepted_at == "2023-11-02T22:08:27+00:00"
+
+
+def test_sec_filing_text_locator_accepts_monitor_diff_retrieval_profile() -> None:
+    locator = replace(
+        filing_text_locator(),
+        retrieval_profile_version="monitor-diff-v1",
+    )
+
+    assert locator.retrieval_profile_version == "monitor-diff-v1"
+
+
 def xbrl_locator() -> SecXbrlFactLocatorV1:
     return SecXbrlFactLocatorV1(
         cik="0000320193",

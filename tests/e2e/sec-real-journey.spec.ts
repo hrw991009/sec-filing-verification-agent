@@ -40,9 +40,12 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
   const uniquePart = `${String(Date.now())}-${String(test.info().workerIndex)}`;
   const browserErrors: string[] = [];
   const failedRequests: string[] = [];
+  const unexpectedHttpErrors: string[] = [];
   const apiRequests: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text());
+    if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) {
+      browserErrors.push(message.text());
+    }
   });
   page.on("pageerror", (error) => {
     browserErrors.push(error.message);
@@ -55,6 +58,22 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
   });
   page.on("requestfailed", (request) => {
     failedRequests.push(`${request.method()} ${request.url()}`);
+  });
+  page.on("response", (response) => {
+    if (response.status() < 400) return;
+    const request = response.request();
+    const url = new URL(response.url());
+    const expectedUnauthenticatedRefresh =
+      response.status() === 401 &&
+      request.method() === "POST" &&
+      url.pathname === "/api/v1/auth/refresh";
+    const expectedPendingVerification =
+      response.status() === 404 &&
+      request.method() === "GET" &&
+      /\/research-runs\/[^/]+\/verification-report$/u.test(url.pathname);
+    if (!expectedUnauthenticatedRefresh && !expectedPendingVerification) {
+      unexpectedHttpErrors.push(`${String(response.status())} ${request.method()} ${url.pathname}`);
+    }
   });
 
   await page.goto("/");
@@ -99,7 +118,12 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
   });
   await expect(researchDetail.getByRole("heading", { name: "Verification Report" })).toBeVisible();
   await expect(researchDetail.getByText("已核验", { exact: true }).first()).toBeVisible();
-  await expect(researchDetail.getByText("Apple 2023 财年净销售额")).toBeVisible();
+  await expect(
+    researchDetail.getByText(
+      "Apple 2023 财年净销售额为 3832.85 亿美元 [S1]。经人工批准，SEC Monitor 已创建；本结论仅用于受控链路验证。",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await expect(researchDetail.getByText("SEC Monitor 订阅审批")).toBeVisible();
 
   await page.getByRole("button", { exact: true, name: "SEC" }).click();
@@ -139,4 +163,5 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
   );
   expect(browserErrors).toEqual([]);
   expect(failedRequests).toEqual([]);
+  expect(unexpectedHttpErrors).toEqual([]);
 });

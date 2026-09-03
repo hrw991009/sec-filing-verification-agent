@@ -315,10 +315,12 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
                 approval_record,
                 effect_record,
                 workspace_id=workspace_id,
+                observation_ordinal=2,
             )
             assert approved_action is not None
             assert approved_action.name == "sec.monitor.subscribe"
             assert approved_observation is not None
+            assert approved_observation.ordinal == 2
             assert approved_observation.model_text == f"sec-monitor:{allowed.monitor.monitor_id}"
 
             monitors = await service.list_monitors(scope)

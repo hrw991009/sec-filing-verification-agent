@@ -433,7 +433,8 @@ class SecFilingTextLocatorV1:
                 require_utc(time_value, field_name="SEC filing locator time")
         except ValueError:
             raise ValueError("SEC filing locator time is invalid") from None
-        if accepted_at > as_of or filed_at > accepted_at:
+        filing_date_delta = (filed_at.date() - accepted_at.date()).days
+        if accepted_at > as_of or filing_date_delta not in {0, 1}:
             raise ValueError("SEC filing locator cutoff is invalid")
         parsed_url = urlsplit(self.canonical_url)
         if parsed_url.scheme != "https" or parsed_url.hostname != "www.sec.gov":
@@ -447,7 +448,12 @@ class SecFilingTextLocatorV1:
         ):
             if not _REFERENCE_PATTERN.fullmatch(reference_value):
                 raise ValueError(f"{field_name} is invalid")
-        if self.retrieval_profile_version not in {"dense-v1", "hybrid-v1", "direct-read-v1"}:
+        if self.retrieval_profile_version not in {
+            "dense-v1",
+            "hybrid-v1",
+            "direct-read-v1",
+            "monitor-diff-v1",
+        }:
             raise ValueError("SEC filing retrieval profile is invalid")
         channels = tuple(self.retrieval_channels)
         if (

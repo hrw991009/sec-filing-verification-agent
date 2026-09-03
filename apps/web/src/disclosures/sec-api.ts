@@ -3,6 +3,7 @@ import type { components } from "@industry-platform/api-contract";
 import { apiClient, unwrapData, withAccessToken } from "../api/api";
 
 export type SecFiling = components["schemas"]["SecFilingCandidateResponse"];
+export type SecFilerResolution = components["schemas"]["SecFilerResolutionResponse"];
 export type SecFilingDiff = components["schemas"]["SecFilingDiffResponse"];
 export type SecFilingImport = components["schemas"]["SecWorkspaceFilingImportResponse"];
 export type SecFilingSearch = components["schemas"]["SecFilingSearchResponse"];
@@ -25,6 +26,20 @@ export interface FilingSelection {
 
 function authorization(accessToken: string) {
   return { Authorization: `Bearer ${accessToken}` };
+}
+
+export function resolveSecFiler(workspaceId: string, query: string): Promise<SecFilerResolution> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<SecFilerResolution>(
+      await apiClient.GET("/api/v1/workspaces/{workspace_id}/disclosures/filers/resolve", {
+        headers: authorization(accessToken),
+        params: {
+          path: { workspace_id: workspaceId },
+          query: { limit: 1, query },
+        },
+      }),
+    ),
+  );
 }
 
 export function listSecFilings(

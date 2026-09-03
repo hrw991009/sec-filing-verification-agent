@@ -43,6 +43,10 @@ def _environment() -> dict[str, str]:
                 separators=(",", ":"),
             ),
             "APP_ENVIRONMENT": "test",
+            "ELASTICSEARCH_ENDPOINT": environment.get(
+                "ELASTICSEARCH_ENDPOINT", "http://127.0.0.1:19200"
+            ),
+            "MILVUS_ENDPOINT": environment.get("MILVUS_ENDPOINT", "http://127.0.0.1:19530"),
             "SEC_CONTROLLED_SOURCE_MANIFEST_PATH": (
                 "evals/fixtures/sec/sec-browser-v1/manifest.json"
             ),

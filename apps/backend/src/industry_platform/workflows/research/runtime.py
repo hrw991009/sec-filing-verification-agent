@@ -240,21 +240,26 @@ class ResearchL3Runtime(ToolL2Runtime):
                 updated_at=initial_at,
             )
             resumed_run = replace(run, status=AgentRunStatus.RUNNING, state_revision=revision)
+            resume_payload: dict[str, object] = {
+                "state_revision": revision,
+                "checkpoint_revision": resume_snapshot.checkpoint_revision,
+                "resume_kind": resume_snapshot.kind.value,
+                "resume_node": (
+                    None if resume_snapshot.next_node is None else resume_snapshot.next_node.value
+                ),
+            }
+            if resume_snapshot.approved_tool_action is not None:
+                approved_observation = resume_snapshot.observations[-1]
+                resume_payload.update(
+                    approved_observation_id=str(approved_observation.observation_id),
+                    approved_observation_envelope_sha256=approved_observation.envelope_sha256,
+                )
             resumed_event = self._event(
                 resumed_run,
                 events,
                 event_type=AgentEventType.RUN_RESUMED,
                 occurred_at=initial_at,
-                payload={
-                    "state_revision": revision,
-                    "checkpoint_revision": resume_snapshot.checkpoint_revision,
-                    "resume_kind": resume_snapshot.kind.value,
-                    "resume_node": (
-                        None
-                        if resume_snapshot.next_node is None
-                        else resume_snapshot.next_node.value
-                    ),
-                },
+                payload=resume_payload,
             )
             validate_state_transition(state, resumed_state, expected_revision=state.revision)
             validate_run_state(resumed_run, resumed_state)

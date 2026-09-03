@@ -13,6 +13,7 @@ import {
   listSecDisclosureCases,
   listSecMonitors,
   readSecFilingSection,
+  resolveSecFiler,
   searchSecFiling,
   syncSecXbrl,
   triggerSecMonitorRun,
@@ -284,9 +285,14 @@ export function SecWorkbench({
     setSelectedFactId(null);
     setDiffResult(null);
     try {
+      const resolution = await resolveSecFiler(workspaceId, cik);
+      const resolvedFiler = resolution.status === "resolved" ? resolution.candidates[0] : undefined;
+      if (resolvedFiler === undefined) {
+        throw new Error("未能将 CIK 解析为唯一 SEC 主体。");
+      }
       const values = await listSecFilings(workspaceId, {
         asOf: asIso(asOf),
-        cik,
+        cik: resolvedFiler.cik,
         forms,
         reportPeriodEnd: periodEnd,
         reportPeriodStart: periodStart,

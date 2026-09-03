@@ -407,6 +407,7 @@ class SqlAlchemySecMonitorRepository:
             pair=finding.evidence,
             now=now,
         )
+        await session.flush()
         for side, evidence_id in zip(("baseline", "target"), evidence_ids, strict=True):
             session.add(
                 SecDisclosureCaseEvidenceRecord(

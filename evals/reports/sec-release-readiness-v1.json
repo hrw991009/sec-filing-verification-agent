@@ -92,9 +92,9 @@
     },
     {
       "artifact_id": "release-execution-tests",
-      "byte_size": 4201,
+      "byte_size": 19002,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_execution.py",
-      "sha256": "d5d776058a5a4ac95541f754637528bb5daf74d0b67fe73ab4e5740032a05e3f"
+      "sha256": "2f3d7f4487317c76d2e3309420684f1a1c59ecba3d93f3a4fcc1a0771f4d9a5b"
     },
     {
       "artifact_id": "release-case-dataset",
@@ -182,9 +182,9 @@
     },
     {
       "artifact_id": "release-recovery-exercise-tests",
-      "byte_size": 5868,
+      "byte_size": 21474,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_exercise.py",
-      "sha256": "dde2ca37238de75f16c6bcf6da148a7e4b7dd40ba6f376e8b90c05ffdea09998"
+      "sha256": "6da4250b195f1dddcf35dfd75ba61a014a054fe33aeb53d4f97491cdbc1e0754"
     },
     {
       "artifact_id": "release-recovery-manifest",
@@ -272,9 +272,9 @@
     },
     {
       "artifact_id": "evidence-domain-boundary-tests",
-      "byte_size": 17462,
+      "byte_size": 18069,
       "relative_path": "apps/backend/tests/modules/evidence/test_domain.py",
-      "sha256": "a8a4c9ed3d958b8903b763bc3fb69336334c730403acd64bf740d81eb9f89baf"
+      "sha256": "c74f3c3020808731bdf2645a74d5d4007a3da854c7a959bf4dc32c094294235a"
     },
     {
       "artifact_id": "research-service-boundary-tests",
@@ -284,15 +284,15 @@
     },
     {
       "artifact_id": "sec-workbench-ui",
-      "byte_size": 55044,
+      "byte_size": 55370,
       "relative_path": "apps/web/src/disclosures/SecWorkbench.tsx",
-      "sha256": "c87b9730bfcb24d04c8267732dad77a7b9f619f3f3de9af1b0e9aa2c480d272c"
+      "sha256": "19cf45a1d7b07ebdb5bfdf5f421154837f501f98452c4c049d611add2c10496b"
     },
     {
       "artifact_id": "sec-workbench-tests",
-      "byte_size": 21120,
+      "byte_size": 22253,
       "relative_path": "apps/web/src/disclosures/SecWorkbench.test.tsx",
-      "sha256": "b90b2cc80cd5f7f4d9ea4bbe66013c1a4138a68acc68932eeb912c438b989615"
+      "sha256": "4536a222be371fd6fd2765646a57cebfc734108a67821630fd4492dabecf74bf"
     },
     {
       "artifact_id": "sec-review-navigation",
@@ -374,9 +374,9 @@
     },
     {
       "artifact_id": "ci-workflow",
-      "byte_size": 26494,
+      "byte_size": 26522,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "8e53534596b3dd0499e0a3134431d2e975e9365189f43725de619a9d0c834d6e"
+      "sha256": "824eda90adcaffb0641abc8e61fb4ed2301f1a6346be87d8c27ab486c32d3d03"
     },
     {
       "artifact_id": "credential-audit",

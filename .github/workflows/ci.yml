@@ -298,6 +298,7 @@ jobs:
 
       - name: Exercise PostgreSQL, Redis, and MinIO integration paths
         run: |
+          set -euo pipefail
           uv run --locked --all-packages pytest \
             --cov=industry_platform \
             --cov-branch \

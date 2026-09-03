@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from collections.abc import Callable, Mapping
+from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from enum import StrEnum
 from time import monotonic
@@ -650,9 +651,7 @@ async def run_job_delivery(
     delivery: JobDispatchMessage,
     *,
     settings: Settings,
-    provider_http_client_factory: Callable[[], httpx2.AsyncClient] = (
-        create_public_egress_http_client
-    ),
+    provider_http_client_factory: Callable[[], httpx2.AsyncClient] | None = None,
 ) -> JobExecutionDisposition:
     """Compose fresh task resources; every operation borrows its own session."""
 
@@ -660,15 +659,29 @@ async def run_job_delivery(
     redis_client = create_redis_client(settings)
     try:
         session_factory = create_database_session_factory(engine)
-        async with (
-            provider_http_client_factory() as provider_http_client,
-            httpx2.AsyncClient(trust_env=False) as internal_http_client,
-        ):
+        async with AsyncExitStack() as stack:
+            external_http_client = await stack.enter_async_context(
+                create_public_egress_http_client()
+            )
+            if provider_http_client_factory is not None:
+                provider_http_client = await stack.enter_async_context(
+                    provider_http_client_factory()
+                )
+            elif settings.agent_model_controlled_loopback:
+                provider_http_client = await stack.enter_async_context(
+                    create_controlled_model_provider_http_client()
+                )
+            else:
+                provider_http_client = external_http_client
+            internal_http_client = await stack.enter_async_context(
+                httpx2.AsyncClient(trust_env=False)
+            )
             runtime = create_job_delivery_runtime(
                 settings,
                 session_factory,
                 provider_http_client,
                 internal_http_client,
+                external_http_client=external_http_client,
                 redis_client=redis_client,
             )
             return await runtime.execute(delivery)
@@ -679,12 +692,24 @@ async def run_job_delivery(
             await engine.dispose()
 
 
+def create_controlled_model_provider_http_client() -> httpx2.AsyncClient:
+    """Create the HTTP client used by the test-only loopback model Provider."""
+
+    return httpx2.AsyncClient(
+        timeout=httpx2.Timeout(30.0, connect=10.0, pool=5.0),
+        follow_redirects=False,
+        max_redirects=3,
+        trust_env=False,
+    )
+
+
 def create_job_delivery_runtime(
     settings: Settings,
     session_factory: AsyncSessionFactory,
     provider_http_client: httpx2.AsyncClient,
     internal_http_client: httpx2.AsyncClient | None = None,
     *,
+    external_http_client: httpx2.AsyncClient | None = None,
     redis_client: Redis | None = None,
 ) -> JobExecutionRuntime:
     """Compose every fixed production handler, including the unified Agent Runtime."""
@@ -693,10 +718,11 @@ def create_job_delivery_runtime(
         transaction_factory=SqlAlchemyRefreshRecoveryCleanupTransactionFactory(session_factory)
     )
     job_resources = create_job_resources(settings, session_factory)
+    external_client = external_http_client or provider_http_client
     industry = create_industry_resources(
         settings,
         session_factory,
-        provider_http_client,
+        external_client,
         job_resources.schedule_service,
     )
     tool_http_client = internal_http_client or provider_http_client
@@ -754,7 +780,7 @@ def create_job_delivery_runtime(
         disclosures = create_disclosure_resources(
             settings,
             session_factory,
-            provider_http_client,
+            external_client,
             redis_client,
             tool_http_client,
             knowledge.service,

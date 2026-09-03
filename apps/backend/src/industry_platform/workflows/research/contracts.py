@@ -87,6 +87,15 @@ class ResearchResumeSnapshot:
             raise ValueError("Research resume Checkpoint revision is invalid")
         if not self.event_history:
             raise ValueError("Research resume requires committed Event history")
+        if self.approved_tool_action is not None:
+            if not self.observations:
+                raise ValueError("Approved Tool resume requires its Observation")
+            approved_observation = self.observations[-1]
+            if (
+                approved_observation.tool_name != self.approved_tool_action.name
+                or approved_observation.tool_version != self.approved_tool_action.version
+            ):
+                raise ValueError("Approved Tool resume Observation is inconsistent")
 
 
 @dataclass(frozen=True, slots=True)

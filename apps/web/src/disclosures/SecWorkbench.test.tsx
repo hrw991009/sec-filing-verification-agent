@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   listSecMonitors: vi.fn(),
   changeSecMonitorStatus: vi.fn(),
   readSecFilingSection: vi.fn(),
+  resolveSecFiler: vi.fn(),
   searchSecFiling: vi.fn(),
   syncSecXbrl: vi.fn(),
   triggerSecMonitorRun: vi.fn(),
@@ -54,6 +55,7 @@ vi.mock("./sec-api", () => ({
   listSecDisclosureCases: mocks.listSecDisclosureCases,
   listSecMonitors: mocks.listSecMonitors,
   readSecFilingSection: mocks.readSecFilingSection,
+  resolveSecFiler: mocks.resolveSecFiler,
   searchSecFiling: mocks.searchSecFiling,
   syncSecXbrl: mocks.syncSecXbrl,
   triggerSecMonitorRun: mocks.triggerSecMonitorRun,
@@ -388,6 +390,30 @@ describe("SecWorkbench", () => {
     vi.clearAllMocks();
     mocks.listKnowledgeBases.mockResolvedValue([knowledgeBase]);
     mocks.listSecFilingImports.mockResolvedValueOnce([]).mockResolvedValue([imported]);
+    mocks.resolveSecFiler.mockResolvedValue({
+      candidates: [
+        {
+          alias_valid_from: null,
+          alias_valid_to: null,
+          canonical_name: "Apple Inc.",
+          cik: "0000320193",
+          confidence: 1,
+          content_sha256: "f".repeat(64),
+          matched_by: "cik",
+          matched_value: "0000320193",
+          source_observed_at: "2026-08-26T03:00:00Z",
+          source_url: "https://www.sec.gov/files/company_tickers_exchange.json",
+          source_version: "sec-company-tickers-test-v1",
+          tickers: ["AAPL"],
+        },
+      ],
+      catalog_content_sha256: "f".repeat(64),
+      catalog_retrieved_at: "2026-08-26T03:00:00Z",
+      catalog_source_version: "sec-company-tickers-test-v1",
+      normalized_query: "0000320193",
+      query: "0000320193",
+      status: "resolved",
+    });
     mocks.listSecFilings.mockResolvedValue([filing]);
     mocks.importSecFiling.mockResolvedValue({ ...imported, status: "queued" });
     mocks.searchSecFiling.mockResolvedValue(searchResult);
@@ -464,6 +490,11 @@ describe("SecWorkbench", () => {
     await screen.findByRole("option", { name: "SEC Research" });
     await user.click(screen.getByRole("button", { name: "查询申报" }));
     expect(await screen.findAllByText(accession)).toHaveLength(2);
+    expect(mocks.resolveSecFiler).toHaveBeenCalledWith(workspaceId, "0000320193");
+    expect(mocks.listSecFilings).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ cik: "0000320193" }),
+    );
 
     await user.click(screen.getByRole("button", { name: "锁定并导入" }));
     await waitFor(() => {
