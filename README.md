@@ -275,7 +275,15 @@ pnpm run test:e2e:sec-real
 `test:e2e:sec-real` 使用受控衍生 SEC fixture、真实本地 HTTP 进程以及 PostgreSQL、Redis、MinIO、
 Milvus 和 Elasticsearch，不代表 live SEC 或真实模型质量。
 
-发布验收命令会保持 fail closed。只有已配置 SEC 身份、模型 Provider、所需依赖和人工证据时才应执行：
+尚未准备上一版本回滚镜像时，可以先执行核心真实链路验证。它覆盖真实浏览器、50 个生产
+Runtime Run、Evidence 和 live SEC，但明确不包含恢复演练或最终发布判定：
+
+```powershell
+pnpm run acceptance:sec:core:preflight
+pnpm run acceptance:sec:core
+```
+
+正式发布验收保持 fail closed，额外要求已批准的不可变回滚镜像：
 
 ```powershell
 pnpm run acceptance:sec:preflight

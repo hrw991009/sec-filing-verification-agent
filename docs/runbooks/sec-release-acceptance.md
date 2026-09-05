@@ -25,12 +25,22 @@ SEC_REQUESTS_PER_SECOND=8
 在当前 PowerShell 会话提供最后一个已批准镜像的不可变 digest：
 
 ```powershell
-$env:PREVIOUS_IMAGE_DIGEST = '你的-registry/industry-platform@sha256:64位摘要'
+$env:PREVIOUS_IMAGE_DIGEST = '你的-registry/sec-filing-verification-agent@sha256:64位摘要'
 ```
 
 本机还需安装并启动 Docker Desktop，且 `git`、`pnpm`、`uv` 可用。验收必须在已提交的干净工作树执行；真实 Secret 和动态证据不得提交。
 
 ## 2. 预检
+
+尚无上一版本镜像时，只验证核心真实链路前置条件：
+
+```powershell
+pnpm run acceptance:sec:core:preflight
+```
+
+该命令只检查核心链路所需的外部配置、清单、工具与 SEC 身份，因此可在开发工作区存在未提交改动时运行；
+报告会提示必须在执行核心链路前提交改动。该模式不要求 `PREVIOUS_IMAGE_DIGEST`，但会明确将恢复演练和最终发布判定记为 `skipped`，不能据此
+声明工程发布证据完整。准备好回滚镜像后，执行正式发布预检：
 
 ```powershell
 pnpm run acceptance:sec:preflight
@@ -38,7 +48,18 @@ pnpm run acceptance:sec:preflight
 
 预检会校验 `.env`、冻结 manifest/source hash、Provider 配置、SEC identity、不可变回滚镜像格式、工具链和干净 source commit。失败时其余阶段保持 `blocked`/`skipped`，不会生成完成声明。
 
-## 3. 一键工程验收
+## 3. 核心链路与正式验收
+
+核心真实链路固定执行 10 case × A0-A4、每格一次，共 50 个生产 Runtime Run：
+
+```powershell
+pnpm run acceptance:sec:core
+```
+
+它自动完成依赖启动、受控数据准备、中文浏览器链、Run/Evidence 取证和 live SEC smoke，跳过 12 项
+恢复演练与最终 readiness。动态证据单独写入 `.data/evals/sec-core-validation-v1`。
+
+准备好不可变回滚镜像后，执行完整工程验收：
 
 固定 10 case × A0-A4、每格一次，共 50 个生产 Runtime Run：
 
