@@ -144,15 +144,22 @@ class AcceptanceRunner:
         run_live_sec: bool,
         live_repetitions: bool,
         preflight_only: bool,
+        run_recovery: bool = True,
     ) -> AcceptanceReport:
         source_commit = self._source_commit()
-        phases = [self._preflight()]
+        phases = [
+            self._preflight(
+                require_previous_image=run_recovery,
+                allow_dirty_source=preflight_only and not run_recovery,
+            )
+        ]
         if preflight_only or phases[0].status is not AcceptancePhaseStatus.PASSED:
             phases.extend(
                 self._remaining_phases(
                     preflight_only=preflight_only,
                     run_browser=run_browser,
                     run_live_sec=run_live_sec,
+                    run_recovery=run_recovery,
                 )
             )
             return self._report(source_commit, phases)
@@ -160,37 +167,69 @@ class AcceptanceRunner:
         browser = self._browser() if run_browser else self._skipped("browser-data-preparation")
         phases.append(browser)
         if browser.status not in {AcceptancePhaseStatus.PASSED, AcceptancePhaseStatus.SKIPPED}:
-            phases.extend(self._blocked_after("release-run-execution", run_live_sec=run_live_sec))
+            phases.extend(
+                self._blocked_after(
+                    "release-run-execution",
+                    run_live_sec=run_live_sec,
+                    run_recovery=run_recovery,
+                )
+            )
             return self._report(source_commit, phases)
 
         execution_phase, batch = self._release_execution(live_repetitions=live_repetitions)
         phases.append(execution_phase)
         if batch is None:
-            phases.extend(self._blocked_after("release-run-evidence", run_live_sec=run_live_sec))
+            phases.extend(
+                self._blocked_after(
+                    "release-run-evidence",
+                    run_live_sec=run_live_sec,
+                    run_recovery=run_recovery,
+                )
+            )
             return self._report(source_commit, phases)
 
         evidence_phase, collection = self._release_evidence(batch)
         phases.append(evidence_phase)
         if collection is None:
-            phases.extend(self._blocked_after("recovery-exercises", run_live_sec=run_live_sec))
+            phases.extend(
+                self._blocked_after(
+                    "recovery-exercises",
+                    run_live_sec=run_live_sec,
+                    run_recovery=run_recovery,
+                )
+            )
             return self._report(source_commit, phases)
 
-        phases.append(self._recovery(collection, source_commit=source_commit))
+        phases.append(
+            self._recovery(collection, source_commit=source_commit)
+            if run_recovery
+            else self._deferred_recovery()
+        )
         phases.append(self._live_sec() if run_live_sec else self._skipped("live-sec-identity"))
-        phases.append(self._final_readiness(phases, source_commit=source_commit))
+        phases.append(
+            self._final_readiness(phases, source_commit=source_commit)
+            if run_recovery
+            else self._deferred_final_readiness()
+        )
         return self._report(source_commit, phases)
 
-    def _preflight(self) -> AcceptancePhase:
+    def _preflight(
+        self,
+        *,
+        require_previous_image: bool = True,
+        allow_dirty_source: bool = False,
+    ) -> AcceptancePhase:
         paths = {
             "env": self._root / ".env",
             "evidence_manifest": (self._root / "evals/manifests/sec-release-evidence-v1.json"),
             "release_cases": self._root / "evals/scenarios/sec-release-cases-v1.json",
-            "recovery_manifest": (self._root / "evals/manifests/sec-release-recovery-v1.json"),
             "browser_fixture_manifest": (
                 self._root / "evals/fixtures/sec/sec-browser-v1/manifest.json"
             ),
             "browser_runner": self._root / "apps/backend/tests/sec_browser_e2e_runner.py",
         }
+        if require_previous_image:
+            paths["recovery_manifest"] = self._root / "evals/manifests/sec-release-recovery-v1.json"
         missing = [
             path.relative_to(self._root).as_posix() for path in paths.values() if not path.is_file()
         ]
@@ -216,8 +255,10 @@ class AcceptanceRunner:
                 raise ValueError("Release source manifest checksum changed")
             if tuple(item.case_id for item in source.cases) != manifest.common_case_ids:
                 raise ValueError("Release source cases differ from the evidence manifest")
-            load_recovery_manifest(paths["recovery_manifest"])
-            if not self._working_tree_clean():
+            if require_previous_image:
+                load_recovery_manifest(paths["recovery_manifest"])
+            working_tree_clean = self._working_tree_clean()
+            if not working_tree_clean and not allow_dirty_source:
                 raise ValueError("Acceptance execution requires a clean source tree")
             if (
                 settings.agent_model_route is None
@@ -227,16 +268,27 @@ class AcceptanceRunner:
                 raise ValueError("Agent model Provider variables are not configured")
             if not settings.sec_source_configured:
                 raise ValueError("SEC identity variables are not configured")
-            if _IMAGE_DIGEST_PATTERN.fullmatch(os.getenv("PREVIOUS_IMAGE_DIGEST", "")) is None:
+            if require_previous_image and (
+                _IMAGE_DIGEST_PATTERN.fullmatch(os.getenv("PREVIOUS_IMAGE_DIGEST", "")) is None
+            ):
                 raise ValueError("PREVIOUS_IMAGE_DIGEST is missing or is not immutable")
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
             return self._failure("preflight", error, blocked=True)
+        source_detail = (
+            "clean commit"
+            if working_tree_clean
+            else "external prerequisites (working tree is dirty; commit it before execution)"
+        )
         return AcceptancePhase(
             phase_id="preflight",
             status=AcceptancePhaseStatus.PASSED,
             detail=(
-                "Manifests, source hashes, clean commit, tools, Provider, SEC identity, and "
-                "immutable rollback image are ready."
+                f"Manifests, source hashes, {source_detail}, tools, Provider, and SEC identity "
+                + (
+                    "and immutable rollback image are ready."
+                    if require_previous_image
+                    else "are ready for core validation; recovery remains deferred."
+                )
             ),
         )
 
@@ -510,12 +562,31 @@ class AcceptanceRunner:
             detail="Phase was explicitly skipped; no verification claim was made.",
         )
 
+    @staticmethod
+    def _deferred_recovery() -> AcceptancePhase:
+        return AcceptancePhase(
+            phase_id="recovery-exercises",
+            status=AcceptancePhaseStatus.SKIPPED,
+            detail=(
+                "Recovery was explicitly deferred for core validation; no rollback claim was made."
+            ),
+        )
+
+    @staticmethod
+    def _deferred_final_readiness() -> AcceptancePhase:
+        return AcceptancePhase(
+            phase_id="final-readiness",
+            status=AcceptancePhaseStatus.SKIPPED,
+            detail=("Final release readiness was not evaluated because recovery was deferred."),
+        )
+
     def _remaining_phases(
         self,
         *,
         preflight_only: bool,
         run_browser: bool,
         run_live_sec: bool,
+        run_recovery: bool,
     ) -> list[AcceptancePhase]:
         status = AcceptancePhaseStatus.SKIPPED if preflight_only else AcceptancePhaseStatus.BLOCKED
         detail = (
@@ -527,9 +598,9 @@ class AcceptanceRunner:
             "browser-data-preparation": run_browser,
             "release-run-execution": True,
             "release-run-evidence": True,
-            "recovery-exercises": True,
+            "recovery-exercises": run_recovery,
             "live-sec-identity": run_live_sec,
-            "final-readiness": True,
+            "final-readiness": run_recovery,
         }
         return [
             AcceptancePhase(phase_id=phase_id, status=status, detail=detail)
@@ -538,11 +609,18 @@ class AcceptanceRunner:
             for phase_id, enabled in requested.items()
         ]
 
-    def _blocked_after(self, phase_id: str, *, run_live_sec: bool) -> list[AcceptancePhase]:
+    def _blocked_after(
+        self,
+        phase_id: str,
+        *,
+        run_live_sec: bool,
+        run_recovery: bool,
+    ) -> list[AcceptancePhase]:
         start = _EXPECTED_PHASE_IDS.index(phase_id)
         return [
             self._skipped(item)
-            if item == "live-sec-identity" and not run_live_sec
+            if (item == "live-sec-identity" and not run_live_sec)
+            or (item in {"recovery-exercises", "final-readiness"} and not run_recovery)
             else AcceptancePhase(
                 phase_id=item,
                 status=AcceptancePhaseStatus.BLOCKED,
@@ -616,6 +694,14 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--live-sec", action="store_true")
     parser.add_argument("--live-repetitions", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument(
+        "--skip-recovery",
+        action="store_true",
+        help=(
+            "Run core real-chain validation without recovery exercises or a final release "
+            "readiness claim."
+        ),
+    )
     return parser
 
 
@@ -627,16 +713,33 @@ def main(argv: list[str] | None = None) -> int:
         run_live_sec=args.live_sec,
         live_repetitions=args.live_repetitions,
         preflight_only=args.preflight_only,
+        run_recovery=not args.skip_recovery,
     )
     output = args.output_directory / "acceptance-report.json"
     write_acceptance_report(report, output)
-    command_succeeded = report.engineering_evidence_complete or (
-        args.preflight_only and report.phases[0].status is AcceptancePhaseStatus.PASSED
-    )
+    if args.preflight_only:
+        command_succeeded = report.phases[0].status is AcceptancePhaseStatus.PASSED
+    elif args.skip_recovery:
+        requested = {
+            "preflight",
+            "release-run-execution",
+            "release-run-evidence",
+            *(("browser-data-preparation",) if not args.skip_browser else ()),
+            *(("live-sec-identity",) if args.live_sec else ()),
+        }
+        command_succeeded = all(
+            item.status is AcceptancePhaseStatus.PASSED
+            for item in report.phases
+            if item.phase_id in requested
+        )
+    else:
+        command_succeeded = report.engineering_evidence_complete
     sys.stdout.write(
         json.dumps(
             {
                 "ok": command_succeeded,
+                "scope": "core" if args.skip_recovery else "release",
+                "engineering_evidence_complete": report.engineering_evidence_complete,
                 "output": str(output),
                 "phases": {item.phase_id: item.status.value for item in report.phases},
             },

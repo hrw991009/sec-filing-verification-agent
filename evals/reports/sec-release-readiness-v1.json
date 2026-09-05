@@ -26,9 +26,9 @@
     },
     {
       "artifact_id": "readme",
-      "byte_size": 13667,
+      "byte_size": 13925,
       "relative_path": "README.md",
-      "sha256": "a100ec33bad430f06b7863958d020dff50c1a8512b51f9b01300d48f7def9ad4"
+      "sha256": "59d03d02e432f7726a5604ba69a90aaeaaed7b058ded55bca1aca89663bd3b6c"
     },
     {
       "artifact_id": "product-scope",
@@ -218,21 +218,21 @@
     },
     {
       "artifact_id": "release-acceptance-runner",
-      "byte_size": 26741,
+      "byte_size": 30079,
       "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_acceptance.py",
-      "sha256": "30ccecdf16a2d13359c0b8e87f19ff66aad819636d41d440795082f84e681009"
+      "sha256": "4928c8edf0c1241a31cb07532b4f6d587efbab335b660cd6fb7e92d355bd89d6"
     },
     {
       "artifact_id": "release-acceptance-tests",
-      "byte_size": 9195,
+      "byte_size": 16651,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_acceptance.py",
-      "sha256": "de1d30e992db8a0df5c27958ce4058798ff51c3d3812c061d3c099faee6b456e"
+      "sha256": "53850461a58a567e66b19e742156f685e5c99d0f284a1fbdfa789c9635c6e88f"
     },
     {
       "artifact_id": "release-acceptance-runbook",
-      "byte_size": 4885,
+      "byte_size": 5896,
       "relative_path": "docs/runbooks/sec-release-acceptance.md",
-      "sha256": "de93a7f14a32232c9d6fd2f1c60bf64316f237da0468399aeda9f8e6e68da9d9"
+      "sha256": "9799ccbf6f3f2a8e9c604cb526d81a14f4b6925bc6c3dde63a16758e136d0dd3"
     },
     {
       "artifact_id": "sec-filing-table-parser",
@@ -350,9 +350,9 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 11095,
+      "byte_size": 11604,
       "relative_path": "package.json",
-      "sha256": "0c3401f063d376b777ea634a0f2899945d631252063c79d22d2ee0223166ee87"
+      "sha256": "f764716ddbe84348994b4300e89533fb5c469829e1c8b7dce69a0847c6fe7c36"
     },
     {
       "artifact_id": "python-project-policy",
