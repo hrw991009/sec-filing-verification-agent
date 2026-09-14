@@ -78,7 +78,7 @@ class SecFilingImportService:
         as_of: datetime,
         trace_id: TraceId,
     ) -> SecWorkspaceFilingImport:
-        filing = await self.repository.get_canonical_filing(accession)
+        filing = await self.repository.get_canonical_filing(accession, as_of=as_of)
         if (
             filing.public_available_at > as_of
             or filing.source_available_at > as_of
@@ -216,7 +216,10 @@ class SecFilingContentService:
         financial_scope: FinancialScope,
         query: str,
     ) -> SecFilingSearchResult:
-        filing = await self.repository.get_canonical_filing(financial_scope.accession)
+        filing = await self.repository.get_canonical_filing(
+            financial_scope.accession,
+            as_of=financial_scope.as_of,
+        )
         if (
             filing.cik != financial_scope.cik
             or filing.form.value != financial_scope.form.value
@@ -434,7 +437,10 @@ class SecFilingContentService:
         document_version_id: UUID,
         chunk_id: UUID,
     ) -> SecFilingSection:
-        filing = await self.repository.get_canonical_filing(financial_scope.accession)
+        filing = await self.repository.get_canonical_filing(
+            financial_scope.accession,
+            as_of=financial_scope.as_of,
+        )
         if (
             filing.cik != financial_scope.cik
             or filing.form.value != financial_scope.form.value

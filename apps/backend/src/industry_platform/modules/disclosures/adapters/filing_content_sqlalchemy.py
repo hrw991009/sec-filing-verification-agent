@@ -38,6 +38,7 @@ from industry_platform.modules.disclosures.domain import (
 from industry_platform.modules.disclosures.filing_tables import table_cells_from_markdown
 from industry_platform.modules.disclosures.models import (
     SecFilingDocumentRecord,
+    SecFilingObservationRecord,
     SecFilingRecord,
     SecSourceSnapshotRecord,
     SecSubmissionSourceRecord,
@@ -66,20 +67,50 @@ class SqlAlchemySecFilingContentRepository:
         self._session_factory = session_factory
         self._object_bucket = object_bucket
 
-    async def get_canonical_filing(self, accession: str) -> SecCanonicalFiling:
+    async def get_canonical_filing(
+        self,
+        accession: str,
+        *,
+        as_of: datetime | None = None,
+    ) -> SecCanonicalFiling:
         try:
             async with self._session_factory() as session:
-                row = (
-                    await session.execute(
+                statement = (
+                    select(SecFilingRecord, SecSubmissionSourceRecord)
+                    .join(
+                        SecSubmissionSourceRecord,
+                        SecSubmissionSourceRecord.id == SecFilingRecord.source_id,
+                    )
+                    .where(SecFilingRecord.accession == accession)
+                )
+                if as_of is not None:
+                    statement = (
                         select(SecFilingRecord, SecSubmissionSourceRecord)
                         .join(
-                            SecSubmissionSourceRecord,
-                            SecSubmissionSourceRecord.id == SecFilingRecord.source_id,
+                            SecFilingObservationRecord,
+                            SecFilingObservationRecord.accession == SecFilingRecord.accession,
                         )
-                        .where(SecFilingRecord.accession == accession)
+                        .join(
+                            SecSubmissionSourceRecord,
+                            SecSubmissionSourceRecord.id == SecFilingObservationRecord.source_id,
+                        )
+                        .where(
+                            SecFilingRecord.accession == accession,
+                            SecSubmissionSourceRecord.source_available_at <= as_of,
+                        )
+                        .order_by(
+                            SecSubmissionSourceRecord.source_available_at.desc(),
+                            SecSubmissionSourceRecord.retrieved_at.desc(),
+                            SecSubmissionSourceRecord.id,
+                        )
+                        .limit(1)
                     )
-                ).one_or_none()
+                row = (await session.execute(statement)).one_or_none()
                 if row is None:
+                    if as_of is not None and await session.scalar(
+                        select(SecFilingRecord.id).where(SecFilingRecord.accession == accession)
+                    ):
+                        raise SecFilingContentError(SecSourceErrorCode.SNAPSHOT_NOT_VISIBLE)
                     raise SecFilingContentError(SecSourceErrorCode.FILING_NOT_FOUND)
                 filing, source = row
                 return _canonical_filing(filing, source)

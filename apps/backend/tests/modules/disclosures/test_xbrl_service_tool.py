@@ -185,8 +185,15 @@ class MemoryXbrlRepository:
 class MemoryFilingRepository:
     filing: SecCanonicalFiling = field(default_factory=canonical_filing)
 
-    async def get_canonical_filing(self, accession: str) -> SecCanonicalFiling:
+    async def get_canonical_filing(
+        self,
+        accession: str,
+        *,
+        as_of: datetime | None = None,
+    ) -> SecCanonicalFiling:
         assert accession == ACCESSION
+        if as_of is not None:
+            assert as_of == NOW
         return self.filing
 
 

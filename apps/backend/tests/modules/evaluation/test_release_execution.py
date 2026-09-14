@@ -509,7 +509,7 @@ def test_execution_batch_round_trip_and_cli_output(
 
     monkeypatch.setattr(execution_module, "Settings", lambda: object())
     monkeypatch.setattr(execution_module, "execute_release_batch", lambda **kwargs: None)
-    monkeypatch.setattr(asyncio, "run", lambda coroutine: batch)
+    monkeypatch.setattr(asyncio, "run", lambda coroutine, **kwargs: batch)
     assert execution_module.main(["--output", str(output), "--live-repetitions"]) == 0
     document = json.loads(capsys.readouterr().out)
     assert document == {"ok": True, "output": str(output), "run_count": 50}

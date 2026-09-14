@@ -398,6 +398,84 @@ async def test_stream_requires_finish_usage_and_done_before_completed_item() -> 
 
 
 @pytest.mark.asyncio
+async def test_route_can_disable_reasoning_without_changing_other_models() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        payload = json.loads(request.content)
+        assert payload["reasoning"] == {"enabled": False}
+        assert payload["temperature"] == 0.0
+        assert payload["seed"] == 42
+        return response_with_bytes(json.dumps(json_response()).encode())
+
+    controlled_route = replace(
+        route(),
+        reasoning_enabled=False,
+        temperature=0.0,
+        seed=42,
+    )
+    controlled_config = replace(config(), models=(controlled_route,))
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        provider = OpenAICompatibleModelProvider(
+            client=client,
+            config=controlled_config,
+            clock=lambda: NOW,
+        )
+        response = await provider.complete(model_request())
+
+    assert response.output_text == '{"answer":"A complete answer."}'
+
+
+@pytest.mark.asyncio
+async def test_stream_accepts_openrouter_terminal_choice_on_usage_frame() -> None:
+    events = (
+        {
+            "id": "chatcmpl_openrouter_1",
+            "object": "chat.completion.chunk",
+            "model": "test-model-2026-08-13",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": "answer"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": None,
+        },
+        {
+            "id": "chatcmpl_openrouter_1",
+            "object": "chat.completion.chunk",
+            "model": "test-model-2026-08-13",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": ""},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": json_response()["usage"],
+        },
+    )
+    wire = b"".join(
+        [f"data: {json.dumps(event)}\n\n".encode() for event in events] + [b"data: [DONE]\n\n"]
+    )
+
+    def handler(_: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=StaticAsyncByteStream((wire,)),
+        )
+
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        provider = OpenAICompatibleModelProvider(client=client, config=config(), clock=lambda: NOW)
+        request = replace(model_request(), response_schema=None)
+        items = tuple([item async for item in provider.stream(request)])
+
+    completed = validate_model_stream(items, request)
+    assert completed.output_text == "answer"
+    assert completed.usage.cost_micro_usd == 28
+
+
+@pytest.mark.asyncio
 async def test_stream_completes_at_done_without_waiting_for_transport_eof() -> None:
     events = (
         {

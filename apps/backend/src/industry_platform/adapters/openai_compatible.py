@@ -102,6 +102,9 @@ class OpenAICompatibleModelRoute:
     cached_input_micro_usd_per_million: int
     output_micro_usd_per_million: int
     supports_image_input: bool = False
+    reasoning_enabled: bool | None = None
+    temperature: float | None = None
+    seed: int | None = None
 
     def __post_init__(self) -> None:
         _require_model_name(self.model, field_name="Canonical model name")
@@ -121,6 +124,18 @@ class OpenAICompatibleModelRoute:
             _require_price(value, field_name=field_name)
         if not isinstance(self.supports_image_input, bool):
             raise ValueError("Model image-input capability is invalid")
+        if self.reasoning_enabled is not None and not isinstance(self.reasoning_enabled, bool):
+            raise ValueError("Model reasoning control is invalid")
+        if self.temperature is not None and (
+            isinstance(self.temperature, bool)
+            or not math.isfinite(self.temperature)
+            or not 0.0 <= self.temperature <= 2.0
+        ):
+            raise ValueError("Model temperature is invalid")
+        if self.seed is not None and (
+            isinstance(self.seed, bool) or not 0 <= self.seed <= 2_147_483_647
+        ):
+            raise ValueError("Model seed is invalid")
         object.__setattr__(self, "response_models", response_models)
 
     def calculate_cost(
@@ -655,6 +670,12 @@ class OpenAICompatibleModelProvider:
                     "schema": _thaw_json_value(request.response_schema),
                 },
             }
+        if route.reasoning_enabled is not None:
+            body["reasoning"] = {"enabled": route.reasoning_enabled}
+        if route.temperature is not None:
+            body["temperature"] = route.temperature
+        if route.seed is not None:
+            body["seed"] = route.seed
         return body
 
     @staticmethod
@@ -950,14 +971,30 @@ class OpenAICompatibleModelProvider:
             raise _InvalidProviderResponse
 
         choices = _list(document.get("choices"))
-        if not choices:
-            if usage is not None or finish_reason is None or document.get("usage") is None:
+        usage_value = document.get("usage")
+        if usage_value is not None:
+            if usage is not None or finish_reason is None:
                 raise _InvalidProviderResponse
+            if choices:
+                if len(choices) != 1:
+                    raise _InvalidProviderResponse
+                choice = _mapping(choices[0])
+                delta_document = _mapping(choice.get("delta"))
+                if (
+                    choice.get("index") != 0
+                    or _finish_reason(choice.get("finish_reason")) is not finish_reason
+                    or delta_document.get("role") not in {None, "assistant"}
+                    or delta_document.get("content") not in {None, ""}
+                    or delta_document.get("refusal") not in {None, ""}
+                    or delta_document.get("tool_calls") is not None
+                    or delta_document.get("function_call") is not None
+                ):
+                    raise _InvalidProviderResponse
             return (
                 current_id,
                 current_model,
                 finish_reason,
-                _parse_usage(document.get("usage"), route=route),
+                _parse_usage(usage_value, route=route),
                 output_kind,
                 None,
             )
@@ -1004,8 +1041,6 @@ class OpenAICompatibleModelProvider:
                     raise _InvalidProviderResponse
                 parsed_finish_reason = ModelFinishReason.REFUSAL
             next_finish_reason = parsed_finish_reason
-        if document.get("usage") is not None:
-            raise _InvalidProviderResponse
         return (
             current_id,
             current_model,

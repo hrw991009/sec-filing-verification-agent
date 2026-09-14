@@ -218,15 +218,15 @@
     },
     {
       "artifact_id": "release-acceptance-runner",
-      "byte_size": 30079,
+      "byte_size": 31078,
       "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_acceptance.py",
-      "sha256": "4928c8edf0c1241a31cb07532b4f6d587efbab335b660cd6fb7e92d355bd89d6"
+      "sha256": "bfa8b8c19a1ed474c7af6bfd97150eb3497cb088af9760d3e08600333644004f"
     },
     {
       "artifact_id": "release-acceptance-tests",
-      "byte_size": 16651,
+      "byte_size": 17436,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_acceptance.py",
-      "sha256": "53850461a58a567e66b19e742156f685e5c99d0f284a1fbdfa789c9635c6e88f"
+      "sha256": "43c1e7a6cf2443df9750f5a28e599f1f6cea8ba88c396615be6d00b9ae298190"
     },
     {
       "artifact_id": "release-acceptance-runbook",

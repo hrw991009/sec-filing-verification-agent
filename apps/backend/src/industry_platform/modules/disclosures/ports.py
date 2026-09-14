@@ -101,7 +101,12 @@ class SecFilingRepository(Protocol):
 
 
 class SecFilingContentRepository(Protocol):
-    async def get_canonical_filing(self, accession: str) -> SecCanonicalFiling: ...
+    async def get_canonical_filing(
+        self,
+        accession: str,
+        *,
+        as_of: datetime | None = None,
+    ) -> SecCanonicalFiling: ...
 
     async def persist_archive(
         self,

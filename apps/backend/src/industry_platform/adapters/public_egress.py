@@ -8,7 +8,7 @@ import ipaddress
 import socket
 import ssl
 from collections.abc import AsyncIterable, AsyncIterator, Iterable
-from typing import NoReturn, Protocol
+from typing import Any, NoReturn, Protocol
 
 import httpcore2
 import httpx2
@@ -25,6 +25,9 @@ _INTERNAL_HOSTS = frozenset(
 )
 _INTERNAL_SUFFIXES = (".home", ".internal", ".lan", ".local", ".localhost")
 _TRANSPORT_ERROR = "Controlled public HTTP transport failed"
+_TRANSPARENT_PROXY_NETWORK = ipaddress.ip_network("198.18.0.0/15")
+_DNS_OVER_HTTPS_URL = "https://cloudflare-dns.com/dns-query"
+_DNS_OVER_HTTPS_MAX_BYTES = 64 * 1024
 
 
 class PublicHostResolver(Protocol):
@@ -35,6 +38,9 @@ class PublicHostResolver(Protocol):
 
 class SystemPublicHostResolver:
     """Use the event loop resolver without blocking the Worker."""
+
+    def __init__(self, *, proxy_fallback: PublicHostResolver | None = None) -> None:
+        self._proxy_fallback = proxy_fallback or CloudflareDnsOverHttpsResolver()
 
     async def resolve(self, hostname: str, port: int) -> tuple[str, ...]:
         records = await asyncio.get_running_loop().getaddrinfo(
@@ -49,6 +55,46 @@ class SystemPublicHostResolver:
             for _family, _type, _protocol, _canonical_name, socket_address in records
             if socket_address and isinstance(socket_address[0], str)
         }
+        resolved = tuple(sorted(addresses))
+        if _all_transparent_proxy_addresses(resolved):
+            return await self._proxy_fallback.resolve(hostname, port)
+        return resolved
+
+
+class CloudflareDnsOverHttpsResolver:
+    """Resolve real public records when a local TUN exposes RFC 2544 fake IPs."""
+
+    async def resolve(self, hostname: str, port: int) -> tuple[str, ...]:
+        del port
+        addresses: set[str] = set()
+        try:
+            async with httpx2.AsyncClient(
+                follow_redirects=False,
+                timeout=httpx2.Timeout(10.0),
+                trust_env=False,
+            ) as client:
+                for record_type, answer_type in (("A", 1), ("AAAA", 28)):
+                    response = await client.get(
+                        _DNS_OVER_HTTPS_URL,
+                        params={"name": hostname, "type": record_type},
+                        headers={"accept": "application/dns-json"},
+                    )
+                    response.raise_for_status()
+                    if len(response.content) > _DNS_OVER_HTTPS_MAX_BYTES:
+                        raise OSError("DNS-over-HTTPS response is too large")
+                    payload: Any = response.json()
+                    if not isinstance(payload, dict) or payload.get("Status") != 0:
+                        continue
+                    answers = payload.get("Answer", [])
+                    if not isinstance(answers, list):
+                        raise OSError("DNS-over-HTTPS response is invalid")
+                    for answer in answers:
+                        if isinstance(answer, dict) and answer.get("type") == answer_type:
+                            value = answer.get("data")
+                            if isinstance(value, str):
+                                addresses.add(value)
+        except (httpx2.HTTPError, ValueError) as error:
+            raise OSError("DNS-over-HTTPS resolution failed") from error
         return tuple(sorted(addresses))
 
 
@@ -244,6 +290,19 @@ def _require_only_public_addresses(
             raise ValueError("DNS returned a non-public address")
         addresses.add(address)
     return tuple(sorted(addresses, key=lambda item: (item.version, item.packed)))
+
+
+def _all_transparent_proxy_addresses(values: tuple[str, ...]) -> bool:
+    if not values:
+        return False
+    try:
+        addresses = tuple(ipaddress.ip_address(value.partition("%")[0]) for value in values)
+    except ValueError:
+        return False
+    return all(
+        isinstance(address, ipaddress.IPv4Address) and address in _TRANSPARENT_PROXY_NETWORK
+        for address in addresses
+    )
 
 
 def _peer_matches(

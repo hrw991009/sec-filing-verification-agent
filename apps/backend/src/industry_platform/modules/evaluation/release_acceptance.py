@@ -53,6 +53,7 @@ from industry_platform.modules.evaluation.release_recovery_executor import (
     write_execution_plan,
     write_recovery_observations,
 )
+from industry_platform.server import create_selector_event_loop
 
 ACCEPTANCE_SCHEMA_VERSION: Literal[1] = 1
 ACCEPTANCE_REPORT_ID: Literal["sec-release-acceptance-v1"] = "sec-release-acceptance-v1"
@@ -68,7 +69,6 @@ _COMPOSE_SERVICES = (
     "postgres",
     "redis",
     "minio",
-    "minio-init",
     "milvus",
     "elasticsearch",
 )
@@ -268,6 +268,8 @@ class AcceptanceRunner:
                 raise ValueError("Agent model Provider variables are not configured")
             if not settings.sec_source_configured:
                 raise ValueError("SEC identity variables are not configured")
+            if not settings.knowledge_indexes_configured:
+                raise ValueError("Milvus and Elasticsearch variables are not configured")
             if require_previous_image and (
                 _IMAGE_DIGEST_PATTERN.fullmatch(os.getenv("PREVIOUS_IMAGE_DIGEST", "")) is None
             ):
@@ -297,18 +299,21 @@ class AcceptanceRunner:
             docker = shutil.which("docker")
             if docker is None:
                 raise RuntimeError("docker is unavailable")
+            compose_command = (
+                docker,
+                "compose",
+                "--env-file",
+                ".env",
+                "-f",
+                "infra/compose/compose.yaml",
+                "--profile",
+                "vector",
+                "--profile",
+                "search",
+            )
             compose = subprocess.run(  # noqa: S603 - fixed repository Compose command
                 (
-                    docker,
-                    "compose",
-                    "--env-file",
-                    ".env",
-                    "-f",
-                    "infra/compose/compose.yaml",
-                    "--profile",
-                    "vector",
-                    "--profile",
-                    "search",
+                    *compose_command,
                     "up",
                     "-d",
                     "--wait",
@@ -323,7 +328,19 @@ class AcceptanceRunner:
                 timeout=900,
             )
             if compose.returncode != 0:
-                raise RuntimeError(f"dependency compose exited {compose.returncode}")
+                raise self._process_error("dependency compose", compose)
+            minio_init = subprocess.run(  # noqa: S603 - fixed repository Compose command
+                (*compose_command, "run", "--rm", "--no-deps", "minio-init"),
+                cwd=self._root,
+                capture_output=True,
+                check=False,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=300,
+            )
+            if minio_init.returncode != 0:
+                raise self._process_error("MinIO initialization", minio_init)
             completed = subprocess.run(
                 (sys.executable, "apps/backend/tests/sec_browser_e2e_runner.py"),
                 cwd=self._root,
@@ -335,7 +352,7 @@ class AcceptanceRunner:
                 timeout=1_800,
             )
             if completed.returncode != 0:
-                raise RuntimeError(f"browser runner exited {completed.returncode}")
+                raise self._process_error("browser runner", completed)
             manifest_path = self._root / "test-results/sec-real-runtime/runtime-manifest.json"
             document = load_strict_json(manifest_path)
             if (
@@ -353,6 +370,19 @@ class AcceptanceRunner:
         except (OSError, TypeError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
             return self._failure("browser-data-preparation", error)
 
+    @staticmethod
+    def _process_error(
+        label: str,
+        completed: subprocess.CompletedProcess[str],
+    ) -> RuntimeError:
+        output = "\n".join(
+            part.strip() for part in (completed.stdout, completed.stderr) if part.strip()
+        )
+        if len(output) > 2_000:
+            output = f"...{output[-1_997:]}"
+        detail = output or "no subprocess output"
+        return RuntimeError(f"{label} exited {completed.returncode}: {detail}")
+
     def _release_execution(
         self, *, live_repetitions: bool
     ) -> tuple[AcceptancePhase, ReleaseExecutionBatch | None]:
@@ -365,7 +395,8 @@ class AcceptanceRunner:
                     output=output,
                     settings=Settings(),
                     live_repetitions=live_repetitions,
-                )
+                ),
+                loop_factory=create_selector_event_loop,
             )
             expected = 150 if live_repetitions else 50
             if len(batch.bindings) != expected:
@@ -432,7 +463,7 @@ class AcceptanceRunner:
                 await engine.dispose()
 
         try:
-            collection = asyncio.run(collect())
+            collection = asyncio.run(collect(), loop_factory=create_selector_event_loop)
             return (
                 self._evidenced_phase(
                     "release-run-evidence",
@@ -456,7 +487,10 @@ class AcceptanceRunner:
         report_path = self._output_directory / "sec-release-recovery-report-v1.json"
         try:
             manifest = load_recovery_manifest(manifest_path)
-            run_workspaces = asyncio.run(load_run_workspaces(Settings(), collection))
+            run_workspaces = asyncio.run(
+                load_run_workspaces(Settings(), collection),
+                loop_factory=create_selector_event_loop,
+            )
             plan = build_automatic_plan(
                 manifest,
                 collection,
@@ -491,7 +525,10 @@ class AcceptanceRunner:
     def _live_sec(self) -> AcceptancePhase:
         evidence_path = self._output_directory / "sec-live-identity-v1.json"
         try:
-            asyncio.run(run_live_sec_identity_smoke(settings=Settings(), output=evidence_path))
+            asyncio.run(
+                run_live_sec_identity_smoke(settings=Settings(), output=evidence_path),
+                loop_factory=create_selector_event_loop,
+            )
             return self._evidenced_phase(
                 "live-sec-identity",
                 evidence_path,

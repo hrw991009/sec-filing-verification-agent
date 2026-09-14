@@ -212,6 +212,9 @@ class AgentModelRouteSettings(BaseModel):
     cached_input_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
     output_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
     supports_image_input: bool = False
+    reasoning_enabled: bool | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
 
     @field_validator("response_models")
     @classmethod

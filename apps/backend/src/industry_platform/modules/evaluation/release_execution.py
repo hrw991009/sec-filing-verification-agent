@@ -6,6 +6,8 @@ import argparse
 import asyncio
 import hashlib
 import json
+import shutil
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -76,6 +78,7 @@ from industry_platform.modules.research.service import ResearchSubmissionService
 from industry_platform.modules.retrieval.resources import create_retrieval_resources
 from industry_platform.modules.tools.registry import RegisteredToolAdapter
 from industry_platform.modules.workspaces.domain import WorkspaceScope
+from industry_platform.server import create_selector_event_loop
 
 EXECUTION_BATCH_SCHEMA_VERSION: Literal[1] = 1
 _SHA256_PATTERN = r"^[a-f0-9]{64}$"
@@ -163,6 +166,20 @@ class ReleaseExecutionBatch(_FrozenModel):
 
 class ReleaseExecutionError(RuntimeError):
     """Raised when the production release matrix cannot be executed faithfully."""
+
+
+def _source_commit() -> str:
+    git = shutil.which("git")
+    if git is None:
+        raise ReleaseExecutionError("git is unavailable")
+    completed = subprocess.run(  # noqa: S603 - resolved executable and fixed read-only arguments
+        (git, "rev-parse", "HEAD"),
+        capture_output=True,
+        check=True,
+        text=True,
+        encoding="ascii",
+    )
+    return completed.stdout.strip()
 
 
 class ReleaseExecutionRunner:
@@ -542,8 +559,7 @@ async def execute_release_batch(
     source_hash = hashlib.sha256(source_bytes).hexdigest()
     if manifest.source_manifest_sha256 != source_hash:
         raise ReleaseExecutionError("Release source manifest checksum changed")
-    git = await anyio.run_process(("git", "rev-parse", "HEAD"), check=True)
-    source_commit = git.stdout.decode("ascii").strip()
+    source_commit = await anyio.to_thread.run_sync(_source_commit)
     engine = create_database_engine(settings)
     try:
         session_factory = create_database_session_factory(engine)
@@ -611,7 +627,8 @@ def main(argv: list[str] | None = None) -> int:
             output=args.output,
             settings=Settings(),
             live_repetitions=args.live_repetitions,
-        )
+        ),
+        loop_factory=create_selector_event_loop,
     )
     sys.stdout.write(
         json.dumps(
