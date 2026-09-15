@@ -555,14 +555,19 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
     for request in provider.requests:
         assert request.response_schema is not None
         validate_supported_schema(request.response_schema)
-        assert '"input_schema_version":' in request.messages[0].content
-        assert json.loads(
-            request.messages[0].content.split("Exact decision JSON Schema:\n")[1].split(
-                "\nHost execution progress"
-            )[0]
-        ) == tool_loop_decision_response_schema(fake_lookup_definition())
-        assert '"kind":"tool_call"' in request.messages[0].content
-        assert '"kind":"final"' in request.messages[0].content
+        catalog = json.loads(
+            request.messages[0]
+            .content.split("Tool catalog:\n")[1]
+            .split("\nHost execution progress")[0]
+        )
+        assert catalog[0]["input_schema"] == dict(fake_lookup_definition().input_schema)
+        assert catalog[0]["name"] == fake_lookup_definition().name
+        assert catalog[0]["version"] == fake_lookup_definition().version
+        assert json.loads(json.dumps(request.response_schema, default=dict)) == (
+            tool_loop_decision_response_schema(fake_lookup_definition())
+        )
+        assert "tool_call uses name/version/arguments" in request.messages[0].content
+        assert "final uses content_markdown" in request.messages[0].content
     assert "provider/tool-l2-key" not in repr(events)
     assert "provider/tool-l2-key" not in repr(provider.requests)
 

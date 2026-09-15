@@ -15,7 +15,7 @@ import urllib.request
 from contextlib import ExitStack
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 ROOT = Path(__file__).resolve().parents[3]
 RUNTIME_DIR = (
@@ -272,7 +272,8 @@ def main() -> None:
 def _model_configuration(environment: dict[str, str]) -> dict[str, object]:
     from industry_platform.core.config import Settings
 
-    overrides: dict[str, object] = {}
+    # Settings validates these raw environment values through Pydantic at runtime.
+    overrides: dict[str, Any] = {}
     if "AGENT_MODEL_ROUTE_JSON" in environment:
         overrides["AGENT_MODEL_ROUTE_JSON"] = environment["AGENT_MODEL_ROUTE_JSON"]
     for name in (

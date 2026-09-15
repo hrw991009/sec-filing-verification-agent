@@ -306,9 +306,7 @@ def recalled_memory(
     )
 
 
-def test_v1_keeps_original_question_last_and_records_only_manifest_metadata() -> (
-    None
-):
+def test_v1_keeps_original_question_last_and_records_only_manifest_metadata() -> None:
     compiled = compiler().compile(compilation())
 
     assert [message.role for message in compiled.request.messages] == [
