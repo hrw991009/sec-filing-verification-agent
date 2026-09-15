@@ -133,6 +133,12 @@ L6 specialist/handoff 或 orchestrator-workers 不是七天硬指标。Planner�
 
 ## 变更与回滚
 
+应用内置的 `sec.filing-verification@v1` Skill 通过现有 Research 提交服务启动同一张图。
+Skill 的名称和版本由服务器 Registry 解析，绑定只读 SEC profile，并通过现有
+`AgentRun.harness_version` 持久化及参与幂等指纹；Worker 恢复时重新验证版本和能力。
+图内角色沿用既有节点职责，不引入第二套 Agent loop、执行历史或 Checkpoint schema。
+调用方式及回滚边界见 [SEC 事实核验 Skill](../sec-verification-skill.md)。
+
 Research graph、State、Checkpoint schema、节点顺序或 Runtime 映射变化必须更新本 ADR，并提供版本兼容、已有 Run 迁移和回滚方案。
 
 如果新版图无法继续处理旧 Run，必须明确标记为不可恢复并给出用户可见错误，不能静默从头执行或重复副作用。若 LangGraph Adapter 回滚，统一 `AgentRun/Event/Checkpoint` 事实仍保留，新的 Research Run 暂停受理，现有 Run 按版本明确继续、迁移或拒绝。

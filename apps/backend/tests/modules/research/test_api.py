@@ -463,6 +463,35 @@ def test_post_pins_local_knowledge_and_financial_scope(test_settings: Settings) 
     assert request.brief.financial_scope == financial_scope()
 
 
+def test_skill_discovery_and_submission(test_settings: Settings) -> None:
+    submission = StubSubmissionService()
+    query = StubQueryService()
+    payload = local_start_payload()
+    payload.update(skill_name="sec.filing-verification", skill_version="v1")
+    with research_client(test_settings, submission, query) as client:
+        catalog = client.get("/api/v1/skills", headers=headers())
+        assert catalog.status_code == 200
+        assert catalog.json()[0]["name"] == "sec.filing-verification"
+        assert len(catalog.json()[0]["roles"]) == 5
+        assert client.get("/api/v1/skills").status_code == 401
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "skill-1"}),
+            json=payload,
+        )
+        assert response.status_code == 202
+        payload["skill_version"] = "v2"
+        rejected = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "skill-2"}),
+            json=payload,
+        )
+        assert rejected.status_code == 422
+    assert len(submission.calls) == 1
+    assert submission.calls[0][1].skill_name == "sec.filing-verification"
+    assert submission.calls[0][1].skill_version == "v1"
+
+
 def test_local_post_accepts_explicit_ambiguity_interrupt(test_settings: Settings) -> None:
     submission = StubSubmissionService()
     query = StubQueryService()

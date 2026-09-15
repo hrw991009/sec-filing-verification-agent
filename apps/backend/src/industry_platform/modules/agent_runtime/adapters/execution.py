@@ -103,6 +103,8 @@ from industry_platform.modules.research.models import (
     ResearchRunRecord,
     ResearchSideEffectRecord,
 )
+from industry_platform.modules.skills.policy import bind_skill_policy
+from industry_platform.modules.skills.registry import SKILL_REGISTRY
 from industry_platform.modules.tools.domain import ToolAction, canonical_mapping_sha256
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
@@ -467,6 +469,18 @@ class SqlAlchemyDirectAnswerRunLoader:
             raise DirectAnswerRunNotExecutableError
         if research_enabled and research_row is None:
             raise DirectAnswerRunNotExecutableError
+        try:
+            skill = SKILL_REGISTRY.from_harness(record.harness_version)
+            if skill is not None:
+                if (
+                    not research_enabled
+                    or search_mode is not TurnSearchMode.LOCAL
+                    or selected_tool_policy is None
+                ):
+                    raise DirectAnswerRunNotExecutableError
+                selected_tool_policy = bind_skill_policy(skill, selected_tool_policy)
+        except ValueError:
+            raise DirectAnswerRunNotExecutableError from None
         runtime_context = TrustedRuntimeContext(
             principal=BackgroundRunPrincipal(
                 user_id=record.user_id,

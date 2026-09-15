@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -540,7 +541,11 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
         assert request.response_schema is not None
         validate_supported_schema(request.response_schema)
         assert '"input_schema_version":' in request.messages[0].content
-        assert '"input_schema":' not in request.messages[0].content
+        assert json.loads(
+            request.messages[0].content.split("Exact decision JSON Schema:\n")[1]
+        ) == tool_loop_decision_response_schema(fake_lookup_definition())
+        assert '"kind":"tool_call"' in request.messages[0].content
+        assert '"kind":"final"' in request.messages[0].content
     assert "provider/tool-l2-key" not in repr(events)
     assert "provider/tool-l2-key" not in repr(provider.requests)
 

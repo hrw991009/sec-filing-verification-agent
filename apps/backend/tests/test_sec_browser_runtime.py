@@ -117,6 +117,7 @@ async def test_controlled_model_provider_client_reaches_real_loopback_http() -> 
 def test_runner_configures_controlled_source_provider_and_index_endpoints(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv("SEC_BROWSER_LIVE_MODEL", raising=False)
     monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "owner@example.com")
     monkeypatch.delenv("ELASTICSEARCH_ENDPOINT", raising=False)
     monkeypatch.delenv("MILVUS_ENDPOINT", raising=False)
@@ -136,6 +137,33 @@ def test_runner_configures_controlled_source_provider_and_index_endpoints(
     overridden = _environment()
     assert overridden["ELASTICSEARCH_ENDPOINT"] == "http://127.0.0.1:29200"
     assert overridden["MILVUS_ENDPOINT"] == "http://127.0.0.1:29530"
+
+
+@pytest.mark.parametrize("configured_in_process", [False, True])
+def test_live_runner_uses_configured_model_without_controlled_provider(
+    monkeypatch: pytest.MonkeyPatch, *, configured_in_process: bool
+) -> None:
+    monkeypatch.setenv("SEC_BROWSER_LIVE_MODEL", "true")
+    model_variables = {
+        "AGENT_MODEL_PROVIDER_API_KEY": "test-configured-key",
+        "AGENT_MODEL_PROVIDER_BASE_URL": "https://provider.example/v1",
+        "AGENT_MODEL_ROUTE_JSON": '{"model":"configured-model"}',
+    }
+    for name, value in model_variables.items():
+        if configured_in_process:
+            monkeypatch.setenv(name, value)
+        else:
+            monkeypatch.delenv(name, raising=False)
+
+    environment = _environment()
+
+    assert environment["AGENT_MODEL_CONTROLLED_LOOPBACK"] == "false"
+    assert environment["SEC_REAL_BROWSER_E2E"] == "true"
+    for name, value in model_variables.items():
+        if configured_in_process:
+            assert environment[name] == value
+        else:
+            assert name not in environment  # Settings loads the user's .env.
 
 
 def test_runner_requires_all_three_provider_decision_kinds() -> None:

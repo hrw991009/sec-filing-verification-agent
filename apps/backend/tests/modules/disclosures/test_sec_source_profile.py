@@ -106,6 +106,7 @@ def test_sec_l4_profile_freezes_one_bilingual_scope_and_six_tool_surface() -> No
     assert chinese_policy.max_input_tokens == SEC_L4_MAX_INPUT_TOKENS
     assert chinese_policy.available_tools == SEC_L4_TOOL_REFERENCES
     assert chinese_policy.max_tool_calls == SEC_L4_MAX_TOOL_CALLS
+    assert chinese_policy.max_decision_output_tokens == 2_048
     assert chinese_policy.context_compiler_version == "financial-context-v1"
     assert "默认使用中文" in chinese_policy.system_instructions
     assert "不得因语言改变 FinancialScope" in chinese_policy.system_instructions
@@ -152,6 +153,7 @@ def test_sec_l5_profile_versions_the_approval_gated_monitor_tool_surface() -> No
     assert policy.max_input_tokens == SEC_L5_MAX_INPUT_TOKENS
     assert policy.available_tools == SEC_L5_TOOL_REFERENCES
     assert policy.max_tool_calls == SEC_L5_MAX_TOOL_CALLS
+    assert policy.max_decision_output_tokens == 2_048
     assert "仅产生待审批请求" in policy.system_instructions
     assert "冻结 Tool surface" in policy.system_instructions
     assert "与只读 Tool" not in policy.system_instructions

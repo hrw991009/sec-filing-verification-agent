@@ -123,3 +123,30 @@ test-results/sec-real-runtime/playwright/
 5. 记录该 source commit 的 branch、PR、merge-to-main CI URL，并由项目所有者作最终发布决定。
 
 上述人工项不能由本地测试或生成器替代；在完成前只能声明工程证据已生成，不能声明正式发布已批准。
+
+## 6. 单独验证真实模型产品链路
+
+只验证产品链路、不启动 50/150 Run 评测和恢复矩阵时，在 Compose 依赖健康且 `.env` 模型配置完成后运行：
+
+```powershell
+$env:SEC_BROWSER_LIVE_MODEL = 'true'
+try {
+    pnpm run test:e2e:sec-real
+} finally {
+    Remove-Item Env:SEC_BROWSER_LIVE_MODEL
+}
+```
+
+这会实际调用配置的模型并产生费用。API、Worker 和迁移统一使用 Settings 加载 `.env`，不要额外用 `uv --env-file` 重复解析 JSON 配置。测试不复用已有 API/Web 进程，运行前应释放 8000/5173 端口。
+
+真实模型模式检查申报入库、财务计算、Verification Report、Calculation Evidence 反查、刷新后的审批恢复和新申报 Monitor Case。申报来源仍是固定的 `sec-browser-v1` 受控衍生快照，不代表实时 SEC 全量入库；官方 SEC 连通性检查属于独立证据。检索使用项目现有索引与 embedding 实现，不额外接入 embedding API。
+
+结果写入 `test-results/sec-live-model-runtime/`，清单区分 `configured_live` 模型与 `controlled_derivative` 来源，并记录 HEAD、工作树差异 hash 和测试退出结果。允许脏工作树做本地诊断，但不能作为干净提交的正式发布证明。未设置该变量时，原有受控模型测试行为不变。
+
+### 2026-09-14 本地验证状态
+
+- 受控模型 + 真实服务浏览器链路：通过（1/1），包括审批前刷新、恢复执行、Monitor Case 持久化和移动端宽度检查。
+- 官方 SEC 身份 smoke：通过，记录在 `test-results/sec-live-model-runtime/sec-identity.json`；不代表官方全文入库验收。
+- 配置的 `deepseek-v4-flash-0731`、`reasoning_enabled=false`：连通，但完整产品链路未通过。最后一轮 Run `7a09cced-0701-5ce6-88b0-85101588f833` 实际调用了 `sec.search_filing`，随后提前 final，未执行要求的计算和监控申请。历史尝试还出现输出截断、提前拒答和监控参数校验失败。
+- `Verification Report = verified` 仅表示已提交 Claim 的核验结果，不证明用户要求的所有操作完成；浏览器测试另行要求计算、审批和 Case，不能降低这些断言来通过测试。
+- 因此“真实模型中文产品链路”仍待验收，不能将上述受控通过记录替代真实模型成功记录。此次未执行 50/150 Run 正式评测、12 项恢复演练或发布治理签字。

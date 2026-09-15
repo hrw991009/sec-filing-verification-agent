@@ -1372,7 +1372,9 @@ async def test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime(
 
 
 @pytest.mark.asyncio
-async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint() -> None:
+async def test_verification_skill_refuses_execution_without_durable_dependencies() -> None:
+    from industry_platform.modules.skills.registry import FILING_VERIFICATION
+
     budget = RunBudget(
         schema_version=1,
         max_steps=20,
@@ -1381,6 +1383,46 @@ async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint() -> No
         deadline=NOW + timedelta(minutes=10),
     )
     command = sec_research_command(budget)
+    skill_run = replace(command.run, harness_version=FILING_VERIFICATION.harness_version)
+    command = replace(
+        command, run=skill_run, loop_command=replace(command.loop_command, run=skill_run)
+    )
+    runtime, _knowledge, _calculator = build_sec_runtime(
+        QueueModelProvider(()), RecordingWorkflowStore(), SecEvidenceService()
+    )
+    with pytest.raises(ValueError, match="verifier and recovery"):
+        _ = [event async for event in runtime.run(command, sec_runtime_context(budget))]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_skill", [False, True])
+async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint(use_skill: bool) -> None:
+    budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    command = sec_research_command(budget)
+    if use_skill:
+        from industry_platform.modules.disclosures.profile import create_sec_l5_profile
+        from industry_platform.modules.skills.policy import bind_skill_policy
+        from industry_platform.modules.skills.registry import FILING_VERIFICATION
+
+        skill_run = replace(command.run, harness_version=FILING_VERIFICATION.harness_version)
+        policy = bind_skill_policy(
+            FILING_VERIFICATION,
+            replace(
+                create_sec_l5_profile(model=command.loop_command.policy.model).to_runtime_policy(),
+                max_tool_calls=command.loop_command.policy.max_tool_calls,
+            ),
+        )
+        command = replace(
+            command,
+            run=skill_run,
+            loop_command=replace(command.loop_command, run=skill_run, policy=policy),
+        )
     command = replace(
         command,
         brief=replace(

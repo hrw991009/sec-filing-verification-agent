@@ -165,6 +165,7 @@ export function ResearchWorkspace({
   const [unit, setUnit] = useState(secReviewDraft?.unit ?? "USD");
   const [scale, setScale] = useState(secReviewDraft?.scale ?? 6);
   const [requireAmbiguityApproval, setRequireAmbiguityApproval] = useState(false);
+  const [useVerificationSkill, setUseVerificationSkill] = useState(false);
   const [confirmedScope, setConfirmedScope] = useState(
     secReviewDraft === null ? "" : secConfirmedScope(secReviewDraft),
   );
@@ -363,6 +364,9 @@ export function ResearchWorkspace({
         },
         knowledge_base_ids: [selectedKnowledgeBaseId],
         mode,
+        ...(useVerificationSkill
+          ? { skill_name: "sec.filing-verification", skill_version: "v1" }
+          : {}),
         ...(requireAmbiguityApproval
           ? { approval_reason: "company_or_period_ambiguity" as const }
           : {}),
@@ -579,6 +583,17 @@ export function ResearchWorkspace({
             ) : (
               <fieldset className="research-financial-scope">
                 <legend>SEC filing 范围</legend>
+                <label>
+                  <input
+                    checked={useVerificationSkill}
+                    disabled={!canManage || submitting}
+                    onChange={(event) => {
+                      setUseVerificationSkill(event.currentTarget.checked);
+                    }}
+                    type="checkbox"
+                  />
+                  使用 SEC 事实核验 Skill（只读核验，不创建监控订阅）
+                </label>
                 <label>
                   Knowledge Base
                   <select

@@ -8373,6 +8373,60 @@
         "title": "SetIndustryPreferenceRequest",
         "type": "object"
       },
+      "SkillResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "graph_version": {
+            "title": "Graph Version",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/SkillRoleResponse"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": ["name", "version", "description", "graph_version", "roles"],
+        "title": "SkillResponse",
+        "type": "object"
+      },
+      "SkillRoleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "responsibility": {
+            "title": "Responsibility",
+            "type": "string"
+          }
+        },
+        "required": ["name", "nodes", "responsibility"],
+        "title": "SkillRoleResponse",
+        "type": "object"
+      },
       "SourceItemCollectionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -8750,6 +8804,32 @@
             "minLength": 1,
             "title": "Original Question",
             "type": "string"
+          },
+          "skill_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Name"
+          },
+          "skill_version": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Version"
           },
           "timeout_seconds": {
             "default": 600,
@@ -11338,6 +11418,34 @@
         ],
         "summary": "List Industries",
         "tags": ["industry"]
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "operationId": "list_skills_api_v1_skills_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SkillResponse"
+                  },
+                  "title": "Response List Skills Api V1 Skills Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "List Skills",
+        "tags": ["skills"]
       }
     },
     "/api/v1/workspaces": {

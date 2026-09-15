@@ -1,7 +1,34 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 const BASELINE_ACCESSION = "0000320193-23-000106";
 const TARGET_ACCESSION = "0000320193-24-000123";
+const liveModel = process.env.SEC_BROWSER_LIVE_MODEL === "true";
+
+async function assertLiveResearchResult(detail: Locator, page: Page): Promise<void> {
+  await expect(detail).toContainText(/383[,.]?285|3832\.85|383\.285/u);
+  await expect(
+    detail.getByRole("button", { name: "反查 Calculation Citation" }).first(),
+  ).toBeVisible();
+  await expect(detail).toContainText(/44\.1[23]/u);
+  await detail.getByRole("button", { name: "反查 Calculation Citation" }).first().click();
+  const evidence = page.getByRole("region", { name: "Evidence 详情" });
+  await expect(evidence).toContainText("financial_calculation_v1");
+  await expect(evidence.getByRole("heading", { name: "反向 Trace" })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { exact: true, name: "Research" }).click();
+  await expect(detail.getByRole("heading", { name: "Verification Report" })).toBeVisible();
+}
+
+async function assertControlledResearchResult(detail: Locator): Promise<void> {
+  await expect(
+    detail.getByText(
+      "Apple 2023 财年净销售额为 3832.85 亿美元 [S1]。经人工批准，SEC Monitor 已创建；本结论仅用于受控链路验证。",
+      { exact: true },
+    ),
+  ).toBeVisible();
+}
+
+const assertResearchResult = liveModel ? assertLiveResearchResult : assertControlledResearchResult;
 
 async function selectSecScope(
   page: Page,
@@ -36,12 +63,13 @@ async function attachJourneyEvidence(
 test("completes the Chinese SEC filing to approved monitor and verified case journey", async ({
   page,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(liveModel ? 600_000 : 240_000);
   const uniquePart = `${String(Date.now())}-${String(test.info().workerIndex)}`;
   const browserErrors: string[] = [];
   const failedRequests: string[] = [];
   const unexpectedHttpErrors: string[] = [];
   const apiRequests: string[] = [];
+  const executionEvidence: unknown[] = [];
   page.on("console", (message) => {
     if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) {
       browserErrors.push(message.text());
@@ -75,6 +103,20 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
       unexpectedHttpErrors.push(`${String(response.status())} ${request.method()} ${url.pathname}`);
     }
   });
+  page.on("response", async (response) => {
+    const pathname = new URL(response.url()).pathname;
+    if (
+      response.ok() &&
+      (/\/research-runs(?:\/[^/]+(?:\/(?:verification-report|durability|claims))?)?$/u.test(
+        pathname,
+      ) ||
+        /\/agent-runs\/[^/]+\/trace$/u.test(pathname) ||
+        /\/disclosures\/(?:cases|monitors)$/u.test(pathname))
+    ) {
+      const body: unknown = await response.json().catch(() => null);
+      executionEvidence.push({ path: pathname, body });
+    }
+  });
 
   await page.goto("/");
   await page.getByRole("button", { exact: true, name: "创建账户" }).click();
@@ -103,7 +145,11 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
   await page.getByRole("tab", { name: "正式核验" }).click();
   await page
     .getByLabel("中文核验问题")
-    .fill("请核验 Apple 2023 财年净销售额，并在人工审批后持续监控新的 10-K。 ");
+    .fill(
+      liveModel
+        ? "请实际执行 Apple 2023 财年财务核验：先调用 sec.search_filing 检索净销售额和毛利，再调用 sec.get_xbrl_facts 取得同期间事实，使用 finance.calculate 计算毛利率（毛利除以净销售额乘100），保留证据引用。最后调用 sec.monitor.subscribe 请求人工审批后持续监控新的 10-K，规则为 new_filing，section_query 为 Item 8，每天北京时间03:00检查。请执行工具，不要只说明操作步骤。"
+        : "请核验 Apple 2023 财年净销售额，并在人工审批后持续监控新的 10-K。 ",
+    );
   await page.getByRole("button", { name: "进入正式核验" }).click();
   await expect(page.getByRole("heading", { name: "Research Workbench" })).toBeVisible();
   await expect(page.getByLabel("Research accession")).toHaveValue(BASELINE_ACCESSION);
@@ -111,19 +157,27 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
 
   await page.getByRole("button", { name: "确认 Brief 并开始" }).click();
   const researchDetail = page.getByRole("article", { name: "Research 详情" });
-  await expect(researchDetail.getByText("SEC Monitor 订阅审批")).toBeVisible({ timeout: 90_000 });
+  const approval = researchDetail.getByText("SEC Monitor 订阅审批");
+  await expect(
+    approval
+      .or(researchDetail.getByText("失败", { exact: true }))
+      .or(researchDetail.getByText("已完成", { exact: true }))
+      .first(),
+  ).toBeVisible({
+    timeout: liveModel ? 240_000 : 90_000,
+  });
+  await expect(approval).toBeVisible();
+  // Reload through the normal session/API path before deciding the persisted approval.
+  await page.reload();
+  await page.getByRole("button", { exact: true, name: "Research" }).click();
+  await expect(researchDetail.getByText("SEC Monitor 订阅审批")).toBeVisible();
   await researchDetail.getByRole("button", { name: "允许并继续" }).click();
   await expect(researchDetail.getByText("已完成", { exact: true }).first()).toBeVisible({
-    timeout: 90_000,
+    timeout: liveModel ? 180_000 : 90_000,
   });
   await expect(researchDetail.getByRole("heading", { name: "Verification Report" })).toBeVisible();
   await expect(researchDetail.getByText("已核验", { exact: true }).first()).toBeVisible();
-  await expect(
-    researchDetail.getByText(
-      "Apple 2023 财年净销售额为 3832.85 亿美元 [S1]。经人工批准，SEC Monitor 已创建；本结论仅用于受控链路验证。",
-      { exact: true },
-    ),
-  ).toBeVisible();
+  await assertResearchResult(researchDetail, page);
   await expect(researchDetail.getByText("SEC Monitor 订阅审批")).toBeVisible();
 
   await page.getByRole("button", { exact: true, name: "SEC" }).click();
@@ -141,6 +195,10 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
   await expect(page.getByText("new_filing", { exact: true })).toBeVisible({ timeout: 90_000 });
   await expect(page.getByText(`${BASELINE_ACCESSION} → ${TARGET_ACCESSION}`)).toBeVisible();
   await expect(page.getByText("verified", { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { exact: true, name: "SEC" }).click();
+  await page.getByRole("tab", { name: "Monitor" }).click();
+  await expect(page.getByText(`${BASELINE_ACCESSION} → ${TARGET_ACCESSION}`)).toBeVisible();
 
   await page.screenshot({
     fullPage: true,
@@ -156,6 +214,10 @@ test("completes the Chinese SEC filing to approved monitor and verified case jou
     path: test.info().outputPath("sec-real-monitor-mobile.png"),
   });
   await attachJourneyEvidence(test.info(), apiRequests);
+  await test.info().attach("execution-evidence.json", {
+    body: Buffer.from(JSON.stringify(executionEvidence, null, 2)),
+    contentType: "application/json",
+  });
   expect(apiRequests.some((value) => value.includes("/disclosures/filings"))).toBe(true);
   expect(apiRequests.some((value) => value.includes("/research-runs"))).toBe(true);
   expect(apiRequests.some((value) => /\/disclosures\/monitors\/[^/]+\/runs$/u.test(value))).toBe(

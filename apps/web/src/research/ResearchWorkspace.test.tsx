@@ -602,6 +602,7 @@ describe("ResearchWorkspace", () => {
 
     await screen.findByText("尚无 Research Run。");
     await user.click(screen.getByRole("button", { name: "SEC Filing" }));
+    await user.click(screen.getByRole("checkbox", { name: /使用 SEC 事实核验 Skill/u }));
     expect(await screen.findByLabelText("Research Knowledge Base")).toHaveValue(knowledgeBaseId);
     await user.click(screen.getByLabelText("公司或期间存在歧义，计划后暂停确认"));
     await user.type(
@@ -616,6 +617,8 @@ describe("ResearchWorkspace", () => {
     });
     expect(researchMocks.startResearch.mock.calls[0]?.[1]).toMatchObject({
       approval_reason: "company_or_period_ambiguity",
+      skill_name: "sec.filing-verification",
+      skill_version: "v1",
       financial_scope: {
         accession: "0000320193-23-000106",
         cik: "0000320193",
