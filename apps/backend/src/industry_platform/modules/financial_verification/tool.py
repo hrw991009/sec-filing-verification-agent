@@ -103,7 +103,13 @@ def finance_calculate_definition() -> ToolDefinition:
         name=FINANCE_CALCULATE_TOOL_NAME,
         version=FINANCE_CALCULATE_TOOL_VERSION,
         description=(
-            "Calculate one allowlisted Decimal formula using authorized filing Evidence refs."
+            "Calculate one allowlisted Decimal formula using authorized filing Evidence refs. "
+            "Copy each selected XBRL fact's calculation_operand object intact into operands. "
+            "This includes its source_fact_id; do not replace it with null. "
+            "Never use citation labels or invent UUIDs. "
+            "percentage computes operands[0] / operands[1] * 100; ratio omits * 100. "
+            "Keep values as plain decimal strings without commas or unit conversion. "
+            "Do not calculate when required facts are missing."
         ),
         input_schema_version="finance-calculate-input-v1",
         output_schema_version="finance-calculate-output-v1",

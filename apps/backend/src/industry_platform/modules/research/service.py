@@ -21,6 +21,7 @@ from industry_platform.modules.research.domain import (
     ResearchStartReceipt,
     research_run_id_for_agent_run,
 )
+from industry_platform.modules.research.policy import validate_required_tools
 from industry_platform.modules.research.ports import ResearchQueryRepository
 from industry_platform.modules.skills.registry import SKILL_REGISTRY
 from industry_platform.modules.workspaces.domain import (
@@ -57,6 +58,11 @@ class StartResearch:
     skill_version: str | None = None
 
     def __post_init__(self) -> None:
+        validate_required_tools(
+            self.brief.required_tool_names,
+            local=self.search_mode is TurnSearchMode.LOCAL,
+            skill_selected=self.skill_name is not None,
+        )
         if self.skill_name is not None or self.skill_version is not None:
             if self.skill_name is None or self.skill_version is None:
                 raise ValueError("Skill requires an exact name and version")

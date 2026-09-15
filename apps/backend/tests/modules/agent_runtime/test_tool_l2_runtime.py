@@ -515,6 +515,21 @@ def test_l2_decision_schema_and_decoder_accept_only_one_strict_branch() -> None:
         decode_tool_loop_decision('{"decision":{"schema_version":1,"kind":"unknown"}}')
 
 
+def test_required_step_schema_rejects_final_and_completed_sequence_rejects_tools() -> None:
+    pending = tool_loop_decision_response_schema(fake_lookup_definition(), allow_final=False)
+    completed = tool_loop_decision_response_schema(())
+    validate_supported_schema(pending)
+    validate_supported_schema(completed)
+    validate_structured_output(action_decision("steel"), pending)
+    validate_structured_output(final_decision(), completed)
+    with pytest.raises(InvalidProviderResponse):
+        validate_structured_output(final_decision(), pending)
+    with pytest.raises(InvalidProviderResponse):
+        validate_structured_output(action_decision("steel"), completed)
+    with pytest.raises(ValueError, match="unique Tool definitions"):
+        tool_loop_decision_response_schema((), allow_final=False)
+
+
 @pytest.mark.asyncio
 async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
     provider = QueueModelProvider(
@@ -542,7 +557,9 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
         validate_supported_schema(request.response_schema)
         assert '"input_schema_version":' in request.messages[0].content
         assert json.loads(
-            request.messages[0].content.split("Exact decision JSON Schema:\n")[1]
+            request.messages[0].content.split("Exact decision JSON Schema:\n")[1].split(
+                "\nHost execution progress"
+            )[0]
         ) == tool_loop_decision_response_schema(fake_lookup_definition())
         assert '"kind":"tool_call"' in request.messages[0].content
         assert '"kind":"final"' in request.messages[0].content

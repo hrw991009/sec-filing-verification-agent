@@ -372,9 +372,17 @@ def _structured_output_input_schema(schema: Mapping[str, object]) -> dict[str, o
     if alternatives is not None:
         if not isinstance(alternatives, list | tuple) or not alternatives:
             raise ValueError("Tool input schema alternatives are invalid")
+        branch_defaults: dict[str, object] = {}
+        description = schema.get("description")
+        if description is not None:
+            if not isinstance(description, str):
+                raise ValueError("Tool input schema description is invalid")
+            branch_defaults["description"] = description
+        # The strict subset allows descriptions on typed branches, not beside anyOf.
         return {
             "anyOf": [
-                _structured_output_input_schema(_tool_schema_mapping(item)) for item in alternatives
+                _structured_output_input_schema({**branch_defaults, **_tool_schema_mapping(item)})
+                for item in alternatives
             ]
         }
 

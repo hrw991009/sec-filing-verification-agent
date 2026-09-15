@@ -3892,6 +3892,8 @@ export interface components {
             id: string;
             /** Original Question */
             original_question: string;
+            /** Required Tool Names */
+            required_tool_names?: string[];
             /** Revision */
             revision: number;
         };
@@ -5378,6 +5380,8 @@ export interface components {
             mode: "web" | "local";
             /** Original Question */
             original_question: string;
+            /** Required Tool Names */
+            required_tool_names?: string[];
             /** Skill Name */
             skill_name?: string | null;
             /** Skill Version */

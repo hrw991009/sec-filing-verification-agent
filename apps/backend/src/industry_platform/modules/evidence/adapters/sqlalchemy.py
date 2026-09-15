@@ -105,6 +105,7 @@ from industry_platform.modules.evidence.normalizer import (
     parse_sql_source_locator,
     referenced_sql_columns,
     schema_columns_for_table,
+    sec_xbrl_resource_version,
 )
 from industry_platform.modules.files.domain import FileObjectStatus
 from industry_platform.modules.files.models import FileObject
@@ -1280,7 +1281,10 @@ class SqlAlchemyEvidenceRepository:
             retrieved_at=source_record.retrieved_at,
             document_version_id=None,
             chunk_id=None,
-            source_resource_version=f"{source_record.source_version}:{fact_record.locator_key}",
+            source_resource_version=sec_xbrl_resource_version(
+                source_version=source_record.source_version,
+                locator_key=fact_record.locator_key,
+            ),
             evidence_id=evidence_id,
         )
 
@@ -1732,7 +1736,9 @@ class SqlAlchemyEvidenceRepository:
         locator = FinancialCalculationLocatorV1(
             financial_scope=dict(financial_scope.to_mapping()),
             operator=output.operator.value,
-            operand_values=tuple(item.value for item in output.operands),
+            operand_values=tuple(
+                format(item.value_in_scope(financial_scope), "f") for item in calculation_operands
+            ),
             input_evidence_refs=tuple(output.evidence_refs),
             decimal_places=output.decimal_places,
             rounding_mode=output.rounding_mode.value,

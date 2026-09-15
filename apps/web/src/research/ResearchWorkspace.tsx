@@ -80,6 +80,13 @@ const verificationStatusNames: Readonly<Record<string, string>> = {
 
 const verificationStatuses = ["verified", "partial", "conflict", "insufficient_evidence"] as const;
 
+const requiredToolOptions = [
+  ["sec.search_filing", "检索申报证据"],
+  ["sec.get_xbrl_facts", "读取 XBRL 事实"],
+  ["finance.calculate", "计算派生指标"],
+  ["sec.monitor.subscribe", "请求持续监控审批"],
+] as const;
+
 function lines(value: string): string[] {
   return [
     ...new Set(
@@ -166,6 +173,7 @@ export function ResearchWorkspace({
   const [scale, setScale] = useState(secReviewDraft?.scale ?? 6);
   const [requireAmbiguityApproval, setRequireAmbiguityApproval] = useState(false);
   const [useVerificationSkill, setUseVerificationSkill] = useState(false);
+  const [requiredToolNames, setRequiredToolNames] = useState<string[]>([]);
   const [confirmedScope, setConfirmedScope] = useState(
     secReviewDraft === null ? "" : secConfirmedScope(secReviewDraft),
   );
@@ -336,6 +344,12 @@ export function ResearchWorkspace({
     if (mode === "local" && selectedKnowledgeBaseId === null) return;
     const commonRequest = {
       completion_criteria: criteriaItems,
+      required_tool_names:
+        mode === "local"
+          ? requiredToolNames.filter(
+              (name) => !useVerificationSkill || name !== "sec.monitor.subscribe",
+            )
+          : [],
       confirmed_scope: scopeItems,
       exclusions: lines(exclusions),
       max_cost_micro_usd: maxCostMicroUsd,
@@ -773,6 +787,33 @@ export function ResearchWorkspace({
                 value={completionCriteria}
               />
             </label>
+            {mode === "local" && (
+              <fieldset disabled={!canManage || submitting}>
+                <legend>必做步骤（按下列顺序执行，可选）</legend>
+                <p>勾选后写入已确认 Brief；未执行完不能直接结束。监控仍需另行人工审批。</p>
+                {requiredToolOptions
+                  .filter(([name]) => !useVerificationSkill || name !== "sec.monitor.subscribe")
+                  .map(([name, label]) => (
+                    <label key={name}>
+                      <input
+                        type="checkbox"
+                        checked={requiredToolNames.includes(name)}
+                        onChange={(event) => {
+                          const selected = new Set(requiredToolNames);
+                          if (event.currentTarget.checked) selected.add(name);
+                          else selected.delete(name);
+                          setRequiredToolNames(
+                            requiredToolOptions
+                              .map(([tool]) => tool)
+                              .filter((tool) => selected.has(tool)),
+                          );
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+              </fieldset>
+            )}
             <fieldset>
               <legend>可信预算</legend>
               <label>
@@ -977,6 +1018,12 @@ export function ResearchWorkspace({
                   <div>
                     <dt>完成标准</dt>
                     <dd>{visibleDetail.brief.completion_criteria.join("；")}</dd>
+                    <dt>必做工具步骤</dt>
+                    <dd>
+                      {visibleDetail.brief.required_tool_names?.length
+                        ? visibleDetail.brief.required_tool_names.join(" → ")
+                        : "未指定"}
+                    </dd>
                   </div>
                   <div>
                     <dt>预算</dt>

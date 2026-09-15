@@ -155,6 +155,7 @@ def _require_provider_decisions(state: dict[str, object]) -> None:
 def main() -> None:
     environment = _environment()
     live_model = environment.get("SEC_BROWSER_LIVE_MODEL") == "true"
+    started_at = datetime.now(UTC)
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "apps/backend/alembic.ini", "upgrade", "head"],
@@ -211,8 +212,7 @@ def main() -> None:
             if playwright_output.exists():
                 shutil.copytree(
                     playwright_output,
-                    RUNTIME_DIR / "playwright",
-                    dirs_exist_ok=True,
+                    RUNTIME_DIR / started_at.strftime("playwright-%Y%m%dT%H%M%S%fZ"),
                 )
             state = {} if live_model else _provider_state()
             (RUNTIME_DIR / "provider-state.json").write_text(
@@ -224,6 +224,8 @@ def main() -> None:
                 "schema_version": 1,
                 "generated_at": datetime.now(UTC).isoformat(),
                 "model_mode": "configured_live" if live_model else "controlled",
+                "model_configuration": _model_configuration(environment),
+                "playwright_artifacts": started_at.strftime("playwright-%Y%m%dT%H%M%S%fZ"),
                 "browser_passed": completed.returncode == 0,
                 "source_commit": subprocess.check_output(  # noqa: S603
                     [git, "rev-parse", "HEAD"], cwd=ROOT, text=True
@@ -265,6 +267,30 @@ def main() -> None:
     finally:
         for process in reversed(processes):
             _stop(process)
+
+
+def _model_configuration(environment: dict[str, str]) -> dict[str, object]:
+    from industry_platform.core.config import Settings
+
+    overrides: dict[str, object] = {}
+    if "AGENT_MODEL_ROUTE_JSON" in environment:
+        overrides["AGENT_MODEL_ROUTE_JSON"] = environment["AGENT_MODEL_ROUTE_JSON"]
+    for name in (
+        "APP_ENVIRONMENT",
+        "AGENT_MODEL_PROVIDER_BASE_URL",
+        "AGENT_MODEL_PROVIDER_API_KEY",
+        "AGENT_MODEL_CONTROLLED_LOOPBACK",
+        "AGENT_MODEL_REQUEST_TIMEOUT_SECONDS",
+    ):
+        if name in environment:
+            overrides[name.lower()] = environment[name]
+    settings = Settings(**overrides)
+    route = settings.agent_model_route
+    return {
+        "model": None if route is None else route.model,
+        "reasoning_enabled": None if route is None else route.reasoning_enabled,
+        "request_timeout_seconds": settings.agent_model_request_timeout_seconds,
+    }
 
 
 if __name__ == "__main__":

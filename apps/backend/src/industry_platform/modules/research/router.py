@@ -127,6 +127,7 @@ async def start_research(
                 confirmed_scope=tuple(payload.confirmed_scope),
                 exclusions=tuple(payload.exclusions),
                 completion_criteria=tuple(payload.completion_criteria),
+                required_tool_names=tuple(payload.required_tool_names),
                 financial_scope=(
                     None if payload.financial_scope is None else payload.financial_scope.to_domain()
                 ),
@@ -312,6 +313,7 @@ def _view_response(view: ResearchRunView) -> ResearchRunDetailResponse:
             confirmed_scope=list(brief.input.confirmed_scope),
             exclusions=list(brief.input.exclusions),
             completion_criteria=list(brief.input.completion_criteria),
+            required_tool_names=list(brief.input.required_tool_names),
             financial_scope=(
                 None
                 if brief.input.financial_scope is None

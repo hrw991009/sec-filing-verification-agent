@@ -155,6 +155,9 @@ def test_sec_l5_profile_versions_the_approval_gated_monitor_tool_surface() -> No
     assert policy.max_tool_calls == SEC_L5_MAX_TOOL_CALLS
     assert policy.max_decision_output_tokens == 2_048
     assert "仅产生待审批请求" in policy.system_instructions
+    assert "审批完成前不得宣称订阅已创建" in policy.system_instructions
+    assert "execution_status=completed" in policy.system_instructions
+    assert "根据 resource_ref 如实报告订阅已创建" in policy.system_instructions
     assert "冻结 Tool surface" in policy.system_instructions
     assert "与只读 Tool" not in policy.system_instructions
     assert (

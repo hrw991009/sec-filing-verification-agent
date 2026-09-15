@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
 from datetime import datetime
@@ -377,6 +378,7 @@ class _ResearchExecution:
         self.graph_state = graph_state
         self.scope = scope
         self.checkpoint_revision = checkpoint_revision
+        self.citation_evidence: dict[str, UUID] | None = None
 
     async def execute(
         self,
@@ -668,6 +670,11 @@ class _ResearchExecution:
 
     async def _plan(self) -> None:
         references = self.command.loop_command.policy.available_tools
+        if self.command.brief.input.required_tool_names:
+            catalog = {reference.name: reference for reference in references}
+            references = tuple(
+                catalog[name] for name in self.command.brief.input.required_tool_names
+            )
         tool_names = tuple(reference.name for reference in references)
         plan = ResearchPlan(
             plan_id=self.command.plan_id,
@@ -746,6 +753,7 @@ class _ResearchExecution:
             seen_observation_content=seen_observation_content,
             outcome=outcome,
             decision_index_start=decision_index,
+            required_tool_names=self.command.brief.input.required_tool_names,
         ):
             pass
         self.run, self.state = outcome.run, outcome.state
@@ -767,6 +775,7 @@ class _ResearchExecution:
 
     async def _normalize_evidence(self) -> None:
         evidence_refs: list[str] = []
+        self.citation_evidence = {}
         for observation in self.graph_state.observations:
             if observation.tool_name == SEC_MONITOR_SUBSCRIBE_TOOL_NAME:
                 continue
@@ -781,6 +790,9 @@ class _ResearchExecution:
             for item in result.items:
                 if item.evidence is not None:
                     evidence_refs.append(str(item.evidence.evidence_id))
+                    self.citation_evidence[f"T{observation.ordinal}S{item.source_ordinal}"] = (
+                        item.evidence.evidence_id
+                    )
         self.graph_state.graph["evidence_refs"] = list(dict.fromkeys(evidence_refs))
 
     async def _synthesize_claims(self) -> None:
@@ -793,20 +805,25 @@ class _ResearchExecution:
         )
         if origin is None:
             raise ValueError("Research Claim synthesis requires an origin Model Step")
+        if self.citation_evidence is None and self.graph_state.observations:
+            await self._normalize_evidence()
         evidence_ids = tuple(UUID(value) for value in self.graph_state.graph["evidence_refs"])
         statement = _claim_statement(decision.content_markdown)
+        cited_ids = _cited_evidence_ids(
+            decision.content_markdown, evidence_ids, self.citation_evidence
+        )
         claim = await self.runtime._evidence_service.create_claim(
             self.scope,
             CreateClaim(
                 research_run_id=self.command.research_run_id,
                 statement=statement,
-                confidence=0.75 if evidence_ids else 0.25,
+                confidence=0.75 if cited_ids else 0.25,
                 relations=tuple(
                     ClaimEvidenceInput(
                         evidence_id=evidence_id,
                         relation=ClaimEvidenceRelation.SUPPORTS,
                     )
-                    for evidence_id in evidence_ids
+                    for evidence_id in cited_ids
                 ),
                 origin_run_id=self.run.run_id,
                 origin_step_id=origin.step_id,
@@ -1064,19 +1081,23 @@ class _ResearchExecution:
         )
         if origin is None:
             raise ValueError("Research revise requires an origin Model Step")
+        await self._normalize_evidence()
         evidence_ids = tuple(UUID(value) for value in self.graph_state.graph["evidence_refs"])
+        cited_ids = _cited_evidence_ids(
+            decision.content_markdown, evidence_ids, self.citation_evidence
+        )
         claim = await self.runtime._evidence_service.create_claim(
             self.scope,
             CreateClaim(
                 research_run_id=self.command.research_run_id,
                 statement=statement,
-                confidence=0.75 if evidence_ids else 0.25,
+                confidence=0.75 if cited_ids else 0.25,
                 relations=tuple(
                     ClaimEvidenceInput(
                         evidence_id=evidence_id,
                         relation=ClaimEvidenceRelation.SUPPORTS,
                     )
-                    for evidence_id in evidence_ids
+                    for evidence_id in cited_ids
                 ),
                 origin_run_id=self.run.run_id,
                 origin_step_id=origin.step_id,
@@ -1349,6 +1370,24 @@ class _ResearchExecution:
             None if details is None else str(details.get("error_code"))
         )
         self.graph_state.terminated = True
+
+
+def _cited_evidence_ids(
+    markdown: str,
+    evidence_ids: tuple[UUID, ...],
+    source_labels: dict[str, UUID] | None = None,
+) -> tuple[UUID, ...]:
+    """Collected sources are not support relations until the answer cites them.
+
+    S ordinals follow the ordered, deduplicated Evidence list. Unknown ordinals
+    fail closed instead of silently dropping a broken citation.
+    """
+    catalog = {f"S{index}": value for index, value in enumerate(evidence_ids, start=1)}
+    catalog.update(source_labels or {})
+    labels = re.findall(r"\[((?:T[0-9]+)?S[0-9]+)\]", markdown)
+    if any(label not in catalog for label in labels):
+        return ()
+    return tuple(dict.fromkeys(catalog[label] for label in labels))
 
 
 def _claim_statement(markdown: str) -> str:

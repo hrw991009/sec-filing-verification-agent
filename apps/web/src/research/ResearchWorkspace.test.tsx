@@ -602,7 +602,11 @@ describe("ResearchWorkspace", () => {
 
     await screen.findByText("尚无 Research Run。");
     await user.click(screen.getByRole("button", { name: "SEC Filing" }));
+    await user.click(screen.getByRole("checkbox", { name: "请求持续监控审批" }));
     await user.click(screen.getByRole("checkbox", { name: /使用 SEC 事实核验 Skill/u }));
+    expect(screen.queryByRole("checkbox", { name: "请求持续监控审批" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "计算派生指标" }));
+    await user.click(screen.getByRole("checkbox", { name: "读取 XBRL 事实" }));
     expect(await screen.findByLabelText("Research Knowledge Base")).toHaveValue(knowledgeBaseId);
     await user.click(screen.getByLabelText("公司或期间存在歧义，计划后暂停确认"));
     await user.type(
@@ -619,6 +623,7 @@ describe("ResearchWorkspace", () => {
       approval_reason: "company_or_period_ambiguity",
       skill_name: "sec.filing-verification",
       skill_version: "v1",
+      required_tool_names: ["sec.get_xbrl_facts", "finance.calculate"],
       financial_scope: {
         accession: "0000320193-23-000106",
         cik: "0000320193",

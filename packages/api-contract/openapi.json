@@ -5276,6 +5276,13 @@
             "title": "Original Question",
             "type": "string"
           },
+          "required_tool_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Tool Names",
+            "type": "array"
+          },
           "revision": {
             "title": "Revision",
             "type": "integer"
@@ -8804,6 +8811,14 @@
             "minLength": 1,
             "title": "Original Question",
             "type": "string"
+          },
+          "required_tool_names": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Required Tool Names",
+            "type": "array"
           },
           "skill_name": {
             "anyOf": [

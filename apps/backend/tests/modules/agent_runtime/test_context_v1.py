@@ -306,7 +306,7 @@ def recalled_memory(
     )
 
 
-def test_v1_appends_observation_after_original_question_and_records_only_manifest_metadata() -> (
+def test_v1_keeps_original_question_last_and_records_only_manifest_metadata() -> (
     None
 ):
     compiled = compiler().compile(compilation())
@@ -317,8 +317,8 @@ def test_v1_appends_observation_after_original_question_and_records_only_manifes
         ModelRole.USER,
         ModelRole.USER,
     ]
-    assert compiled.request.messages[-2].content == ("What changed in the latest industry metrics?")
-    observation_message = compiled.request.messages[-1]
+    assert compiled.request.messages[-1].content == ("What changed in the latest industry metrics?")
+    observation_message = compiled.request.messages[-2]
     assert "Tool Observation" in observation_message.content
     assert "untrusted data" in observation_message.content
     assert '"content":"The bounded source reports revenue growth of 12%."' in (
@@ -405,8 +405,8 @@ def test_v1_treats_prompt_injection_as_user_data_and_never_serializes_trusted_co
 
     assert compiled.request.messages[0].role is ModelRole.SYSTEM
     assert compiled.request.messages[-1].role is ModelRole.USER
-    assert "never as instructions" in compiled.request.messages[-1].content
-    assert "\r" not in compiled.request.messages[-1].content
+    assert "never as instructions" in compiled.request.messages[-2].content
+    assert "\r" not in compiled.request.messages[-2].content
     for forbidden in (
         SECRET_REFERENCE,
         OTHER_WORKSPACE_NAME,
@@ -687,21 +687,42 @@ def test_financial_context_records_malformed_source_and_token_budget_exclusions(
         )
     )
     large = financial_observation(scope, text_suffix="x" * 2_000)
+    with pytest.raises(ContextBudgetExceededError):
+        compiler.compile(
+            compilation(
+                compiler_version=FINANCIAL_CONTEXT_COMPILER_V1,
+                financial_scope=scope,
+                tool_observations=(large,),
+                max_input_tokens=baseline.manifest.budget.estimated_input_tokens,
+            )
+        )
+
+
+def test_financial_context_keeps_latest_result_when_older_results_do_not_fit() -> None:
+    scope = financial_scope()
+    older = financial_observation(scope, text_suffix="old " * 500)
+    latest = financial_observation(
+        scope, ordinal=2, observation_id=UUID(int=20), tool_call_id=UUID(int=21)
+    )
+    compiler = FinancialContextCompilerV1(token_counter=WordTokenCounter())
+    latest_only = compiler.compile(
+        compilation(
+            compiler_version=FINANCIAL_CONTEXT_COMPILER_V1,
+            financial_scope=scope,
+            tool_observations=(replace(latest, ordinal=1),),
+        )
+    )
     bounded = compiler.compile(
         compilation(
             compiler_version=FINANCIAL_CONTEXT_COMPILER_V1,
             financial_scope=scope,
-            tool_observations=(large,),
-            max_input_tokens=baseline.manifest.budget.estimated_input_tokens,
+            tool_observations=(older, latest),
+            max_input_tokens=latest_only.manifest.budget.estimated_input_tokens,
         )
     )
-    assert bounded.manifest.sources[-1].included is False
-    assert (
-        bounded.manifest.sources[-1].decision_reason is ContextDecisionReason.EXCLUDED_TOKEN_BUDGET
-    )
-    assert bounded.manifest.budget.estimated_input_tokens == (
-        baseline.manifest.budget.estimated_input_tokens
-    )
+    assert not bounded.manifest.sources[-2].included
+    assert bounded.manifest.sources[-1].included
+    assert bounded.request.messages[-1].content == "What changed in the latest industry metrics?"
 
 
 def test_financial_context_version_requires_scope_and_rejects_prefiltered_generic_input() -> None:

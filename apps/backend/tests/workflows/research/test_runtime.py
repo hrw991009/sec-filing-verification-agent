@@ -1326,7 +1326,7 @@ async def test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime(
             ),
             model_response(
                 '{"decision":{"schema_version":1,"kind":"final",'
-                '"content_markdown":"## Finding\\n\\nNet sales decreased by 2.80% [S1]."}}',
+                '"content_markdown":"## Finding\\n\\nNet sales decreased by 2.80% [S1] [S2]."}}',
                 "sec-final-decision",
             ),
         )
@@ -1475,7 +1475,10 @@ async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint(use_ski
 
 
 @pytest.mark.asyncio
-async def test_l5_monitor_tool_request_checkpoints_and_pauses_for_durable_approval() -> None:
+@pytest.mark.parametrize("required", [False, True])
+async def test_l5_monitor_tool_request_checkpoints_and_pauses_for_durable_approval(
+    required: bool,
+) -> None:
     budget = RunBudget(
         schema_version=1,
         max_steps=20,
@@ -1486,6 +1489,13 @@ async def test_l5_monitor_tool_request_checkpoints_and_pauses_for_durable_approv
     command = sec_research_command(budget)
     command = replace(
         command,
+        brief=replace(
+            command.brief,
+            input=replace(
+                command.brief.input,
+                required_tool_names=("sec.monitor.subscribe",) if required else (),
+            ),
+        ),
         loop_command=replace(
             command.loop_command,
             policy=replace(
@@ -1807,7 +1817,10 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
 
 
 @pytest.mark.asyncio
-async def test_no_result_trace_finishes_uncertain_without_calculator_or_evidence() -> None:
+@pytest.mark.parametrize("required", [False, True])
+async def test_no_result_trace_finishes_uncertain_without_calculator_or_evidence(
+    required: bool,
+) -> None:
     question = "What was Apple's fiscal 2023 pharmaceutical revenue?"
     provider = QueueModelProvider(
         (
@@ -1847,10 +1860,28 @@ async def test_no_result_trace_finishes_uncertain_without_calculator_or_evidence
         if item.case_id == "sec-pharma-revenue-insufficient-f2"
     )
 
+    command = sec_research_command(selected_budget, question=question)
+    if required:
+        command = replace(
+            command,
+            brief=replace(
+                command.brief,
+                input=replace(command.brief.input, required_tool_names=("knowledge_search",)),
+            ),
+        )
+        events = [
+            event async for event in runtime.run(command, sec_runtime_context(selected_budget))
+        ]
+        assert events[-1].event_type is AgentEventType.RUN_FAILED
+        assert events[-1].payload["error_code"] == "task_requirements_incomplete"
+        assert calculator.values == []
+        assert evidence.claims == []
+        assert verifier.requested_revisions == []
+        return
     result = await HarnessRunner(
         runtime=runtime,
         materializer=SecScenarioMaterializer(
-            command=sec_research_command(selected_budget, question=question),
+            command=command,
             context=sec_runtime_context(selected_budget),
             scenario_id=case.case_id,
             question=question,
@@ -2178,7 +2209,11 @@ async def test_l5_injected_write_action_is_denied_before_any_tool_execution() ->
 
 
 @pytest.mark.asyncio
-async def test_research_l3_completes_the_exact_graph_on_one_unified_run() -> None:
+@pytest.mark.parametrize("required", [False, True])
+@pytest.mark.parametrize("cite", [False, True])
+async def test_research_l3_completes_the_exact_graph_on_one_unified_run(
+    required: bool, cite: bool
+) -> None:
     provider = QueueModelProvider(
         (
             model_response(
@@ -2189,7 +2224,9 @@ async def test_research_l3_completes_the_exact_graph_on_one_unified_run() -> Non
             ),
             model_response(
                 '{"decision":{"schema_version":1,"kind":"final",'
-                '"content_markdown":"## Finding\\n\\nSteel demand rose 3% [S1]."}}',
+                '"content_markdown":"## Finding\\n\\nSteel demand rose 3% '
+                + ("[T1S1]" if cite else "")
+                + '."}}',
                 "decision-2",
             ),
         )
@@ -2205,10 +2242,19 @@ async def test_research_l3_completes_the_exact_graph_on_one_unified_run() -> Non
         deadline=NOW + timedelta(minutes=10),
     )
 
+    command = research_command(selected_budget)
+    if required:
+        command = replace(
+            command,
+            brief=replace(
+                command.brief,
+                input=replace(command.brief.input, required_tool_names=(FAKE_LOOKUP_TOOL_NAME,)),
+            ),
+        )
     events = [
         event
         async for event in runtime.run(
-            research_command(selected_budget),
+            command,
             runtime_context(selected_budget),
         )
     ]
@@ -2248,12 +2294,52 @@ async def test_research_l3_completes_the_exact_graph_on_one_unified_run() -> Non
     assert len(evidence.normalizations) == 1
     assert len(evidence.claims) == 1
     assert evidence.claims[0].origin_run_id == RUN_ID
+    assert tuple(relation.evidence_id for relation in evidence.claims[0].relations) == (
+        (EVIDENCE_ID,) if cite else ()
+    )
+    assert evidence.claims[0].confidence == (0.75 if cite else 0.25)
     assert [plan.plan_id for plan in store.plans] == [PLAN_ID]
     assert [draft.draft_id for draft in store.drafts] == [DRAFT_ID]
     assert store.drafts[0].status is ResearchDraftStatus.EXPLAINABLE_DRAFT
     assert store.drafts[0].evidence_refs == (EVIDENCE_ID,)
     assert store.drafts[0].claim_refs == (CLAIM_ID,)
     assert "不是已核验的最终报告" in store.drafts[0].content_markdown
+
+
+@pytest.mark.asyncio
+async def test_required_step_cannot_be_skipped_by_a_premature_model_final() -> None:
+    provider = QueueModelProvider(
+        (
+            model_response(
+                '{"decision":{"schema_version":1,"kind":"final","content_markdown":"Done."}}',
+                "premature-final",
+            ),
+        )
+    )
+    store = RecordingWorkflowStore()
+    evidence = RecordingEvidenceService()
+    runtime, tool, _committer = build_runtime(provider, store, evidence)
+    selected_budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    command = research_command(selected_budget)
+    command = replace(
+        command,
+        brief=replace(
+            command.brief,
+            input=replace(command.brief.input, required_tool_names=(FAKE_LOOKUP_TOOL_NAME,)),
+        ),
+    )
+    events = [event async for event in runtime.run(command, runtime_context(selected_budget))]
+    assert events[-1].event_type is AgentEventType.RUN_FAILED
+    assert events[-1].payload["error_code"] == "task_requirements_incomplete"
+    assert tool.invocations == []
+    assert evidence.claims == []
+    assert store.drafts == []
 
 
 @pytest.mark.asyncio

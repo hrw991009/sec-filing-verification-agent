@@ -402,7 +402,20 @@ def _parse_usage(
     input_tokens = _non_negative_integer(document.get("prompt_tokens"))
     output_tokens = _non_negative_integer(document.get("completion_tokens"))
     total_tokens = _non_negative_integer(document.get("total_tokens"))
+    completion_details = document.get("completion_tokens_details")
+    reasoning_tokens = (
+        0
+        if completion_details is None
+        else _non_negative_integer(_mapping(completion_details).get("reasoning_tokens", 0))
+    )
+    # Normalize gateways that report visible completion tokens separately from
+    # reasoning. Accept only an exact reconciliation, never infer missing usage.
+    # Standard responses already include reasoning and must not be double-counted.
+    if total_tokens == input_tokens + output_tokens + reasoning_tokens:
+        output_tokens += reasoning_tokens
     if total_tokens != input_tokens + output_tokens:
+        raise _InvalidProviderResponse
+    if reasoning_tokens > output_tokens:
         raise _InvalidProviderResponse
 
     details_value = document.get("prompt_tokens_details")
@@ -647,7 +660,26 @@ class OpenAICompatibleModelProvider:
                         }
                     )
                 content = content_parts
-            messages.append({"role": message.role.value, "content": content})
+            # Context sources are not separate conversation turns. Serialize adjacent
+            # same-role sources as one turn, preserving every source and its order.
+            if messages and messages[-1]["role"] == message.role.value:
+                previous = messages[-1]["content"]
+                if isinstance(previous, str) and isinstance(content, str):
+                    messages[-1]["content"] = previous + "\n\n" + content
+                else:
+                    previous_parts = (
+                        [{"type": "text", "text": previous}]
+                        if isinstance(previous, str)
+                        else _list(previous)
+                    )
+                    next_parts = (
+                        [{"type": "text", "text": content}]
+                        if isinstance(content, str)
+                        else _list(content)
+                    )
+                    messages[-1]["content"] = [*previous_parts, *next_parts]
+            else:
+                messages.append({"role": message.role.value, "content": content})
 
         body: dict[str, object] = {
             "model": route.upstream_model,

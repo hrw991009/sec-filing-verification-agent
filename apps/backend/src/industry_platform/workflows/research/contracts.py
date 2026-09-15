@@ -134,6 +134,9 @@ class ResearchL3RunCommand:
             raise ValueError("Research Brief belongs to another Research Run")
         if self.brief.workspace_id != self.run.workspace_id:
             raise ValueError("Research Brief belongs to another Workspace")
+        available = {tool.name for tool in self.loop_command.policy.available_tools}
+        if not set(self.brief.input.required_tool_names).issubset(available):
+            raise ValueError("Research required Tools exceed the selected policy")
         identifiers = (
             self.research_run_id,
             self.plan_id,

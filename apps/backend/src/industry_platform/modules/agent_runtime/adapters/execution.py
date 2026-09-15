@@ -1,6 +1,7 @@
 """SQLAlchemy adapter that loads one fresh Direct Answer Runtime execution."""
 
 import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -586,6 +587,7 @@ class SqlAlchemyDirectAnswerRunLoader:
                         confirmed_scope=tuple(brief_record.confirmed_scope),
                         exclusions=tuple(brief_record.exclusions),
                         completion_criteria=tuple(brief_record.completion_criteria),
+                        required_tool_names=tuple(brief_record.required_tool_names),
                         financial_scope=financial_scope,
                         approval_reason=brief_record.approval_reason,
                     ),
@@ -977,22 +979,31 @@ def _approved_monitor_tool_result(
     )
     if canonical_mapping_sha256(action.arguments) != approval.tool_arguments_sha256:
         raise ValueError("Approved Tool arguments changed after review")
+    model_text = json.dumps(
+        {
+            "approval_status": "approved",
+            "execution_status": "completed",
+            "resource_ref": effect.resource_ref,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
     observation = ToolObservationContextSource(
-        observation_id=uuid5(approval.id, "approved-tool-observation-v1"),
+        observation_id=uuid5(approval.id, "approved-tool-observation-v2"),
         tool_call_id=approval.tool_call_id,
         workspace_id=workspace_id,
         ordinal=observation_ordinal,
         tool_name=approval.tool_name,
         tool_version=approval.tool_version,
         source_name="normalized_tool_result",
-        source_version="approved-tool-result-v1",
+        source_version="approved-tool-result-v2",
         observed_at=approval.resumed_at,
         locator={
             "approval_request_id": str(approval.id),
             "resource_ref": effect.resource_ref,
         },
-        content_sha256=effect.result_sha256,
-        model_text=effect.resource_ref,
+        content_sha256=hashlib.sha256(model_text.encode("utf-8")).hexdigest(),
+        model_text=model_text,
     )
     return action, observation
 

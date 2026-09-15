@@ -10,6 +10,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import SqlglotError
 
+from industry_platform.modules.evidence.domain import canonical_fingerprint
 from industry_platform.modules.tools.domain import ToolObservation, ToolReference, ToolSource
 
 INDUSTRY_SOURCE_TYPE = "industry_public_source"
@@ -38,6 +39,19 @@ class ParsedKnowledgeSource:
     accession: str
     document_version_id: UUID
     chunk_id: UUID
+
+
+def sec_xbrl_resource_version(*, source_version: str, locator_key: str) -> str:
+    """Bind the complete source/fact identity within the 128-character version contract.
+
+    Raw XBRL locators may exceed that bound; their full provenance remains in the
+    Evidence locator. Hash the canonical pair rather than truncating either input.
+    """
+
+    fingerprint = canonical_fingerprint(
+        {"source_version": source_version, "locator_key": locator_key}
+    )
+    return f"sec-xbrl-fact:{fingerprint}"
 
 
 def parse_sec_resource_locator(locator: str, *, resource: str) -> UUID:

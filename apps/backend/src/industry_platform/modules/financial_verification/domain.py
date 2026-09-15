@@ -166,6 +166,14 @@ class FinancialOperand:
         if self.scale is not None and (isinstance(self.scale, bool) or not -12 <= self.scale <= 12):
             raise ValueError("Financial operand scale is invalid")
 
+    def value_in_scope(self, scope: FinancialScope) -> Decimal:
+        """Use the same unit/scale normalization for calculation and durable lineage."""
+
+        if self.unit is not None and self.unit != scope.unit:
+            raise ValueError("Financial calculation operand unit conflicts with scope")
+        value = Decimal(self.value)
+        return value if self.scale is None else value.scaleb(self.scale - scope.scale)
+
 
 @dataclass(frozen=True, slots=True)
 class FinancialEvidenceOperand:
@@ -465,15 +473,7 @@ def calculate_financial_result(
 ) -> FinancialCalculationResult:
     """Apply one allowlisted Decimal operation with deterministic rounding."""
 
-    for item in calculation.operands:
-        if item.unit is not None and item.unit != scope.unit:
-            raise ValueError("Financial calculation operand unit conflicts with scope")
-    values = tuple(
-        Decimal(item.value).scaleb((item.scale or 0) - scope.scale)
-        if item.scale is not None
-        else Decimal(item.value)
-        for item in calculation.operands
-    )
+    values = tuple(item.value_in_scope(scope) for item in calculation.operands)
     rendered_values = tuple(format(item, "f") for item in values)
     with localcontext() as context:
         context.prec = 50

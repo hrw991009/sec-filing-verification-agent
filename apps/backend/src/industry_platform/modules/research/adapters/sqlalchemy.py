@@ -284,6 +284,7 @@ class SqlAlchemyResearchQueryRepository:
                 confirmed_scope=tuple(brief_record.confirmed_scope),
                 exclusions=tuple(brief_record.exclusions),
                 completion_criteria=tuple(brief_record.completion_criteria),
+                required_tool_names=tuple(brief_record.required_tool_names),
                 financial_scope=(
                     None
                     if brief_record.financial_scope is None

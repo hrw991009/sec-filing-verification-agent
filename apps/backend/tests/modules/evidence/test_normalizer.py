@@ -1,6 +1,7 @@
 """Fail-closed tests for untrusted Observation normalization helpers."""
 
 import hashlib
+import re
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -14,12 +15,32 @@ from industry_platform.modules.evidence.normalizer import (
     parse_sql_source_locator,
     referenced_sql_columns,
     schema_columns_for_table,
+    sec_xbrl_resource_version,
 )
 
 NOW = datetime(2026, 8, 21, 8, 0, tzinfo=UTC)
 RUN_ID = UUID("11111111-1111-4111-8111-111111111111")
 WORKSPACE_ID = UUID("22222222-2222-4222-8222-222222222222")
 CALL_ID = UUID("33333333-3333-4333-8333-333333333333")
+
+
+def test_xbrl_resource_version_is_bounded_and_preserves_full_identity() -> None:
+    source_version = "sec-xbrl-companyfacts-" + "a" * 24
+    locator_key = "us-gaap:Revenue:" + "long-dimension|" * 40
+    version = sec_xbrl_resource_version(source_version=source_version, locator_key=locator_key)
+    assert len(source_version + ":" + locator_key) > 128
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:+/-]{0,127}", version)
+    assert version == sec_xbrl_resource_version(
+        source_version=source_version, locator_key=locator_key
+    )
+    assert version != sec_xbrl_resource_version(
+        source_version=source_version, locator_key=locator_key + "different-tail"
+    )
+    assert version != sec_xbrl_resource_version(
+        source_version=source_version + "b", locator_key=locator_key
+    )
+
+
 OBSERVATION_ID = UUID("44444444-4444-4444-8444-444444444444")
 
 

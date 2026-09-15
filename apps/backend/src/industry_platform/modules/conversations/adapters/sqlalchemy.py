@@ -270,6 +270,7 @@ class SqlAlchemyDirectAnswerTurnWriter:
                     confirmed_scope=list(prepared.research_brief.confirmed_scope),
                     exclusions=list(prepared.research_brief.exclusions),
                     completion_criteria=list(prepared.research_brief.completion_criteria),
+                    required_tool_names=list(prepared.research_brief.required_tool_names),
                     financial_scope=(
                         None
                         if prepared.research_brief.financial_scope is None
