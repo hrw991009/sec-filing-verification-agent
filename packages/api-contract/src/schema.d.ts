@@ -141,15 +141,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/skills": {
+    "/api/v1/research/tasks": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Skills */
-        get: operations["list_skills_api_v1_skills_get"];
+        /** List Research Tasks */
+        get: operations["list_research_tasks_api_v1_research_tasks_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -419,6 +419,23 @@ export interface paths {
         get: operations["get_case_api_v1_workspaces__workspace_id__disclosures_cases__case_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/disclosures/dupont/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare Dupont */
+        post: operations["prepare_dupont_api_v1_workspaces__workspace_id__disclosures_dupont_prepare_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2862,6 +2879,10 @@ export interface components {
         };
         /** FinancialCalculationLocatorResponse */
         FinancialCalculationLocatorResponse: {
+            /** Components */
+            components?: {
+                [key: string]: string;
+            };
             /** Decimal Places */
             decimal_places: number;
             financial_scope: components["schemas"]["FinancialScopePayload"];
@@ -4060,6 +4081,15 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** ResearchRoleResponse */
+        ResearchRoleResponse: {
+            /** Name */
+            name: string;
+            /** Nodes */
+            nodes: string[];
+            /** Responsibility */
+            responsibility: string;
+        };
         /** ResearchRunCollectionResponse */
         ResearchRunCollectionResponse: {
             /** Research Runs */
@@ -4126,6 +4156,19 @@ export interface components {
          * @enum {string}
          */
         ResearchRunStatus: "draft" | "active" | "paused" | "completed" | "failed" | "cancelled";
+        /** ResearchTaskResponse */
+        ResearchTaskResponse: {
+            /** Description */
+            description: string;
+            /** Graph Version */
+            graph_version: string;
+            /** Name */
+            name: string;
+            /** Roles */
+            roles: components["schemas"]["ResearchRoleResponse"][];
+            /** Version */
+            version: string;
+        };
         /** ResolveMemoryCandidateRequest */
         ResolveMemoryCandidateRequest: {
             /** @default create */
@@ -4281,6 +4324,36 @@ export interface components {
             updated_at: string;
             /** Verification Status */
             verification_status: string;
+        };
+        /** SecDuPontPrepareRequest */
+        SecDuPontPrepareRequest: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Cik */
+            cik: string;
+            /** Fiscal Year */
+            fiscal_year: number;
+            /**
+             * Knowledge Base Id
+             * Format: uuid
+             */
+            knowledge_base_id: string;
+        };
+        /** SecDuPontPrepareResponse */
+        SecDuPontPrepareResponse: {
+            financial_scope: components["schemas"]["FinancialScopePayload"] | null;
+            /** Imports */
+            imports: components["schemas"]["SecWorkspaceFilingImportResponse"][];
+            /** Issues */
+            issues: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "awaiting_ingestion" | "insufficient_data";
         };
         /** SecFilerCandidateResponse */
         SecFilerCandidateResponse: {
@@ -5185,28 +5258,6 @@ export interface components {
              */
             industry_id: string;
         };
-        /** SkillResponse */
-        SkillResponse: {
-            /** Description */
-            description: string;
-            /** Graph Version */
-            graph_version: string;
-            /** Name */
-            name: string;
-            /** Roles */
-            roles: components["schemas"]["SkillRoleResponse"][];
-            /** Version */
-            version: string;
-        };
-        /** SkillRoleResponse */
-        SkillRoleResponse: {
-            /** Name */
-            name: string;
-            /** Nodes */
-            nodes: string[];
-            /** Responsibility */
-            responsibility: string;
-        };
         /** SourceItemCollectionResponse */
         SourceItemCollectionResponse: {
             /** Items */
@@ -5382,10 +5433,10 @@ export interface components {
             original_question: string;
             /** Required Tool Names */
             required_tool_names?: string[];
-            /** Skill Name */
-            skill_name?: string | null;
-            /** Skill Version */
-            skill_version?: string | null;
+            /** Task Name */
+            task_name?: string | null;
+            /** Task Version */
+            task_version?: string | null;
             /**
              * Timeout Seconds
              * @default 600
@@ -6709,7 +6760,7 @@ export interface operations {
             };
         };
     };
-    list_skills_api_v1_skills_get: {
+    list_research_tasks_api_v1_research_tasks_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -6724,7 +6775,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SkillResponse"][];
+                    "application/json": components["schemas"]["ResearchTaskResponse"][];
                 };
             };
         };
@@ -9336,6 +9387,142 @@ export interface operations {
             };
             /** @description Monitor state conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description SEC source response rejected */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description SEC filer discovery temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    prepare_dupont_api_v1_workspaces__workspace_id__disclosures_dupont_prepare_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecDuPontPrepareRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecDuPontPrepareResponse"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

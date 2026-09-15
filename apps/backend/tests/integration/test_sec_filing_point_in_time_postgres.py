@@ -1,7 +1,9 @@
 """Prove SEC filing source and coverage facts against real PostgreSQL."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
 from sqlalchemy import func, select
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
@@ -12,6 +14,7 @@ from industry_platform.modules.disclosures.domain import (
     FilingSelectionScope,
     SecAmendmentPolicy,
     SecAmendmentRelationStatus,
+    SecDisclosurePersistenceError,
     SecFilingForm,
     SecFilingObservation,
     SecSubmissionSet,
@@ -95,8 +98,10 @@ def _scope() -> FilingSelectionScope:
     )
 
 
+@pytest.mark.parametrize("refetched", [False, True])
 def test_submission_versions_and_coverage_are_idempotent_and_reconstructable(
     migrated_postgres_probe: PostgresProbe,
+    refetched: bool,
 ) -> None:
     async def exercise() -> None:
         engine = create_database_engine(migrated_postgres_probe.settings)
@@ -137,6 +142,30 @@ def test_submission_versions_and_coverage_are_idempotent_and_reconstructable(
             )
             assert dataset.filings[1].base_accession == "0000320193-24-000001"
 
+            if refetched:
+                refreshed_version = await repository.replace_submission_set(
+                    replace(submission_set, current=replace(source, source_available_at=NOW)),
+                    object_keys=object_keys,
+                    scope=scope,
+                )
+                refreshed = await repository.load_dataset(
+                    coverage_version=refreshed_version, scope=scope
+                )
+                assert refreshed.filings == dataset.filings
+                assert refreshed.sources == dataset.sources
+                # A new fetch cannot backdate the immutable availability evidence.
+                with pytest.raises(SecDisclosurePersistenceError):
+                    await repository.replace_submission_set(
+                        replace(
+                            submission_set,
+                            current=replace(
+                                source, source_available_at=NOW - timedelta(minutes=20)
+                            ),
+                        ),
+                        object_keys=object_keys,
+                        scope=scope,
+                    )
+
             async with session_factory() as session:
                 assert (
                     await session.scalar(
@@ -151,16 +180,12 @@ def test_submission_versions_and_coverage_are_idempotent_and_reconstructable(
                     == 2
                 )
                 assert await session.scalar(select(func.count()).select_from(SecFilingRecord)) == 2
-                assert (
-                    await session.scalar(select(func.count()).select_from(SecFilingCoverageRecord))
-                    == 1
-                )
-                assert (
-                    await session.scalar(
-                        select(func.count()).select_from(SecFilingCoverageSourceRecord)
-                    )
-                    == 1
-                )
+                assert await session.scalar(
+                    select(func.count()).select_from(SecFilingCoverageRecord)
+                ) == (2 if refetched else 1)
+                assert await session.scalar(
+                    select(func.count()).select_from(SecFilingCoverageSourceRecord)
+                ) == (2 if refetched else 1)
         finally:
             await engine.dispose()
 

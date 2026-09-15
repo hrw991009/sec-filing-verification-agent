@@ -6,6 +6,12 @@ import { listKnowledgeBases, type KnowledgeBase } from "../knowledge/knowledge-a
 import { cancelRun, getAgentTrace, type AgentTrace } from "../chat/chat-api";
 import type { SecReviewDraft } from "../disclosures/sec-review-navigation";
 import {
+  listSecFilingImports,
+  prepareSecDuPont,
+  type SecDuPontPreparation,
+  type SecDuPontPrepareRequest,
+} from "../disclosures/sec-api";
+import {
   formatCost,
   idempotencyKey,
   publicError,
@@ -172,7 +178,13 @@ export function ResearchWorkspace({
   const [unit, setUnit] = useState(secReviewDraft?.unit ?? "USD");
   const [scale, setScale] = useState(secReviewDraft?.scale ?? 6);
   const [requireAmbiguityApproval, setRequireAmbiguityApproval] = useState(false);
-  const [useVerificationSkill, setUseVerificationSkill] = useState(false);
+  const [selectedTask, setSelectedTask] = useState("");
+  const useResearchTask = selectedTask !== "";
+  const [preparingData, setPreparingData] = useState(false);
+  const [dataPreparation, setDataPreparation] = useState<SecDuPontPreparation | null>(null);
+  const [pendingPreparation, setPendingPreparation] = useState<SecDuPontPrepareRequest | null>(
+    null,
+  );
   const [requiredToolNames, setRequiredToolNames] = useState<string[]>([]);
   const [confirmedScope, setConfirmedScope] = useState(
     secReviewDraft === null ? "" : secConfirmedScope(secReviewDraft),
@@ -188,6 +200,91 @@ export function ResearchWorkspace({
   const [maxCostMicroUsd, setMaxCostMicroUsd] = useState(500_000);
   const [timeoutSeconds, setTimeoutSeconds] = useState(600);
   const detailRequestRef = useRef(0);
+
+  const applyPreparation = useCallback((result: SecDuPontPreparation) => {
+    setDataPreparation(result);
+    const scope = result.financial_scope;
+    if (scope !== null) {
+      setCik(scope.cik);
+      setAccession(scope.accession);
+      setReportPeriod(scope.report_period);
+      setForm("10-K");
+      setUnit(scope.unit);
+      setScale(scope.scale);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pendingPreparation === null) return;
+    const preparationRequest = pendingPreparation;
+    let active = true;
+    const isActive = () => active;
+    let timer: ReturnType<typeof setTimeout>;
+    const deadline = Date.now() + 300_000;
+    const expected = dataPreparation?.imports.map((item) => item.id) ?? [];
+    async function poll(): Promise<void> {
+      try {
+        const imports = await listSecFilingImports(workspaceId);
+        if (!isActive()) return;
+        const selected = imports.filter((item) => expected.includes(item.id));
+        if (selected.some((item) => item.status === "failed" || item.status === "cancelled")) {
+          throw new Error("年报导入失败，请在 SEC 工作台查看导入任务。");
+        }
+        if (
+          selected.length === expected.length &&
+          selected.every((item) => item.status === "ready")
+        ) {
+          const result = await prepareSecDuPont(workspaceId, preparationRequest);
+          if (!isActive()) return;
+          applyPreparation(result);
+          setPendingPreparation(null);
+          setPreparingData(false);
+          return;
+        }
+        if (Date.now() >= deadline) throw new Error("导入仍在进行，可稍后再次点击补齐数据继续。");
+        timer = setTimeout(() => {
+          void poll();
+        }, 2000);
+      } catch (caught: unknown) {
+        if (!isActive()) return;
+        setError(publicError(caught));
+        setPendingPreparation(null);
+        setPreparingData(false);
+      }
+    }
+    timer = setTimeout(() => {
+      void poll();
+    }, 2000);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [applyPreparation, dataPreparation, pendingPreparation, workspaceId]);
+
+  async function prepareDuPontData(): Promise<void> {
+    if (selectedKnowledgeBaseId === null || preparingData) return;
+    if (!Number.isFinite(Date.parse(asOf)) || !/^\d{4}-\d{2}-\d{2}$/.test(reportPeriod)) {
+      setError("请填写有效的财年结束日期与截止时点。");
+      return;
+    }
+    const request: SecDuPontPrepareRequest = {
+      cik: cik.trim(),
+      fiscal_year: Number(reportPeriod.slice(0, 4)),
+      knowledge_base_id: selectedKnowledgeBaseId,
+      as_of: new Date(asOf).toISOString(),
+    };
+    setPreparingData(true);
+    setError(null);
+    try {
+      const result = await prepareSecDuPont(workspaceId, request);
+      applyPreparation(result);
+      if (result.status === "awaiting_ingestion") setPendingPreparation(request);
+      else setPreparingData(false);
+    } catch (caught: unknown) {
+      setPreparingData(false);
+      setError(publicError(caught));
+    }
+  }
 
   useEffect(() => {
     if (secReviewDraft === null) return;
@@ -336,7 +433,8 @@ export function ResearchWorkspace({
     originalQuestion.trim() !== "" &&
     scopeItems.length > 0 &&
     criteriaItems.length > 0 &&
-    !submitting;
+    !submitting &&
+    !preparingData;
 
   async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -345,11 +443,13 @@ export function ResearchWorkspace({
     const commonRequest = {
       completion_criteria: criteriaItems,
       required_tool_names:
-        mode === "local"
-          ? requiredToolNames.filter(
-              (name) => !useVerificationSkill || name !== "sec.monitor.subscribe",
-            )
-          : [],
+        mode === "local" && selectedTask === "sec.dupont-analysis"
+          ? ["sec.get_xbrl_facts", "finance.calculate"]
+          : mode === "local"
+            ? requiredToolNames.filter(
+                (name) => !useResearchTask || name !== "sec.monitor.subscribe",
+              )
+            : [],
       confirmed_scope: scopeItems,
       exclusions: lines(exclusions),
       max_cost_micro_usd: maxCostMicroUsd,
@@ -378,9 +478,7 @@ export function ResearchWorkspace({
         },
         knowledge_base_ids: [selectedKnowledgeBaseId],
         mode,
-        ...(useVerificationSkill
-          ? { skill_name: "sec.filing-verification", skill_version: "v1" }
-          : {}),
+        ...(useResearchTask ? { task_name: selectedTask, task_version: "v1" } : {}),
         ...(requireAmbiguityApproval
           ? { approval_reason: "company_or_period_ambiguity" as const }
           : {}),
@@ -556,7 +654,7 @@ export function ResearchWorkspace({
             <div className="research-mode" role="group" aria-label="Research 数据源">
               <button
                 aria-pressed={mode === "web"}
-                disabled={!canManage || submitting}
+                disabled={!canManage || submitting || preparingData}
                 onClick={() => {
                   setMode("web");
                 }}
@@ -566,7 +664,7 @@ export function ResearchWorkspace({
               </button>
               <button
                 aria-pressed={mode === "local"}
-                disabled={!canManage || submitting}
+                disabled={!canManage || submitting || preparingData}
                 onClick={() => {
                   setMode("local");
                 }}
@@ -595,19 +693,71 @@ export function ResearchWorkspace({
                 </select>
               </label>
             ) : (
-              <fieldset className="research-financial-scope">
+              <fieldset
+                className="research-financial-scope"
+                disabled={preparingData}
+                onChangeCapture={() => {
+                  setDataPreparation(null);
+                }}
+              >
                 <legend>SEC filing 范围</legend>
                 <label>
-                  <input
-                    checked={useVerificationSkill}
-                    disabled={!canManage || submitting}
+                  研究任务
+                  <select
+                    value={selectedTask}
+                    disabled={!canManage || submitting || preparingData}
                     onChange={(event) => {
-                      setUseVerificationSkill(event.currentTarget.checked);
+                      setSelectedTask(event.currentTarget.value);
+                      if (event.currentTarget.value === "sec.dupont-analysis") {
+                        setForm("10-K");
+                        setOriginalQuestion(
+                          "请对该公司连续两年的年报做三因素杜邦分析，对比净利率、总资产周转率、权益乘数和 ROE，列明原始数据口径、计算引用及局限。",
+                        );
+                        setCompletionCriteria(
+                          "两年杜邦分解均完成，三期资产和归母权益余额对齐，计算引用可复算；缺失或冲突明确标记。",
+                        );
+                        setMaxSteps(40);
+                        setMaxTotalTokens(100_000);
+                        setTimeoutSeconds(1200);
+                      }
                     }}
-                    type="checkbox"
-                  />
-                  使用 SEC 事实核验 Skill（只读核验，不创建监控订阅）
+                  >
+                    <option value="">普通 Research</option>
+                    <option value="sec.filing-verification">SEC 事实核验工作流</option>
+                    <option value="sec.dupont-analysis">两年杜邦分析工作流</option>
+                  </select>
                 </label>
+                {selectedTask === "sec.dupont-analysis" && (
+                  <div>
+                    <p>
+                      按 CIK 和报告期所在财年补齐两份 10-K，复用导入任务。研究工作流
+                      本身只读，不创建监控。
+                    </p>
+                    <button
+                      type="button"
+                      disabled={
+                        !canManage ||
+                        submitting ||
+                        preparingData ||
+                        selectedKnowledgeBaseId === null
+                      }
+                      onClick={() => {
+                        void prepareDuPontData();
+                      }}
+                    >
+                      {preparingData ? "正在补齐年报与 XBRL…" : "补齐杜邦分析数据"}
+                    </button>
+                    {dataPreparation !== null && (
+                      <p role="status">
+                        {dataPreparation.status === "ready"
+                          ? "两年输入已齐备，可以开始分析。"
+                          : dataPreparation.status === "awaiting_ingestion"
+                            ? "年报正在入库，完成后自动同步 XBRL。"
+                            : `数据尚不足：${dataPreparation.issues.join("；")}`}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <label>
                   Knowledge Base
                   <select
@@ -787,12 +937,12 @@ export function ResearchWorkspace({
                 value={completionCriteria}
               />
             </label>
-            {mode === "local" && (
+            {mode === "local" && selectedTask !== "sec.dupont-analysis" && (
               <fieldset disabled={!canManage || submitting}>
                 <legend>必做步骤（按下列顺序执行，可选）</legend>
                 <p>勾选后写入已确认 Brief；未执行完不能直接结束。监控仍需另行人工审批。</p>
                 {requiredToolOptions
-                  .filter(([name]) => !useVerificationSkill || name !== "sec.monitor.subscribe")
+                  .filter(([name]) => !useResearchTask || name !== "sec.monitor.subscribe")
                   .map(([name, label]) => (
                     <label key={name}>
                       <input

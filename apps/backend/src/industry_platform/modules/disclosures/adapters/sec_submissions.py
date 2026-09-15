@@ -148,7 +148,7 @@ def validate_submissions_bulk_entry(body: bytes, *, cik: str) -> None:
 
     document = _json_object(body)
     try:
-        if normalize_cik(_required_int(document.get("cik"))) != cik:
+        if _required_cik(document.get("cik")) != cik:
             raise ValueError
         filings = _required_object(document.get("filings"))
         recent = _required_object(filings.get("recent"))
@@ -170,7 +170,7 @@ def _parse_current(
 ) -> SecSubmissionSourceSnapshot:
     document = _json_object(body)
     try:
-        document_cik = normalize_cik(_required_int(document.get("cik")))
+        document_cik = _required_cik(document.get("cik"))
         if document_cik != cik:
             raise ValueError
         filings = _required_object(document.get("filings"))
@@ -333,6 +333,12 @@ def _required_object(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
         raise ValueError("SEC object is invalid")
     return value
+
+
+def _required_cik(value: object) -> str:
+    if isinstance(value, bool) or not isinstance(value, (str, int)):
+        raise ValueError("SEC CIK is invalid")
+    return normalize_cik(value)
 
 
 def _required_int(value: object) -> int:

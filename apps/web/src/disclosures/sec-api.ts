@@ -3,6 +3,8 @@ import type { components } from "@sec-filing-verification/api-contract";
 import { apiClient, unwrapData, withAccessToken } from "../api/api";
 
 export type SecFiling = components["schemas"]["SecFilingCandidateResponse"];
+export type SecDuPontPreparation = components["schemas"]["SecDuPontPrepareResponse"];
+export type SecDuPontPrepareRequest = components["schemas"]["SecDuPontPrepareRequest"];
 export type SecFilerResolution = components["schemas"]["SecFilerResolutionResponse"];
 export type SecFilingDiff = components["schemas"]["SecFilingDiffResponse"];
 export type SecFilingImport = components["schemas"]["SecWorkspaceFilingImportResponse"];
@@ -26,6 +28,21 @@ export interface FilingSelection {
 
 function authorization(accessToken: string) {
   return { Authorization: `Bearer ${accessToken}` };
+}
+
+export function prepareSecDuPont(
+  workspaceId: string,
+  request: SecDuPontPrepareRequest,
+): Promise<SecDuPontPreparation> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<SecDuPontPreparation>(
+      await apiClient.POST("/api/v1/workspaces/{workspace_id}/disclosures/dupont/prepare", {
+        body: request,
+        headers: authorization(accessToken),
+        params: { path: { workspace_id: workspaceId } },
+      }),
+    ),
+  );
 }
 
 export function resolveSecFiler(workspaceId: string, query: string): Promise<SecFilerResolution> {

@@ -3103,6 +3103,13 @@
       "FinancialCalculationLocatorResponse": {
         "additionalProperties": false,
         "properties": {
+          "components": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Components",
+            "type": "object"
+          },
           "decimal_places": {
             "title": "Decimal Places",
             "type": "integer"
@@ -5667,6 +5674,29 @@
         "title": "ResearchPlanResponse",
         "type": "object"
       },
+      "ResearchRoleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "responsibility": {
+            "title": "Responsibility",
+            "type": "string"
+          }
+        },
+        "required": ["name", "nodes", "responsibility"],
+        "title": "ResearchRoleResponse",
+        "type": "object"
+      },
       "ResearchRunCollectionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5827,6 +5857,37 @@
         "enum": ["draft", "active", "paused", "completed", "failed", "cancelled"],
         "title": "ResearchRunStatus",
         "type": "string"
+      },
+      "ResearchTaskResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "graph_version": {
+            "title": "Graph Version",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRoleResponse"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": ["name", "version", "description", "graph_version", "roles"],
+        "title": "ResearchTaskResponse",
+        "type": "object"
       },
       "ResolveMemoryCandidateRequest": {
         "additionalProperties": false,
@@ -6162,6 +6223,72 @@
           "updated_at"
         ],
         "title": "SecDisclosureCaseResponse",
+        "type": "object"
+      },
+      "SecDuPontPrepareRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "cik": {
+            "pattern": "^[0-9]{10}$",
+            "title": "Cik",
+            "type": "string"
+          },
+          "fiscal_year": {
+            "maximum": 2100.0,
+            "minimum": 2009.0,
+            "title": "Fiscal Year",
+            "type": "integer"
+          },
+          "knowledge_base_id": {
+            "format": "uuid",
+            "title": "Knowledge Base Id",
+            "type": "string"
+          }
+        },
+        "required": ["cik", "fiscal_year", "knowledge_base_id", "as_of"],
+        "title": "SecDuPontPrepareRequest",
+        "type": "object"
+      },
+      "SecDuPontPrepareResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "financial_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinancialScopePayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "imports": {
+            "items": {
+              "$ref": "#/components/schemas/SecWorkspaceFilingImportResponse"
+            },
+            "title": "Imports",
+            "type": "array"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "status": {
+            "enum": ["ready", "awaiting_ingestion", "insufficient_data"],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": ["status", "financial_scope", "imports", "issues"],
+        "title": "SecDuPontPrepareResponse",
         "type": "object"
       },
       "SecFilerCandidateResponse": {
@@ -8380,60 +8507,6 @@
         "title": "SetIndustryPreferenceRequest",
         "type": "object"
       },
-      "SkillResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "title": "Description",
-            "type": "string"
-          },
-          "graph_version": {
-            "title": "Graph Version",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "roles": {
-            "items": {
-              "$ref": "#/components/schemas/SkillRoleResponse"
-            },
-            "title": "Roles",
-            "type": "array"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": ["name", "version", "description", "graph_version", "roles"],
-        "title": "SkillResponse",
-        "type": "object"
-      },
-      "SkillRoleResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "nodes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Nodes",
-            "type": "array"
-          },
-          "responsibility": {
-            "title": "Responsibility",
-            "type": "string"
-          }
-        },
-        "required": ["name", "nodes", "responsibility"],
-        "title": "SkillRoleResponse",
-        "type": "object"
-      },
       "SourceItemCollectionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -8820,7 +8893,7 @@
             "title": "Required Tool Names",
             "type": "array"
           },
-          "skill_name": {
+          "task_name": {
             "anyOf": [
               {
                 "maxLength": 100,
@@ -8831,9 +8904,9 @@
                 "type": "null"
               }
             ],
-            "title": "Skill Name"
+            "title": "Task Name"
           },
-          "skill_version": {
+          "task_version": {
             "anyOf": [
               {
                 "maxLength": 32,
@@ -8844,7 +8917,7 @@
                 "type": "null"
               }
             ],
-            "title": "Skill Version"
+            "title": "Task Version"
           },
           "timeout_seconds": {
             "default": 600,
@@ -11435,18 +11508,18 @@
         "tags": ["industry"]
       }
     },
-    "/api/v1/skills": {
+    "/api/v1/research/tasks": {
       "get": {
-        "operationId": "list_skills_api_v1_skills_get",
+        "operationId": "list_research_tasks_api_v1_research_tasks_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/SkillResponse"
+                    "$ref": "#/components/schemas/ResearchTaskResponse"
                   },
-                  "title": "Response List Skills Api V1 Skills Get",
+                  "title": "Response List Research Tasks Api V1 Research Tasks Get",
                   "type": "array"
                 }
               }
@@ -11459,8 +11532,8 @@
             "AccessToken": []
           }
         ],
-        "summary": "List Skills",
-        "tags": ["skills"]
+        "summary": "List Research Tasks",
+        "tags": ["research-tasks"]
       }
     },
     "/api/v1/workspaces": {
@@ -16498,6 +16571,252 @@
           }
         ],
         "summary": "Get Case",
+        "tags": ["disclosures"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/disclosures/dupont/prepare": {
+      "post": {
+        "operationId": "prepare_dupont_api_v1_workspaces__workspace_id__disclosures_dupont_prepare_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecDuPontPrepareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecDuPontPrepareResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid authenticated session"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workspace access denied"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "SEC source response rejected"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Stable, non-sensitive error contract returned by the API.",
+                  "properties": {
+                    "code": {
+                      "title": "Code",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "title": "Trace Id",
+                      "type": "string"
+                    },
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "title", "status", "detail", "code", "trace_id"],
+                  "title": "ProblemDetails",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "SEC filer discovery temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ],
+        "summary": "Prepare Dupont",
         "tags": ["disclosures"]
       }
     },

@@ -213,7 +213,7 @@ Turn 持久化 `search_mode`、`industry_id` 和 `knowledge_base_ids`，消息�
 ## 12. Day 5 Research L4 扩展
 
 Day 2 的 `CheckpointEnvelope`/CAS 现由 Day 5 Step 5 接入正式 PostgreSQL Store，并作为唯一
-Research graph 的恢复事实。`ResearchL3Runtime` 保留兼容名称；配置 CheckpointStore 与
+Research graph 的恢复事实。执行类现为 `FinancialResearchWorkflow`；配置 CheckpointStore 与
 ResearchDurabilityService 时执行 `research-l4-graph-v1`：每个成功节点保存 typed payload 和
 `checkpoint.saved` Event，审批或安全节点 hard stop 后从 `next_node` 继续同一 Run。
 

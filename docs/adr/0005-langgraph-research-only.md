@@ -133,11 +133,17 @@ L6 specialist/handoff 或 orchestrator-workers 不是七天硬指标。Planner�
 
 ## 变更与回滚
 
-应用内置的 `sec.filing-verification@v1` Skill 通过现有 Research 提交服务启动同一张图。
-Skill 的名称和版本由服务器 Registry 解析，绑定只读 SEC profile，并通过现有
+2026-09-15：将执行类明确命名为 `FinancialResearchWorkflow`，内置任务迁入
+`modules/research/tasks.py`；不变更节点顺序、图版本或 Checkpoint 协议。SEC 核验和杜邦分析
+不再称为 Skill。新任务使用 `research-task:` 持久标识，历史 `skill:` 仅在解析边界兼容。
+普通 L2 则通过 `skill.read` 按需加载受审的 `SKILL.md`，继续原来的工具循环；Research
+不开放此入口。发布与回滚须协调前端、API 和 worker，详见 [执行边界](../l2-instruction-skills.md)。
+
+应用内置的 `sec.filing-verification@v1` 研究任务通过现有 Research 提交服务启动同一张图。
+研究任务的名称和版本由服务器 Registry 解析，绑定只读 SEC profile，并通过现有
 `AgentRun.harness_version` 持久化及参与幂等指纹；Worker 恢复时重新验证版本和能力。
 图内角色沿用既有节点职责，不引入第二套 Agent loop、执行历史或 Checkpoint schema。
-调用方式及回滚边界见 [SEC 事实核验 Skill](../sec-verification-skill.md)。
+调用方式及回滚边界见 [SEC 事实核验工作流](../sec-verification-workflow.md)。
 
 Research graph、State、Checkpoint schema、节点顺序或 Runtime 映射变化必须更新本 ADR，并提供版本兼容、已有 Run 迁移和回滚方案。
 

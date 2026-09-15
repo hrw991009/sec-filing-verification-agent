@@ -78,7 +78,7 @@ from industry_platform.workers.runtime import (
     JobExecutionDisposition,
     JobExecutionRuntime,
 )
-from industry_platform.workflows.research.runtime import ResearchL3Runtime
+from industry_platform.workflows.research.runtime import FinancialResearchWorkflow
 
 DRAFT_MARKDOWN = (
     "## L3 finding\n\n"
@@ -207,7 +207,7 @@ async def execute_browser_research_run(
                 event_committer=committer,
                 cancellation_probe=control,
             ),
-            research_l3_runtime=ResearchL3Runtime(
+            financial_research_workflow=FinancialResearchWorkflow(
                 workflow_store=SqlAlchemyResearchQueryRepository(session_factory),
                 evidence_service=evidence_service,
                 context_compiler=compiler,

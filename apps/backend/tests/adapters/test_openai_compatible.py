@@ -6,6 +6,7 @@ import json
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 import httpx2
@@ -172,6 +173,65 @@ def accept_model_provider(provider: ModelProvider) -> ModelProvider:
     return provider
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_system", [True, False])
+@pytest.mark.parametrize("valid", [True, False])
+async def test_json_object_keeps_all_union_branches_and_enforces_host_schema(
+    has_system: bool, valid: bool
+) -> None:
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["decision"],
+        "properties": {
+            "decision": {
+                "anyOf": [
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["choice"],
+                        "properties": {"choice": {"type": "string", "const": name}},
+                    }
+                    for name in ("alpha", "beta")
+                ]
+            }
+        },
+    }
+    request = replace(model_request(), response_schema=schema)
+    if not has_system:
+        request = replace(request, messages=(ModelMessage(ModelRole.USER, "Choose beta as JSON"),))
+
+    def handler(incoming: httpx2.Request) -> httpx2.Response:
+        body = json.loads(incoming.content)
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["messages"][0]["role"] == "system"
+        assert '"const":"alpha"' in body["messages"][0]["content"]
+        assert '"const":"beta"' in body["messages"][0]["content"]
+        return response_with_bytes(
+            json.dumps(
+                json_response(
+                    output_text=json.dumps({"decision": {"choice": "beta" if valid else "gamma"}})
+                )
+            ).encode()
+        )
+
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        provider = OpenAICompatibleModelProvider(
+            client=client,
+            config=replace(
+                config(), models=(replace(route(), structured_output_mode="json_object"),)
+            ),
+            clock=lambda: NOW,
+        )
+        if valid:
+            result = await provider.complete(request)
+            assert json.loads(result.output_text)["decision"]["choice"] == "beta"
+        else:
+            with pytest.raises(ModelProviderError) as rejected:
+                await provider.complete(request)
+            assert rejected.value.code is ModelProviderErrorCode.INVALID_RESPONSE
+
+
 def http_client(transport: httpx2.AsyncBaseTransport) -> httpx2.AsyncClient:
     """Build a test-only client; production composition must use controlled egress."""
 
@@ -209,7 +269,10 @@ def test_model_request_deeply_snapshots_the_structured_output_schema() -> None:
 
 
 @pytest.mark.asyncio
-async def test_complete_maps_request_usage_cost_and_canonical_model() -> None:
+@pytest.mark.parametrize("output_mode", ["json_schema", "json_object"])
+async def test_complete_maps_request_usage_cost_and_canonical_model(
+    output_mode: Literal["json_schema", "json_object"],
+) -> None:
     observed_body: dict[str, object] = {}
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -227,7 +290,13 @@ async def test_complete_maps_request_usage_cost_and_canonical_model() -> None:
     transport = httpx2.MockTransport(handler)
     async with http_client(transport) as client:
         provider = accept_model_provider(
-            OpenAICompatibleModelProvider(client=client, config=config(), clock=lambda: NOW)
+            OpenAICompatibleModelProvider(
+                client=client,
+                config=replace(
+                    config(), models=(replace(route(), structured_output_mode=output_mode),)
+                ),
+                clock=lambda: NOW,
+            )
         )
         response = await provider.complete(model_request())
 
@@ -239,7 +308,10 @@ async def test_complete_maps_request_usage_cost_and_canonical_model() -> None:
     assert "tools" not in observed_body
     response_format = observed_body["response_format"]
     assert isinstance(response_format, dict)
-    assert response_format["type"] == "json_schema"
+    assert response_format["type"] == output_mode
+    if output_mode == "json_object":
+        assert response_format == {"type": "json_object"}
+        assert "JSON:" in str(observed_body["messages"])
     assert response.model == "openai-compatible/test-model"
     assert response.output_text == '{"answer":"A complete answer."}'
     assert response.finish_reason is ModelFinishReason.STOP
@@ -765,7 +837,10 @@ async def test_invalid_complete_and_half_stream_never_become_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_structured_output_is_locally_validated_and_refusal_is_a_valid_result() -> None:
+@pytest.mark.parametrize("output_mode", ["json_schema", "json_object"])
+async def test_structured_output_is_locally_validated_and_refusal_is_a_valid_result(
+    output_mode: Literal["json_schema", "json_object"],
+) -> None:
     refusal_text = "I cannot help with that request."
     responses = iter(
         (
@@ -781,7 +856,13 @@ async def test_structured_output_is_locally_validated_and_refusal_is_a_valid_res
 
     transport = httpx2.MockTransport(handler)
     async with http_client(transport) as client:
-        provider = OpenAICompatibleModelProvider(client=client, config=config(), clock=lambda: NOW)
+        provider = OpenAICompatibleModelProvider(
+            client=client,
+            config=replace(
+                config(), models=(replace(route(), structured_output_mode=output_mode),)
+            ),
+            clock=lambda: NOW,
+        )
         with pytest.raises(ModelProviderError) as schema_mismatch:
             await provider.complete(model_request())
         refusal = await provider.complete(model_request())

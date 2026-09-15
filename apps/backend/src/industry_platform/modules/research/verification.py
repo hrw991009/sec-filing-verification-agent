@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Final, Protocol
 from uuid import UUID, uuid5
@@ -30,13 +32,18 @@ from industry_platform.modules.evidence.domain import (
 from industry_platform.modules.evidence.ports import EvidenceUseCase
 from industry_platform.modules.financial_verification.domain import (
     FinancialCalculation,
+    FinancialEvidenceOperand,
+    FinancialForm,
     FinancialOperand,
     FinancialOperator,
+    FinancialPeriodKind,
+    FinancialReconciliationStatus,
     FinancialRoundingMode,
     FinancialScope,
     calculate_financial_result,
 )
 from industry_platform.modules.research.ports import ResearchQueryRepository
+from industry_platform.modules.research.tasks import DUPONT_ANALYSIS, RESEARCH_TASKS
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -270,6 +277,7 @@ class VerificationSnapshot:
     evidence_states: tuple[VerificationEvidenceState, ...]
     runtime_stop_reason: RunStopReason | None
     created_at: datetime
+    require_dupont_comparison: bool = False
 
 
 class VerificationReportRepository(Protocol):
@@ -406,6 +414,8 @@ class ResearchVerificationService:
                 evidence_states=tuple(evidence_states),
                 runtime_stop_reason=view.stop_reason,
                 created_at=self.clock(),
+                require_dupont_comparison=RESEARCH_TASKS.from_harness(view.harness_version)
+                == DUPONT_ANALYSIS,
             )
         )
         return await self.report_repository.save(scope, report)
@@ -424,6 +434,9 @@ def evaluate_verification_snapshot(snapshot: VerificationSnapshot) -> Verificati
     report_issues: list[VerificationIssue] = []
     claim_results: list[VerificationClaimResult] = []
     issue_ordinal = 0
+    dupont_complete = not snapshot.require_dupont_comparison or _dupont_comparison_complete(
+        snapshot.financial_scope, evidence_by_id
+    )
 
     def issue(
         *,
@@ -459,6 +472,16 @@ def evaluate_verification_snapshot(snapshot: VerificationSnapshot) -> Verificati
     for claim_id in snapshot.required_claim_ids:
         claim = claims_by_id.get(claim_id)
         claim_issues: list[VerificationIssue] = []
+        if not dupont_complete:
+            claim_issues.append(
+                issue(
+                    code=VerificationIssueCode.COVERAGE_INCOMPLETE,
+                    claim_id=claim_id,
+                    expected_refs=("two_verified_consecutive_dupont_periods",),
+                    repairability=VerificationRepairability.REPAIRABLE,
+                    allowed_action=VerificationAllowedAction.RECALCULATE,
+                )
+            )
         if claim is None:
             claim_issues.append(
                 issue(
@@ -773,6 +796,8 @@ def _calculation_issue(
     scope: FinancialScope,
     evidence_by_id: dict[UUID, VerificationEvidenceState],
 ) -> tuple[VerificationIssueCode, tuple[str, ...]] | None:
+    if locator.operator == "dupont":
+        return _dupont_calculation_issue(locator, scope, evidence_by_id)
     missing = tuple(
         str(evidence_id)
         for evidence_id in locator.input_evidence_refs
@@ -813,6 +838,149 @@ def _calculation_issue(
     ):
         return VerificationIssueCode.CALCULATION_MISMATCH, ()
     return None
+
+
+def _dupont_calculation_issue(
+    locator: FinancialCalculationLocatorV1,
+    scope: FinancialScope,
+    evidence_by_id: dict[UUID, VerificationEvidenceState],
+) -> tuple[VerificationIssueCode, tuple[str, ...]] | None:
+    """Rebind raw source values and periods, not just the stored result's arithmetic."""
+    from industry_platform.modules.financial_verification.dupont import reconcile_dupont_operands
+
+    operands: list[FinancialEvidenceOperand] = []
+    missing: list[str] = []
+    try:
+        for reference in locator.input_evidence_refs:
+            state = evidence_by_id.get(reference)
+            if (
+                state is None
+                or not state.available
+                or state.evidence.status is not EvidenceStatus.ACTIVE
+                or not isinstance(state.evidence.locator, SecXbrlFactLocatorV1)
+                or not _content_hash_matches(state.evidence)
+            ):
+                missing.append(str(reference))
+                continue
+            evidence = state.evidence
+            source = evidence.locator
+            if not isinstance(source, SecXbrlFactLocatorV1):
+                raise ValueError("DuPont source must be XBRL")
+            if (
+                evidence.workspace_id != state.evidence.authorization_snapshot.workspace_id
+                or datetime.fromisoformat(source.as_of) != scope.as_of
+            ):
+                raise ValueError("DuPont source authorization mismatch")
+            payload = json.loads(evidence.excerpt or "null")
+            if not isinstance(payload, dict) or not isinstance(payload.get("value"), str):
+                raise ValueError("DuPont source value missing")
+            unit = source.unit
+            if unit is not None and unit.startswith("iso4217:"):
+                unit = unit.removeprefix("iso4217:")
+            operands.append(
+                FinancialEvidenceOperand(
+                    evidence_ref=reference,
+                    source_fact_id=source.fact_id,
+                    value=payload["value"],
+                    cik=source.cik,
+                    accession=source.accession,
+                    form=FinancialForm(source.form),
+                    report_period=date.fromisoformat(source.report_period),
+                    unit=unit,
+                    scale=source.scale or 0,
+                    period_kind=FinancialPeriodKind(source.period_kind),
+                    instant=None if source.instant is None else date.fromisoformat(source.instant),
+                    start_date=None
+                    if source.start_date is None
+                    else date.fromisoformat(source.start_date),
+                    end_date=None
+                    if source.end_date is None
+                    else date.fromisoformat(source.end_date),
+                    context_id=source.context_id,
+                    dimensions=tuple(source.dimensions.items()),
+                    taxonomy=source.taxonomy,
+                    concept=source.concept,
+                    is_custom=source.taxonomy != "us-gaap",
+                    source_kind=source.source_kind,
+                    source_version=source.source_version,
+                    source_available_at=datetime.fromisoformat(source.source_available_at),
+                    amendment_relation_status="not_amendment"
+                    if source.form == "10-K"
+                    else "unresolved",
+                    base_accession=None,
+                )
+            )
+        if missing:
+            return VerificationIssueCode.CALCULATION_INPUT_MISSING, tuple(missing)
+        reconciliation = reconcile_dupont_operands(scope, tuple(operands))
+        if (
+            reconciliation.status is not FinancialReconciliationStatus.CONSISTENT
+            or locator.reconciliation_status != "consistent"
+            or locator.reconciliation_version != reconciliation.version
+        ):
+            raise ValueError("DuPont source reconciliation failed")
+        normalized = tuple(
+            FinancialOperand(item.value, item.evidence_ref, item.unit, item.scale)
+            for item in operands
+        )
+        if tuple(item.value_in_scope(scope) for item in normalized) != tuple(
+            Decimal(value) for value in locator.operand_values
+        ):
+            raise ValueError("DuPont stored operands differ from source")
+        result = calculate_financial_result(
+            scope,
+            FinancialCalculation(
+                FinancialOperator.DUPONT,
+                normalized,
+                locator.decimal_places,
+                FinancialRoundingMode(locator.rounding_mode),
+            ),
+        )
+        if (
+            result.value != locator.result
+            or result.formula != locator.formula
+            or result.unit != locator.unit
+            or result.scale != locator.scale
+            or dict(result.components) != dict(locator.components)
+        ):
+            raise ValueError("DuPont calculation changed")
+    except (ValueError, TypeError, KeyError, InvalidOperation):
+        return VerificationIssueCode.CALCULATION_MISMATCH, ()
+    return None
+
+
+def _dupont_comparison_complete(
+    scope: FinancialScope,
+    evidence_by_id: dict[UUID, VerificationEvidenceState],
+) -> bool:
+    periods: set[tuple[date, date]] = set()
+    for state in evidence_by_id.values():
+        locator = state.evidence.locator
+        if (
+            not state.available
+            or state.evidence.status is not EvidenceStatus.ACTIVE
+            or not isinstance(locator, FinancialCalculationLocatorV1)
+            or locator.operator != "dupont"
+            or not _scope_identity(state.evidence, scope)[0]
+            or not _content_hash_matches(state.evidence)
+            or _dupont_calculation_issue(locator, scope, evidence_by_id) is not None
+        ):
+            continue
+        source_state = evidence_by_id.get(locator.input_evidence_refs[0])
+        if source_state is not None and isinstance(
+            source_state.evidence.locator, SecXbrlFactLocatorV1
+        ):
+            source = source_state.evidence.locator
+            if source.start_date is not None and source.end_date is not None:
+                periods.add(
+                    (date.fromisoformat(source.start_date), date.fromisoformat(source.end_date))
+                )
+    ordered = sorted(periods, reverse=True)
+    return (
+        len(ordered) == 2
+        and ordered[0][1] == scope.report_period
+        and (ordered[0][0] - ordered[1][1]).days == 1
+    )
 
 
 def _scope_refs(scope: FinancialScope) -> tuple[str, ...]:

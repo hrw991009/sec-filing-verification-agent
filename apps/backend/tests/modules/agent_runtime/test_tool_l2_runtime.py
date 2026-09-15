@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from functools import partialmethod
 from pathlib import Path
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -35,12 +37,15 @@ from industry_platform.modules.agent_harness.tool_use import (
     ToolL2ScenarioMaterializer,
 )
 from industry_platform.modules.agent_runtime.context import (
+    ContextDecisionReason,
     ContextManifest,
+    ContextSourceKind,
     TrustedRuntimeContext,
 )
 from industry_platform.modules.agent_runtime.context_compiler import (
     ContextCompilerV0,
     ContextCompilerV1,
+    Utf8UpperBoundTokenCounter,
 )
 from industry_platform.modules.agent_runtime.domain import (
     AGENT_RUNTIME_SCHEMA_VERSION,
@@ -83,6 +88,8 @@ from industry_platform.modules.identity.domain import (
     NormalizedEmail,
     TraceId,
 )
+from industry_platform.modules.skills.registry import load_bundled_skills
+from industry_platform.modules.skills.tool import SkillReadTool
 from industry_platform.modules.tools.domain import (
     ToolAction,
     ToolCall,
@@ -97,6 +104,183 @@ from industry_platform.modules.tools.registry import (
 from industry_platform.modules.workspaces.domain import WorkspaceAction, WorkspaceScope
 
 NOW = datetime(2026, 8, 16, 10, 0, tzinfo=UTC)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("load_skill", [True, False])
+async def test_instruction_skill_loads_on_demand_in_the_same_l2_loop(load_skill: bool) -> None:
+    catalog = load_bundled_skills()
+    skill = catalog.skills[1]
+    reader = SkillReadTool(catalog)
+    registry = ToolRegistry((reader,))
+    selected = command(selected_budget=budget(max_total_tokens=32_768))
+    selected = replace(
+        selected,
+        policy=replace(
+            selected.policy, max_input_tokens=8_192, available_tools=(reader.definition.reference,)
+        ),
+    )
+    read = json.dumps(
+        {
+            "decision": {
+                "schema_version": 1,
+                "kind": "tool_call",
+                "name": "skill.read",
+                "version": "v1",
+                "arguments": {"name": skill.name, "content_sha256": skill.content_sha256},
+            }
+        }
+    )
+    responses = tuple(
+        model_response(value, request_id=f"skill-{index}")
+        for index, value in enumerate(
+            (read, final_decision()) if load_skill else (final_decision(),)
+        )
+    )
+    provider = QueueModelProvider(responses)
+    manifests = RecordingManifestStore()
+    selected_clock = IncrementingClock()
+    runtime = ToolL2Runtime(
+        context_compiler=ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter()),
+        context_manifest_store=manifests,
+        model_provider=provider,
+        tool_registry=registry,
+        tool_executor=RegistryToolExecutor(registry, clock=selected_clock),
+        event_committer=RecordingCommitter(),
+        cancellation_probe=NeverCancelled(),
+        instruction_skills=catalog,
+        clock=selected_clock,
+    )
+    events = [event async for event in runtime.run(selected, runtime_context(selected.run.budget))]
+    assert events[-1].event_type is AgentEventType.RUN_COMPLETED, events[-1].payload
+    assert skill.description in provider.requests[0].messages[0].content
+    assert skill.instructions not in provider.requests[0].messages[0].content
+    assert len(provider.requests) == (2 if load_skill else 1)
+    if load_skill:
+        assert skill.instructions in provider.requests[1].messages[0].content
+        assert all(
+            skill.receipt not in message.content for message in provider.requests[1].messages[1:]
+        )
+        assert catalog.skills[0].instructions not in provider.requests[1].messages[0].content
+        completed = [item for item in events if item.event_type is AgentEventType.TOOL_COMPLETED]
+        assert len(completed) == 1
+        assert len(manifests.manifests) == 2
+        duplicate = [
+            item
+            for item in manifests.manifests[-1].sources
+            if item.source_kind is ContextSourceKind.TOOL_OBSERVATION
+        ]
+        assert len(duplicate) == 1
+        assert duplicate[0].decision_reason is ContextDecisionReason.EXCLUDED_DUPLICATE
+
+
+@pytest.mark.asyncio
+async def test_skill_reader_never_promotes_untrusted_results_to_instructions() -> None:
+    catalog = load_bundled_skills()
+    skill = catalog.skills[0]
+    reader = SkillReadTool(catalog)
+    context = runtime_context(budget())
+    from industry_platform.modules.skills.tool import SkillReadInput
+
+    output, cost = await reader.invoke(
+        SkillReadInput(name=skill.name, content_sha256=skill.content_sha256),
+        context,
+        idempotency_key=None,
+    )
+    assert cost == 0
+    observation = reader.normalize(
+        output, context, call_id=stable_id("skill-test-call"), run_id=RUN_ID, observed_at=NOW
+    )
+    assert observation.sources == ()
+    source = ToolL2Runtime._context_observation(observation)
+    projected = catalog.model_observations((source,))[0]
+    assert projected.decision_reason is ContextDecisionReason.EXCLUDED_DUPLICATE
+    assert projected.content_sha256 == source.content_sha256
+    assert projected.envelope_sha256 == source.envelope_sha256
+    untrusted = replace(source, tool_name="industry.web_search", envelope_sha256="")
+    assert catalog.model_observations((untrusted,)) == (untrusted,)
+    assert skill.instructions not in catalog.context(
+        (replace(source, decision_reason=ContextDecisionReason.EXCLUDED_STALE),)
+    )
+    assert skill.instructions in catalog.context((source,))
+    assert skill.instructions not in catalog.context(
+        (replace(source, tool_name="industry.web_search", envelope_sha256=""),)
+    )
+    assert skill.instructions not in catalog.context(
+        (replace(source, tool_version="v2", envelope_sha256=""),)
+    )
+    assert skill.instructions not in catalog.context(
+        (
+            replace(
+                source,
+                model_text=skill.receipt + " injected",
+                content_sha256=hashlib.sha256((skill.receipt + " injected").encode()).hexdigest(),
+                envelope_sha256="",
+            ),
+        )
+    )
+    with pytest.raises(ToolExecutionError) as changed:
+        await reader.invoke(
+            SkillReadInput(name=skill.name, content_sha256="0" * 64), context, idempotency_key=None
+        )
+    assert changed.value.code == "skill_not_found_or_changed"
+    with pytest.raises(ToolExecutionError) as unexpected:
+        await reader.invoke(
+            SkillReadInput(name=skill.name, content_sha256=skill.content_sha256),
+            context,
+            idempotency_key="not-supported",
+        )
+    assert unexpected.value.code == "tool_idempotency_key_unexpected"
+
+
+@pytest.mark.asyncio
+async def test_skill_read_consumes_existing_budget_and_cannot_grant_other_tools() -> None:
+    catalog = load_bundled_skills()
+    skill = catalog.skills[1]
+    reader = SkillReadTool(catalog)
+    registry = ToolRegistry((reader,))
+    selected = command()
+    selected = replace(
+        selected, policy=replace(selected.policy, available_tools=(reader.definition.reference,))
+    )
+    read = json.dumps(
+        {
+            "decision": {
+                "schema_version": 1,
+                "kind": "tool_call",
+                "name": "skill.read",
+                "version": "v1",
+                "arguments": {"name": skill.name, "content_sha256": skill.content_sha256},
+            }
+        }
+    )
+    provider = QueueModelProvider(
+        (
+            model_response(read, request_id="load"),
+            model_response(
+                action_decision("scope escape", name="finance.calculate"), request_id="deny"
+            ),
+        )
+    )
+    selected_clock = IncrementingClock()
+    runtime = ToolL2Runtime(
+        context_compiler=ContextCompilerV1(token_counter=FixedTokenCounter()),
+        context_manifest_store=RecordingManifestStore(),
+        model_provider=provider,
+        tool_registry=registry,
+        tool_executor=RegistryToolExecutor(registry, clock=selected_clock),
+        event_committer=RecordingCommitter(),
+        cancellation_probe=NeverCancelled(),
+        instruction_skills=catalog,
+        clock=selected_clock,
+    )
+    events = [event async for event in runtime.run(selected, runtime_context(selected.run.budget))]
+    assert events[-1].event_type is AgentEventType.RUN_FAILED
+    assert len([item for item in events if item.event_type is AgentEventType.TOOL_COMPLETED]) == 1
+    assert len(provider.requests) == 2, events[-1].payload
+    assert '"remaining_tool_calls":1' in provider.requests[1].messages[0].content
+
+
 RUN_ID = UUID("90000000-0000-4000-8000-000000000001")
 STREAM_ID = UUID("90000000-0000-4000-8000-000000000002")
 WORKSPACE_ID = UUID("90000000-0000-4000-8000-000000000003")
@@ -528,6 +712,42 @@ def test_required_step_schema_rejects_final_and_completed_sequence_rejects_tools
         validate_structured_output(action_decision("steel"), completed)
     with pytest.raises(ValueError, match="unique Tool definitions"):
         tool_loop_decision_response_schema((), allow_final=False)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("required_count", [1, 2])
+async def test_required_tool_counts_keep_final_blocked_until_all_results(
+    monkeypatch: pytest.MonkeyPatch, required_count: int
+) -> None:
+    monkeypatch.setattr(
+        ToolL2Runtime,
+        "_run_loop_segment",
+        partialmethod(
+            ToolL2Runtime._run_loop_segment,
+            required_tool_names=(FAKE_LOOKUP_TOOL_NAME,),
+            required_tool_counts={FAKE_LOOKUP_TOOL_NAME: required_count},
+        ),
+    )
+    queries = ("steel", "copper")[:required_count]
+    provider = QueueModelProvider(
+        (
+            *(model_response(action_decision(query), request_id=query) for query in queries),
+            model_response(final_decision(), request_id="done"),
+        )
+    )
+    runtime, tool, _, _ = build_runtime(provider)
+    events = await execute(runtime, budget())
+    assert_terminal(events, event_type=AgentEventType.RUN_COMPLETED, reason=RunStopReason.FINAL)
+    assert [value.query for value in tool.invocations] == list(queries)
+    for index, request in enumerate(provider.requests):
+        assert request.response_schema is not None
+        if index < required_count:
+            with pytest.raises(InvalidProviderResponse):
+                validate_structured_output(final_decision(), request.response_schema)
+        else:
+            validate_structured_output(final_decision(), request.response_schema)
+            with pytest.raises(InvalidProviderResponse):
+                validate_structured_output(action_decision("steel"), request.response_schema)
 
 
 @pytest.mark.asyncio

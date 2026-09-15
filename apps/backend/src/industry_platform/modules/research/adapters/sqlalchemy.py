@@ -311,6 +311,7 @@ class SqlAlchemyResearchQueryRepository:
             input_tokens_used=agent.input_tokens_used,
             output_tokens_used=agent.output_tokens_used,
             cost_micro_usd=agent.cost_micro_usd,
+            harness_version=agent.harness_version,
         )
 
 

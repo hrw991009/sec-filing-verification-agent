@@ -1113,6 +1113,11 @@ SEC_GET_XBRL_FACTS_TOOL_VERSION = "v1"
 class SecGetXbrlFactsInput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    purpose: Literal["facts", "dupont"] = Field(
+        default="facts",
+        description="dupont selects complete two-year annual inputs; omit other filters.",
+    )
+
     taxonomy: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
@@ -1152,8 +1157,10 @@ class SecXbrlFactToolResponse(SecXbrlFactResponse):
 
     @model_validator(mode="after")
     def bind_calculation_operand(self) -> Self:
+        from industry_platform.modules.disclosures.xbrl_numeric import supported_numeric_format
+
         operand = None
-        if self.evidence_ref is not None:
+        if self.evidence_ref is not None and supported_numeric_format(self.format):
             # Non-numeric facts cannot be calculation operands.
             with suppress(ValidationError):
                 operand = FinanceOperandPayload(
@@ -1167,6 +1174,14 @@ class SecXbrlFactToolResponse(SecXbrlFactResponse):
         return self
 
 
+class SecDuPontPeriodInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    start_date: str
+    end_date: str
+    operands: list[FinanceOperandPayload] = Field(min_length=6, max_length=6)
+
+
 class SecGetXbrlFactsOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -1176,6 +1191,9 @@ class SecGetXbrlFactsOutput(BaseModel):
     error_code: str | None
     financial_scope: FinancialScopePayload | None = None
     knowledge_base_ids: list[UUID] = Field(default_factory=list)
+    purpose: Literal["facts", "dupont"] = "facts"
+    dupont_periods: list[SecDuPontPeriodInput] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
 
 
 def sec_get_xbrl_facts_definition() -> ToolDefinition:
@@ -1191,6 +1209,9 @@ def sec_get_xbrl_facts_definition() -> ToolDefinition:
             "Copy a numeric fact's calculation_operand object directly into finance.calculate; "
             "it binds value, evidence_ref and source_fact_id together. "
             "The limit is at most 16. Omit optional filters rather than guessing them."
+            " For a two-year annual DuPont analysis set purpose=dupont and omit other filters. "
+            "It selects authorized adjacent filings, checks duplicate disclosures, and returns "
+            "two dupont_periods with six ordered operands each. Never invent missing balances."
         ),
         input_schema_version="sec-get-xbrl-facts-input-v1",
         output_schema_version="sec-get-xbrl-facts-output-v1",
@@ -1213,6 +1234,9 @@ def sec_get_xbrl_facts_definition() -> ToolDefinition:
                 "error_code": {"type": ["string", "null"]},
                 "financial_scope": {"type": ["object", "null"]},
                 "knowledge_base_ids": {"type": "array", "items": {"type": "string"}},
+                "purpose": {"type": "string"},
+                "dupont_periods": {"type": "array"},
+                "issues": {"type": "array"},
             },
         },
         capability=WorkspaceAction.RUN_TOOL,
@@ -1249,6 +1273,55 @@ class SecGetXbrlFactsTool(PydanticToolAdapter[SecGetXbrlFactsInput, SecGetXbrlFa
         if financial_scope is None or not runtime_context.knowledge_base_ids:
             raise ToolExecutionError("financial_scope_not_configured")
         try:
+            if value.purpose == "dupont":
+                if any((value.taxonomy, value.concept, value.unit, value.period_kind)):
+                    raise ToolExecutionError("dupont_filters_not_supported")
+                selection = await self._service.get_dupont_facts(
+                    runtime_context.workspace_scope,
+                    knowledge_base_ids=runtime_context.knowledge_base_ids,
+                    financial_scope=financial_scope,
+                )
+                facts = [
+                    SecXbrlFactToolResponse(
+                        **SecXbrlFactResponse.from_domain(fact).model_dump(),
+                        evidence_ref=sec_xbrl_evidence_ref(
+                            workspace_id=runtime_context.workspace_scope.workspace_id,
+                            fact_id=fact.id,
+                            as_of=financial_scope.as_of,
+                            authorization_role=runtime_context.workspace_scope.role,
+                        ),
+                    )
+                    for fact in selection.facts
+                ]
+                by_id = {fact.id: fact for fact in facts}
+                periods = [
+                    SecDuPontPeriodInput(
+                        start_date=period.start_date.isoformat(),
+                        end_date=period.end_date.isoformat(),
+                        operands=[
+                            FinanceOperandPayload(
+                                value=fact.value,
+                                evidence_ref=str(by_id[fact.id].evidence_ref),
+                                source_fact_id=str(fact.id),
+                            )
+                            for fact in period.operands
+                        ],
+                    )
+                    for period in selection.periods
+                ]
+                return SecGetXbrlFactsOutput(
+                    status=SecFilingContentStatus.OK
+                    if periods
+                    else SecFilingContentStatus.NO_RESULT,
+                    accession=financial_scope.accession,
+                    facts=facts,
+                    error_code=None,
+                    financial_scope=FinancialScopePayload.from_domain(financial_scope),
+                    knowledge_base_ids=list(runtime_context.knowledge_base_ids),
+                    purpose="dupont",
+                    dupont_periods=periods,
+                    issues=list(selection.issues),
+                ), 0
             result = await self._service.get_facts(
                 runtime_context.workspace_scope,
                 knowledge_base_ids=runtime_context.knowledge_base_ids,

@@ -25,6 +25,7 @@ from industry_platform.modules.research.domain import (
     ResearchRunStatus,
 )
 from industry_platform.modules.research.policy import validate_required_tools
+from industry_platform.modules.research.tasks import RESEARCH_TASKS
 from industry_platform.modules.research.verification import (
     VerificationAllowedAction,
     VerificationClaimVerdict,
@@ -33,7 +34,6 @@ from industry_platform.modules.research.verification import (
     VerificationRepairability,
     VerificationStatus,
 )
-from industry_platform.modules.skills.registry import SKILL_REGISTRY
 
 
 def _non_nil_uuid(value: UUID) -> UUID:
@@ -50,8 +50,8 @@ class StrictResearchModel(BaseModel):
 
 
 class StartResearchRequest(StrictResearchModel):
-    skill_name: str | None = Field(default=None, min_length=1, max_length=100)
-    skill_version: str | None = Field(default=None, min_length=1, max_length=32)
+    task_name: str | None = Field(default=None, min_length=1, max_length=100)
+    task_version: str | None = Field(default=None, min_length=1, max_length=32)
     original_question: str = Field(min_length=1, max_length=4_000)
     confirmed_scope: list[str] = Field(min_length=1, max_length=16)
     exclusions: list[str] = Field(default_factory=list, max_length=16)
@@ -88,14 +88,15 @@ class StartResearchRequest(StrictResearchModel):
         validate_required_tools(
             self.required_tool_names,
             local=self.mode == "local",
-            skill_selected=self.skill_name is not None,
+            task_selected=self.task_name is not None,
+            task_name=self.task_name,
         )
-        if self.skill_name is not None or self.skill_version is not None:
-            if self.skill_name is None or self.skill_version is None:
-                raise ValueError("Skill requires an exact name and version")
-            SKILL_REGISTRY.resolve(self.skill_name, self.skill_version)
+        if self.task_name is not None or self.task_version is not None:
+            if self.task_name is None or self.task_version is None:
+                raise ValueError("Research task requires an exact name and version")
+            RESEARCH_TASKS.resolve(self.task_name, self.task_version)
             if self.mode != "local":
-                raise ValueError("SEC verification Skill requires local financial scope")
+                raise ValueError("SEC verification Research task requires local financial scope")
         if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
             raise ValueError("Knowledge Base IDs must be unique")
         if self.mode == "web":

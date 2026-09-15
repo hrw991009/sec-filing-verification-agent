@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import cast
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -27,6 +28,7 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlSourceKind,
     SecXbrlSyncResult,
 )
+from industry_platform.modules.disclosures.dupont_preparation import DuPontPreparation
 from industry_platform.modules.disclosures.resources import (
     DisclosureResources,
     get_disclosure_resources,
@@ -86,6 +88,7 @@ class StubResources:
     xbrl_service: object | None = None
     filing_diff_service: object | None = None
     monitor_subscription_service: object | None = None
+    dupont_preparation_service: object | None = None
 
 
 @dataclass(slots=True)
@@ -286,6 +289,42 @@ def test_unconfigured_source_is_explicit_and_not_no_result(test_settings: Settin
     assert response.status_code == 503
     assert response.json()["code"] == "SEC_SOURCE_NOT_CONFIGURED"
     assert "no_result" not in response.text
+
+
+def test_dupont_preparation_http_authorization_and_validation(test_settings: Settings) -> None:
+    service = AsyncMock()
+    service.prepare.return_value = DuPontPreparation("insufficient_data", issues=("missing",))
+    application = create_app(settings=test_settings)
+    application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
+        principal()
+    )
+    application.dependency_overrides[get_disclosure_resources] = lambda: cast(
+        DisclosureResources, StubResources(dupont_preparation_service=service)
+    )
+    payload = {
+        "cik": "0000789019",
+        "fiscal_year": 2025,
+        "knowledge_base_id": str(WORKSPACE_ID),
+        "as_of": "2026-09-15T00:00:00Z",
+    }
+    with TestClient(application, base_url="https://localhost") as client:
+        endpoint = f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/dupont/prepare"
+        assert client.post(endpoint, json=payload).status_code == 401
+        assert (
+            client.post(
+                f"/api/v1/workspaces/{OTHER_WORKSPACE_ID}/disclosures/dupont/prepare",
+                headers=headers(),
+                json=payload,
+            ).status_code
+            == 403
+        )
+        invalid = client.post(endpoint, headers=headers(), json={**payload, "fiscal_year": 2027})
+        assert invalid.status_code == 422
+        response = client.post(endpoint, headers=headers(), json=payload)
+    assert response.status_code == 200
+    assert response.json()["issues"] == ["missing"]
+    assert "no-store" in response.headers["Cache-Control"]
+    assert service.prepare.await_count == 1
 
 
 def test_authenticated_workspace_lists_point_in_time_filings(test_settings: Settings) -> None:

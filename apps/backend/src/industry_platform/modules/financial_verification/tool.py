@@ -71,7 +71,7 @@ class FinanceOperandPayload(BaseModel):
 class FinanceCalculateInput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    operator: str = Field(pattern=r"^(add|subtract|ratio|percentage|percent_change)$")
+    operator: str = Field(pattern=r"^(add|subtract|ratio|percentage|percent_change|dupont)$")
     operands: list[FinanceOperandPayload] = Field(min_length=2, max_length=8)
     decimal_places: int = Field(default=2, ge=0, le=12)
     rounding_mode: str = Field(default="half_even", pattern=r"^half_even$")
@@ -95,6 +95,7 @@ class FinanceCalculateOutput(BaseModel):
     operand_source: Literal["legacy_fixture", "sec_xbrl_evidence"] | None = None
     resolved_operands: list[FinancialEvidenceOperandPayload] = Field(default_factory=list)
     reconciliation: FinancialReconciliationPayload | None = None
+    components: dict[str, str] = Field(default_factory=dict)
 
 
 def finance_calculate_definition() -> ToolDefinition:
@@ -109,6 +110,9 @@ def finance_calculate_definition() -> ToolDefinition:
             "Never use citation labels or invent UUIDs. "
             "percentage computes operands[0] / operands[1] * 100; ratio omits * 100. "
             "Keep values as plain decimal strings without commas or unit conversion. "
+            "dupont takes six ordered source operands: revenue, parent net income, opening assets, "
+            "closing assets, opening parent equity, closing parent equity. It returns ROE percent "
+            "and all three factors in components; use sec.get_xbrl_facts purpose=dupont first. "
             "Do not calculate when required facts are missing."
         ),
         input_schema_version="finance-calculate-input-v1",
@@ -177,6 +181,7 @@ def finance_calculate_definition() -> ToolDefinition:
                 "operand_source": {"type": ["string", "null"]},
                 "resolved_operands": {"type": "array"},
                 "reconciliation": {"type": ["object", "null"]},
+                "components": {"type": "object"},
             },
         },
         capability=WorkspaceAction.RUN_TOOL,
@@ -227,6 +232,8 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
         operand_source: Literal["legacy_fixture", "sec_xbrl_evidence"] = "legacy_fixture"
         formal_resolution_status = FinancialOperandResolutionStatus.NO_RESULT
         formal_requested = any(item.source_fact_id is not None for item in value.operands)
+        if operator is FinancialOperator.DUPONT and not formal_requested:
+            raise ToolExecutionError("dupont_requires_source_facts")
         if formal_requested and (
             self._operand_repository is None
             or not all(item.source_fact_id is not None for item in value.operands)
@@ -256,6 +263,7 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
                 runtime_context.workspace_scope,
                 knowledge_base_ids=runtime_context.knowledge_base_ids,
                 financial_scope=financial_scope,
+                dupont=operator is FinancialOperator.DUPONT,
                 references=tuple(
                     FinancialOperandReference(
                         evidence_ref=UUID(item.evidence_ref),
@@ -404,6 +412,7 @@ class FinanceCalculateTool(PydanticToolAdapter[FinanceCalculateInput, FinanceCal
                 decimal_places=value.decimal_places,
                 rounding_mode=rounding_mode,
                 result=result.value,
+                components=dict(result.components),
                 formula=result.formula,
                 unit=result.unit,
                 scale=result.scale,

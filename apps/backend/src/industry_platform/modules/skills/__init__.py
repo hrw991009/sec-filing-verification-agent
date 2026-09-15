@@ -1,1 +1,1 @@
-"""Versioned application Skills executed through the shared Research Runtime."""
+"""Reviewed SKILL.md instruction assets loaded inside the ordinary L2 tool loop."""

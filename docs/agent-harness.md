@@ -40,11 +40,14 @@ L2 在同一状态机上重复 `决策 Model → Action → Registry/策略 → 
 | 组件 | 负责什么 | 明确不负责什么 |
 |---|---|---|
 | Tool | 一次有 name/version、typed input/output、所需 capability、timeout、成本、副作用和审批策略的能力调用；具体 WorkspaceScope 来自可信 Runtime Context | 不携带某次调用的具体租户授权，不自行扩大预算或决定循环 |
-| Skill | Instructions、允许的 Tools、Context 策略和输出合同组成的版本化 Harness 配置 | 不是可执行任意代码的隐藏插件 |
+| Skill | L2 按需读取的受审 `SKILL.md` 指令资产，在同一个工具循环内指导轻量任务 | 不使用 LangGraph，不扩大 Harness 已授予的工具权限，不建立子 Run |
 | Application Service | 持有业务事实、业务授权、事务和幂等规则；由 Tool Adapter 调用 | 不读取模型文本决定权限，不实现 model/tool loop |
 | Agent Harness | 组合 profile、Context、Tool surface、Fake/Replay/Fault 和 Scorer，并调用正式 Runtime | 不复制 Runtime 状态机，不把测试 Fake 作为生产 fallback |
 
 Runtime 决定 Step/Event/State/Budget/stop reason；ToolExecutor 是 Runtime Port；Registry 和 Adapter 是该 Port 的正式实现边界。这个依赖方向使生产与评测共享同一执行语义。
+
+金融 Research 现为内置 `FinancialResearchWorkflow` 固定图，不再归类为 Skill。
+具体加载协议、三个资产和发布边界见 [L2 轻量技能与固定金融 Research](l2-instruction-skills.md)。
 
 ## 4. Typed contract 与持久事实
 

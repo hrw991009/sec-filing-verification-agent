@@ -21,6 +21,7 @@ from industry_platform.modules.jobs.domain import (
     JobIdempotencyConflictError,
     JobPersistenceError,
 )
+from industry_platform.modules.skills.registry import L2_SKILLS_HARNESS_VERSION
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -79,7 +80,7 @@ class DirectAnswerSubmissionPolicy:
         return RunBudget(
             schema_version=1,
             max_steps=8 if tool_enabled else self.max_steps,
-            max_total_tokens=8_192 if tool_enabled else self.max_total_tokens,
+            max_total_tokens=32_768 if tool_enabled else self.max_total_tokens,
             max_cost_micro_usd=self.max_cost_micro_usd,
             deadline=accepted_at + timedelta(seconds=self.timeout_seconds),
         )
@@ -131,7 +132,9 @@ class ConversationSubmissionService:
             runtime_version=(
                 TOOL_L2_RUNTIME_VERSION if tool_enabled else self.policy.runtime_version
             ),
-            harness_version="harness-v1" if tool_enabled else self.policy.harness_version,
+            harness_version=L2_SKILLS_HARNESS_VERSION
+            if tool_enabled
+            else self.policy.harness_version,
             idempotency_key=request.idempotency_key,
             question=request.question,
             conversation_id=request.conversation_id,

@@ -13,6 +13,7 @@ from industry_platform.modules.disclosures.adapters.sec_edgar import (
 )
 from industry_platform.modules.disclosures.adapters.sec_submissions import (
     LiveSecSubmissionsAdapter,
+    _parse_current,
 )
 from industry_platform.modules.disclosures.domain import (
     FilingSelectionScope,
@@ -29,6 +30,26 @@ CURRENT_URL = f"https://data.sec.gov/submissions/CIK{CIK}.json"
 SUPPLEMENTAL_NAME = f"CIK{CIK}-submissions-001.json"
 SUPPLEMENTAL_URL = f"https://data.sec.gov/submissions/{SUPPLEMENTAL_NAME}"
 USER_AGENT = "IndustryIntelligencePlatform/0.1 edgar-ops@example.test"
+
+
+@pytest.mark.parametrize("cik_value", [320193, "320193", "0000320193"])
+def test_current_accepts_official_numeric_and_string_cik(cik_value: int | str) -> None:
+    payload = json.loads(current_body())
+    payload["cik"] = cik_value
+    result = _parse_current(
+        json.dumps(payload).encode(), cik=CIK, retrieved_at=NOW, source_available_at=NOW
+    )
+    assert result.cik == CIK
+
+
+@pytest.mark.parametrize("cik_value", [True, 320193.0, None, "abc", "0000789019"])
+def test_current_rejects_invalid_or_mismatched_cik(cik_value: object) -> None:
+    payload = json.loads(current_body())
+    payload["cik"] = cik_value
+    with pytest.raises(SecSourceError):
+        _parse_current(
+            json.dumps(payload).encode(), cik=CIK, retrieved_at=NOW, source_available_at=NOW
+        )
 
 
 @dataclass(slots=True)

@@ -104,8 +104,8 @@ from industry_platform.modules.research.models import (
     ResearchRunRecord,
     ResearchSideEffectRecord,
 )
-from industry_platform.modules.skills.policy import bind_skill_policy
-from industry_platform.modules.skills.registry import SKILL_REGISTRY
+from industry_platform.modules.research.task_policy import bind_research_task_policy
+from industry_platform.modules.research.tasks import RESEARCH_TASKS
 from industry_platform.modules.tools.domain import ToolAction, canonical_mapping_sha256
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
@@ -185,6 +185,7 @@ class SqlAlchemyDirectAnswerRunLoader:
     policy: DirectAnswerRuntimePolicy
     tool_policy: ToolL2RuntimePolicy | None = None
     tool_policies: Mapping[TurnSearchMode, ToolL2RuntimePolicy] | None = None
+    l2_skill_policy: ToolL2RuntimePolicy | None = None
     attachment_object_reader: AttachmentObjectReader | None = None
     memory_context_loader: MemoryContextLoader | None = None
 
@@ -439,6 +440,13 @@ class SqlAlchemyDirectAnswerRunLoader:
         if self.tool_policy is not None:
             policies.setdefault(TurnSearchMode.WEB, self.tool_policy)
         selected_tool_policy = policies.get(search_mode)
+        if record.harness_version == "conversation-l2-skills-v1":
+            if (
+                record.run_type is not AgentRunType.TOOL_LOOP
+                or search_mode is not TurnSearchMode.WEB
+            ):
+                raise DirectAnswerRunNotExecutableError
+            selected_tool_policy = self.l2_skill_policy
         knowledge_base_ids = tuple(stored_knowledge_base_ids)
         financial_scope = None
         if research_row is not None:
@@ -471,15 +479,17 @@ class SqlAlchemyDirectAnswerRunLoader:
         if research_enabled and research_row is None:
             raise DirectAnswerRunNotExecutableError
         try:
-            skill = SKILL_REGISTRY.from_harness(record.harness_version)
-            if skill is not None:
+            task = RESEARCH_TASKS.from_harness(record.harness_version)
+            if task is not None:
                 if (
                     not research_enabled
                     or search_mode is not TurnSearchMode.LOCAL
                     or selected_tool_policy is None
                 ):
                     raise DirectAnswerRunNotExecutableError
-                selected_tool_policy = bind_skill_policy(skill, selected_tool_policy)
+                selected_tool_policy = bind_research_task_policy(
+                    task, selected_tool_policy, persisted_harness_version=record.harness_version
+                )
         except ValueError:
             raise DirectAnswerRunNotExecutableError from None
         runtime_context = TrustedRuntimeContext(

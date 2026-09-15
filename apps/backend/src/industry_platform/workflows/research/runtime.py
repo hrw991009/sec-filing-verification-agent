@@ -93,6 +93,11 @@ from industry_platform.modules.research.durability import (
     ResearchDurabilityService,
 )
 from industry_platform.modules.research.ports import ResearchWorkflowStore
+from industry_platform.modules.research.task_policy import (
+    bind_research_task_policy,
+    bind_research_tool_definitions,
+)
+from industry_platform.modules.research.tasks import DUPONT_ANALYSIS, RESEARCH_TASKS
 from industry_platform.modules.research.verification import (
     ResearchVerificationUseCase,
     VerificationAllowedAction,
@@ -103,8 +108,6 @@ from industry_platform.modules.research.verification import (
 )
 from industry_platform.modules.retrieval.domain import KNOWLEDGE_SEARCH_TOOL_VERSION
 from industry_platform.modules.retrieval.tool import KNOWLEDGE_SEARCH_TOOL_NAME
-from industry_platform.modules.skills.policy import bind_skill_policy
-from industry_platform.modules.skills.registry import SKILL_REGISTRY
 from industry_platform.modules.tools.domain import (
     ToolAction,
     ToolCall,
@@ -129,7 +132,7 @@ class ResearchHardStopError(RecoverableAgentRunInterruption):
     """Fault-injection boundary used to prove recovery from a committed Checkpoint."""
 
 
-class ResearchL3Runtime(ToolL2Runtime):
+class FinancialResearchWorkflow(ToolL2Runtime):
     """Execute the only Research graph, optionally with durable L4 checkpoints."""
 
     def __init__(
@@ -178,8 +181,10 @@ class ResearchL3Runtime(ToolL2Runtime):
             raise TypeError("Research Runtime requires a Research command")
         run = command.run
         state = command.state
-        skill = SKILL_REGISTRY.from_harness(run.harness_version)
-        if skill is not None:
+        if any(tool.name == "skill.read" for tool in command.loop_command.policy.available_tools):
+            raise ValueError("Financial Research does not load instruction skills")
+        task = RESEARCH_TASKS.from_harness(run.harness_version)
+        if task is not None:
             if (
                 self._verification_service is None
                 or self._checkpoint_store is None
@@ -187,11 +192,15 @@ class ResearchL3Runtime(ToolL2Runtime):
                 or command.brief.input.financial_scope is None
             ):
                 raise ValueError(
-                    "Verification Skill requires financial scope, verifier and recovery"
+                    "Verification Research task requires financial scope, verifier and recovery"
                 )
             policy = command.loop_command.policy
-            if policy != bind_skill_policy(skill, policy):
-                raise ValueError("Verification Skill policy does not match its frozen definition")
+            if policy != bind_research_task_policy(
+                task, policy, persisted_harness_version=run.harness_version
+            ):
+                raise ValueError(
+                    "Verification Research task policy does not match its frozen definition"
+                )
         if (
             runtime_context.principal.user_id != run.user_id
             or runtime_context.workspace_scope.workspace_id != run.workspace_id
@@ -357,7 +366,7 @@ class _ResearchExecution:
     def __init__(
         self,
         *,
-        runtime: ResearchL3Runtime,
+        runtime: FinancialResearchWorkflow,
         command: ResearchL3RunCommand,
         runtime_context: TrustedRuntimeContext,
         run: AgentRun,
@@ -717,7 +726,10 @@ class _ResearchExecution:
                 details={"error_code": "tool_registry_missing"},
             )
             return
-        definitions = tuple(item for item in selected if isinstance(item, ToolDefinition))
+        definitions = bind_research_tool_definitions(
+            self.run.harness_version,
+            tuple(item for item in selected if isinstance(item, ToolDefinition)),
+        )
         outcome = _ToolLoopSegmentOutcome(
             run=self.run,
             state=self.state,
@@ -754,6 +766,9 @@ class _ResearchExecution:
             outcome=outcome,
             decision_index_start=decision_index,
             required_tool_names=self.command.brief.input.required_tool_names,
+            required_tool_counts={"finance.calculate": 2}
+            if RESEARCH_TASKS.from_harness(self.run.harness_version) == DUPONT_ANALYSIS
+            else None,
         ):
             pass
         self.run, self.state = outcome.run, outcome.state
@@ -807,6 +822,7 @@ class _ResearchExecution:
             raise ValueError("Research Claim synthesis requires an origin Model Step")
         if self.citation_evidence is None and self.graph_state.observations:
             await self._normalize_evidence()
+        decision = self._render_task_decision(decision)
         evidence_ids = tuple(UUID(value) for value in self.graph_state.graph["evidence_refs"])
         statement = _claim_statement(decision.content_markdown)
         cited_ids = _cited_evidence_ids(
@@ -836,6 +852,24 @@ class _ResearchExecution:
             ClaimVerificationStatus.CONFLICTED,
         }:
             self.graph_state.graph["error_summary"] = claim.verification_status.value
+
+    def _render_task_decision(self, decision: ToolLoopFinalDecision) -> ToolLoopFinalDecision:
+        if RESEARCH_TASKS.from_harness(self.run.harness_version) == DUPONT_ANALYSIS:
+            from industry_platform.modules.research.dupont_report import render_dupont_report
+
+            financial_scope = self.command.brief.input.financial_scope
+            if financial_scope is None:
+                raise ValueError("DuPont Research task requires a financial scope")
+            decision = replace(
+                decision,
+                content_markdown=render_dupont_report(
+                    financial_scope,
+                    tuple(self.graph_state.observations),
+                    self.citation_evidence or {},
+                ),
+            )
+            self.graph_state.final_decision = decision
+        return decision
 
     def _outline(self) -> None:
         self.graph_state.outline = (
@@ -1082,6 +1116,9 @@ class _ResearchExecution:
         if origin is None:
             raise ValueError("Research revise requires an origin Model Step")
         await self._normalize_evidence()
+        decision = self._render_task_decision(decision)
+        if RESEARCH_TASKS.from_harness(self.run.harness_version) == DUPONT_ANALYSIS:
+            statement = _claim_statement(decision.content_markdown)
         evidence_ids = tuple(UUID(value) for value in self.graph_state.graph["evidence_refs"])
         cited_ids = _cited_evidence_ids(
             decision.content_markdown, evidence_ids, self.citation_evidence

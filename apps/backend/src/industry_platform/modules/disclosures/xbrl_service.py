@@ -20,6 +20,7 @@ from industry_platform.modules.disclosures.domain import (
     SecXbrlFactResult,
     SecXbrlSyncResult,
 )
+from industry_platform.modules.disclosures.dupont import DuPontSelection, select_dupont_facts
 from industry_platform.modules.disclosures.ports import (
     SecCompanyFactsPort,
     SecFilingContentRepository,
@@ -41,6 +42,33 @@ class SecXbrlService:
     companyfacts_source: SecCompanyFactsPort
     snapshot_store: SecXbrlSnapshotStore
     clock: Callable[[], datetime] = utc_now
+
+    async def get_dupont_facts(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        financial_scope: FinancialScope,
+    ) -> DuPontSelection:
+        if financial_scope.as_of > self.clock():
+            raise SecFilingContentError(SecSourceErrorCode.SNAPSHOT_NOT_VISIBLE)
+        filing = await self.filing_repository.get_canonical_filing(
+            financial_scope.accession,
+            as_of=financial_scope.as_of,
+        )
+        if (
+            filing.cik != financial_scope.cik
+            or filing.form.value != "10-K"
+            or financial_scope.form.value != "10-K"
+            or filing.report_date != financial_scope.report_period
+        ):
+            return DuPontSelection(issues=("annual_scope_required",))
+        candidates = await self.repository.dupont_candidates(
+            scope,
+            knowledge_base_ids=knowledge_base_ids,
+            financial_scope=financial_scope,
+        )
+        return select_dupont_facts(financial_scope, candidates)
 
     async def sync(
         self,

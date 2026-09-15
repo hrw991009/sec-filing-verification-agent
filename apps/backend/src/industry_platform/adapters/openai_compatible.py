@@ -5,13 +5,14 @@ from __future__ import annotations
 import asyncio
 import base64
 import ipaddress
+import json
 import math
 import re
 from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Final, cast
+from typing import Final, Literal, cast
 from urllib.parse import urlsplit
 
 import httpx2
@@ -103,6 +104,7 @@ class OpenAICompatibleModelRoute:
     output_micro_usd_per_million: int
     supports_image_input: bool = False
     reasoning_enabled: bool | None = None
+    structured_output_mode: Literal["json_schema", "json_object"] = "json_schema"
     temperature: float | None = None
     seed: int | None = None
 
@@ -124,6 +126,8 @@ class OpenAICompatibleModelRoute:
             _require_price(value, field_name=field_name)
         if not isinstance(self.supports_image_input, bool):
             raise ValueError("Model image-input capability is invalid")
+        if self.structured_output_mode not in {"json_schema", "json_object"}:
+            raise ValueError("Model structured output mode is invalid")
         if self.reasoning_enabled is not None and not isinstance(self.reasoning_enabled, bool):
             raise ValueError("Model reasoning control is invalid")
         if self.temperature is not None and (
@@ -694,14 +698,33 @@ class OpenAICompatibleModelProvider:
             body["stream_options"] = {"include_usage": True}
         if request.response_schema is not None:
             _validate_supported_schema(request.response_schema)
-            body["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "agent_response",
-                    "strict": True,
-                    "schema": _thaw_json_value(request.response_schema),
-                },
-            }
+            schema = _thaw_json_value(request.response_schema)
+            if route.structured_output_mode == "json_object":
+                # Some compatible gateways collapse anyOf to its first branch.
+                # Explicit JSON mode changes transport only: the full schema is
+                # still supplied and validated locally before any Action executes.
+                # ContextCompiler already budgets the logical response schema.
+                schema_instruction = "\nJSON:\n" + json.dumps(
+                    schema, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+                )
+                if (
+                    messages
+                    and messages[0]["role"] == "system"
+                    and isinstance(messages[0]["content"], str)
+                ):
+                    messages[0]["content"] += schema_instruction
+                else:
+                    messages.insert(0, {"role": "system", "content": schema_instruction})
+                body["response_format"] = {"type": "json_object"}
+            else:
+                body["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "agent_response",
+                        "strict": True,
+                        "schema": schema,
+                    },
+                }
         if route.reasoning_enabled is not None:
             body["reasoning"] = {"enabled": route.reasoning_enabled}
         if route.temperature is not None:

@@ -13,7 +13,7 @@ from uuid import UUID
 
 if TYPE_CHECKING:
     from industry_platform.workflows.research.contracts import ResearchL3RunCommand
-    from industry_platform.workflows.research.runtime import ResearchL3Runtime
+    from industry_platform.workflows.research.runtime import FinancialResearchWorkflow
 
 from industry_platform.modules.agent_runtime.context import (
     ContextBudgetExceededError,
@@ -25,6 +25,7 @@ from industry_platform.modules.agent_runtime.domain import (
     AGENT_RUNTIME_SCHEMA_VERSION,
     AgentRun,
     AgentRunStatus,
+    AgentRunType,
     AgentStep,
     AgentStepKind,
     AgentStepStatus,
@@ -69,6 +70,7 @@ from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
     decode_tool_loop_decision,
     tool_loop_decision_response_schema,
 )
+from industry_platform.modules.skills.registry import SKILL_TOOL_NAME, InstructionSkillCatalog
 from industry_platform.modules.tools.domain import (
     ApprovalRequest,
     ToolAction,
@@ -179,6 +181,7 @@ class ToolL1Runtime(RuntimeTransitionSupport):
         tool_executor: ToolExecutor[ToolCall, TrustedRuntimeContext, ToolExecutionResult],
         event_committer: AgentEventCommitter,
         cancellation_probe: CancellationProbe,
+        instruction_skills: InstructionSkillCatalog | None = None,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         self._context_compiler = context_compiler
@@ -186,6 +189,7 @@ class ToolL1Runtime(RuntimeTransitionSupport):
         self._model_provider = model_provider
         self._tool_registry = tool_registry
         self._tool_executor = tool_executor
+        self._instruction_skills = instruction_skills
         super().__init__(
             event_committer=event_committer,
             cancellation_probe=cancellation_probe,
@@ -2009,6 +2013,7 @@ class ToolL2Runtime(ToolL1Runtime):
         max_additional_tool_calls: int | None = None,
         system_instructions: str | None = None,
         required_tool_names: tuple[str, ...] = (),
+        required_tool_counts: Mapping[str, int] | None = None,
     ) -> AsyncGenerator[AgentEvent]:
         """Advance the one shared bounded loop, leaving finalization to its caller."""
 
@@ -2037,6 +2042,12 @@ class ToolL2Runtime(ToolL1Runtime):
         initial_observation_count = len(outcome.observations)
         if not set(required_tool_names).issubset(item.name for item in definitions):
             raise ValueError("Required Tools exceed the trusted Tool surface")
+        counts = dict(required_tool_counts or {})
+        if not set(counts).issubset(required_tool_names) or any(
+            isinstance(value, bool) or not 1 <= value <= command.policy.tool_call_limit
+            for value in counts.values()
+        ):
+            raise ValueError("Required Tool counts exceed the bounded workflow")
         required_signature = (
             None
             if required_action is None
@@ -2069,12 +2080,16 @@ class ToolL2Runtime(ToolL1Runtime):
                 for item in definitions
                 if item.side_effect_class is ToolSideEffectClass.READ_ONLY
             }
-            completed_tools = {
+            completed_tools = [
                 item.tool_name
                 for item in outcome.observations
                 if item.tool_name not in source_required or item.locator.get("sources")
-            }
-            pending_tools = [name for name in required_tool_names if name not in completed_tools]
+            ]
+            pending_tools = [
+                name
+                for name in required_tool_names
+                if completed_tools.count(name) < counts.get(name, 1)
+            ]
             active_definitions = (
                 tuple(
                     item for item in definitions if pending_tools and item.name == pending_tools[0]
@@ -2088,6 +2103,12 @@ class ToolL2Runtime(ToolL1Runtime):
                 )
                 if required_tool_names
                 else decision_schema
+            )
+            instruction_skills = (
+                self._instruction_skills
+                if run.run_type is AgentRunType.TOOL_LOOP
+                and any(item.name == SKILL_TOOL_NAME for item in active_definitions)
+                else None
             )
             decision_outcome = _ModelStepOutcome(run=run, state=state)
             async for event in self._execute_model_step(
@@ -2103,12 +2124,21 @@ class ToolL2Runtime(ToolL1Runtime):
                         if system_instructions is None
                         else system_instructions
                     )
+                    + (
+                        instruction_skills.context(tuple(outcome.observations))
+                        if instruction_skills is not None
+                        else ""
+                    )
                     + "\nHost execution progress: "
                     + json.dumps(
                         {
                             "remaining_tool_calls": command.policy.tool_call_limit
                             - len(outcome.observations),
                             "pending_required_tools": pending_tools,
+                            "remaining_required_calls": {
+                                name: max(0, counts.get(name, 1) - completed_tools.count(name))
+                                for name in required_tool_names
+                            },
                         },
                         separators=(",", ":"),
                     )
@@ -2116,7 +2146,11 @@ class ToolL2Runtime(ToolL1Runtime):
                 ),
                 max_output_tokens=command.policy.max_decision_output_tokens,
                 response_schema=active_schema,
-                observations=tuple(outcome.observations),
+                observations=(
+                    instruction_skills.model_observations(tuple(outcome.observations))
+                    if instruction_skills is not None
+                    else tuple(outcome.observations)
+                ),
                 outcome=decision_outcome,
             ):
                 yield event
@@ -3198,7 +3232,7 @@ class UnifiedAgentRuntime:
         direct_answer_runtime: object,
         tool_l1_runtime: ToolL1Runtime | None = None,
         tool_l2_runtime: ToolL2Runtime | None = None,
-        research_l3_runtime: ResearchL3Runtime | None = None,
+        financial_research_workflow: FinancialResearchWorkflow | None = None,
     ) -> None:
         from industry_platform.modules.agent_runtime.runtime import DirectAnswerRuntime
 
@@ -3207,7 +3241,7 @@ class UnifiedAgentRuntime:
         self._direct_answer_runtime = direct_answer_runtime
         self._tool_l1_runtime = tool_l1_runtime
         self._tool_l2_runtime = tool_l2_runtime
-        self._research_l3_runtime = research_l3_runtime
+        self._financial_research_workflow = financial_research_workflow
 
     async def run(
         self,
@@ -3225,8 +3259,11 @@ class UnifiedAgentRuntime:
             selected = self._tool_l1_runtime.run(command, runtime_context)
         elif isinstance(command, ToolL2RunCommand) and self._tool_l2_runtime is not None:
             selected = self._tool_l2_runtime.run(command, runtime_context)
-        elif isinstance(command, ResearchL3RunCommand) and self._research_l3_runtime is not None:
-            selected = self._research_l3_runtime.run(command, runtime_context)
+        elif (
+            isinstance(command, ResearchL3RunCommand)
+            and self._financial_research_workflow is not None
+        ):
+            selected = self._financial_research_workflow.run(command, runtime_context)
         else:
             raise ValueError("Unified Runtime has no implementation for this command")
         async for event in selected:

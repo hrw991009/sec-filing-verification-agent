@@ -116,8 +116,8 @@ async def start_research(
     receipt = await service.start(
         _workspace_scope(principal, workspace_id),
         StartResearch(
-            skill_name=payload.skill_name,
-            skill_version=payload.skill_version,
+            task_name=payload.task_name,
+            task_version=payload.task_version,
             trace_id=TraceId(get_trace_id(request)),
             industry_id=payload.industry_id,
             search_mode=TurnSearchMode(payload.mode),

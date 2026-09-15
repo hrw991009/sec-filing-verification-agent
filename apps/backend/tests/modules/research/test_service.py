@@ -368,13 +368,13 @@ async def test_viewer_cannot_submit_research() -> None:
 
 
 @pytest.mark.asyncio
-async def test_skill_persists_version_and_preserves_scope_budget_and_idempotency() -> None:
+async def test_task_persists_version_and_preserves_scope_budget_and_idempotency() -> None:
     starter = RecordingStarter()
     service = ResearchSubmissionService(starter, clock=lambda: NOW)
-    selected = replace(local_request(), skill_name="sec.filing-verification", skill_version="v1")
+    selected = replace(local_request(), task_name="sec.filing-verification", task_version="v1")
     await service.start(WorkspaceScope(WORKSPACE_ID, USER_ID, "member"), selected)
     command = starter.commands[0]
-    assert command.harness_version == "skill:sec.filing-verification:v1"
+    assert command.harness_version == "research-task:sec.filing-verification:v1"
     assert command.research_brief == selected.brief
     assert command.knowledge_base_ids == selected.knowledge_base_ids
     assert command.idempotency_key == selected.idempotency_key
@@ -385,11 +385,18 @@ async def test_skill_persists_version_and_preserves_scope_budget_and_idempotency
     )
 
 
-def test_skill_rejects_web_scope_and_incomplete_version() -> None:
+def test_dupont_pins_required_tools_and_rejects_unrelated_requirements() -> None:
+    selected = replace(local_request(), task_name="sec.dupont-analysis", task_version="v1")
+    assert selected.brief.required_tool_names == ("sec.get_xbrl_facts", "finance.calculate")
+    with pytest.raises(ValueError, match="only retrieval"):
+        replace(selected, brief=replace(selected.brief, required_tool_names=("knowledge_search",)))
+
+
+def test_task_rejects_web_scope_and_incomplete_version() -> None:
     with pytest.raises(ValueError, match="local financial scope"):
-        replace(request(), skill_name="sec.filing-verification", skill_version="v1")
+        replace(request(), task_name="sec.filing-verification", task_version="v1")
     with pytest.raises(ValueError, match="exact name and version"):
-        replace(local_request(), skill_name="sec.filing-verification")
+        replace(local_request(), task_name="sec.filing-verification")
 
 
 @pytest.mark.parametrize(

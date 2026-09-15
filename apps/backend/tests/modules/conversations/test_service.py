@@ -218,9 +218,9 @@ async def test_submission_materializes_web_mode_as_a_bounded_tool_run() -> None:
     prepared = writer.prepared[0]
     assert prepared.run.run_type.value == "tool_loop"
     assert prepared.run.runtime_version == "agent-runtime-v1"
-    assert prepared.run.harness_version == "harness-v1"
+    assert prepared.run.harness_version == "conversation-l2-skills-v1"
     assert prepared.run.budget.max_steps == 8
-    assert prepared.run.budget.max_total_tokens == 8_192
+    assert prepared.run.budget.max_total_tokens == 32_768
     assert prepared.search_mode is TurnSearchMode.WEB
     assert prepared.industry_id == INDUSTRY_ID
 

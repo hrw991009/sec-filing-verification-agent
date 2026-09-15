@@ -147,6 +147,11 @@ def aggregate_fact() -> SecXbrlFact:
 
 @dataclass(slots=True)
 class MemoryXbrlRepository:
+    async def dupont_candidates(
+        self, scope: WorkspaceScope, **values: object
+    ) -> tuple[SecXbrlFact, ...]:
+        return self.query_result.facts
+
     query_result: SecXbrlFactResult = field(
         default_factory=lambda: SecXbrlFactResult(
             SecFilingContentStatus.OK,

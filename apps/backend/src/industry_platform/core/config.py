@@ -8,7 +8,7 @@ from binascii import Error as Base64DecodeError
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
@@ -213,6 +213,7 @@ class AgentModelRouteSettings(BaseModel):
     output_micro_usd_per_million: int = Field(ge=0, le=1_000_000_000_000)
     supports_image_input: bool = False
     reasoning_enabled: bool | None = None
+    structured_output_mode: Literal["json_schema", "json_object"] = "json_schema"
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
 

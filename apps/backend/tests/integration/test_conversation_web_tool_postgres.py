@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import func, select
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
@@ -126,7 +127,7 @@ from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
-from industry_platform.workflows.research.runtime import ResearchL3Runtime
+from industry_platform.workflows.research.runtime import FinancialResearchWorkflow
 
 from .postgres import PostgresProbe
 
@@ -244,8 +245,10 @@ def direct_policy() -> DirectAnswerRuntimePolicy:
     )
 
 
+@pytest.mark.parametrize("harness_version", ["harness-v1", "conversation-l2-skills-v1"])
 def test_web_turn_executes_through_production_loader_unified_runtime_and_trace(
     migrated_postgres_probe: PostgresProbe,
+    harness_version: str,
 ) -> None:
     async def exercise() -> None:
         now = datetime.now(UTC)
@@ -326,7 +329,7 @@ def test_web_turn_executes_through_production_loader_unified_runtime_and_trace(
                         deadline=now + timedelta(minutes=5),
                     ),
                     runtime_version=TOOL_L2_RUNTIME_VERSION,
-                    harness_version="harness-v1",
+                    harness_version=harness_version,
                     idempotency_key=f"production-web-{user_id}",
                     question="Find a public transport policy update.",
                     search_mode=TurnSearchMode.WEB,
@@ -363,6 +366,7 @@ def test_web_turn_executes_through_production_loader_unified_runtime_and_trace(
                     session_factory,
                     direct_policy(),
                     tool_policy=tool_policy,
+                    l2_skill_policy=tool_policy,
                 ),
                 runtime=runtime,
                 terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),
@@ -682,7 +686,7 @@ def test_research_l3_executes_one_postgres_run_into_an_uncertain_draft(
                 SqlAlchemyEvidenceRepository(session_factory),
                 clock=clock,
             )
-            research_runtime = ResearchL3Runtime(
+            research_runtime = FinancialResearchWorkflow(
                 workflow_store=SqlAlchemyResearchQueryRepository(session_factory),
                 evidence_service=evidence_service,
                 context_compiler=compiler,
@@ -713,7 +717,7 @@ def test_research_l3_executes_one_postgres_run_into_an_uncertain_draft(
                     cancellation_probe=control,
                     clock=clock,
                 ),
-                research_l3_runtime=research_runtime,
+                financial_research_workflow=research_runtime,
             )
             result = await DirectAnswerRunExecutionService(
                 loader=SqlAlchemyDirectAnswerRunLoader(

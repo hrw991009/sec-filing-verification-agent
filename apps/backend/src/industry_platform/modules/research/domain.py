@@ -569,6 +569,7 @@ class ResearchRunView:
     input_tokens_used: int
     output_tokens_used: int
     cost_micro_usd: int
+    harness_version: str = RESEARCH_HARNESS_VERSION
 
     def __post_init__(self) -> None:
         if self.research_run.research_run_id != self.brief.research_run_id:

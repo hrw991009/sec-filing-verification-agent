@@ -665,13 +665,14 @@ class ContextCompilerV0:
         self,
         observation: ToolObservationContextSource,
     ) -> ModelMessage:
-        payload = dict(observation.to_model_visible_envelope())
+        payload = self._tool_observation_payload(observation)
         sources = observation.locator.get("sources", ())
         labels = (
             [f"[T{observation.ordinal}S{index}]" for index in range(1, len(sources) + 1)]
             if isinstance(sources, list | tuple)
             else []
         )
+
         return ModelMessage(
             role=ModelRole.USER,
             content=(
@@ -686,6 +687,11 @@ class ContextCompilerV0:
                 )
             ),
         )
+
+    def _tool_observation_payload(
+        self, observation: ToolObservationContextSource
+    ) -> dict[str, object]:
+        return dict(observation.to_model_visible_envelope())
 
     def _short_term_memory_message(
         self,
@@ -791,6 +797,70 @@ class ContextCompilerV1(ContextCompilerV0):
 class FinancialContextCompilerV1(ContextCompilerV1):
     """Apply Financial Scope gates while preserving the existing Context pipeline."""
 
+    def _tool_observation_payload(
+        self, observation: ToolObservationContextSource
+    ) -> dict[str, object]:
+        payload = super()._tool_observation_payload(observation)
+        if observation.tool_name not in {"sec.get_xbrl_facts", "finance.calculate"}:
+            return payload
+        try:
+            document = json.loads(observation.model_text)
+        except (ValueError, RecursionError):
+            return payload
+        if not isinstance(document, dict) or not (
+            (observation.tool_name == "sec.get_xbrl_facts" and document.get("purpose") == "dupont")
+            or (
+                observation.tool_name == "finance.calculate"
+                and document.get("operator") == "dupont"
+            )
+        ):
+            return payload
+        # Keep immutable observation/hash/lineage in storage. The model needs the
+        # selected operands and results, not repeated source metadata for every cell.
+        # Request hashes bind these exact projected bytes; projection identity makes
+        # the distinction from the original observation content hash explicit.
+        content = {
+            key: document[key]
+            for key in (
+                "status",
+                "error_code",
+                "financial_scope",
+                "purpose",
+                "dupont_periods",
+                "issues",
+                "operator",
+                "operands",
+                "components",
+                "result",
+                "formula",
+                "unit",
+                "scale",
+                "decimal_places",
+                "reconciliation",
+            )
+            if key in document
+        }
+        resolved = document.get("resolved_operands")
+        if isinstance(resolved, list) and resolved and isinstance(resolved[0], dict):
+            content["calculation_period"] = {
+                key: resolved[0].get(key) for key in ("start_date", "end_date")
+            }
+        facts = document.get("facts")
+        if isinstance(facts, list):
+            content["input_facts"] = [
+                {
+                    key: fact.get(key)
+                    for key in ("id", "concept", "unit", "scale", "period", "accession")
+                }
+                for fact in facts
+                if isinstance(fact, dict)
+            ]
+        payload["content_projection"] = "dupont-model-context-v1"
+        payload["content"] = json.dumps(
+            content, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+        )
+        return payload
+
     def compile(self, compilation: ContextCompilationInput) -> CompiledContext:
         if compilation.compiler_version == CONTEXT_COMPILER_V1:
             return super().compile(compilation)
@@ -851,6 +921,22 @@ class FinancialContextCompilerV1(ContextCompilerV1):
         document: Mapping[str, object],
         scope: FinancialScope,
     ) -> ContextDecisionReason:
+        dupont_fact_ids: set[str] | None = None
+        if document.get("purpose") == "dupont":
+            from industry_platform.modules.disclosures.tool import SecGetXbrlFactsOutput
+
+            try:
+                output = SecGetXbrlFactsOutput.model_validate(document)
+                dupont_fact_ids = {
+                    operand.source_fact_id
+                    for period in output.dupont_periods
+                    for operand in period.operands
+                    if operand.source_fact_id is not None
+                }
+                if dupont_fact_ids != {str(fact.id) for fact in output.facts}:
+                    return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
+            except ValueError:
+                return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
         facts = document.get("facts")
         if not isinstance(facts, list):
             return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
@@ -859,12 +945,15 @@ class FinancialContextCompilerV1(ContextCompilerV1):
                 return ContextDecisionReason.EXCLUDED_UNSUPPORTED_FINANCIAL_SOURCE
             if (
                 fact.get("cik") != scope.cik
-                or fact.get("accession") != scope.accession
+                or (dupont_fact_ids is None and fact.get("accession") != scope.accession)
                 or fact.get("form") != scope.form.value
             ):
                 return ContextDecisionReason.EXCLUDED_FINANCIAL_SCOPE_MISMATCH
             unit = fact.get("unit")
-            if unit is not None and unit != scope.unit:
+            allowed_units = {scope.unit}
+            if dupont_fact_ids is not None:
+                allowed_units.add(f"iso4217:{scope.unit}")
+            if unit is not None and unit not in allowed_units:
                 return ContextDecisionReason.EXCLUDED_UNIT_MISMATCH
             source_available_at = fact.get("source_available_at")
             if not isinstance(source_available_at, str):

@@ -53,4 +53,5 @@ class FinancialOperandRepository(Protocol):
         knowledge_base_ids: tuple[UUID, ...],
         financial_scope: FinancialScope,
         references: tuple[FinancialOperandReference, ...],
+        dupont: bool = False,
     ) -> FinancialOperandResolution: ...

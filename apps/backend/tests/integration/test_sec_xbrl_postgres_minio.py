@@ -149,11 +149,38 @@ def _companyfacts_source(now: datetime) -> SecXbrlSourceSnapshot:
     )
 
 
+def _dupont_instance() -> bytes:
+    contexts: list[str] = []
+    facts: list[str] = []
+    for year in (2022, 2023):
+        contexts.append(
+            f'<context id="Y{year}"><entity><identifier scheme="https://www.sec.gov/CIK">'
+            f"{CIK}</identifier></entity><period><startDate>{year - 1}-10-01</startDate>"
+            f"<endDate>{year}-09-30</endDate></period></context>"
+        )
+        for concept, value in (("Revenues", 1000), ("NetIncomeLoss", 100)):
+            facts.append(
+                f'<us-gaap:{concept} contextRef="Y{year}" unitRef="USD">{value}</us-gaap:{concept}>'
+            )
+    for year in (2021, 2022, 2023):
+        contexts.append(
+            f'<context id="B{year}"><entity><identifier scheme="https://www.sec.gov/CIK">'
+            f"{CIK}</identifier></entity><period><instant>{year}-09-30</instant></period></context>"
+        )
+        for concept, value in (("Assets", 600), ("StockholdersEquity", 250)):
+            facts.append(
+                f'<us-gaap:{concept} contextRef="B{year}" unitRef="USD">{value}</us-gaap:{concept}>'
+            )
+    return _raw_xbrl_body().replace(b"</xbrl>", ("".join(contexts + facts) + "</xbrl>").encode())
+
+
+@pytest.mark.parametrize("include_dupont", [False, True])
 @pytest.mark.filterwarnings(
     r"ignore:datetime\.datetime\.utcnow\(\) is deprecated.*:DeprecationWarning:minio\.datatypes"
 )
 def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
     migrated_postgres_probe: PostgresProbe,
+    include_dupont: bool,
 ) -> None:
     if os.getenv(MINIO_TESTS_REQUIRED) != "1":
         pytest.skip(f"Set {MINIO_TESTS_REQUIRED}=1 to run SEC XBRL integration tests")
@@ -244,7 +271,7 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
             canonical = await content_repository.get_canonical_filing(ACCESSION)
             frozen_archive = archive(canonical, now)
             original_instance = frozen_archive.document(SecFilingDocumentKind.XBRL_INSTANCE)
-            raw_body = _raw_xbrl_body()
+            raw_body = _dupont_instance() if include_dupont else _raw_xbrl_body()
             raw_archive = replace(
                 frozen_archive,
                 documents=tuple(
@@ -314,7 +341,9 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
                 knowledge_base_id=knowledge_base.id,
             )
             assert first == repeated
-            assert (first.source_count, first.context_count, first.fact_count) == (3, 1, 3)
+            assert (first.source_count, first.context_count, first.fact_count) == (
+                (3, 6, 13) if include_dupont else (3, 1, 3)
+            )
 
             aggregate = await service.get_imported_facts(
                 scope,
@@ -363,7 +392,7 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
                     source_kinds=(SecXbrlSourceKind.RAW_INSTANCE,),
                 ),
             )
-            assert len(raw_facts.facts) == 2
+            assert len(raw_facts.facts) == (12 if include_dupont else 2)
             operand_repository = SqlAlchemyFinancialOperandRepository(session_factory)
             financial_scope = FinancialScope(
                 cik=CIK,
@@ -386,6 +415,7 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
                     value=fact.value,
                 )
                 for fact in raw_facts.facts
+                if fact.concept in {"Revenue", "CustomerContractAsset"}
             )
             resolved = await operand_repository.resolve(
                 scope,
@@ -399,6 +429,46 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
                 "CustomerContractAsset",
             }
             assert all(item.context_id == "D2023" for item in resolved.operands)
+
+            dupont = await service.get_dupont_facts(
+                scope, knowledge_base_ids=(knowledge_base.id,), financial_scope=financial_scope
+            )
+            if include_dupont:
+                assert len(dupont.periods) == 2
+                assert len(dupont.facts) == 10
+                for period in dupont.periods:
+                    dupont_references = tuple(
+                        FinancialOperandReference(
+                            evidence_ref=sec_xbrl_evidence_ref(
+                                workspace_id=WORKSPACE_ID,
+                                fact_id=fact.id,
+                                as_of=now,
+                                authorization_role=scope.role,
+                            ),
+                            source_fact_id=fact.id,
+                            value=fact.value,
+                        )
+                        for fact in period.operands
+                    )
+                    calculated = await operand_repository.resolve(
+                        scope,
+                        knowledge_base_ids=(knowledge_base.id,),
+                        financial_scope=financial_scope,
+                        references=dupont_references,
+                        dupont=True,
+                    )
+                    assert calculated.status is FinancialOperandResolutionStatus.OK
+                    assert len(calculated.operands) == 6
+                blocked = await operand_repository.resolve(
+                    scope,
+                    knowledge_base_ids=(uuid4(),),
+                    financial_scope=financial_scope,
+                    references=dupont_references,
+                    dupont=True,
+                )
+                assert blocked.status is FinancialOperandResolutionStatus.NO_RESULT
+            else:
+                assert dupont.issues
 
             unauthorized_operands = await operand_repository.resolve(
                 WorkspaceScope(uuid4(), USER_ID, "owner"),
@@ -444,7 +514,7 @@ def test_sec_xbrl_sync_is_idempotent_authorized_and_source_typed(
                         )
                     )
                 ).all()
-            assert counts == [3, 1, 3]
+            assert counts == ([3, 6, 13] if include_dupont else [3, 1, 3])
             assert len(aggregate_sources) == 1
             assert aggregate_sources[0].object_key is not None
             owned_keys.update(snapshot.object_key for snapshot in snapshots)

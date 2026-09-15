@@ -160,8 +160,8 @@ from industry_platform.workflows.research.contracts import (
     ResearchResumeSnapshot,
 )
 from industry_platform.workflows.research.runtime import (
+    FinancialResearchWorkflow,
     ResearchHardStopError,
-    ResearchL3Runtime,
 )
 
 NOW = datetime(2026, 8, 21, 8, 0, tzinfo=UTC)
@@ -1049,7 +1049,7 @@ def build_runtime(
     )
     registry = ToolRegistry((tool,))
     executor = RegistryToolExecutor(registry, clock=clock)
-    research_runtime = ResearchL3Runtime(
+    research_runtime = FinancialResearchWorkflow(
         workflow_store=cast(ResearchWorkflowStore, workflow_store),
         evidence_service=cast(EvidenceUseCase, evidence_service),
         context_compiler=compiler,
@@ -1072,7 +1072,7 @@ def build_runtime(
     return (
         UnifiedAgentRuntime(
             direct_answer_runtime=direct_runtime,
-            research_l3_runtime=research_runtime,
+            financial_research_workflow=research_runtime,
         ),
         tool,
         committer,
@@ -1213,7 +1213,7 @@ def build_sec_runtime(
     selected_verifier = verification_service or RecordingVerificationService(
         first_status=VerificationStatus.VERIFIED
     )
-    research_runtime = ResearchL3Runtime(
+    research_runtime = FinancialResearchWorkflow(
         workflow_store=cast(ResearchWorkflowStore, workflow_store),
         evidence_service=cast(EvidenceUseCase, evidence_service),
         context_compiler=compiler,
@@ -1240,7 +1240,7 @@ def build_sec_runtime(
     return (
         UnifiedAgentRuntime(
             direct_answer_runtime=direct_runtime,
-            research_l3_runtime=research_runtime,
+            financial_research_workflow=research_runtime,
         ),
         selected_knowledge,
         selected_operands,
@@ -1372,8 +1372,8 @@ async def test_f2_runs_dense_and_calculator_through_harness_and_unified_runtime(
 
 
 @pytest.mark.asyncio
-async def test_verification_skill_refuses_execution_without_durable_dependencies() -> None:
-    from industry_platform.modules.skills.registry import FILING_VERIFICATION
+async def test_verification_task_refuses_execution_without_durable_dependencies() -> None:
+    from industry_platform.modules.research.tasks import FILING_VERIFICATION
 
     budget = RunBudget(
         schema_version=1,
@@ -1395,8 +1395,9 @@ async def test_verification_skill_refuses_execution_without_durable_dependencies
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_skill", [False, True])
-async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint(use_skill: bool) -> None:
+async def test_financial_research_rejects_instruction_skill_tool_surface() -> None:
+    from industry_platform.modules.tools.domain import ToolReference
+
     budget = RunBudget(
         schema_version=1,
         max_steps=20,
@@ -1405,14 +1406,48 @@ async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint(use_ski
         deadline=NOW + timedelta(minutes=10),
     )
     command = sec_research_command(budget)
-    if use_skill:
-        from industry_platform.modules.disclosures.profile import create_sec_l5_profile
-        from industry_platform.modules.skills.policy import bind_skill_policy
-        from industry_platform.modules.skills.registry import FILING_VERIFICATION
+    command = replace(
+        command,
+        loop_command=replace(
+            command.loop_command,
+            policy=replace(
+                command.loop_command.policy,
+                available_tools=(
+                    *command.loop_command.policy.available_tools,
+                    ToolReference("skill.read", "v1"),
+                ),
+            ),
+        ),
+    )
+    runtime, _knowledge, _calculator = build_sec_runtime(
+        QueueModelProvider(()), RecordingWorkflowStore(), SecEvidenceService()
+    )
+    with pytest.raises(ValueError, match="does not load instruction skills"):
+        _ = [event async for event in runtime.run(command, sec_runtime_context(budget))]
 
-        skill_run = replace(command.run, harness_version=FILING_VERIFICATION.harness_version)
-        policy = bind_skill_policy(
-            FILING_VERIFICATION,
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task_name", [None, "sec.filing-verification", "sec.dupont-analysis"])
+async def test_l4_ambiguous_financial_scope_pauses_after_plan_checkpoint(
+    task_name: str | None,
+) -> None:
+    budget = RunBudget(
+        schema_version=1,
+        max_steps=20,
+        max_total_tokens=5_000,
+        max_cost_micro_usd=10_000,
+        deadline=NOW + timedelta(minutes=10),
+    )
+    command = sec_research_command(budget)
+    if task_name is not None:
+        from industry_platform.modules.disclosures.profile import create_sec_l5_profile
+        from industry_platform.modules.research.task_policy import bind_research_task_policy
+        from industry_platform.modules.research.tasks import RESEARCH_TASKS
+
+        definition = RESEARCH_TASKS.resolve(task_name, "v1")
+        skill_run = replace(command.run, harness_version=definition.harness_version)
+        policy = bind_research_task_policy(
+            definition,
             replace(
                 create_sec_l5_profile(model=command.loop_command.policy.model).to_runtime_policy(),
                 max_tool_calls=command.loop_command.policy.max_tool_calls,

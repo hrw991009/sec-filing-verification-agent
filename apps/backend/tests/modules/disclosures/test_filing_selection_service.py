@@ -68,6 +68,17 @@ def observation(accession: str, form: SecFilingForm, accepted_at: datetime) -> S
 
 
 def test_filing_observation_accepts_utc_evening_rollover_but_rejects_later_acceptance() -> None:
+    # Official MSFT 2020 10-K: UTC rolls over while Eastern filing day does not.
+    microsoft = SecFilingObservation(
+        cik="0000789019",
+        accession="0001564590-20-034944",
+        form=SecFilingForm.TEN_K,
+        report_date=date(2020, 6, 30),
+        filed_date=date(2020, 7, 30),
+        accepted_at=datetime(2020, 7, 31, 0, 44, 46, tzinfo=UTC),
+        primary_document="msft-10k_20200630.htm",
+    )
+    assert microsoft.accepted_at.date() != microsoft.filed_date
     rollover = SecFilingObservation(
         cik=CIK,
         accession="0000320193-23-000106",
@@ -86,7 +97,7 @@ def test_filing_observation_accepts_utc_evening_rollover_but_rejects_later_accep
             form=SecFilingForm.TEN_K,
             report_date=date(2023, 9, 30),
             filed_date=date(2023, 11, 3),
-            accepted_at=datetime(2023, 11, 4, 1, tzinfo=UTC),
+            accepted_at=datetime(2023, 11, 4, 12, tzinfo=UTC),
             primary_document="aapl-20230930-late.htm",
         )
 

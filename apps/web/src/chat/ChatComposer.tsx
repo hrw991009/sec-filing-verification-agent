@@ -134,7 +134,7 @@ export function ChatComposer({
               value={searchMode}
             >
               <option value="none">直接回答</option>
-              <option value="web">Web 搜索 · L2</option>
+              <option value="web">轻量助手 · Skills / Web · L2</option>
               <option disabled value="local">
                 知识库 · Day 5
               </option>
@@ -169,7 +169,7 @@ export function ChatComposer({
       </form>
       <p className="composer-note">
         {searchMode === "web"
-          ? `当前行业：${selectedIndustryName ?? "尚未选择"}。模型只能调用 allowlist 内的只读 Web Tool。`
+          ? `当前行业：${selectedIndustryName ?? "尚未选择"}。按需读取轻量技能；可解释提供的财报片段、检查口径或检索行业动态，不执行 Research 核验。`
           : "直接回答不调用 Tool。TXT、Markdown 与静态图片仍会经过服务端验证。"}
       </p>
     </div>
