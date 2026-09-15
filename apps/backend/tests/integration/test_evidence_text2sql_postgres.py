@@ -382,7 +382,7 @@ def test_text2sql_observation_becomes_query_run_evidence(
                     clock=clock,
                 ).run(command, runtime_context)
             ]
-            assert events[-1].event_type is AgentEventType.RUN_COMPLETED
+            assert events[-1].event_type is AgentEventType.RUN_COMPLETED, events[-1].payload
             async with session_factory() as session:
                 call = await session.scalar(
                     select(ToolCallRecord).where(ToolCallRecord.run_id == receipt.run_id)

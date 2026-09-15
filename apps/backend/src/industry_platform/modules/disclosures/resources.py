@@ -79,6 +79,7 @@ from industry_platform.modules.disclosures.bulk import (
     SecPostWatermarkSubmissionsPort,
 )
 from industry_platform.modules.disclosures.diff import SecFilingDiffService
+from industry_platform.modules.disclosures.dupont_preparation import DuPontPreparationService
 from industry_platform.modules.disclosures.filing_content_service import (
     SecFilingContentService,
     SecFilingImportService,
@@ -141,6 +142,14 @@ class DisclosureResources:
     diff_filings_tool: SecDiffFilingsTool
     monitor_service: SecMonitorApplicationService
     monitor_subscription_service: SecMonitorSubscriptionService
+
+    @property
+    def dupont_preparation_service(self) -> DuPontPreparationService:
+        return DuPontPreparationService(
+            self.filing_selection_service,
+            self.filing_import_service,
+            self.xbrl_service,
+        )
 
     @property
     def sec_source_tool_adapters(self) -> tuple[RegisteredToolAdapter, ...]:

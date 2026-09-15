@@ -34,6 +34,7 @@ class FinancialOperator(StrEnum):
     RATIO = "ratio"
     PERCENTAGE = "percentage"
     PERCENT_CHANGE = "percent_change"
+    DUPONT = "dupont"
 
 
 class FinancialRoundingMode(StrEnum):
@@ -344,6 +345,12 @@ def reconcile_financial_operands(
     """Compare authorized SEC operands before any arithmetic is attempted."""
 
     selected = tuple(operands)
+    if operator is FinancialOperator.DUPONT:
+        from industry_platform.modules.financial_verification.dupont import (
+            reconcile_dupont_operands,
+        )
+
+        return reconcile_dupont_operands(scope, selected)
     if not 2 <= len(selected) <= MAX_FINANCIAL_OPERANDS:
         raise ValueError("Financial reconciliation operands are invalid")
     references = tuple(item.evidence_ref for item in selected)
@@ -446,7 +453,13 @@ class FinancialCalculation:
         if not isinstance(self.operator, FinancialOperator):
             raise ValueError("Financial calculation operator is invalid")
         operands = tuple(self.operands)
-        expected_count = 2 if self.operator is not FinancialOperator.ADD else None
+        expected_count = (
+            6
+            if self.operator is FinancialOperator.DUPONT
+            else 2
+            if self.operator is not FinancialOperator.ADD
+            else None
+        )
         if not 2 <= len(operands) <= MAX_FINANCIAL_OPERANDS or (
             expected_count is not None and len(operands) != expected_count
         ):
@@ -465,6 +478,7 @@ class FinancialCalculationResult:
     unit: str
     scale: int
     evidence_refs: tuple[UUID, ...]
+    components: tuple[tuple[str, str], ...] = ()
 
 
 def calculate_financial_result(
@@ -475,6 +489,25 @@ def calculate_financial_result(
 
     values = tuple(item.value_in_scope(scope) for item in calculation.operands)
     rendered_values = tuple(format(item, "f") for item in values)
+    if calculation.operator is FinancialOperator.DUPONT:
+        from industry_platform.modules.financial_verification.dupont import (
+            calculate_dupont_components,
+        )
+
+        components = calculate_dupont_components(values, calculation.decimal_places)
+        revenue, income, assets0, assets1, equity0, equity1 = rendered_values
+        return FinancialCalculationResult(
+            value=components["roe_percent"],
+            formula=(
+                f"({income} / {revenue}) * "
+                f"({revenue} / (({assets0} + {assets1}) / 2)) * "
+                f"((({assets0} + {assets1}) / 2) / (({equity0} + {equity1}) / 2)) * 100"
+            ),
+            unit="PERCENT",
+            scale=0,
+            evidence_refs=tuple(item.evidence_ref for item in calculation.operands),
+            components=tuple(components.items()),
+        )
     with localcontext() as context:
         context.prec = 50
         if calculation.operator is FinancialOperator.ADD:

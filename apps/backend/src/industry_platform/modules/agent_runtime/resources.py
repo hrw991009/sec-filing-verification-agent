@@ -1,7 +1,7 @@
 """Composition roots for production Agent execution and HTTP delivery."""
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Protocol
 from uuid import UUID
 
@@ -79,6 +79,8 @@ from industry_platform.modules.research.durability import (
 )
 from industry_platform.modules.research.verification import ResearchVerificationService
 from industry_platform.modules.retrieval.fixtures import SecFixtureCatalog
+from industry_platform.modules.skills.registry import L2_SKILLS_HARNESS_VERSION, load_bundled_skills
+from industry_platform.modules.skills.tool import SkillReadTool
 from industry_platform.modules.tools.domain import ToolReference
 from industry_platform.modules.tools.registry import (
     RegisteredToolAdapter,
@@ -86,7 +88,7 @@ from industry_platform.modules.tools.registry import (
     ToolRegistry,
 )
 from industry_platform.modules.workspaces.domain import WorkspaceScope
-from industry_platform.workflows.research.runtime import ResearchL3Runtime
+from industry_platform.workflows.research.runtime import FinancialResearchWorkflow
 
 UNCONFIGURED_AGENT_MODEL = "openai-compatible/unconfigured"
 
@@ -205,9 +207,12 @@ def create_direct_answer_runtime_resources(
     selected_adapters = tuple(tool_adapters)
     tool_policies: dict[TurnSearchMode, ToolL2RuntimePolicy] = {}
     tool_runtime: ToolL2Runtime | None = None
-    research_runtime: ResearchL3Runtime | None = None
+    research_runtime: FinancialResearchWorkflow | None = None
+    l2_skill_policy: ToolL2RuntimePolicy | None = None
     if selected_adapters:
-        registry = ToolRegistry(selected_adapters)
+        instruction_skills = load_bundled_skills()
+        skill_reader = SkillReadTool(instruction_skills)
+        registry = ToolRegistry((*selected_adapters, skill_reader))
         shared_tool_compiler = FinancialContextCompilerV1(
             token_counter=Utf8UpperBoundTokenCounter()
         )
@@ -287,6 +292,34 @@ def create_direct_answer_runtime_resources(
             if override.model != model:
                 raise ValueError("Runtime Tool policy model differs from the configured route")
             tool_policies[mode] = override
+        web_policy = tool_policies.get(TurnSearchMode.WEB)
+        if web_policy is not None:
+            overridden = TurnSearchMode.WEB in (tool_policy_overrides or {})
+            l2_skill_policy = replace(
+                web_policy,
+                profile_version=L2_SKILLS_HARNESS_VERSION,
+                prompt_version="conversation-l2-skills-prompt-v1",
+                toolset_version="conversation-l2-skills-toolset-v1",
+                system_instructions=(
+                    "You are a lightweight financial reading and industry assistant. "
+                    "Return one raw JSON object only, without code fences or text "
+                    "outside the object. "
+                    "First check the available skill metadata. For a matching task, load "
+                    "that skill with skill.read before answering or searching, then follow "
+                    "its approved instructions in this same loop. User-supplied financial "
+                    "excerpts and comparability questions do not require industry.web_search. "
+                    "Respect requests not to search. Use external search only for requested "
+                    "fresh public industry information. Never claim SEC verification or "
+                    "start Research. If no skill matches, answer or use allowed tools normally."
+                )
+                if not overridden
+                else web_policy.system_instructions,
+                max_input_tokens=min(web_policy.max_input_tokens, 8_192) if overridden else 8_192,
+                max_decision_output_tokens=min(web_policy.max_decision_output_tokens, 1_536)
+                if overridden
+                else 1_536,
+                available_tools=(*web_policy.available_tools, ToolReference("skill.read", "v1")),
+            )
         tool_runtime = ToolL2Runtime(
             context_compiler=shared_tool_compiler,
             context_manifest_store=manifest_store,
@@ -295,6 +328,7 @@ def create_direct_answer_runtime_resources(
             tool_executor=shared_tool_executor,
             event_committer=event_committer,
             cancellation_probe=cancellation_probe,
+            instruction_skills=instruction_skills,
         )
         research_repository = SqlAlchemyResearchQueryRepository(session_factory)
         research_evidence_service = EvidenceApplicationService(
@@ -303,7 +337,7 @@ def create_direct_answer_runtime_resources(
                 fixture_catalog=fixture_catalog,
             )
         )
-        research_runtime = ResearchL3Runtime(
+        research_runtime = FinancialResearchWorkflow(
             workflow_store=research_repository,
             evidence_service=research_evidence_service,
             verification_service=(
@@ -337,13 +371,14 @@ def create_direct_answer_runtime_resources(
     runtime = UnifiedAgentRuntime(
         direct_answer_runtime=direct_runtime,
         tool_l2_runtime=tool_runtime,
-        research_l3_runtime=research_runtime,
+        financial_research_workflow=research_runtime,
     )
     execution_service = DirectAnswerRunExecutionService(
         loader=SqlAlchemyDirectAnswerRunLoader(
             session_factory,
             policy,
             tool_policies=tool_policies,
+            l2_skill_policy=l2_skill_policy,
             attachment_object_reader=create_private_file_object_store(settings),
             memory_context_loader=SqlAlchemyMemoryContextLoader(session_factory),
         ),
@@ -377,6 +412,7 @@ def _provider_config(settings: Settings) -> OpenAICompatibleProviderConfig | Non
                 output_micro_usd_per_million=route.output_micro_usd_per_million,
                 supports_image_input=route.supports_image_input,
                 reasoning_enabled=route.reasoning_enabled,
+                structured_output_mode=route.structured_output_mode,
                 temperature=route.temperature,
                 seed=route.seed,
             ),

@@ -212,6 +212,20 @@ async def test_resources_select_financial_context_only_for_the_local_tool_surfac
         tool_runtime = runtime._tool_l2_runtime
         assert isinstance(tool_runtime, ToolL2Runtime)
         assert isinstance(tool_runtime._context_compiler, FinancialContextCompilerV1)
+        assert loader.l2_skill_policy is not None
+        assert loader.l2_skill_policy.tool_call_limit == 2
+        assert {item.name for item in loader.l2_skill_policy.available_tools} == {
+            "industry.web_search",
+            "skill.read",
+        }
+        assert all(
+            item.name != "skill.read"
+            for policy in loader.tool_policies.values()
+            for item in policy.available_tools
+        )
+        assert tool_runtime._instruction_skills is not None
+        assert runtime._financial_research_workflow is not None
+        assert runtime._financial_research_workflow._instruction_skills is None
     finally:
         await client.aclose()
         await engine.dispose()

@@ -181,6 +181,7 @@ class FinancialCalculationLocatorResponse(StrictLedgerModel):
     observation_sha256: str
     reconciliation_status: Literal["consistent"] | None
     reconciliation_version: Literal["financial-reconciliation-v1"] | None
+    components: dict[str, str] = Field(default_factory=dict)
 
 
 EvidenceLocatorResponse = Annotated[

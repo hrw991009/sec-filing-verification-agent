@@ -196,6 +196,7 @@ class MinioSecXbrlSnapshotStore:
             source_available_at=source.source_available_at,
             body=body,
             filing_snapshot_id=source.snapshot_id,
+            adapter_version="sec-xbrl-raw-v2",
         )
 
 

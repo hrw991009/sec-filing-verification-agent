@@ -318,6 +318,8 @@ docs/                  架构、ADR、运行手册、评测与发布边界
 - [产品范围与能力边界](docs/product-scope.md)
 - [系统架构与 ADR 索引](docs/architecture.md)
 - [SEC Retrieval 与财务计算设计](docs/sec-retrieval-design.md)
+- [两年杜邦分析工作流](docs/sec-dupont-workflow.md)
+- [L2 轻量技能与固定金融 Research](docs/l2-instruction-skills.md)
 - [Verifier、Monitor 与恢复设计](docs/sec-verification-monitor-design.md)
 - [SEC Agent 评测设计](docs/sec-agent-evaluation.md)
 - [发布就绪合同](docs/release-readiness.md)

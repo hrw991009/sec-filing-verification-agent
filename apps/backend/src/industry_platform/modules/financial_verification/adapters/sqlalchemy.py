@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, select
@@ -55,10 +55,54 @@ class SqlAlchemyFinancialOperandRepository(FinancialOperandRepository):
         knowledge_base_ids: tuple[UUID, ...],
         financial_scope: FinancialScope,
         references: tuple[FinancialOperandReference, ...],
+        dupont: bool = False,
     ) -> FinancialOperandResolution:
         if not references or not knowledge_base_ids:
             return FinancialOperandResolution(FinancialOperandResolutionStatus.NO_RESULT)
+        if dupont:
+            from industry_platform.modules.disclosures.adapters.xbrl_sqlalchemy import (
+                SqlAlchemySecXbrlRepository,
+            )
+            from industry_platform.modules.disclosures.domain import (
+                SecDisclosurePersistenceError,
+                SecFilingContentError,
+            )
+            from industry_platform.modules.disclosures.dupont import select_dupont_facts
+
+            try:
+                candidates = await SqlAlchemySecXbrlRepository(
+                    self._session_factory,
+                    object_bucket="read-only-operand-selection",
+                ).dupont_candidates(
+                    scope, knowledge_base_ids=knowledge_base_ids, financial_scope=financial_scope
+                )
+            except SecDisclosurePersistenceError:
+                return FinancialOperandResolution(
+                    FinancialOperandResolutionStatus.DEPENDENCY_FAILED
+                )
+            except SecFilingContentError:
+                return FinancialOperandResolution(FinancialOperandResolutionStatus.NO_RESULT)
+            selection = select_dupont_facts(financial_scope, candidates)
+            selected_ids = tuple(item.source_fact_id for item in references)
+            if selection.issues or not any(
+                tuple(fact.id for fact in period.operands) == selected_ids
+                for period in selection.periods
+            ):
+                return FinancialOperandResolution(FinancialOperandResolutionStatus.NO_RESULT)
         fact_ids = tuple(dict.fromkeys(item.source_fact_id for item in references))
+        filing_predicates = (
+            (
+                SecFilingRecord.form == "10-K",
+                SecFilingRecord.report_date >= financial_scope.report_period - timedelta(days=380),
+                SecFilingRecord.report_date <= financial_scope.report_period,
+            )
+            if dupont
+            else (
+                SecXbrlFactRecord.accession == financial_scope.accession,
+                SecXbrlFactRecord.form == financial_scope.form.value,
+                SecFilingRecord.report_date == financial_scope.report_period,
+            )
+        )
         try:
             async with self._session_factory() as session:
                 rows = (
@@ -110,11 +154,10 @@ class SqlAlchemyFinancialOperandRepository(FinancialOperandRepository):
                             )
                             .where(
                                 SecXbrlFactRecord.id.in_(fact_ids),
-                                SecXbrlFactRecord.accession == financial_scope.accession,
-                                SecXbrlFactRecord.form == financial_scope.form.value,
+                                *filing_predicates,
                                 SecXbrlSourceRecord.cik == financial_scope.cik,
                                 SecXbrlSourceRecord.source_available_at <= financial_scope.as_of,
-                                SecFilingRecord.report_date == financial_scope.report_period,
+                                SecFilingRecord.public_available_at <= financial_scope.as_of,
                                 KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
                                 DocumentRecord.status == DocumentStatus.ACTIVE,
                                 DocumentRecord.active_version_id == DocumentVersionRecord.id,
@@ -175,6 +218,10 @@ def financial_evidence_operand_from_records(
     source: SecXbrlSourceRecord,
     filing: SecFilingRecord,
 ) -> FinancialEvidenceOperand:
+    from industry_platform.modules.disclosures.xbrl_numeric import supported_numeric_format
+
+    if not supported_numeric_format(fact.format):
+        raise ValueError("XBRL numeric transformation is not supported for calculation")
     return FinancialEvidenceOperand(
         evidence_ref=sec_xbrl_evidence_ref(
             workspace_id=workspace_id,

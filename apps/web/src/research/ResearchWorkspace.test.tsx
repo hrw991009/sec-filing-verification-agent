@@ -236,11 +236,13 @@ const researchMocks = vi.hoisted(() => ({
 const chatMocks = vi.hoisted(() => ({ cancelRun: vi.fn(), getAgentTrace: vi.fn() }));
 const evidenceMocks = vi.hoisted(() => ({ listResearchClaims: vi.fn() }));
 const knowledgeMocks = vi.hoisted(() => ({ listKnowledgeBases: vi.fn() }));
+const secMocks = vi.hoisted(() => ({ prepareSecDuPont: vi.fn(), listSecFilingImports: vi.fn() }));
 
 vi.mock("./research-api", () => researchMocks);
 vi.mock("../chat/chat-api", () => chatMocks);
 vi.mock("../evidence/evidence-api", () => evidenceMocks);
 vi.mock("../knowledge/knowledge-api", () => knowledgeMocks);
+vi.mock("../disclosures/sec-api", () => secMocks);
 
 import { ResearchWorkspace } from "./ResearchWorkspace";
 
@@ -603,7 +605,10 @@ describe("ResearchWorkspace", () => {
     await screen.findByText("尚无 Research Run。");
     await user.click(screen.getByRole("button", { name: "SEC Filing" }));
     await user.click(screen.getByRole("checkbox", { name: "请求持续监控审批" }));
-    await user.click(screen.getByRole("checkbox", { name: /使用 SEC 事实核验 Skill/u }));
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "研究任务" }),
+      "sec.filing-verification",
+    );
     expect(screen.queryByRole("checkbox", { name: "请求持续监控审批" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: "计算派生指标" }));
     await user.click(screen.getByRole("checkbox", { name: "读取 XBRL 事实" }));
@@ -621,8 +626,8 @@ describe("ResearchWorkspace", () => {
     });
     expect(researchMocks.startResearch.mock.calls[0]?.[1]).toMatchObject({
       approval_reason: "company_or_period_ambiguity",
-      skill_name: "sec.filing-verification",
-      skill_version: "v1",
+      task_name: "sec.filing-verification",
+      task_version: "v1",
       required_tool_names: ["sec.get_xbrl_facts", "finance.calculate"],
       financial_scope: {
         accession: "0000320193-23-000106",
@@ -638,6 +643,53 @@ describe("ResearchWorkspace", () => {
       mode: "local",
     });
     expect(researchMocks.startResearch.mock.calls[0]?.[1]).not.toHaveProperty("industry_id");
+  });
+
+  it("prepares DuPont data, adopts the locked scope and clears stale readiness", async () => {
+    const user = userEvent.setup();
+    researchMocks.listResearchRuns.mockResolvedValue([]);
+    secMocks.prepareSecDuPont.mockResolvedValue({
+      status: "ready",
+      imports: [],
+      issues: [],
+      financial_scope: {
+        schema_version: 1,
+        cik: "0000789019",
+        accession: "0000950170-25-100235",
+        form: "10-K",
+        report_period: "2025-06-30",
+        unit: "USD",
+        scale: 6,
+        as_of: "2026-09-15T00:00:00Z",
+      },
+    });
+    render(
+      <ResearchWorkspace
+        canManage
+        focusedResearchRunId={null}
+        industries={[industry]}
+        onOpenAgent={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onSelectIndustry={vi.fn()}
+        selectedIndustryId={industryId}
+        workspaceId={workspaceId}
+      />,
+    );
+    await screen.findByText("尚无 Research Run。");
+    await user.click(screen.getByRole("button", { name: "SEC Filing" }));
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "研究任务" }),
+      "sec.dupont-analysis",
+    );
+    await user.click(screen.getByRole("button", { name: /补齐.*数据/ }));
+    expect(await screen.findByText(/两年输入已齐备/)).toBeInTheDocument();
+    expect(secMocks.prepareSecDuPont).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ knowledge_base_id: knowledgeBaseId }),
+    );
+    expect(screen.getByDisplayValue("0000950170-25-100235")).toBeInTheDocument();
+    await user.clear(screen.getByDisplayValue("0000789019"));
+    expect(screen.queryByText(/两年输入已齐备/)).not.toBeInTheDocument();
   });
 
   it("persists an approval decision before creating the resume job", async () => {

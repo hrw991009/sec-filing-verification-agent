@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import and_, select
@@ -45,8 +45,21 @@ from industry_platform.modules.disclosures.models import (
     SecXbrlSourceRecord,
     WorkspaceSecImportRecord,
 )
-from industry_platform.modules.knowledge.domain import DocumentVersionStatus
-from industry_platform.modules.knowledge.models import DocumentVersionRecord
+from industry_platform.modules.financial_verification.domain import FinancialScope
+from industry_platform.modules.financial_verification.dupont import (
+    DUPONT_CONCEPTS,
+    dupont_filing_in_scope,
+)
+from industry_platform.modules.knowledge.domain import (
+    DocumentStatus,
+    DocumentVersionStatus,
+    KnowledgeBaseStatus,
+)
+from industry_platform.modules.knowledge.models import (
+    DocumentRecord,
+    DocumentVersionRecord,
+    KnowledgeBaseRecord,
+)
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 
@@ -56,6 +69,111 @@ class SqlAlchemySecXbrlRepository:
             raise ValueError("SEC XBRL object bucket is invalid")
         self._session_factory = session_factory
         self._object_bucket = object_bucket
+
+    async def dupont_candidates(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        financial_scope: FinancialScope,
+    ) -> tuple[SecXbrlFact, ...]:
+        """Bounded multi-filing query; active import, KB, document and snapshot are mandatory."""
+        if not knowledge_base_ids:
+            return ()
+        try:
+            async with self._session_factory() as session:
+                rows = (
+                    (
+                        await session.execute(
+                            select(SecXbrlFactRecord, SecXbrlSourceRecord, SecFilingRecord)
+                            .join(
+                                SecXbrlSourceRecord,
+                                SecXbrlSourceRecord.id == SecXbrlFactRecord.source_id,
+                            )
+                            .join(
+                                SecFilingRecord, SecFilingRecord.id == SecXbrlFactRecord.filing_id
+                            )
+                            .join(
+                                WorkspaceSecImportRecord,
+                                and_(
+                                    WorkspaceSecImportRecord.filing_id == SecFilingRecord.id,
+                                    WorkspaceSecImportRecord.workspace_id == scope.workspace_id,
+                                    WorkspaceSecImportRecord.knowledge_base_id.in_(
+                                        knowledge_base_ids
+                                    ),
+                                ),
+                            )
+                            .join(
+                                KnowledgeBaseRecord,
+                                and_(
+                                    KnowledgeBaseRecord.id
+                                    == WorkspaceSecImportRecord.knowledge_base_id,
+                                    KnowledgeBaseRecord.workspace_id == scope.workspace_id,
+                                ),
+                            )
+                            .join(
+                                DocumentRecord,
+                                and_(
+                                    DocumentRecord.id == WorkspaceSecImportRecord.document_id,
+                                    DocumentRecord.workspace_id == scope.workspace_id,
+                                ),
+                            )
+                            .join(
+                                DocumentVersionRecord,
+                                and_(
+                                    DocumentVersionRecord.id
+                                    == WorkspaceSecImportRecord.document_version_id,
+                                    DocumentVersionRecord.workspace_id == scope.workspace_id,
+                                ),
+                            )
+                            .join(
+                                SecSourceSnapshotRecord,
+                                SecSourceSnapshotRecord.id
+                                == WorkspaceSecImportRecord.primary_snapshot_id,
+                            )
+                            .where(
+                                SecFilingRecord.cik == financial_scope.cik,
+                                SecFilingRecord.form.in_(("10-K", "10-K/A")),
+                                SecFilingRecord.report_date.between(
+                                    financial_scope.report_period - timedelta(days=380),
+                                    financial_scope.report_period,
+                                ),
+                                SecFilingRecord.public_available_at <= financial_scope.as_of,
+                                SecXbrlSourceRecord.source_available_at <= financial_scope.as_of,
+                                SecXbrlSourceRecord.cik == financial_scope.cik,
+                                SecXbrlFactRecord.taxonomy == "us-gaap",
+                                SecXbrlFactRecord.concept.in_(DUPONT_CONCEPTS),
+                                KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
+                                DocumentRecord.status == DocumentStatus.ACTIVE,
+                                DocumentRecord.active_version_id == DocumentVersionRecord.id,
+                                DocumentVersionRecord.status == DocumentVersionStatus.READY,
+                                SecSourceSnapshotRecord.status
+                                == SecFilingSnapshotStatus.ACTIVE.value,
+                                SecSourceSnapshotRecord.source_available_at
+                                <= financial_scope.as_of,
+                            )
+                            .order_by(SecXbrlFactRecord.id)
+                            .limit(1001)
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+                if len(rows) > 1000 or any(filing.form == "10-K/A" for _, _, filing in rows):
+                    raise SecFilingContentError(SecSourceErrorCode.SNAPSHOT_ANOMALY)
+                return tuple(
+                    _fact(fact, source, filing)
+                    for fact, source, filing in rows
+                    if dupont_filing_in_scope(
+                        financial_scope,
+                        cik=filing.cik,
+                        accession=filing.accession,
+                        form=filing.form,
+                        report_period=filing.report_date,
+                    )
+                )
+        except SQLAlchemyError:
+            raise SecDisclosurePersistenceError() from None
 
     async def prepare_sync(
         self,

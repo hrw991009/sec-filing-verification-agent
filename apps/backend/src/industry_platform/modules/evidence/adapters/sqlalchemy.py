@@ -1172,6 +1172,17 @@ class SqlAlchemyEvidenceRepository:
         )
         if fact.evidence_ref is not None and fact.evidence_ref != evidence_id:
             return None, EvidenceDecisionReason.OBSERVATION_INVALID
+        from industry_platform.modules.financial_verification.dupont import dupont_filing_in_scope
+
+        filing_predicates = (
+            (SecXbrlFactRecord.form == "10-K",)
+            if output.purpose == "dupont"
+            else (
+                SecXbrlFactRecord.accession == financial_scope.accession,
+                SecXbrlFactRecord.form == financial_scope.form.value,
+                SecFilingRecord.report_date == financial_scope.report_period,
+            )
+        )
         row = (
             await session.execute(
                 select(SecXbrlFactRecord, SecXbrlSourceRecord, SecFilingRecord)
@@ -1207,12 +1218,11 @@ class SqlAlchemyEvidenceRepository:
                 )
                 .where(
                     SecXbrlFactRecord.id == fact_id,
-                    SecXbrlFactRecord.accession == financial_scope.accession,
-                    SecXbrlFactRecord.form == financial_scope.form.value,
+                    *filing_predicates,
                     SecXbrlSourceRecord.cik == financial_scope.cik,
                     SecXbrlSourceRecord.source_version == source.source_version,
                     SecXbrlSourceRecord.source_available_at <= financial_scope.as_of,
-                    SecFilingRecord.report_date == financial_scope.report_period,
+                    SecFilingRecord.public_available_at <= financial_scope.as_of,
                     WorkspaceSecImportRecord.knowledge_base_id.in_(output.knowledge_base_ids),
                     KnowledgeBaseRecord.status == KnowledgeBaseStatus.ACTIVE,
                     DocumentRecord.status == DocumentStatus.ACTIVE,
@@ -1225,6 +1235,14 @@ class SqlAlchemyEvidenceRepository:
         if row is None:
             return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
         fact_record, source_record, filing = row
+        if output.purpose == "dupont" and not dupont_filing_in_scope(
+            financial_scope,
+            cik=filing.cik,
+            accession=filing.accession,
+            form=filing.form,
+            report_period=filing.report_date,
+        ):
+            return None, EvidenceDecisionReason.RESOURCE_UNAUTHORIZED
         if not _sec_xbrl_fact_matches_records(fact, fact_record, source_record, filing):
             return None, EvidenceDecisionReason.SOURCE_HASH_MISMATCH
         locator = SecXbrlFactLocatorV1(
@@ -1695,6 +1713,7 @@ class SqlAlchemyEvidenceRepository:
         else:
             if (
                 output.operand_source not in {None, "legacy_fixture"}
+                or output.operator.value == "dupont"
                 or output.resolved_operands
                 or output.reconciliation is not None
                 or any(item.source_fact_id is not None for item in output.operands)
@@ -1731,6 +1750,7 @@ class SqlAlchemyEvidenceRepository:
             or output.formula != recomputed.formula
             or output.unit != recomputed.unit
             or output.scale != recomputed.scale
+            or output.components != dict(recomputed.components)
         ):
             return None, EvidenceDecisionReason.OBSERVATION_INVALID
         locator = FinancialCalculationLocatorV1(
@@ -1747,6 +1767,7 @@ class SqlAlchemyEvidenceRepository:
             unit=output.unit,
             scale=output.scale,
             observation_sha256=model_hash,
+            components=tuple(output.components.items()),
             reconciliation_status=(
                 None if output.reconciliation is None else output.reconciliation.status.value
             ),

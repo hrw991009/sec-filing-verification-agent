@@ -464,33 +464,43 @@ def test_post_pins_local_knowledge_and_financial_scope(test_settings: Settings) 
     assert request.brief.financial_scope == financial_scope()
 
 
-def test_skill_discovery_and_submission(test_settings: Settings) -> None:
+def test_task_discovery_and_submission(test_settings: Settings) -> None:
     submission = StubSubmissionService()
     query = StubQueryService()
     payload = local_start_payload()
-    payload.update(skill_name="sec.filing-verification", skill_version="v1")
+    payload.update(task_name="sec.filing-verification", task_version="v1")
     with research_client(test_settings, submission, query) as client:
-        catalog = client.get("/api/v1/skills", headers=headers())
+        catalog = client.get("/api/v1/research/tasks", headers=headers())
         assert catalog.status_code == 200
         assert catalog.json()[0]["name"] == "sec.filing-verification"
         assert len(catalog.json()[0]["roles"]) == 5
-        assert client.get("/api/v1/skills").status_code == 401
+        assert client.get("/api/v1/research/tasks").status_code == 401
         response = client.post(
             f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
             headers=headers(**{"Idempotency-Key": "skill-1"}),
             json=payload,
         )
         assert response.status_code == 202
-        payload["skill_version"] = "v2"
+        payload["task_version"] = "v2"
         rejected = client.post(
             f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
             headers=headers(**{"Idempotency-Key": "skill-2"}),
             json=payload,
         )
         assert rejected.status_code == 422
+        old_payload = local_start_payload()
+        old_payload.update(skill_name="sec.filing-verification", skill_version="v1")
+        assert (
+            client.post(
+                f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+                headers=headers(**{"Idempotency-Key": "old-skill-fields"}),
+                json=old_payload,
+            ).status_code
+            == 422
+        )
     assert len(submission.calls) == 1
-    assert submission.calls[0][1].skill_name == "sec.filing-verification"
-    assert submission.calls[0][1].skill_version == "v1"
+    assert submission.calls[0][1].task_name == "sec.filing-verification"
+    assert submission.calls[0][1].task_version == "v1"
 
 
 def test_local_post_accepts_explicit_ambiguity_interrupt(test_settings: Settings) -> None:
@@ -529,7 +539,7 @@ def test_required_tools_preserve_order_and_cannot_expand_policy(
     payload = local_start_payload()
     payload["required_tool_names"] = names
     if skill:
-        payload.update(skill_name="sec.filing-verification", skill_version="v1")
+        payload.update(task_name="sec.filing-verification", task_version="v1")
     with research_client(test_settings, submission, StubQueryService()) as client:
         response = client.post(
             f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
@@ -541,6 +551,33 @@ def test_required_tools_preserve_order_and_cannot_expand_policy(
         assert submission.calls[0][1].brief.required_tool_names == tuple(names)
     else:
         assert submission.calls == []
+
+
+def test_dupont_submission_locks_required_steps_and_rejects_other_tools(
+    test_settings: Settings,
+) -> None:
+    submission = StubSubmissionService()
+    payload = local_start_payload()
+    payload.update(task_name="sec.dupont-analysis", task_version="v1")
+    with research_client(test_settings, submission, StubQueryService()) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "dupont-test"}),
+            json=payload,
+        )
+        payload["required_tool_names"] = ["knowledge_search"]
+        rejected = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "dupont-invalid"}),
+            json=payload,
+        )
+    assert response.status_code == 202
+    assert rejected.status_code == 422
+    assert len(submission.calls) == 1
+    assert submission.calls[0][1].brief.required_tool_names == (
+        "sec.get_xbrl_facts",
+        "finance.calculate",
+    )
 
 
 def test_get_exposes_brief_plan_draft_and_runtime_budget(test_settings: Settings) -> None:

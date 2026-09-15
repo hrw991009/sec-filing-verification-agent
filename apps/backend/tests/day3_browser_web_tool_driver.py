@@ -6,7 +6,7 @@ import hashlib
 import json
 import sys
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -65,6 +65,8 @@ from industry_platform.modules.industry.tool import IndustryWebSearchTool
 from industry_platform.modules.jobs.domain import JobStatus
 from industry_platform.modules.jobs.models import Job
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.skills.registry import load_bundled_skills
+from industry_platform.modules.skills.tool import SkillReadTool
 from industry_platform.modules.tools.models import ToolCallRecord, ToolRunRecord
 from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
 from industry_platform.server import create_selector_event_loop
@@ -223,7 +225,14 @@ async def execute_browser_web_run(
         committer = SqlAlchemyAgentEventCommitter(session_factory)
         manifests = SqlAlchemyContextManifestStore(session_factory)
         control = SqlAlchemyAgentRunControl(session_factory)
-        registry = ToolRegistry((tool,))
+        skills = load_bundled_skills()
+        reader = SkillReadTool(skills)
+        registry = ToolRegistry((tool, reader))
+        skill_policy = replace(
+            tool_policy,
+            max_input_tokens=8_192,
+            available_tools=(*tool_policy.available_tools, reader.definition.reference),
+        )
         runtime = UnifiedAgentRuntime(
             direct_answer_runtime=DirectAnswerRuntime(
                 context_compiler=ContextCompilerV0(token_counter=Utf8UpperBoundTokenCounter()),
@@ -233,6 +242,7 @@ async def execute_browser_web_run(
                 cancellation_probe=control,
             ),
             tool_l2_runtime=ToolL2Runtime(
+                instruction_skills=skills,
                 context_compiler=ContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter()),
                 context_manifest_store=manifests,
                 model_provider=provider,
@@ -247,6 +257,7 @@ async def execute_browser_web_run(
                 session_factory,
                 direct_policy,
                 tool_policy=tool_policy,
+                l2_skill_policy=skill_policy,
             ),
             runtime=runtime,
             terminalizer=SqlAlchemyAgentRunTerminalizer(session_factory),

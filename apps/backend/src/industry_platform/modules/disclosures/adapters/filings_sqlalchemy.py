@@ -359,7 +359,10 @@ def _source_record_matches(
         and record.content_sha256 == bytes.fromhex(source.content_sha256)
         and record.object_bucket == object_bucket
         and record.object_key == object_key
-        and record.source_available_at.astimezone(UTC) == source.source_available_at
+        # A byte-identical HTTP 200 without Last-Modified gets a new observed-at
+        # time after cache expiry. Keep the first immutable availability evidence;
+        # a later observation must not conflict or move history forward/backward.
+        and record.source_available_at.astimezone(UTC) <= source.source_available_at
         and record.filing_from == source.filing_from
         and record.filing_to == source.filing_to
     )

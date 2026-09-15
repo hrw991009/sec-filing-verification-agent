@@ -711,10 +711,11 @@ class ContextCompilationInput:
         if self.compiler_version == CONTEXT_COMPILER_V0 and observations:
             raise ValueError("Context Compiler v0 cannot include Tool Observations")
         if self.compiler_version != FINANCIAL_CONTEXT_COMPILER_V1 and any(
-            observation.decision_reason is not ContextDecisionReason.INCLUDED
+            observation.decision_reason
+            not in {ContextDecisionReason.INCLUDED, ContextDecisionReason.EXCLUDED_DUPLICATE}
             for observation in observations
         ):
-            raise ValueError("Only Financial Context may pre-filter Tool Observations")
+            raise ValueError("Only Financial Context may pre-filter nonduplicate Tool Observations")
         if (
             self.compiler_version == FINANCIAL_CONTEXT_COMPILER_V1
             and self.runtime_context.financial_scope is None

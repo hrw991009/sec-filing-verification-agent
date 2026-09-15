@@ -23,7 +23,7 @@ Research API
 → Dispatcher / Worker
 → SqlAlchemyDirectAnswerRunLoader
 → UnifiedAgentRuntime
-→ ResearchL3Runtime（兼容名称，当前可执行 L3/L4）
+→ FinancialResearchWorkflow（固定金融研究图，沿用 L3/L4/L5 协议）
 → 同一 bounded model/tool loop
 → EvidenceApplicationService / ResearchWorkflowStore
 → CheckpointStore / ResearchDurabilityService

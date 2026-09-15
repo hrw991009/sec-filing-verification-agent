@@ -1,4 +1,4 @@
-"""Authenticated discovery of built-in executable Skills."""
+"""Authenticated discovery of built-in executable Research tasks."""
 
 from typing import Annotated
 
@@ -8,41 +8,41 @@ from pydantic import BaseModel, ConfigDict
 from industry_platform.core.http import set_no_store_headers
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
-from industry_platform.modules.skills.registry import SKILL_REGISTRY
+from industry_platform.modules.research.tasks import RESEARCH_TASKS
 
-router = APIRouter(prefix="/skills", tags=["skills"])
+router = APIRouter(prefix="/research/tasks", tags=["research-tasks"])
 
 
-class SkillRoleResponse(BaseModel):
+class ResearchRoleResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
     nodes: list[str]
     responsibility: str
 
 
-class SkillResponse(BaseModel):
+class ResearchTaskResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
     version: str
     description: str
     graph_version: str
-    roles: list[SkillRoleResponse]
+    roles: list[ResearchRoleResponse]
 
 
-@router.get("", response_model=list[SkillResponse])
-async def list_skills(
+@router.get("", response_model=list[ResearchTaskResponse])
+async def list_research_tasks(
     response: Response,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
-) -> list[SkillResponse]:
+) -> list[ResearchTaskResponse]:
     set_no_store_headers(response)
     return [
-        SkillResponse(
+        ResearchTaskResponse(
             name=definition.name,
             version=definition.version,
             description=definition.description,
             graph_version=definition.graph_version,
             roles=[
-                SkillRoleResponse(
+                ResearchRoleResponse(
                     name=role.name,
                     nodes=[node.value for node in role.nodes],
                     responsibility=role.responsibility,
@@ -50,5 +50,5 @@ async def list_skills(
                 for role in definition.roles
             ],
         )
-        for definition in SKILL_REGISTRY.definitions()
+        for definition in RESEARCH_TASKS.definitions()
     ]

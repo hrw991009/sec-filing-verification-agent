@@ -207,12 +207,12 @@ from industry_platform.modules.research.durability import (
 from industry_platform.modules.research.resources import create_research_resources
 from industry_platform.modules.research.router import router as research_router
 from industry_platform.modules.research.service import ResearchNotFoundError
+from industry_platform.modules.research.task_router import router as research_tasks_router
 from industry_platform.modules.research.verification import (
     VerificationConflictError,
     VerificationInputError,
     VerificationPersistenceError,
 )
-from industry_platform.modules.skills.router import router as skills_router
 from industry_platform.modules.workspaces.domain import (
     LastWorkspaceOwnerError,
     WorkspaceAccessDeniedError,
@@ -402,7 +402,7 @@ def create_app(
     application.include_router(disclosure_router, prefix="/api/v1")
     application.include_router(evidence_router, prefix="/api/v1")
     application.include_router(research_router, prefix="/api/v1")
-    application.include_router(skills_router, prefix="/api/v1")
+    application.include_router(research_tasks_router, prefix="/api/v1")
 
     @application.exception_handler(KnowledgeNotFoundError)
     async def handle_knowledge_not_found(

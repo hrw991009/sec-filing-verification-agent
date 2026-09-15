@@ -22,12 +22,14 @@ from industry_platform.modules.disclosures.domain import (
     SecSubmissionSourceSnapshot,
     SecWorkspaceFilingImport,
     SecXbrlDataset,
+    SecXbrlFact,
     SecXbrlFactQuery,
     SecXbrlFactResult,
     SecXbrlSourceSnapshot,
     SecXbrlSyncPreparation,
     SecXbrlSyncResult,
 )
+from industry_platform.modules.financial_verification.domain import FinancialScope
 from industry_platform.modules.retrieval.domain import RetrievalCandidate
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
@@ -191,6 +193,14 @@ class SecFilingContentRepository(Protocol):
 
 
 class SecXbrlRepository(Protocol):
+    async def dupont_candidates(
+        self,
+        scope: WorkspaceScope,
+        *,
+        knowledge_base_ids: tuple[UUID, ...],
+        financial_scope: FinancialScope,
+    ) -> tuple[SecXbrlFact, ...]: ...
+
     async def prepare_sync(
         self,
         scope: WorkspaceScope,

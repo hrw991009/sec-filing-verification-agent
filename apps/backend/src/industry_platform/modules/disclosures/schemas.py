@@ -56,6 +56,7 @@ from industry_platform.modules.financial_verification.domain import (
     FinancialForm,
     FinancialScope,
 )
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.research.domain import ResearchApprovalOutcome
 from industry_platform.modules.research.schemas import ResearchApprovalResponse
 
@@ -250,6 +251,21 @@ class SecFilingSelectionResponse(BaseModel):
         )
 
 
+class SecDuPontPrepareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    cik: str = Field(pattern=r"^[0-9]{10}$")
+    fiscal_year: int = Field(ge=2009, le=2100)
+    knowledge_base_id: UUID
+    as_of: datetime
+
+    @model_validator(mode="after")
+    def validate_time(self) -> Self:
+        if self.as_of.utcoffset() is None or self.fiscal_year > self.as_of.year:
+            raise ValueError("DuPont requires a timezone-aware cutoff after the fiscal year")
+        return self
+
+
 class SecFilingImportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -295,6 +311,15 @@ class SecWorkspaceFilingImportResponse(BaseModel):
             created_at=value.created_at,
             updated_at=value.updated_at,
         )
+
+
+class SecDuPontPrepareResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["ready", "awaiting_ingestion", "insufficient_data"]
+    financial_scope: FinancialScopePayload | None
+    imports: list[SecWorkspaceFilingImportResponse]
+    issues: list[str]
 
 
 class SecFilingImportCollectionResponse(BaseModel):

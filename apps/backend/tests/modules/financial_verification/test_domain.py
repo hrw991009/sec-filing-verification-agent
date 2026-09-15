@@ -141,7 +141,9 @@ def test_calculation_normalizes_operand_scales_into_scope_scale() -> None:
     assert (result.unit, result.scale) == ("USD", 6)
 
 
-@pytest.mark.parametrize("operator", list(FinancialOperator))
+@pytest.mark.parametrize(
+    "operator", [op for op in FinancialOperator if op is not FinancialOperator.DUPONT]
+)
 def test_scope_normalized_lineage_recomputes_the_exact_same_formula(
     operator: FinancialOperator,
 ) -> None:

@@ -13,6 +13,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from industry_platform.modules.agent_runtime.domain import require_utc
 
@@ -498,8 +499,9 @@ class SecFilingObservation:
         if self.filed_date < self.report_date:
             raise ValueError("SEC filing dates are invalid")
         require_utc(self.accepted_at, field_name="SEC filing accepted_at")
-        # EDGAR can assign the next filing date to an evening acceptance.
-        if self.accepted_at.date() not in {
+        # Filing dates use Eastern calendar days, not the UTC date of an ISO instant.
+        # Evening acceptances can also be assigned the next filing date.
+        if self.accepted_at.astimezone(ZoneInfo("America/New_York")).date() not in {
             self.filed_date,
             self.filed_date - timedelta(days=1),
         }:
@@ -1781,7 +1783,8 @@ def sec_xbrl_source_version(
         SecXbrlSourceKind.RAW_INLINE: "inline",
         SecXbrlSourceKind.RAW_INSTANCE: "instance",
     }[source_kind]
-    return f"sec-xbrl-{kind}-{content_sha256[:24]}"
+    parser_version = "" if source_kind is SecXbrlSourceKind.COMPANYFACTS_AGGREGATE else "v2-"
+    return f"sec-xbrl-{kind}-{parser_version}{content_sha256[:24]}"
 
 
 def required_supplemental_descriptors(

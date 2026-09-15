@@ -698,6 +698,7 @@ class FinancialCalculationLocatorV1:
     observation_sha256: str
     reconciliation_status: str | None = None
     reconciliation_version: str | None = None
+    components: tuple[tuple[str, str], ...] = ()
     locator_type: EvidenceLocatorType = EvidenceLocatorType.FINANCIAL_CALCULATION_V1
     schema_version: int = EVIDENCE_SCHEMA_VERSION
 
@@ -706,10 +707,25 @@ class FinancialCalculationLocatorV1:
 
         scope = dict(self.financial_scope)
         FinancialScope.from_mapping(scope)
+        components = dict(self.components)
+        if self.operator == "dupont":
+            from industry_platform.modules.financial_verification.dupont import (
+                DUPONT_COMPONENT_KEYS,
+            )
+
+            if set(components) != set(DUPONT_COMPONENT_KEYS) or len(self.components) != 6:
+                raise ValueError("DuPont calculation components are incomplete")
+            for value in components.values():
+                _bounded_text(value, field_name="DuPont component", maximum=200)
+        elif components:
+            raise ValueError("Components require the DuPont operator")
+        object.__setattr__(self, "components", tuple(components.items()))
         values = tuple(self.operand_values)
         references = tuple(self.input_evidence_refs)
         if not 2 <= len(values) <= 8 or len(values) != len(references):
             raise ValueError("Calculation locator inputs are invalid")
+        if self.operator == "dupont" and len(values) != 6:
+            raise ValueError("DuPont calculation requires six source inputs")
         for reference in references:
             require_non_nil_uuid(reference, field_name="Calculation input Evidence ref")
         for value, field_name in (
@@ -757,6 +773,7 @@ class FinancialCalculationLocatorV1:
                 "observation_sha256": self.observation_sha256,
                 "reconciliation_status": self.reconciliation_status,
                 "reconciliation_version": self.reconciliation_version,
+                **({"components": dict(self.components)} if self.components else {}),
             }
         )
 
@@ -1082,15 +1099,22 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
             "observation_sha256",
         }
         extended = expected | {"reconciliation_status", "reconciliation_version"}
-        if frozenset(document) not in {frozenset(expected), frozenset(extended)}:
+        if frozenset(document) not in {
+            frozenset(expected),
+            frozenset(extended),
+            frozenset(extended | {"components"}),
+        }:
             raise ValueError
         scope = document["financial_scope"]
         values = document["operand_values"]
         references = document["input_evidence_refs"]
         decimal_places = document["decimal_places"]
         scale = document["scale"]
+        components = document.get("components", {})
         if (
             not isinstance(scope, dict)
+            or not isinstance(components, dict)
+            or any(not isinstance(k, str) or not isinstance(v, str) for k, v in components.items())
             or not isinstance(values, list)
             or not isinstance(references, list)
             or isinstance(decimal_places, bool)
@@ -1111,6 +1135,7 @@ def parse_evidence_locator(value: Mapping[str, object]) -> EvidenceLocator:
             unit=str(document["unit"]),
             scale=scale,
             observation_sha256=str(document["observation_sha256"]),
+            components=tuple(components.items()),
             reconciliation_status=(
                 None
                 if document.get("reconciliation_status") is None

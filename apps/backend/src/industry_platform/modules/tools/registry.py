@@ -304,7 +304,7 @@ class ToolRegistry:
                 outcome=ToolApprovalOutcome.DENY,
                 definition=definition,
             )
-        validated_arguments = adapter.validate_arguments(audit.action.arguments)
+        adapter.validate_arguments(audit.action.arguments)
         if definition.approval_policy is ToolApprovalPolicy.AUTO_DENY:
             raise ToolPreparationError(
                 "tool_policy_denied",
@@ -348,7 +348,10 @@ class ToolRegistry:
             requested_by_step_id=requested_by_step_id,
             requested_by_user_id=runtime_context.principal.user_id,
             definition=definition,
-            arguments=validated_arguments,
+            # Preserve the audited request bytes. Adapter execution validates again
+            # and applies its versioned defaults; adding defaults here would make
+            # TOOL_STARTED disagree with the durable TOOL_REQUESTED digest.
+            arguments=audit.action.arguments,
             decision=ToolPolicyDecision(
                 outcome=ToolApprovalOutcome.ALLOW,
                 policy_version=definition.policy_version,

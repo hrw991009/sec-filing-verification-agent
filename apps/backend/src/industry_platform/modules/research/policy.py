@@ -3,7 +3,13 @@
 from collections.abc import Sequence
 
 
-def validate_required_tools(names: Sequence[str], *, local: bool, skill_selected: bool) -> None:
+def validate_required_tools(
+    names: Sequence[str], *, local: bool, task_selected: bool, task_name: str | None = None
+) -> None:
+    if task_name == "sec.dupont-analysis" and not set(names).issubset(
+        {"sec.get_xbrl_facts", "finance.calculate"}
+    ):
+        raise ValueError("DuPont Research task supports only retrieval and calculation")
     if not names:
         return
     # Disclosure schemas also expose Research approval payloads. Resolve the
@@ -13,7 +19,7 @@ def validate_required_tools(names: Sequence[str], *, local: bool, skill_selected
         SEC_L5_TOOL_REFERENCES,
     )
 
-    references = SEC_L4_TOOL_REFERENCES if skill_selected else SEC_L5_TOOL_REFERENCES
+    references = SEC_L4_TOOL_REFERENCES if task_selected else SEC_L5_TOOL_REFERENCES
     if (
         not local
         or len(names) > 8

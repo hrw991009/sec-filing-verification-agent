@@ -21,6 +21,8 @@ from industry_platform.modules.disclosures.schemas import (
     FilingSelectionQuery,
     SecDisclosureCaseCollectionResponse,
     SecDisclosureCaseResponse,
+    SecDuPontPrepareRequest,
+    SecDuPontPrepareResponse,
     SecFilerResolutionResponse,
     SecFilingDiffQueryParameters,
     SecFilingDiffResponse,
@@ -47,6 +49,7 @@ from industry_platform.modules.disclosures.subscription import (
     DecideSecMonitorSubscription,
     TriggerSecMonitorRun,
 )
+from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
 from industry_platform.modules.research.schemas import ResearchApprovalResponse
@@ -69,6 +72,38 @@ _MONITOR_RESPONSES: OpenApiResponses = {
     status.HTTP_404_NOT_FOUND: problem_openapi_response("Monitor resource not found"),
     status.HTTP_409_CONFLICT: problem_openapi_response("Monitor state conflict"),
 }
+
+
+@router.post(
+    "/workspaces/{workspace_id}/disclosures/dupont/prepare",
+    response_model=SecDuPontPrepareResponse,
+    responses=_RESPONSES,
+)
+async def prepare_dupont(
+    workspace_id: UUID,
+    payload: SecDuPontPrepareRequest,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    resources: Annotated[DisclosureResources, Depends(get_disclosure_resources)],
+) -> SecDuPontPrepareResponse:
+    result = await resources.dupont_preparation_service.prepare(
+        _workspace_scope(principal, workspace_id),
+        cik=payload.cik,
+        fiscal_year=payload.fiscal_year,
+        knowledge_base_id=payload.knowledge_base_id,
+        as_of=payload.as_of,
+        trace_id=TraceId(get_trace_id(request)),
+    )
+    set_no_store_headers(response)
+    return SecDuPontPrepareResponse(
+        status=result.status,
+        financial_scope=None
+        if result.financial_scope is None
+        else FinancialScopePayload.from_domain(result.financial_scope),
+        imports=[SecWorkspaceFilingImportResponse.from_domain(item) for item in result.imports],
+        issues=list(result.issues),
+    )
 
 
 @router.get(

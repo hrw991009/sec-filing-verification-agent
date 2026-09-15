@@ -34,6 +34,10 @@ from industry_platform.modules.disclosures.domain import (
     sec_xbrl_source_version,
     sha256_hex,
 )
+from industry_platform.modules.disclosures.xbrl_numeric import (
+    normalize_xbrl_number,
+    supported_numeric_format,
+)
 
 _INLINE_NAMESPACE: Final = "http://www.xbrl.org/2013/inlineXBRL"
 _XBRLI_NAMESPACE: Final = "http://www.xbrl.org/2003/instance"
@@ -309,6 +313,8 @@ class _FactBuilder:
     scale: int | None
     format: str | None
     continued_at: str | None
+    sign: str | None = None
+    capture: bool = True
     chunks: list[str] = field(default_factory=list)
 
 
@@ -318,6 +324,8 @@ class _ContinuationBuilder:
     continuation_id: str
     continued_at: str | None
     chunks: list[str] = field(default_factory=list)
+    character_count: int = 0
+    oversized: bool = False
 
 
 class _RawXbrlCollector:
@@ -331,13 +339,13 @@ class _RawXbrlCollector:
         self._context: _ContextBuilder | None = None
         self._unit: _UnitBuilder | None = None
         self._capture: _TextCapture | None = None
-        self._fact: _FactBuilder | None = None
-        self._continuation: _ContinuationBuilder | None = None
-        self._exclude_depth: int | None = None
+        self._active_facts: list[_FactBuilder] = []
+        self._active_continuations: list[_ContinuationBuilder] = []
+        self._exclude_depths: list[int] = []
         self._contexts: list[SecXbrlContextData] = []
         self._units: dict[str, str] = {}
         self._facts: list[_FactBuilder] = []
-        self._continuations: dict[str, tuple[str, str | None]] = {}
+        self._continuations: dict[str, tuple[str | None, str | None]] = {}
 
     def start_namespace(self, prefix: str | None, uri: str) -> None:
         if uri and uri not in self._uri_prefixes:
@@ -352,7 +360,7 @@ class _RawXbrlCollector:
         local_lower = local.casefold()
         self._stack.append((namespace, local_lower))
         if namespace == _INLINE_NAMESPACE and local_lower == "exclude":
-            self._exclude_depth = self._depth
+            self._exclude_depths.append(self._depth)
 
         if namespace == _XBRLI_NAMESPACE and local_lower == "context":
             if self._context is not None or len(self._contexts) >= SEC_MAX_XBRL_CONTEXTS:
@@ -396,8 +404,8 @@ class _RawXbrlCollector:
             "nonnumeric",
         }
         if context_ref is not None or inline_fact:
-            if self._fact is not None:
-                raise ValueError("Nested SEC XBRL facts are unsupported")
+            if len(self._active_facts) >= 64:
+                raise ValueError("SEC XBRL fact nesting budget exceeded")
             if context_ref is None:
                 raise ValueError("Inline SEC XBRL fact has no context")
             if inline_fact:
@@ -412,24 +420,42 @@ class _RawXbrlCollector:
                 taxonomy = resolved_taxonomy
                 concept = local
             raw_scale = _attribute(attributes, "scale")
-            self._fact = _FactBuilder(
-                depth=self._depth,
-                taxonomy=taxonomy,
-                concept=concept,
-                context_id=context_ref,
-                unit_id=_attribute(attributes, "unitref"),
-                decimals=_attribute(attributes, "decimals"),
-                scale=None if raw_scale is None else int(raw_scale),
-                format=_attribute(attributes, "format"),
-                continued_at=_attribute(attributes, "continuedat"),
+            transform = _attribute(attributes, "format")
+            if (
+                transform is not None
+                and transform.startswith("ixt:")
+                and not any(
+                    prefix == "ixt"
+                    and uri.startswith("http://www.xbrl.org/inlineXBRL/transformation/")
+                    for uri, prefix in self._uri_prefixes.items()
+                )
+            ):
+                raise ValueError("SEC XBRL transformation namespace is invalid")
+            self._active_facts.append(
+                _FactBuilder(
+                    depth=self._depth,
+                    taxonomy=taxonomy,
+                    concept=concept,
+                    context_id=context_ref,
+                    unit_id=_attribute(attributes, "unitref"),
+                    decimals=_attribute(attributes, "decimals"),
+                    scale=None if raw_scale is None else int(raw_scale),
+                    format=transform,
+                    continued_at=_attribute(attributes, "continuedat"),
+                    sign=_attribute(attributes, "sign"),
+                    # Narrative blocks remain in the immutable filing and text index.
+                    capture=not (local_lower == "nonnumeric" and concept.endswith("TextBlock")),
+                )
             )
         elif namespace == _INLINE_NAMESPACE and local_lower == "continuation":
-            if self._continuation is not None:
-                raise ValueError("Nested SEC XBRL continuations are unsupported")
-            self._continuation = _ContinuationBuilder(
-                depth=self._depth,
-                continuation_id=_required_attribute(attributes, "id"),
-                continued_at=_attribute(attributes, "continuedat"),
+            if len(self._active_continuations) >= 64:
+                raise ValueError("SEC XBRL continuation nesting budget exceeded")
+            self._active_continuations.append(
+                _ContinuationBuilder(
+                    depth=self._depth,
+                    continuation_id=_required_attribute(attributes, "id"),
+                    continued_at=_attribute(attributes, "continuedat"),
+                )
             )
         elif namespace == _XBRLI_NAMESPACE and local_lower == "forever":
             if self._context is None:
@@ -437,14 +463,21 @@ class _RawXbrlCollector:
             self._context.forever = True
 
     def characters(self, value: str) -> None:
-        if not value or self._exclude_depth is not None:
+        if not value:
             return
         if self._capture is not None:
             self._capture.chunks.append(value)
-        if self._fact is not None:
-            self._fact.chunks.append(value)
-        if self._continuation is not None:
-            self._continuation.chunks.append(value)
+        for fact in self._active_facts:
+            if fact.capture and not any(depth > fact.depth for depth in self._exclude_depths):
+                fact.chunks.append(value)
+        for continuation in self._active_continuations:
+            if not any(depth > continuation.depth for depth in self._exclude_depths):
+                continuation.character_count += len(value)
+                if continuation.character_count > 20_000:
+                    continuation.oversized = True
+                    continuation.chunks.clear()
+                elif not continuation.oversized:
+                    continuation.chunks.append(value)
 
     def end_element(self, name: str) -> None:
         namespace, local = _expanded_name(name)
@@ -452,28 +485,31 @@ class _RawXbrlCollector:
         if self._capture is not None and self._capture.depth == self._depth:
             self._finish_capture(self._capture)
             self._capture = None
-        if self._fact is not None and self._fact.depth == self._depth:
+        if self._active_facts and self._active_facts[-1].depth == self._depth:
             if len(self._facts) >= SEC_MAX_XBRL_FACTS:
                 raise ValueError("SEC XBRL fact budget exceeded")
-            self._facts.append(self._fact)
-            self._fact = None
-        if self._continuation is not None and self._continuation.depth == self._depth:
-            value = _normalized_text(self._continuation.chunks)
-            if self._continuation.continuation_id in self._continuations:
+            fact = self._active_facts.pop()
+            if fact.capture:
+                self._facts.append(fact)
+        if self._active_continuations and self._active_continuations[-1].depth == self._depth:
+            continuation = self._active_continuations.pop()
+            value = None if continuation.oversized else _normalized_text(continuation.chunks)
+            if continuation.continuation_id in self._continuations:
                 raise ValueError("SEC XBRL continuation ID is duplicated")
-            self._continuations[self._continuation.continuation_id] = (
+            if len(self._continuations) >= SEC_MAX_XBRL_FACTS:
+                raise ValueError("SEC XBRL continuation budget exceeded")
+            self._continuations[continuation.continuation_id] = (
                 value,
-                self._continuation.continued_at,
+                continuation.continued_at,
             )
-            self._continuation = None
         if self._unit is not None and self._unit.depth == self._depth:
             self._finish_unit(self._unit)
             self._unit = None
         if self._context is not None and self._context.depth == self._depth:
             self._finish_context(self._context)
             self._context = None
-        if self._exclude_depth == self._depth:
-            self._exclude_depth = None
+        if self._exclude_depths and self._exclude_depths[-1] == self._depth:
+            self._exclude_depths.pop()
         if not self._stack or self._stack[-1] != (namespace, local_lower):
             raise ValueError("SEC XBRL element stack is invalid")
         self._stack.pop()
@@ -505,6 +541,8 @@ class _RawXbrlCollector:
             unit = None if raw.unit_id is None else self._units.get(raw.unit_id)
             if raw.unit_id is not None and unit is None:
                 raise ValueError("SEC XBRL fact unit is missing")
+            if unit is not None and supported_numeric_format(raw.format):
+                value = normalize_xbrl_number(value, transform=raw.format, sign=raw.sign)
             facts.append(
                 SecXbrlFactData(
                     source_version=self._source.source_version,
@@ -603,6 +641,8 @@ class _RawXbrlCollector:
                 value, current = self._continuations[current]
             except KeyError:
                 raise ValueError("SEC XBRL continuation is missing") from None
+            if value is None:
+                raise ValueError("SEC XBRL scalar continuation exceeds the fact size limit")
             values.append(value)
         return " ".join(values)
 
