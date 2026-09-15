@@ -283,7 +283,10 @@ def test_unresolvable_or_refuting_only_evidence_never_produces_verified(availabl
     }
 
 
-def test_calculation_evidence_is_recomputed_before_support_is_accepted() -> None:
+@pytest.mark.parametrize("other_valid_support", [False, True])
+def test_calculation_evidence_is_recomputed_before_support_is_accepted(
+    other_valid_support: bool,
+) -> None:
     left = xbrl_evidence(UUID("81000000-0000-4000-8000-000000000106"), "f" * 64)
     right = xbrl_evidence(UUID("81000000-0000-4000-8000-000000000107"), "1" * 64)
     calculation = calculation_evidence(UUID("81000000-0000-4000-8000-000000000108"), left, right)
@@ -302,7 +305,11 @@ def test_calculation_evidence_is_recomputed_before_support_is_accepted() -> None
         calculation,
         locator=replace(calculation.locator, result="31.00"),
     )
-    tampered_claim = claim(selected_claim.claim_id, (tampered, ClaimEvidenceRelation.SUPPORTS))
+    tampered_claim = claim(
+        selected_claim.claim_id,
+        (tampered, ClaimEvidenceRelation.SUPPORTS),
+        *((left, ClaimEvidenceRelation.SUPPORTS),) if other_valid_support else (),
+    )
     rejected = evaluate_verification_snapshot(
         snapshot(
             (tampered_claim,),
@@ -315,7 +322,12 @@ def test_calculation_evidence_is_recomputed_before_support_is_accepted() -> None
     )
 
     assert verified.status is VerificationStatus.VERIFIED
-    assert rejected.status is VerificationStatus.INSUFFICIENT_EVIDENCE
+    assert rejected.status is (
+        VerificationStatus.PARTIAL
+        if other_valid_support
+        else VerificationStatus.INSUFFICIENT_EVIDENCE
+    )
+    assert rejected.claims[0].calculation_refs == ()
     assert VerificationIssueCode.CALCULATION_MISMATCH in {issue.code for issue in rejected.issues}
 
 

@@ -3,6 +3,8 @@
 # Test doubles implement the httpcore2 protocol, whose parameter is named ``timeout``.
 # ruff: noqa: ASYNC109
 
+import asyncio
+import socket
 import ssl
 from collections.abc import Iterable
 
@@ -13,6 +15,7 @@ import pytest
 from industry_platform.adapters.public_egress import (
     PinnedPublicNetworkBackend,
     PublicEgressTransport,
+    SystemPublicHostResolver,
     create_public_egress_http_client,
 )
 
@@ -28,6 +31,26 @@ class StaticResolver:
     async def resolve(self, hostname: str, port: int) -> tuple[str, ...]:
         self.calls.append((hostname, port))
         return self.addresses
+
+
+class StaticGetAddrInfoLoop:
+    def __init__(self, *addresses: str) -> None:
+        self.addresses = addresses
+
+    async def getaddrinfo(self, *args: object, **kwargs: object) -> list[tuple[object, ...]]:
+        del args, kwargs
+        return [
+            (socket_family, socket_type, socket_protocol, "", (address, 443))
+            for address, socket_family, socket_type, socket_protocol in (
+                (
+                    address,
+                    socket.AF_INET6 if ":" in address else socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP,
+                )
+                for address in self.addresses
+            )
+        ]
 
 
 class RecordingStream(httpcore2.AsyncNetworkStream):
@@ -170,6 +193,44 @@ async def test_peer_mismatch_closes_the_socket_before_http_can_use_it() -> None:
         await backend.connect_tcp("api.example.com", 443)
 
     assert network.stream.closed is True
+
+
+@pytest.mark.asyncio
+async def test_rfc2544_fake_dns_uses_controlled_public_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fallback = StaticResolver(PUBLIC_IP)
+    monkeypatch.setattr(
+        asyncio,
+        "get_running_loop",
+        lambda: StaticGetAddrInfoLoop("198.18.0.150"),
+    )
+    resolver = SystemPublicHostResolver(proxy_fallback=fallback)
+
+    resolved = await resolver.resolve("api.example.com", 443)
+
+    assert resolved == (PUBLIC_IP,)
+    assert fallback.calls == [("api.example.com", 443)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("address", ["127.0.0.1", "10.0.0.8", "192.168.1.10"])
+async def test_other_non_public_dns_does_not_use_proxy_fallback(
+    address: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fallback = StaticResolver(PUBLIC_IP)
+    monkeypatch.setattr(
+        asyncio,
+        "get_running_loop",
+        lambda: StaticGetAddrInfoLoop(address),
+    )
+    resolver = SystemPublicHostResolver(proxy_fallback=fallback)
+
+    resolved = await resolver.resolve("api.example.com", 443)
+
+    assert resolved == (address,)
+    assert fallback.calls == []
 
 
 @pytest.mark.asyncio

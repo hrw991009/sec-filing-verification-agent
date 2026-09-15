@@ -24,6 +24,7 @@ from industry_platform.modules.research.domain import (
     ResearchNode,
     ResearchRunStatus,
 )
+from industry_platform.modules.research.policy import validate_required_tools
 from industry_platform.modules.research.verification import (
     VerificationAllowedAction,
     VerificationClaimVerdict,
@@ -32,6 +33,7 @@ from industry_platform.modules.research.verification import (
     VerificationRepairability,
     VerificationStatus,
 )
+from industry_platform.modules.skills.registry import SKILL_REGISTRY
 
 
 def _non_nil_uuid(value: UUID) -> UUID:
@@ -48,10 +50,13 @@ class StrictResearchModel(BaseModel):
 
 
 class StartResearchRequest(StrictResearchModel):
+    skill_name: str | None = Field(default=None, min_length=1, max_length=100)
+    skill_version: str | None = Field(default=None, min_length=1, max_length=32)
     original_question: str = Field(min_length=1, max_length=4_000)
     confirmed_scope: list[str] = Field(min_length=1, max_length=16)
     exclusions: list[str] = Field(default_factory=list, max_length=16)
     completion_criteria: list[str] = Field(min_length=1, max_length=16)
+    required_tool_names: list[str] = Field(default_factory=list, max_length=8)
     mode: Literal["web", "local"] = "web"
     industry_id: NonNilUuid | None = None
     knowledge_base_ids: list[NonNilUuid] = Field(default_factory=list, max_length=100)
@@ -67,6 +72,7 @@ class StartResearchRequest(StrictResearchModel):
         "confirmed_scope",
         "exclusions",
         "completion_criteria",
+        "required_tool_names",
     )
     @classmethod
     def validate_text(cls, value: str | list[str]) -> str | list[str]:
@@ -79,6 +85,17 @@ class StartResearchRequest(StrictResearchModel):
 
     @model_validator(mode="after")
     def validate_source_scope(self) -> Self:
+        validate_required_tools(
+            self.required_tool_names,
+            local=self.mode == "local",
+            skill_selected=self.skill_name is not None,
+        )
+        if self.skill_name is not None or self.skill_version is not None:
+            if self.skill_name is None or self.skill_version is None:
+                raise ValueError("Skill requires an exact name and version")
+            SKILL_REGISTRY.resolve(self.skill_name, self.skill_version)
+            if self.mode != "local":
+                raise ValueError("SEC verification Skill requires local financial scope")
         if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
             raise ValueError("Knowledge Base IDs must be unique")
         if self.mode == "web":
@@ -119,6 +136,7 @@ class ResearchBriefResponse(StrictResearchModel):
     confirmed_scope: list[str]
     exclusions: list[str]
     completion_criteria: list[str]
+    required_tool_names: list[str] = Field(default_factory=list)
     financial_scope: FinancialScopePayload | None
     approval_reason: ResearchApprovalReason | None
     budget: ResearchBudgetResponse

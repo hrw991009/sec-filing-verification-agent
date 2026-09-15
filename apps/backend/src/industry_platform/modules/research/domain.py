@@ -193,8 +193,17 @@ class ResearchBriefInput:
     completion_criteria: tuple[str, ...]
     financial_scope: FinancialScope | None = None
     approval_reason: ResearchApprovalReason | None = None
+    required_tool_names: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        required_tools = tuple(self.required_tool_names)
+        if (
+            len(required_tools) > 8
+            or len(set(required_tools)) != len(required_tools)
+            or any(not name or len(name) > 100 or name != name.strip() for name in required_tools)
+        ):
+            raise ValueError("Research required Tool sequence is invalid")
+        object.__setattr__(self, "required_tool_names", required_tools)
         object.__setattr__(
             self,
             "original_question",

@@ -28,14 +28,22 @@ from industry_platform.modules.disclosures.domain import (
     sha256_hex,
 )
 from industry_platform.modules.disclosures.ports import SecFilingContentRepository
-from industry_platform.modules.disclosures.tool import SecGetXbrlFactsTool
+from industry_platform.modules.disclosures.tool import (
+    SecGetXbrlFactsInput,
+    SecGetXbrlFactsOutput,
+    SecGetXbrlFactsTool,
+)
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.financial_verification.domain import (
     FinancialScope,
     sec_xbrl_evidence_ref,
 )
-from industry_platform.modules.tools.domain import ToolAction
-from industry_platform.modules.tools.registry import RegistryToolExecutor, ToolRegistry
+from industry_platform.modules.tools.domain import ToolAction, tool_action_response_schema
+from industry_platform.modules.tools.registry import (
+    RegistryToolExecutor,
+    ToolPreparationError,
+    ToolRegistry,
+)
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 
 from .test_filing_content_service import (
@@ -185,8 +193,15 @@ class MemoryXbrlRepository:
 class MemoryFilingRepository:
     filing: SecCanonicalFiling = field(default_factory=canonical_filing)
 
-    async def get_canonical_filing(self, accession: str) -> SecCanonicalFiling:
+    async def get_canonical_filing(
+        self,
+        accession: str,
+        *,
+        as_of: datetime | None = None,
+    ) -> SecCanonicalFiling:
         assert accession == ACCESSION
+        if as_of is not None:
+            assert as_of == NOW
         return self.filing
 
 
@@ -298,8 +313,39 @@ async def test_xbrl_tool_uses_trusted_scope_and_emits_typed_source_lineage() -> 
     )
     assert '"source_kind":"companyfacts_aggregate"' in result.observation.model_text
     assert f'"evidence_ref":"{evidence_ref}"' in result.observation.model_text
+    assert f'"source_fact_id":"{FACT_ID}"' in result.observation.model_text
+    assert '"calculation_operand":{' in result.observation.model_text
+    parsed = SecGetXbrlFactsOutput.model_validate_json(result.observation.model_text, strict=True)
+    assert parsed.facts[0].calculation_operand is not None
+    assert parsed.facts[0].calculation_operand.source_fact_id == str(FACT_ID)
     assert result.observation.sources[0].source_type == "sec_xbrl_fact"
     assert result.observation.sources[0].locator == f"sec://xbrl-facts/{FACT_ID}"
     assert result.observation.sources[0].content_sha256 == sec_xbrl_fact_content_sha256(
         aggregate_fact()
     )
+
+
+def test_xbrl_tool_schema_matches_runtime_constraints_and_accepts_null_filters() -> None:
+    tool = SecGetXbrlFactsTool(service())
+    assert dict(tool.definition.input_schema) == SecGetXbrlFactsInput.model_json_schema()
+    validated = tool.validate_arguments({"taxonomy": None, "concept": None})
+    assert validated["taxonomy"] is None
+    assert validated["concept"] is None
+    assert validated["source_kinds"] == [kind.value for kind in SecXbrlSourceKind]
+    schema = tool_action_response_schema(tool.definition)
+    properties = schema["properties"]
+    assert isinstance(properties, dict)
+    arguments = properties["arguments"]
+    for name in ("taxonomy", "concept"):
+        for branch in arguments["properties"][name]["anyOf"]:
+            assert "JSON null" in branch["description"]
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [{"taxonomy": ""}, {"concept": ""}, {"source_kinds": []}, {"limit": 17}],
+)
+def test_xbrl_tool_keeps_rejecting_invalid_filters(arguments: dict[str, object]) -> None:
+    with pytest.raises(ToolPreparationError) as invalid:
+        SecGetXbrlFactsTool(service()).validate_arguments(arguments)
+    assert invalid.value.code == "tool_arguments_invalid"

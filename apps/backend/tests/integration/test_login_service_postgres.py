@@ -53,7 +53,6 @@ from industry_platform.server import create_selector_event_loop
 from .postgres import PostgresProbe
 
 RAW_VALUE = "correct horse battery staple"
-LOGIN_AT = datetime(2026, 8, 11, 4, 0, tzinfo=UTC)
 
 
 class LegacyRegistrationHasher:
@@ -93,6 +92,9 @@ def test_login_commits_credentials_tokens_and_audit_atomically(
     legacy_hash = PasswordHash(legacy_engine.hash(RAW_VALUE))
 
     async def exercise() -> None:
+        # PostgreSQL timestamps creation with its real clock; keep the issued
+        # session current rather than letting a fixed fixture expire over time.
+        login_at = datetime.now(UTC).replace(microsecond=0)
         engine = create_database_engine(migrated_postgres_probe.settings)
         session_factory = create_database_session_factory(engine)
         current_hasher = Argon2idPasswordHasher(
@@ -130,7 +132,7 @@ def test_login_commits_credentials_tokens_and_audit_atomically(
             session_token_service=token_service,
             access_token_codec=access_token_codec,
             transaction_factory=SqlAlchemyLoginSessionTransactionFactory(session_factory),
-            clock=lambda: LOGIN_AT,
+            clock=lambda: login_at,
         )
         rollback_probe_service = LoginSessionService(
             authentication_service=authentication_service,
@@ -138,7 +140,7 @@ def test_login_commits_credentials_tokens_and_audit_atomically(
             session_token_service=token_service,
             access_token_codec=failing_access_token_codec,
             transaction_factory=SqlAlchemyLoginSessionTransactionFactory(session_factory),
-            clock=lambda: LOGIN_AT,
+            clock=lambda: login_at,
         )
 
         try:
@@ -223,7 +225,7 @@ def test_login_commits_credentials_tokens_and_audit_atomically(
             )
             assert await current_hasher.needs_rehash(PasswordHash(user.password_hash)) is False
             assert user.password_changed_at == password_changed_at
-            assert user.last_login_at == LOGIN_AT
+            assert user.last_login_at == login_at
             assert family.current_session_id == result.session.session_id
             assert refresh_session.token_hash == bytes(
                 token_service.digest_refresh(result.refresh_token)
@@ -238,7 +240,7 @@ def test_login_commits_credentials_tokens_and_audit_atomically(
 
             access_claims = access_token_codec.verify(
                 result.access_token,
-                now=LOGIN_AT,
+                now=login_at,
             )
             assert access_claims.user_id == registration.user_id
             assert access_claims.session_id == result.session.session_id

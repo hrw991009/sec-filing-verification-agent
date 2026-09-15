@@ -141,6 +141,30 @@ def test_calculation_normalizes_operand_scales_into_scope_scale() -> None:
     assert (result.unit, result.scale) == ("USD", 6)
 
 
+@pytest.mark.parametrize("operator", list(FinancialOperator))
+def test_scope_normalized_lineage_recomputes_the_exact_same_formula(
+    operator: FinancialOperator,
+) -> None:
+    financial_scope = scope()
+    operands = (
+        FinancialOperand("169148000000", EVIDENCE_ID, unit="USD", scale=0),
+        FinancialOperand("383285000000", SECOND_EVIDENCE_ID, unit="USD", scale=0),
+    )
+    calculation = FinancialCalculation(operator=operator, operands=operands, decimal_places=2)
+    original = calculate_financial_result(financial_scope, calculation)
+    values = tuple(format(item.value_in_scope(financial_scope), "f") for item in operands)
+    assert values == ("169148.000000", "383285.000000")
+    restored = FinancialCalculation(
+        operator=operator,
+        operands=tuple(
+            FinancialOperand(value, item.evidence_ref)
+            for value, item in zip(values, operands, strict=True)
+        ),
+        decimal_places=2,
+    )
+    assert calculate_financial_result(financial_scope, restored) == original
+
+
 def test_percentage_is_distinct_from_ratio_and_uses_percent_unit() -> None:
     result = calculate_financial_result(
         scope(),

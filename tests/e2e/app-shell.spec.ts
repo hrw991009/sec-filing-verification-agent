@@ -4,6 +4,8 @@ import { promisify } from "node:util";
 import { expect, test, type Page } from "@playwright/test";
 
 const execFileAsync = promisify(execFile);
+// Each Python driver uses Settings to load dotenv, just like the API process.
+// Parsing it again through uv would alter unquoted JSON environment values.
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const BROWSER_SUCCESS_ANSWER_PREFIX = "Day 2 浏览器流式片段已到达。Run: ";
 const BROWSER_SUCCESS_ANSWER_SUFFIX = "; 第二段完成, 最终回答已持久化。";
@@ -69,7 +71,6 @@ async function cancelActiveRunAndWaitForTerminal(page: Page): Promise<void> {
 async function executeBrowserCreatedRun(receipt: StartTurnReceipt): Promise<void> {
   const uvArguments = [
     "run",
-    ...(process.env.CI === "true" ? [] : ["--env-file", ".env"]),
     "--locked",
     "--package",
     "sec-filing-verification-agent-backend",
@@ -106,7 +107,6 @@ async function executeBrowserCreatedRun(receipt: StartTurnReceipt): Promise<void
 async function executeBrowserCreatedWebRun(receipt: StartTurnReceipt): Promise<void> {
   const uvArguments = [
     "run",
-    ...(process.env.CI === "true" ? [] : ["--env-file", ".env"]),
     "--locked",
     "--package",
     "sec-filing-verification-agent-backend",
@@ -141,7 +141,6 @@ async function executeBrowserCreatedWebRun(receipt: StartTurnReceipt): Promise<v
 async function executeBrowserCreatedResearchRun(receipt: StartResearchReceipt): Promise<void> {
   const uvArguments = [
     "run",
-    ...(process.env.CI === "true" ? [] : ["--env-file", ".env"]),
     "--locked",
     "--package",
     "sec-filing-verification-agent-backend",

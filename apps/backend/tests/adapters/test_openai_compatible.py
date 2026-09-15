@@ -249,7 +249,105 @@ async def test_complete_maps_request_usage_cost_and_canonical_model() -> None:
 
 
 @pytest.mark.asyncio
-async def test_complete_sends_verified_image_only_for_capable_route() -> None:
+@pytest.mark.parametrize(
+    ("completion_tokens", "total_tokens", "reasoning_tokens", "expected_output"),
+    [(3, 13, 2, 3), (3, 68, 55, 58), (3, 13, 0, 3)],
+)
+async def test_complete_normalizes_reasoning_usage_without_double_counting(
+    completion_tokens: int, total_tokens: int, reasoning_tokens: int, expected_output: int
+) -> None:
+    document = json_response()
+    document["usage"] = {
+        "prompt_tokens": 10,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "completion_tokens_details": {"reasoning_tokens": reasoning_tokens},
+    }
+
+    def handler(_: httpx2.Request) -> httpx2.Response:
+        return response_with_bytes(json.dumps(document).encode())
+
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        response = await OpenAICompatibleModelProvider(
+            client=client, config=config(), clock=lambda: NOW
+        ).complete(model_request())
+
+    assert response.usage.input_tokens == 10
+    assert response.usage.output_tokens == expected_output
+    assert response.usage.total_tokens == total_tokens
+    assert response.usage.cost_micro_usd == 20 + expected_output * 4
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("total_tokens", "details"),
+    [
+        (999, {"reasoning_tokens": 55}),
+        (13, {"reasoning_tokens": 55}),
+        (13, {"reasoning_tokens": -1}),
+        (13, {"reasoning_tokens": True}),
+        (13, {"reasoning_tokens": "2"}),
+        (13, []),
+        (68, {}),
+    ],
+)
+async def test_complete_rejects_unreconciled_or_invalid_reasoning_usage(
+    total_tokens: int, details: object
+) -> None:
+    document = json_response(total_tokens=total_tokens)
+    usage = document["usage"]
+    assert isinstance(usage, dict)
+    usage["completion_tokens_details"] = details
+
+    def handler(_: httpx2.Request) -> httpx2.Response:
+        return response_with_bytes(json.dumps(document).encode())
+
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        with pytest.raises(ModelProviderError) as invalid:
+            await OpenAICompatibleModelProvider(
+                client=client, config=config(), clock=lambda: NOW
+            ).complete(model_request())
+    assert invalid.value.code is ModelProviderErrorCode.INVALID_RESPONSE
+
+
+@pytest.mark.asyncio
+async def test_complete_preserves_all_adjacent_context_sources_in_one_user_turn() -> None:
+    observed_body: dict[str, object] = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        observed_body.update(json.loads(request.content))
+        return response_with_bytes(json.dumps(json_response()).encode())
+
+    request = replace(
+        model_request(),
+        messages=(
+            ModelMessage(role=ModelRole.SYSTEM, content="System policy"),
+            ModelMessage(role=ModelRole.USER, content="Locked scope"),
+            ModelMessage(role=ModelRole.USER, content="Untrusted Tool Observation"),
+            ModelMessage(role=ModelRole.USER, content="Original question"),
+            ModelMessage(role=ModelRole.ASSISTANT, content="Previous answer"),
+            ModelMessage(role=ModelRole.USER, content="Follow-up"),
+        ),
+    )
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        await OpenAICompatibleModelProvider(
+            client=client, config=config(), clock=lambda: NOW
+        ).complete(request)
+
+    assert observed_body["messages"] == [
+        {"role": "system", "content": "System policy"},
+        {
+            "role": "user",
+            "content": "Locked scope\n\nUntrusted Tool Observation\n\nOriginal question",
+        },
+        {"role": "assistant", "content": "Previous answer"},
+        {"role": "user", "content": "Follow-up"},
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("adjacent", [False, True])
+async def test_complete_sends_verified_image_only_for_capable_route(adjacent: bool) -> None:
     image_data = b"sanitized-image-bytes"
     image = ModelImagePart(
         file_id=FILE_ID,
@@ -270,6 +368,16 @@ async def test_complete_sends_verified_image_only_for_capable_route() -> None:
             ),
         ),
     )
+    if adjacent:
+        image_request = replace(
+            image_request,
+            messages=(
+                image_request.messages[0],
+                ModelMessage(role=ModelRole.USER, content="Locked scope"),
+                image_request.messages[1],
+                ModelMessage(role=ModelRole.USER, content="Original question"),
+            ),
+        )
     observed_body: dict[str, object] = {}
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -296,7 +404,10 @@ async def test_complete_sends_verified_image_only_for_capable_route() -> None:
     assert isinstance(user_message, dict)
     content = user_message["content"]
     assert isinstance(content, list)
-    image_wire = content[1]
+    if adjacent:
+        assert content[0] == {"type": "text", "text": "Locked scope"}
+        assert content[-1] == {"type": "text", "text": "Original question"}
+    image_wire = content[2 if adjacent else 1]
     assert isinstance(image_wire, dict)
     image_url = image_wire["image_url"]
     assert isinstance(image_url, dict)
@@ -321,7 +432,14 @@ async def test_complete_sends_verified_image_only_for_capable_route() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stream_requires_finish_usage_and_done_before_completed_item() -> None:
+@pytest.mark.parametrize("separate_reasoning_tokens", [0, 55])
+async def test_stream_requires_finish_usage_and_done_before_completed_item(
+    separate_reasoning_tokens: int,
+) -> None:
+    usage = json_response()["usage"]
+    assert isinstance(usage, dict)
+    usage["completion_tokens_details"] = {"reasoning_tokens": separate_reasoning_tokens}
+    usage["total_tokens"] = 13 + separate_reasoning_tokens
     events = [
         {
             "id": "chatcmpl_stream_1",
@@ -362,7 +480,7 @@ async def test_stream_requires_finish_usage_and_done_before_completed_item() -> 
             "object": "chat.completion.chunk",
             "model": "test-model-2026-08-13",
             "choices": [],
-            "usage": json_response()["usage"],
+            "usage": usage,
         },
     ]
     wire = b"".join(
@@ -393,8 +511,87 @@ async def test_stream_requires_finish_usage_and_done_before_completed_item() -> 
         ModelStreamCompleted,
     ]
     assert completed.output_text == "A complete answer."
-    assert completed.usage.cost_micro_usd == 28
+    assert completed.usage.cost_micro_usd == 28 + separate_reasoning_tokens * 4
+    assert completed.usage.output_tokens == 3 + separate_reasoning_tokens
     assert completed.provider_request_id is None
+
+
+@pytest.mark.asyncio
+async def test_route_can_disable_reasoning_without_changing_other_models() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        payload = json.loads(request.content)
+        assert payload["reasoning"] == {"enabled": False}
+        assert payload["temperature"] == 0.0
+        assert payload["seed"] == 42
+        return response_with_bytes(json.dumps(json_response()).encode())
+
+    controlled_route = replace(
+        route(),
+        reasoning_enabled=False,
+        temperature=0.0,
+        seed=42,
+    )
+    controlled_config = replace(config(), models=(controlled_route,))
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        provider = OpenAICompatibleModelProvider(
+            client=client,
+            config=controlled_config,
+            clock=lambda: NOW,
+        )
+        response = await provider.complete(model_request())
+
+    assert response.output_text == '{"answer":"A complete answer."}'
+
+
+@pytest.mark.asyncio
+async def test_stream_accepts_openrouter_terminal_choice_on_usage_frame() -> None:
+    events = (
+        {
+            "id": "chatcmpl_openrouter_1",
+            "object": "chat.completion.chunk",
+            "model": "test-model-2026-08-13",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": "answer"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": None,
+        },
+        {
+            "id": "chatcmpl_openrouter_1",
+            "object": "chat.completion.chunk",
+            "model": "test-model-2026-08-13",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": ""},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": json_response()["usage"],
+        },
+    )
+    wire = b"".join(
+        [f"data: {json.dumps(event)}\n\n".encode() for event in events] + [b"data: [DONE]\n\n"]
+    )
+
+    def handler(_: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=StaticAsyncByteStream((wire,)),
+        )
+
+    async with http_client(httpx2.MockTransport(handler)) as client:
+        provider = OpenAICompatibleModelProvider(client=client, config=config(), clock=lambda: NOW)
+        request = replace(model_request(), response_schema=None)
+        items = tuple([item async for item in provider.stream(request)])
+
+    completed = validate_model_stream(items, request)
+    assert completed.output_text == "answer"
+    assert completed.usage.cost_micro_usd == 28
 
 
 @pytest.mark.asyncio

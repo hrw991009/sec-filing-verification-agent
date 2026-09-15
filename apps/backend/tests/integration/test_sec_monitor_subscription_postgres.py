@@ -1,6 +1,7 @@
 """Prove approved SEC Monitor creation and Research resume are one transaction."""
 
 import asyncio
+import json
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
@@ -321,7 +322,11 @@ def test_monitor_allow_is_atomic_idempotent_and_deny_writes_no_business_rows(
             assert approved_action.name == "sec.monitor.subscribe"
             assert approved_observation is not None
             assert approved_observation.ordinal == 2
-            assert approved_observation.model_text == f"sec-monitor:{allowed.monitor.monitor_id}"
+            assert json.loads(approved_observation.model_text) == {
+                "approval_status": "approved",
+                "execution_status": "completed",
+                "resource_ref": f"sec-monitor:{allowed.monitor.monitor_id}",
+            }
 
             monitors = await service.list_monitors(scope)
             assert monitors == (allowed.monitor,)

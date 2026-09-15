@@ -2,11 +2,12 @@
 
 import hashlib
 import json
+from contextlib import suppress
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Self
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from industry_platform.modules.agent_runtime.context import TrustedRuntimeContext
 from industry_platform.modules.agent_runtime.domain import AGENT_RUNTIME_SCHEMA_VERSION
@@ -45,6 +46,7 @@ from industry_platform.modules.disclosures.service import (
 from industry_platform.modules.disclosures.xbrl_service import SecXbrlService
 from industry_platform.modules.financial_verification.domain import sec_xbrl_evidence_ref
 from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
+from industry_platform.modules.financial_verification.tool import FinanceOperandPayload
 from industry_platform.modules.jobs.domain import ExecutionScope, ScheduleDefinition
 from industry_platform.modules.tools.domain import (
     MAX_TOOL_SOURCES,
@@ -347,7 +349,14 @@ def sec_monitor_subscribe_definition() -> ToolDefinition:
         schema_version=AGENT_RUNTIME_SCHEMA_VERSION,
         name=SEC_MONITOR_SUBSCRIBE_TOOL_NAME,
         version=SEC_MONITOR_SUBSCRIBE_TOOL_VERSION,
-        description="Request a durable, human-approved SEC filing Monitor subscription.",
+        description=(
+            "Request a durable, human-approved SEC filing Monitor subscription. Copy cik and "
+            "knowledge_base_id from the trusted scope. Use a five-field cron expression and "
+            "an IANA timezone. For new_filing, amendment or section_change, taxonomy, concept, "
+            "unit, threshold and comparator must all be null; these fields are only for "
+            "fact_absolute_change. Every rule still requires a nonempty section_query. "
+            "This requests approval; it does not approve or create a subscription."
+        ),
         input_schema_version="sec-monitor-subscribe-input-v1",
         output_schema_version="sec-monitor-subscribe-output-v1",
         input_schema={
@@ -1107,10 +1116,14 @@ class SecGetXbrlFactsInput(BaseModel):
     taxonomy: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+        description="Exact taxonomy identifier, or JSON null for no filter. Never an empty string.",
     )
     concept: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z_][A-Za-z0-9._-]{0,255}$",
+        description=(
+            "Exact concept identifier; JSON null means no filter. Empty strings are invalid."
+        ),
     )
     unit: str | None = Field(default=None, min_length=1, max_length=255)
     period_kind: Literal["instant", "duration", "forever"] | None = None
@@ -1118,6 +1131,7 @@ class SecGetXbrlFactsInput(BaseModel):
         default_factory=lambda: [kind.value for kind in SecXbrlSourceKind],
         min_length=1,
         max_length=3,
+        description="One or more source kinds; include all three when no source filter is needed.",
     )
     limit: int = Field(default=16, ge=1, le=16)
 
@@ -1134,6 +1148,23 @@ class SecGetXbrlFactsInput(BaseModel):
 
 class SecXbrlFactToolResponse(SecXbrlFactResponse):
     evidence_ref: UUID | None = None
+    calculation_operand: FinanceOperandPayload | None = None
+
+    @model_validator(mode="after")
+    def bind_calculation_operand(self) -> Self:
+        operand = None
+        if self.evidence_ref is not None:
+            # Non-numeric facts cannot be calculation operands.
+            with suppress(ValidationError):
+                operand = FinanceOperandPayload(
+                    value=self.value,
+                    evidence_ref=str(self.evidence_ref),
+                    source_fact_id=str(self.id),
+                )
+        if self.calculation_operand is not None and self.calculation_operand != operand:
+            raise ValueError("Calculation operand must match its XBRL fact")
+        object.__setattr__(self, "calculation_operand", operand)
+        return self
 
 
 class SecGetXbrlFactsOutput(BaseModel):
@@ -1154,31 +1185,16 @@ def sec_get_xbrl_facts_definition() -> ToolDefinition:
         version=SEC_GET_XBRL_FACTS_TOOL_VERSION,
         description=(
             "Read source-typed aggregate or raw XBRL facts from one imported, "
-            "server-locked SEC accession."
+            "server-locked SEC accession. taxonomy and concept are exact single identifiers, "
+            "not search text or lists. For multiple metrics or unknown identifiers, omit both "
+            "filters (or use null) and select the returned facts. Do not guess a concept name. "
+            "Copy a numeric fact's calculation_operand object directly into finance.calculate; "
+            "it binds value, evidence_ref and source_fact_id together. "
+            "The limit is at most 16. Omit optional filters rather than guessing them."
         ),
         input_schema_version="sec-get-xbrl-facts-input-v1",
         output_schema_version="sec-get-xbrl-facts-output-v1",
-        input_schema={
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "taxonomy": {"type": ["string", "null"]},
-                "concept": {"type": ["string", "null"]},
-                "unit": {"type": ["string", "null"]},
-                "period_kind": {
-                    "type": ["string", "null"],
-                    "enum": ["instant", "duration", "forever", None],
-                },
-                "source_kinds": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "enum": [kind.value for kind in SecXbrlSourceKind],
-                    },
-                },
-                "limit": {"type": "integer", "minimum": 1, "maximum": 16},
-            },
-        },
+        input_schema=SecGetXbrlFactsInput.model_json_schema(),
         output_schema={
             "type": "object",
             "additionalProperties": False,

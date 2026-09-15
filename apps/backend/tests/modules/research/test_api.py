@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import cast
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 
 from industry_platform.core.config import Settings
@@ -463,6 +464,35 @@ def test_post_pins_local_knowledge_and_financial_scope(test_settings: Settings) 
     assert request.brief.financial_scope == financial_scope()
 
 
+def test_skill_discovery_and_submission(test_settings: Settings) -> None:
+    submission = StubSubmissionService()
+    query = StubQueryService()
+    payload = local_start_payload()
+    payload.update(skill_name="sec.filing-verification", skill_version="v1")
+    with research_client(test_settings, submission, query) as client:
+        catalog = client.get("/api/v1/skills", headers=headers())
+        assert catalog.status_code == 200
+        assert catalog.json()[0]["name"] == "sec.filing-verification"
+        assert len(catalog.json()[0]["roles"]) == 5
+        assert client.get("/api/v1/skills").status_code == 401
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "skill-1"}),
+            json=payload,
+        )
+        assert response.status_code == 202
+        payload["skill_version"] = "v2"
+        rejected = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "skill-2"}),
+            json=payload,
+        )
+        assert rejected.status_code == 422
+    assert len(submission.calls) == 1
+    assert submission.calls[0][1].skill_name == "sec.filing-verification"
+    assert submission.calls[0][1].skill_version == "v1"
+
+
 def test_local_post_accepts_explicit_ambiguity_interrupt(test_settings: Settings) -> None:
     submission = StubSubmissionService()
     query = StubQueryService()
@@ -480,6 +510,37 @@ def test_local_post_accepts_explicit_ambiguity_interrupt(test_settings: Settings
         submission.calls[0][1].brief.approval_reason
         is ResearchApprovalReason.COMPANY_OR_PERIOD_AMBIGUITY
     )
+
+
+@pytest.mark.parametrize(
+    ("names", "skill", "status"),
+    [
+        (["sec.get_xbrl_facts", "finance.calculate"], True, 202),
+        (["sec.monitor.subscribe"], False, 202),
+        (["sec.monitor.subscribe"], True, 422),
+        (["finance.calculate", "finance.calculate"], False, 422),
+        (["unknown.tool"], False, 422),
+    ],
+)
+def test_required_tools_preserve_order_and_cannot_expand_policy(
+    test_settings: Settings, names: list[str], skill: bool, status: int
+) -> None:
+    submission = StubSubmissionService()
+    payload = local_start_payload()
+    payload["required_tool_names"] = names
+    if skill:
+        payload.update(skill_name="sec.filing-verification", skill_version="v1")
+    with research_client(test_settings, submission, StubQueryService()) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{WORKSPACE_ID}/research-runs",
+            headers=headers(**{"Idempotency-Key": "required-tools"}),
+            json=payload,
+        )
+    assert response.status_code == status
+    if status == 202:
+        assert submission.calls[0][1].brief.required_tool_names == tuple(names)
+    else:
+        assert submission.calls == []
 
 
 def test_get_exposes_brief_plan_draft_and_runtime_budget(test_settings: Settings) -> None:

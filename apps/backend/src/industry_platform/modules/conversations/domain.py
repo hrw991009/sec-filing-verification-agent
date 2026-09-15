@@ -246,6 +246,7 @@ def fingerprint_direct_answer_turn(
                 "confirmed_scope": list(command.research_brief.confirmed_scope),
                 "exclusions": list(command.research_brief.exclusions),
                 "completion_criteria": list(command.research_brief.completion_criteria),
+                "required_tool_names": list(command.research_brief.required_tool_names),
                 "financial_scope": (
                     None
                     if command.research_brief.financial_scope is None

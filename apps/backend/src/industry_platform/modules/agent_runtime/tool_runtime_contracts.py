@@ -206,11 +206,15 @@ class ToolLoopFinalDecision:
 
 def tool_loop_decision_response_schema(
     definitions: ToolDefinition | Sequence[ToolDefinition],
+    *,
+    allow_final: bool = True,
 ) -> Mapping[str, object]:
     """Return a strict decision schema for an exact trusted Tool surface or final answer."""
 
     selected = (definitions,) if isinstance(definitions, ToolDefinition) else tuple(definitions)
-    if not selected or len(selected) != len({item.reference for item in selected}):
+    if (not selected and not allow_final) or len(selected) != len(
+        {item.reference for item in selected}
+    ):
         raise ValueError("Tool loop decision schema requires unique Tool definitions")
     action_schemas = [dict(tool_action_response_schema(definition)) for definition in selected]
     final_schema = {
@@ -228,7 +232,9 @@ def tool_loop_decision_response_schema(
             "type": "object",
             "additionalProperties": False,
             "required": ["decision"],
-            "properties": {"decision": {"anyOf": [*action_schemas, final_schema]}},
+            "properties": {
+                "decision": {"anyOf": [*action_schemas, *([final_schema] if allow_final else [])]}
+            },
         },
         error_message="Tool loop decision schema must be canonical JSON data",
     )

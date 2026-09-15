@@ -141,6 +141,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Skills */
+        get: operations["list_skills_api_v1_skills_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -3875,6 +3892,8 @@ export interface components {
             id: string;
             /** Original Question */
             original_question: string;
+            /** Required Tool Names */
+            required_tool_names?: string[];
             /** Revision */
             revision: number;
         };
@@ -5166,6 +5185,28 @@ export interface components {
              */
             industry_id: string;
         };
+        /** SkillResponse */
+        SkillResponse: {
+            /** Description */
+            description: string;
+            /** Graph Version */
+            graph_version: string;
+            /** Name */
+            name: string;
+            /** Roles */
+            roles: components["schemas"]["SkillRoleResponse"][];
+            /** Version */
+            version: string;
+        };
+        /** SkillRoleResponse */
+        SkillRoleResponse: {
+            /** Name */
+            name: string;
+            /** Nodes */
+            nodes: string[];
+            /** Responsibility */
+            responsibility: string;
+        };
         /** SourceItemCollectionResponse */
         SourceItemCollectionResponse: {
             /** Items */
@@ -5339,6 +5380,12 @@ export interface components {
             mode: "web" | "local";
             /** Original Question */
             original_question: string;
+            /** Required Tool Names */
+            required_tool_names?: string[];
+            /** Skill Name */
+            skill_name?: string | null;
+            /** Skill Version */
+            skill_version?: string | null;
             /**
              * Timeout Seconds
              * @default 600
@@ -6658,6 +6705,26 @@ export interface operations {
                         /** Type */
                         type: string;
                     };
+                };
+            };
+        };
+    };
+    list_skills_api_v1_skills_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"][];
                 };
             };
         };

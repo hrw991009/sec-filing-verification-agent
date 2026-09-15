@@ -203,8 +203,15 @@ class MemoryRepository:
     resolve_calls: int = 0
     prepare_calls: int = 0
 
-    async def get_canonical_filing(self, accession: str) -> SecCanonicalFiling:
+    async def get_canonical_filing(
+        self,
+        accession: str,
+        *,
+        as_of: datetime | None = None,
+    ) -> SecCanonicalFiling:
         assert accession == ACCESSION
+        if as_of is not None:
+            assert as_of == NOW
         return canonical_filing()
 
     async def persist_archive(

@@ -21,7 +21,9 @@ from industry_platform.modules.research.domain import (
     ResearchStartReceipt,
     research_run_id_for_agent_run,
 )
+from industry_platform.modules.research.policy import validate_required_tools
 from industry_platform.modules.research.ports import ResearchQueryRepository
+from industry_platform.modules.skills.registry import SKILL_REGISTRY
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -52,8 +54,21 @@ class StartResearch:
     max_total_tokens: int = 32_768
     max_cost_micro_usd: int = 500_000
     timeout_seconds: int = 600
+    skill_name: str | None = None
+    skill_version: str | None = None
 
     def __post_init__(self) -> None:
+        validate_required_tools(
+            self.brief.required_tool_names,
+            local=self.search_mode is TurnSearchMode.LOCAL,
+            skill_selected=self.skill_name is not None,
+        )
+        if self.skill_name is not None or self.skill_version is not None:
+            if self.skill_name is None or self.skill_version is None:
+                raise ValueError("Skill requires an exact name and version")
+            SKILL_REGISTRY.resolve(self.skill_name, self.skill_version)
+            if self.search_mode is not TurnSearchMode.LOCAL:
+                raise ValueError("SEC verification Skill requires local financial scope")
         if self.industry_id is not None and self.industry_id.int == 0:
             raise ValueError("Research industry ID is invalid")
         knowledge_base_ids = tuple(self.knowledge_base_ids)
@@ -117,7 +132,13 @@ class ResearchSubmissionService:
                 trace_id=request.trace_id,
                 budget=budget,
                 runtime_version=RESEARCH_RUNTIME_VERSION,
-                harness_version=RESEARCH_HARNESS_VERSION,
+                harness_version=(
+                    RESEARCH_HARNESS_VERSION
+                    if request.skill_name is None or request.skill_version is None
+                    else SKILL_REGISTRY.resolve(
+                        request.skill_name, request.skill_version
+                    ).harness_version
+                ),
                 idempotency_key=request.idempotency_key,
                 question=request.brief.original_question,
                 new_conversation_title=None,

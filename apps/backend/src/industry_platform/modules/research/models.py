@@ -172,6 +172,9 @@ class ResearchBriefRecord(UUIDPrimaryKeyMixin, Base):
     confirmed_scope: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     exclusions: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     completion_criteria: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    required_tool_names: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     financial_scope: Mapped[dict[str, object] | None] = mapped_column(
         JSONB(none_as_null=True),
         nullable=True,

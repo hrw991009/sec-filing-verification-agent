@@ -174,6 +174,9 @@ def test_optional_agent_model_configuration_is_strict_and_secret_safe(
                 "cached_input_micro_usd_per_million": 100_000,
                 "output_micro_usd_per_million": 2_000_000,
                 "supports_image_input": True,
+                "reasoning_enabled": False,
+                "temperature": 0.0,
+                "seed": 42,
             }
         ),
     )
@@ -190,6 +193,9 @@ def test_optional_agent_model_configuration_is_strict_and_secret_safe(
         cached_input_micro_usd_per_million=100_000,
         output_micro_usd_per_million=2_000_000,
         supports_image_input=True,
+        reasoning_enabled=False,
+        temperature=0.0,
+        seed=42,
     )
     assert provider_key not in repr(settings)
 

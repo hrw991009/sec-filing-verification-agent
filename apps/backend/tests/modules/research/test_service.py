@@ -16,6 +16,7 @@ from industry_platform.modules.conversations.domain import (
     DirectAnswerTurnReceipt,
     StartDirectAnswerTurn,
     TurnSearchMode,
+    fingerprint_direct_answer_turn,
 )
 from industry_platform.modules.financial_verification.domain import (
     FinancialForm,
@@ -364,6 +365,31 @@ async def test_viewer_cannot_submit_research() -> None:
         )
 
     assert starter.commands == []
+
+
+@pytest.mark.asyncio
+async def test_skill_persists_version_and_preserves_scope_budget_and_idempotency() -> None:
+    starter = RecordingStarter()
+    service = ResearchSubmissionService(starter, clock=lambda: NOW)
+    selected = replace(local_request(), skill_name="sec.filing-verification", skill_version="v1")
+    await service.start(WorkspaceScope(WORKSPACE_ID, USER_ID, "member"), selected)
+    command = starter.commands[0]
+    assert command.harness_version == "skill:sec.filing-verification:v1"
+    assert command.research_brief == selected.brief
+    assert command.knowledge_base_ids == selected.knowledge_base_ids
+    assert command.idempotency_key == selected.idempotency_key
+    assert command.budget.max_total_tokens == selected.max_total_tokens
+    assert command.budget.deadline == NOW + timedelta(seconds=selected.timeout_seconds)
+    assert fingerprint_direct_answer_turn(command, run_id=RUN_ID) != fingerprint_direct_answer_turn(
+        replace(command, harness_version="harness-research-v1"), run_id=RUN_ID
+    )
+
+
+def test_skill_rejects_web_scope_and_incomplete_version() -> None:
+    with pytest.raises(ValueError, match="local financial scope"):
+        replace(request(), skill_name="sec.filing-verification", skill_version="v1")
+    with pytest.raises(ValueError, match="exact name and version"):
+        replace(local_request(), skill_name="sec.filing-verification")
 
 
 @pytest.mark.parametrize(

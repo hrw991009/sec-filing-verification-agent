@@ -297,7 +297,27 @@ def test_browser_phase_starts_all_five_dependencies_before_the_real_journey(
     assert phase.status is AcceptancePhaseStatus.PASSED
     assert calls[0][1:3] == ("compose", "--env-file")
     assert {"postgres", "redis", "minio", "milvus", "elasticsearch"} <= set(calls[0])
-    assert calls[1][1:] == ("apps/backend/tests/sec_browser_e2e_runner.py",)
+    assert "minio-init" not in calls[0]
+    assert calls[1][-4:] == ("run", "--rm", "--no-deps", "minio-init")
+    assert calls[2][1:] == ("apps/backend/tests/sec_browser_e2e_runner.py",)
+
+
+def test_browser_phase_preserves_subprocess_diagnostics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def run(command: tuple[str, ...], **kwargs: object) -> object:
+        del kwargs
+        return subprocess.CompletedProcess(command, 1, "", "compose diagnostic")
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"C:/tools/{name}.exe")
+    monkeypatch.setattr(subprocess, "run", run)
+    runner = AcceptanceRunner(root=tmp_path, output_directory=tmp_path / ".data/evals")
+
+    phase = runner._browser()
+
+    assert phase.status is AcceptancePhaseStatus.FAILED
+    assert "dependency compose exited 1: compose diagnostic" in phase.detail
 
 
 def test_preflight_reads_each_named_acceptance_input(
@@ -343,6 +363,7 @@ def test_preflight_reads_each_named_acceptance_input(
             agent_model_provider_base_url="https://provider.example/v1",
             agent_model_provider_api_key="configured",
             sec_source_configured=True,
+            knowledge_indexes_configured=True,
             env_file=kwargs.get("_env_file"),
         ),
     )
@@ -405,6 +426,7 @@ def test_core_preflight_does_not_require_recovery_manifest_or_previous_image(
             agent_model_provider_base_url="https://provider.example/v1",
             agent_model_provider_api_key="configured",
             sec_source_configured=True,
+            knowledge_indexes_configured=True,
             env_file=kwargs.get("_env_file"),
         ),
     )
@@ -455,6 +477,7 @@ def test_core_preflight_can_check_external_prerequisites_from_dirty_source(
             agent_model_provider_base_url="https://provider.example/v1",
             agent_model_provider_api_key="configured",
             sec_source_configured=True,
+            knowledge_indexes_configured=True,
             env_file=kwargs.get("_env_file"),
         ),
     )

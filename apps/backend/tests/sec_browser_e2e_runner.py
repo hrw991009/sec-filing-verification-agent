@@ -13,11 +13,20 @@ import time
 import urllib.error
 import urllib.request
 from contextlib import ExitStack
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 ROOT = Path(__file__).resolve().parents[3]
-RUNTIME_DIR = ROOT / "test-results" / "sec-real-runtime"
+RUNTIME_DIR = (
+    ROOT
+    / "test-results"
+    / (
+        "sec-live-model-runtime"
+        if os.getenv("SEC_BROWSER_LIVE_MODEL") == "true"
+        else "sec-real-runtime"
+    )
+)
 PROVIDER_ORIGIN = "http://127.0.0.1:18081"
 PROVIDER_KEY = "sec-browser-controlled-key"
 
@@ -53,6 +62,19 @@ def _environment() -> dict[str, str]:
             "SEC_REAL_BROWSER_E2E": "true",
         }
     )
+    if os.getenv("SEC_BROWSER_LIVE_MODEL") == "true":
+        # The configured model uses the production egress and provider adapter.
+        # Missing process variables fall through to Settings' existing .env loader.
+        for name in (
+            "AGENT_MODEL_PROVIDER_API_KEY",
+            "AGENT_MODEL_PROVIDER_BASE_URL",
+            "AGENT_MODEL_ROUTE_JSON",
+        ):
+            if name in os.environ:
+                environment[name] = os.environ[name]
+            else:
+                environment.pop(name, None)
+        environment["AGENT_MODEL_CONTROLLED_LOOPBACK"] = "false"
     return environment
 
 
@@ -132,6 +154,8 @@ def _require_provider_decisions(state: dict[str, object]) -> None:
 
 def main() -> None:
     environment = _environment()
+    live_model = environment.get("SEC_BROWSER_LIVE_MODEL") == "true"
+    started_at = datetime.now(UTC)
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "apps/backend/alembic.ini", "upgrade", "head"],
@@ -142,6 +166,9 @@ def main() -> None:
     pnpm = shutil.which("pnpm")
     if pnpm is None:
         raise RuntimeError("pnpm is unavailable")
+    git = shutil.which("git")
+    if git is None:
+        raise RuntimeError("git is unavailable")
 
     processes: list[subprocess.Popen[bytes]] = []
     try:
@@ -149,13 +176,14 @@ def main() -> None:
             provider_log = stack.enter_context((RUNTIME_DIR / "provider.log").open("wb"))
             dispatcher_log = stack.enter_context((RUNTIME_DIR / "dispatcher.log").open("wb"))
             worker_log = stack.enter_context((RUNTIME_DIR / "worker.log").open("wb"))
-            provider = _start(
-                [sys.executable, "apps/backend/tests/sec_browser_provider.py"],
-                environment=environment,
-                output=provider_log,
-            )
-            processes.append(provider)
-            _wait_for_provider(provider)
+            if not live_model:
+                provider = _start(
+                    [sys.executable, "apps/backend/tests/sec_browser_provider.py"],
+                    environment=environment,
+                    output=provider_log,
+                )
+                processes.append(provider)
+                _wait_for_provider(provider)
             processes.append(
                 _start(
                     [sys.executable, "-m", "industry_platform.workers.dispatcher"],
@@ -184,10 +212,9 @@ def main() -> None:
             if playwright_output.exists():
                 shutil.copytree(
                     playwright_output,
-                    RUNTIME_DIR / "playwright",
-                    dirs_exist_ok=True,
+                    RUNTIME_DIR / started_at.strftime("playwright-%Y%m%dT%H%M%S%fZ"),
                 )
-            state = _provider_state()
+            state = {} if live_model else _provider_state()
             (RUNTIME_DIR / "provider-state.json").write_text(
                 json.dumps(state, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -195,6 +222,20 @@ def main() -> None:
             source_manifest = ROOT / environment["SEC_CONTROLLED_SOURCE_MANIFEST_PATH"]
             runtime_manifest = {
                 "schema_version": 1,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "model_mode": "configured_live" if live_model else "controlled",
+                "model_configuration": _model_configuration(environment),
+                "playwright_artifacts": started_at.strftime("playwright-%Y%m%dT%H%M%S%fZ"),
+                "browser_passed": completed.returncode == 0,
+                "source_commit": subprocess.check_output(  # noqa: S603
+                    [git, "rev-parse", "HEAD"], cwd=ROOT, text=True
+                ).strip(),
+                "source_diff_sha256": hashlib.sha256(
+                    subprocess.check_output([git, "diff", "HEAD", "--binary"], cwd=ROOT)  # noqa: S603
+                ).hexdigest(),
+                "working_tree_clean": not subprocess.check_output(  # noqa: S603
+                    [git, "status", "--porcelain"], cwd=ROOT, text=True
+                ).strip(),
                 "source_mode": "controlled_derivative",
                 "source_manifest": source_manifest.relative_to(ROOT).as_posix(),
                 "source_manifest_sha256": hashlib.sha256(source_manifest.read_bytes()).hexdigest(),
@@ -211,7 +252,7 @@ def main() -> None:
                     "web",
                     "outbox_dispatcher",
                     "celery_worker",
-                    "controlled_http_provider",
+                    *([] if live_model else ["controlled_http_provider"]),
                 ],
                 "provider_state": state,
             }
@@ -221,10 +262,36 @@ def main() -> None:
             )
             if completed.returncode != 0:
                 raise SystemExit(completed.returncode)
-            _require_provider_decisions(state)
+            if not live_model:
+                _require_provider_decisions(state)
     finally:
         for process in reversed(processes):
             _stop(process)
+
+
+def _model_configuration(environment: dict[str, str]) -> dict[str, object]:
+    from industry_platform.core.config import Settings
+
+    # Settings validates these raw environment values through Pydantic at runtime.
+    overrides: dict[str, Any] = {}
+    if "AGENT_MODEL_ROUTE_JSON" in environment:
+        overrides["AGENT_MODEL_ROUTE_JSON"] = environment["AGENT_MODEL_ROUTE_JSON"]
+    for name in (
+        "APP_ENVIRONMENT",
+        "AGENT_MODEL_PROVIDER_BASE_URL",
+        "AGENT_MODEL_PROVIDER_API_KEY",
+        "AGENT_MODEL_CONTROLLED_LOOPBACK",
+        "AGENT_MODEL_REQUEST_TIMEOUT_SECONDS",
+    ):
+        if name in environment:
+            overrides[name.lower()] = environment[name]
+    settings = Settings(**overrides)
+    route = settings.agent_model_route
+    return {
+        "model": None if route is None else route.model,
+        "reasoning_enabled": None if route is None else route.reasoning_enabled,
+        "request_timeout_seconds": settings.agent_model_request_timeout_seconds,
+    }
 
 
 if __name__ == "__main__":

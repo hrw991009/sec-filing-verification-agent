@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -514,6 +515,21 @@ def test_l2_decision_schema_and_decoder_accept_only_one_strict_branch() -> None:
         decode_tool_loop_decision('{"decision":{"schema_version":1,"kind":"unknown"}}')
 
 
+def test_required_step_schema_rejects_final_and_completed_sequence_rejects_tools() -> None:
+    pending = tool_loop_decision_response_schema(fake_lookup_definition(), allow_final=False)
+    completed = tool_loop_decision_response_schema(())
+    validate_supported_schema(pending)
+    validate_supported_schema(completed)
+    validate_structured_output(action_decision("steel"), pending)
+    validate_structured_output(final_decision(), completed)
+    with pytest.raises(InvalidProviderResponse):
+        validate_structured_output(final_decision(), pending)
+    with pytest.raises(InvalidProviderResponse):
+        validate_structured_output(action_decision("steel"), completed)
+    with pytest.raises(ValueError, match="unique Tool definitions"):
+        tool_loop_decision_response_schema((), allow_final=False)
+
+
 @pytest.mark.asyncio
 async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
     provider = QueueModelProvider(
@@ -539,8 +555,19 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
     for request in provider.requests:
         assert request.response_schema is not None
         validate_supported_schema(request.response_schema)
-        assert '"input_schema_version":' in request.messages[0].content
-        assert '"input_schema":' not in request.messages[0].content
+        catalog = json.loads(
+            request.messages[0]
+            .content.split("Tool catalog:\n")[1]
+            .split("\nHost execution progress")[0]
+        )
+        assert catalog[0]["input_schema"] == dict(fake_lookup_definition().input_schema)
+        assert catalog[0]["name"] == fake_lookup_definition().name
+        assert catalog[0]["version"] == fake_lookup_definition().version
+        assert json.loads(json.dumps(request.response_schema, default=dict)) == (
+            tool_loop_decision_response_schema(fake_lookup_definition())
+        )
+        assert "tool_call uses name/version/arguments" in request.messages[0].content
+        assert "final uses content_markdown" in request.messages[0].content
     assert "provider/tool-l2-key" not in repr(events)
     assert "provider/tool-l2-key" not in repr(provider.requests)
 

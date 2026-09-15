@@ -694,6 +694,17 @@ def _aggregate_status(claims: tuple[VerificationClaimResult, ...]) -> Verificati
     verdicts = {item.verdict for item in claims if item.required}
     if VerificationClaimVerdict.CONFLICTING in verdicts:
         return VerificationStatus.CONFLICT
+    if any(
+        issue.severity is VerificationIssueSeverity.ERROR
+        for claim in claims
+        if claim.required
+        for issue in claim.issues
+    ):
+        return (
+            VerificationStatus.PARTIAL
+            if VerificationClaimVerdict.SUPPORTED in verdicts
+            else VerificationStatus.INSUFFICIENT_EVIDENCE
+        )
     if verdicts == {VerificationClaimVerdict.SUPPORTED}:
         return VerificationStatus.VERIFIED
     if VerificationClaimVerdict.SUPPORTED in verdicts:

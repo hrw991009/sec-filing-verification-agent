@@ -1,10 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = "https://localhost:5173";
-const backendUv =
-  process.env.CI === "true"
-    ? "uv run --locked --package sec-filing-verification-agent-backend"
-    : "uv run --env-file .env --locked --package sec-filing-verification-agent-backend";
+// Settings owns dotenv parsing, including JSON values, for API and migrations.
+const backendUv = "uv run --locked --package sec-filing-verification-agent-backend";
 const realSecJourney = process.env.SEC_REAL_BROWSER_E2E === "true";
 
 export default defineConfig({
@@ -50,7 +48,7 @@ export default defineConfig({
   webServer: [
     {
       command: `${backendUv} alembic -c apps/backend/alembic.ini upgrade head && ${backendUv} sec-filing-verification-api`,
-      reuseExistingServer: process.env.CI !== "true",
+      reuseExistingServer: process.env.CI !== "true" && !realSecJourney,
       stderr: "pipe",
       stdout: "pipe",
       timeout: 120_000,
@@ -59,7 +57,7 @@ export default defineConfig({
     {
       command: "pnpm --filter @sec-filing-verification/web run dev",
       ignoreHTTPSErrors: true,
-      reuseExistingServer: process.env.CI !== "true",
+      reuseExistingServer: process.env.CI !== "true" && !realSecJourney,
       stderr: "pipe",
       stdout: "pipe",
       timeout: 120_000,

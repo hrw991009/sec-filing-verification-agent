@@ -84,7 +84,10 @@ class SecXbrlService:
         financial_scope: FinancialScope,
         query: SecXbrlFactQuery,
     ) -> SecXbrlFactResult:
-        filing = await self.filing_repository.get_canonical_filing(financial_scope.accession)
+        filing = await self.filing_repository.get_canonical_filing(
+            financial_scope.accession,
+            as_of=financial_scope.as_of,
+        )
         if (
             filing.cik != financial_scope.cik
             or filing.form.value != financial_scope.form.value

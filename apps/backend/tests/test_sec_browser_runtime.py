@@ -2,6 +2,7 @@ import json
 import runpy
 import threading
 from collections.abc import Callable
+from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import cast
@@ -10,6 +11,7 @@ from uuid import uuid4
 import pytest
 
 from industry_platform.adapters.openai_compatible_schema import validate_structured_output
+from industry_platform.core.config import Settings
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import (
     tool_loop_decision_response_schema,
 )
@@ -28,6 +30,9 @@ _TEST_ROOT = Path(__file__).resolve().parent
 _RUNNER_GLOBALS = runpy.run_path(str(_TEST_ROOT / "sec_browser_e2e_runner.py"))
 _PROVIDER_GLOBALS = runpy.run_path(str(_TEST_ROOT / "sec_browser_provider.py"))
 _environment = cast(Callable[[], dict[str, str]], _RUNNER_GLOBALS["_environment"])
+_model_configuration = cast(
+    Callable[[dict[str, str]], dict[str, object]], _RUNNER_GLOBALS["_model_configuration"]
+)
 _require_provider_decisions = cast(
     Callable[[dict[str, object]], None],
     _RUNNER_GLOBALS["_require_provider_decisions"],
@@ -116,7 +121,13 @@ async def test_controlled_model_provider_client_reaches_real_loopback_http() -> 
 
 def test_runner_configures_controlled_source_provider_and_index_endpoints(
     monkeypatch: pytest.MonkeyPatch,
+    test_settings: Settings,
 ) -> None:
+    monkeypatch.setattr(
+        "industry_platform.core.config.Settings",
+        partial(Settings, **test_settings.model_dump(by_alias=True)),
+    )
+    monkeypatch.delenv("SEC_BROWSER_LIVE_MODEL", raising=False)
     monkeypatch.setenv("SEC_USER_AGENT_EMAIL", "owner@example.com")
     monkeypatch.delenv("ELASTICSEARCH_ENDPOINT", raising=False)
     monkeypatch.delenv("MILVUS_ENDPOINT", raising=False)
@@ -130,12 +141,42 @@ def test_runner_configures_controlled_source_provider_and_index_endpoints(
     assert environment["SEC_USER_AGENT_EMAIL"] == "owner@example.com"
     assert environment["ELASTICSEARCH_ENDPOINT"] == "http://127.0.0.1:19200"
     assert environment["MILVUS_ENDPOINT"] == "http://127.0.0.1:19530"
+    configuration = _model_configuration(environment)
+    assert configuration["model"] == "openai-compatible/sec-browser"
+    assert "api_key" not in configuration
 
     monkeypatch.setenv("ELASTICSEARCH_ENDPOINT", "http://127.0.0.1:29200")
     monkeypatch.setenv("MILVUS_ENDPOINT", "http://127.0.0.1:29530")
     overridden = _environment()
     assert overridden["ELASTICSEARCH_ENDPOINT"] == "http://127.0.0.1:29200"
     assert overridden["MILVUS_ENDPOINT"] == "http://127.0.0.1:29530"
+
+
+@pytest.mark.parametrize("configured_in_process", [False, True])
+def test_live_runner_uses_configured_model_without_controlled_provider(
+    monkeypatch: pytest.MonkeyPatch, *, configured_in_process: bool
+) -> None:
+    monkeypatch.setenv("SEC_BROWSER_LIVE_MODEL", "true")
+    model_variables = {
+        "AGENT_MODEL_PROVIDER_API_KEY": "test-configured-key",
+        "AGENT_MODEL_PROVIDER_BASE_URL": "https://provider.example/v1",
+        "AGENT_MODEL_ROUTE_JSON": '{"model":"configured-model"}',
+    }
+    for name, value in model_variables.items():
+        if configured_in_process:
+            monkeypatch.setenv(name, value)
+        else:
+            monkeypatch.delenv(name, raising=False)
+
+    environment = _environment()
+
+    assert environment["AGENT_MODEL_CONTROLLED_LOOPBACK"] == "false"
+    assert environment["SEC_REAL_BROWSER_E2E"] == "true"
+    for name, value in model_variables.items():
+        if configured_in_process:
+            assert environment[name] == value
+        else:
+            assert name not in environment  # Settings loads the user's .env.
 
 
 def test_runner_requires_all_three_provider_decision_kinds() -> None:

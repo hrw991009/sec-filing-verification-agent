@@ -86,15 +86,15 @@
     },
     {
       "artifact_id": "release-execution-runner",
-      "byte_size": 25462,
+      "byte_size": 25953,
       "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_execution.py",
-      "sha256": "12797e936be18d40a07bc99a4fda74f13baf88cfac14642c164ecec7aca5a8be"
+      "sha256": "92b5bdd301ac1ceda76993dd077ac93220361b167e09097467f97d8e8c1d5a0f"
     },
     {
       "artifact_id": "release-execution-tests",
-      "byte_size": 19002,
+      "byte_size": 19012,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_execution.py",
-      "sha256": "2f3d7f4487317c76d2e3309420684f1a1c59ecba3d93f3a4fcc1a0771f4d9a5b"
+      "sha256": "d4dd93498d5d6dd060a3968d12e23aac87ed30bbcc1d532752d63b72ef9a47a0"
     },
     {
       "artifact_id": "release-case-dataset",
@@ -218,21 +218,21 @@
     },
     {
       "artifact_id": "release-acceptance-runner",
-      "byte_size": 30079,
+      "byte_size": 31565,
       "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_acceptance.py",
-      "sha256": "4928c8edf0c1241a31cb07532b4f6d587efbab335b660cd6fb7e92d355bd89d6"
+      "sha256": "504ea3a450338c05d58ffff5f35b9d7731673fa580e7921812b8d0d5318e1c58"
     },
     {
       "artifact_id": "release-acceptance-tests",
-      "byte_size": 16651,
+      "byte_size": 17577,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_acceptance.py",
-      "sha256": "53850461a58a567e66b19e742156f685e5c99d0f284a1fbdfa789c9635c6e88f"
+      "sha256": "9fc380c23791b2bf63ff036f607a20c9a7cb941352884f6acc3268e5d4cb9b8a"
     },
     {
       "artifact_id": "release-acceptance-runbook",
-      "byte_size": 5896,
+      "byte_size": 21064,
       "relative_path": "docs/runbooks/sec-release-acceptance.md",
-      "sha256": "9799ccbf6f3f2a8e9c604cb526d81a14f4b6925bc6c3dde63a16758e136d0dd3"
+      "sha256": "2f9fc52193e77a6eb6d444e0d1a3944f27e813a41f6c9dab33ac123f0a660d29"
     },
     {
       "artifact_id": "sec-filing-table-parser",
@@ -278,9 +278,9 @@
     },
     {
       "artifact_id": "research-service-boundary-tests",
-      "byte_size": 17955,
+      "byte_size": 19385,
       "relative_path": "apps/backend/tests/modules/research/test_service.py",
-      "sha256": "cad4ca4e99a9193777c2ee60d67e0079f4186088f1377b05c37164fe745942f6"
+      "sha256": "131adfba4756dada5aa8154664f99e601f2998f833a3633226d3182794eec31d"
     },
     {
       "artifact_id": "sec-workbench-ui",
@@ -302,15 +302,15 @@
     },
     {
       "artifact_id": "research-workbench-ui",
-      "byte_size": 57951,
+      "byte_size": 60757,
       "relative_path": "apps/web/src/research/ResearchWorkspace.tsx",
-      "sha256": "82e2fdf2cc59195de56a3e3d3476c614f3ef4a98432f98e8f75db874a12fce55"
+      "sha256": "516434dc841336047eaa8c88d8074763847208037857464695056d7692d22d77"
     },
     {
       "artifact_id": "research-workbench-tests",
-      "byte_size": 28071,
+      "byte_size": 28675,
       "relative_path": "apps/web/src/research/ResearchWorkspace.test.tsx",
-      "sha256": "70caa9bc3b26af8edba35b838f6ca6cc4992c4f6102e3990522afbf78007f156"
+      "sha256": "25910f407283434d899ae99e869a613063a3bf5dd3474cfac1eb9c921957173a"
     },
     {
       "artifact_id": "research-web-api",
@@ -332,15 +332,15 @@
     },
     {
       "artifact_id": "research-http-router",
-      "byte_size": 18797,
+      "byte_size": 19032,
       "relative_path": "apps/backend/src/industry_platform/modules/research/router.py",
-      "sha256": "c89085ec93308302c314c3ad0ef2560c004c411f1b221f13fe62f7e281c95a9e"
+      "sha256": "5f58b06a173cb99822a256a6c840f98fcbc40516a884261b22cda27172d88943"
     },
     {
       "artifact_id": "research-verifier",
-      "byte_size": 33950,
+      "byte_size": 34301,
       "relative_path": "apps/backend/src/industry_platform/modules/research/verification.py",
-      "sha256": "180ac32cd2779c279da412aaada640088b3c35a8b2cad9a4d9f0a39949c43f9b"
+      "sha256": "11773a23f8c677b0362b95e682c4ee9f3751f868b4fdb59a3001bc3ff3fb8962"
     },
     {
       "artifact_id": "sec-monitor-service",
@@ -356,21 +356,21 @@
     },
     {
       "artifact_id": "python-project-policy",
-      "byte_size": 2584,
+      "byte_size": 2585,
       "relative_path": "pyproject.toml",
-      "sha256": "c75a9d8c23fc504faa939bdf032b3da46815fbde0d52b6098230f20e80de89af"
+      "sha256": "c57ba4e43e8db7c31460d4e1dc1d70b8e749edd2c8991738a23267170c29e3a0"
     },
     {
       "artifact_id": "python-lockfile",
-      "byte_size": 286411,
+      "byte_size": 287322,
       "relative_path": "uv.lock",
-      "sha256": "ef13a10c1f84ee783b709f93aac657c97580cd6749005cd61bdf8be9f3f59fec"
+      "sha256": "166f04547b9e9bb2b5279b828be2920e34c503888f5928ade168f145f9011dfb"
     },
     {
       "artifact_id": "node-lockfile",
-      "byte_size": 166731,
+      "byte_size": 166763,
       "relative_path": "pnpm-lock.yaml",
-      "sha256": "7757e9c385d29ee97da59f8b7dc0fc5ed0e1fc41bd657aa9fb3e1a69fa4ac79e"
+      "sha256": "0031b1319ae2e58a963a9cdddb8153e62181f532caf824a6ee20c295db71a261"
     },
     {
       "artifact_id": "ci-workflow",
