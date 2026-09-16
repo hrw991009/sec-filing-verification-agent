@@ -7,6 +7,8 @@ from fastapi import Request
 from industry_platform.core.config import Settings
 from industry_platform.core.database import AsyncSessionFactory
 from industry_platform.modules.files.ports import PrivateFileObjectStore
+from industry_platform.modules.ingestion.adapters.rebuild import SqlAlchemyIndexRebuildRepository
+from industry_platform.modules.ingestion.rebuild import IndexRebuildSubmissionService
 from industry_platform.modules.knowledge.adapters.sqlalchemy import (
     SqlAlchemyKnowledgeAcceptanceTransactionFactory,
     SqlAlchemyKnowledgeRepository,
@@ -17,6 +19,7 @@ from industry_platform.modules.knowledge.service import KnowledgeApplicationServ
 @dataclass(frozen=True, slots=True)
 class KnowledgeResources:
     service: KnowledgeApplicationService
+    rebuild_service: IndexRebuildSubmissionService
 
 
 def create_knowledge_resources(
@@ -25,13 +28,16 @@ def create_knowledge_resources(
     object_store: PrivateFileObjectStore | None,
 ) -> KnowledgeResources:
     return KnowledgeResources(
+        rebuild_service=IndexRebuildSubmissionService(
+            SqlAlchemyIndexRebuildRepository(session_factory)
+        ),
         service=KnowledgeApplicationService(
             repository=SqlAlchemyKnowledgeRepository(session_factory),
             transaction_factory=SqlAlchemyKnowledgeAcceptanceTransactionFactory(session_factory),
             object_store=object_store,
             bucket=settings.minio_bucket,
             presign_expiry_seconds=settings.minio_presign_expiry_seconds,
-        )
+        ),
     )
 
 

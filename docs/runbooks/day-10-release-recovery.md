@@ -34,18 +34,38 @@ The pytest references in `evals/manifests/sec-release-recovery-v1.json` must als
 
 ## Isolated executor
 
-The release acceptance runner builds the complete 12-scenario plan from the production release
-Run collection and executes it automatically:
+For the eleven locally executable capability checks, use a new evidence directory:
+
+```powershell
+pnpm run acceptance:recovery:checks --output-directory .data/evals/recovery-capabilities-20260916
+```
+
+This entry point uses disposable PostgreSQL databases, scoped index/object identities, a killed
+test Worker process and controlled dependency connection refusal. It never stops the shared
+development Compose services, never calls a model API and never sends a real notification.
+Each check has a JUnit result and redacted log hash. Skips, empty results, failures, timeouts or
+source changes during the batch fail the local check. The report records the source commit,
+dirty-tree status and source-file digest. An existing output directory is not overwritten.
+
+When PostgreSQL is a standalone CI service rather than the development Compose service, set
+`RECOVERY_POSTGRES_CONTAINER` to that exact container name/ID. This only selects where the
+PostgreSQL dump/restore client runs; it does not authorize service stops or source-data deletion.
+
+The original release acceptance runner still builds a 12-scenario plan:
 
 ```powershell
 pnpm run acceptance:sec
 ```
 
-No Run ID, Workspace ID, target, probe, command, or observation JSON is entered manually. The
-runner derives production Run ownership from PostgreSQL, assigns the frozen targets, creates a
-unique state directory per execution, and requires a clean tree whose HEAD matches
-`source_commit`. Commands use argv execution without a shell; destructive/secret-bearing commands
-are rejected. Captured output is redacted and hashed under `.data/evals`. See the
+Its automatic component checks do **not** prove that a historical production Run underwent the
+fault. The final probe now keeps `scenario_verified=false` for those bindings. Likewise, importing
+the previous image is only a prerequisite, not rollback acceptance. Full release acceptance
+requires the isolated staging exercises below, actual exercised Run identities, an owner-approved
+rollback image and a clean tree matching `source_commit`. Do not copy local capability results into
+the frozen release observations or change the twelve-scenario denominator to eleven.
+
+Commands use argv execution without a shell; destructive/secret-bearing commands are rejected.
+Captured output is redacted and hashed under `.data/evals`. See the
 [SEC release acceptance runbook](sec-release-acceptance.md) for inputs and artifacts.
 
 ## Fresh migration
@@ -71,7 +91,16 @@ Query and hash the scoped business rows in both databases. Record identical coun
 
 ## Filing index rebuild
 
-PostgreSQL and MinIO are the durable truth; Milvus and Elasticsearch are derived. Use recovery-specific index/collection names or the disposable integration database. Run the manifest's ingestion test, then remove only the recovery indexes, replay the existing ingestion Job with the same idempotency identity, and compare retrieved filing locators/Evidence IDs. Record exactly one completed side effect and identical final retrieval results.
+PostgreSQL and MinIO are the durable truth; Milvus and Elasticsearch are derived. Remove only
+verified recovery-scoped entries (or an independently isolated index/collection). A completed
+ingestion Job must not be reopened. A workspace owner requests a durable reconstruction Job via
+`POST /api/v1/workspaces/{workspace_id}/knowledge-bases/{knowledge_base_id}/versions/{version_id}/rebuild-indexes`
+with an `Idempotency-Key`. The dedicated `knowledge.index_rebuild.v1` handler reuses persisted
+chunks/embeddings and the existing index writers. The document version, chunks, source objects and
+Evidence locators retain their identities; only the operational Job is new. Readiness is restored
+only after both indexes succeed. Duplicate acceptance reuses the same Job, and a partial failure
+retries idempotent upserts without repeating parsing or model calls. Deletion is serialized with
+reconstruction writes and final readiness is lease-fenced.
 
 ## Worker interruption resume
 
@@ -107,9 +136,25 @@ Run the frozen adapter and real Redis budget tests. For a controlled release exe
 
 Force the bounded retry path using the frozen failure adapter, preserve the Job/Outbox/Event dead-letter state, then issue one authorized replay using the original idempotency and side-effect identity. The replay may complete once; a second replay must be a no-op or conflict, never a second Case/Monitor/notification.
 
+The owner-only endpoint is `POST /api/v1/workspaces/{workspace_id}/jobs/{job_id}/replay`.
+Send `Idempotency-Key` for the recovery request and JSON
+`{"expected_dispatch_generation":1,"additional_attempts":1}`. One request grants at most three
+additional attempts, with a lifetime ceiling of 100; it preserves the logical Job ID and original
+business idempotency key. The database rechecks current owner membership even on repeated calls.
+It retains the dead-letter event and appends a replay audit plus one new Outbox generation.
+Cancelled Jobs and terminal business Runs are not resurrected; original Run budgets are unchanged.
+Migration `f8c0d2e4a579` preserves one terminal Job event per delivery generation. Downgrade refuses
+to discard history after a Job has terminal facts from multiple generations.
+
 ## Notification unknown idempotency
 
 Use a delivery adapter that outlives the bounded drain so the Tool outcome is `unknown`. Do not retry with a new idempotency key. Reconcile provider/application state first, then retry the original identity and prove the total external effect count is at most one.
+
+`IdempotentWriteRecovery` enforces the original authorized Tool scope, key and payload digest,
+validates returned receipt identity and keeps failed/uncertain lookups UNKNOWN. A provider must
+offer durable atomic same-key delivery and authoritative lookup; plain SMTP does not satisfy this
+contract. The current check uses a controlled notification provider backed by a disposable
+PostgreSQL receipt table. It proves recovery behavior, not an actual email/webhook integration.
 
 ## Previous image rollback
 

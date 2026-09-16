@@ -175,6 +175,7 @@ from industry_platform.modules.jobs.domain import (
     ScheduleTriggerConflictError,
 )
 from industry_platform.modules.jobs.resources import create_job_resources
+from industry_platform.modules.jobs.router import router as job_router
 from industry_platform.modules.knowledge.domain import (
     KnowledgeConflictError,
     KnowledgeNotEmptyError,
@@ -392,6 +393,7 @@ def create_app(
     )
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(workspace_router, prefix="/api/v1")
+    application.include_router(job_router, prefix="/api/v1")
     application.include_router(conversation_router, prefix="/api/v1")
     application.include_router(memory_router, prefix="/api/v1")
     application.include_router(agent_run_router, prefix="/api/v1")

@@ -20,6 +20,7 @@ from industry_platform.modules.ingestion.adapters.indexes import (
     ElasticsearchLexicalIndexWriter,
     MilvusVectorIndexWriter,
 )
+from industry_platform.modules.ingestion.adapters.rebuild import SqlAlchemyIndexRebuildRepository
 from industry_platform.modules.ingestion.adapters.sqlalchemy import (
     SqlAlchemyIngestionRepository,
 )
@@ -30,6 +31,7 @@ from industry_platform.modules.ingestion.index_contract import (
     EMBEDDING_DIMENSION,
     MILVUS_COLLECTION,
 )
+from industry_platform.modules.ingestion.rebuild import IndexRebuildService
 from industry_platform.modules.ingestion.service import KnowledgeIngestionService
 from industry_platform.modules.jobs.ports import JobApplicationUseCase
 
@@ -38,6 +40,7 @@ from industry_platform.modules.jobs.ports import JobApplicationUseCase
 class IngestionResources:
     service: KnowledgeIngestionService
     deletion_service: KnowledgeDeletionService
+    rebuild_service: IndexRebuildService
 
 
 def create_ingestion_resources(
@@ -67,6 +70,9 @@ def create_ingestion_resources(
         timeout_seconds=settings.knowledge_index_timeout_seconds,
     )
     return IngestionResources(
+        rebuild_service=IndexRebuildService(
+            SqlAlchemyIndexRebuildRepository(session_factory), vector_index, lexical_index
+        ),
         service=KnowledgeIngestionService(
             repository=SqlAlchemyIngestionRepository(session_factory),
             jobs=jobs,

@@ -4,8 +4,9 @@ import asyncio
 import hashlib
 import io
 import os
+import socket
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import httpx2
@@ -15,12 +16,12 @@ from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from industry_platform.core.database import create_database_engine, create_database_session_factory
 from industry_platform.modules.files.domain import AttachmentMediaType, FileObjectStatus
 from industry_platform.modules.files.models import FileObject
-from industry_platform.modules.files.ports import FileObjectStoreError
+from industry_platform.modules.files.ports import FileObjectStoreError, PrivateFileObjectStore
 from industry_platform.modules.files.resources import create_private_file_object_store
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.identity.models import (
@@ -36,12 +37,13 @@ from industry_platform.modules.ingestion.index_contract import (
     ELASTICSEARCH_INDEX,
     MILVUS_COLLECTION,
 )
+from industry_platform.modules.ingestion.rebuild import INDEX_REBUILD_TASK_NAME
 from industry_platform.modules.ingestion.resources import create_ingestion_resources
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     SqlAlchemyOutboxTransactionFactory,
 )
 from industry_platform.modules.jobs.domain import ClaimOutboxCommand, JobStatus
-from industry_platform.modules.jobs.models import Job
+from industry_platform.modules.jobs.models import Job, OutboxEvent
 from industry_platform.modules.jobs.resources import create_job_resources
 from industry_platform.modules.knowledge.adapters.sqlalchemy import (
     SqlAlchemyKnowledgeAcceptanceTransactionFactory,
@@ -79,6 +81,7 @@ from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
 from industry_platform.workers.runtime import (
     FixedJobHandlerRegistry,
+    IndexRebuildJobHandler,
     JobExecutionDisposition,
     JobExecutionRuntime,
     JobHandler,
@@ -87,6 +90,7 @@ from industry_platform.workers.runtime import (
 )
 
 from .postgres import PostgresProbe
+from .recovery_indexes import verify_index_reconstruction
 
 MINIO_TESTS_REQUIRED = "MINIO_TESTS_REQUIRED"
 VECTOR_TESTS_REQUIRED = "VECTOR_TESTS_REQUIRED"
@@ -139,8 +143,10 @@ def _source_pdf() -> bytes:
 @pytest.mark.filterwarnings(
     r"ignore:datetime\.datetime\.utcnow\(\) is deprecated.*:DeprecationWarning:minio\.datatypes"
 )
+@pytest.mark.parametrize("unavailable_dependency", [None, "minio", "milvus", "elasticsearch"])
 def test_worker_persists_dual_indexes_and_deduplicates_delivery(
     migrated_postgres_probe: PostgresProbe,
+    unavailable_dependency: str | None,
 ) -> None:
     required = (MINIO_TESTS_REQUIRED, VECTOR_TESTS_REQUIRED, ELASTICSEARCH_TESTS_REQUIRED)
     if any(os.getenv(name) != "1" for name in required):
@@ -257,6 +263,8 @@ def test_worker_persists_dual_indexes_and_deduplicates_delivery(
             async def execute_next(
                 expected_job_id: UUID,
                 expected_disposition: JobExecutionDisposition = (JobExecutionDisposition.SUCCEEDED),
+                *,
+                unavailable_endpoint: str | None = None,
             ) -> None:
                 async with outbox() as writer:
                     claimed = await writer.claim_job_dispatches(
@@ -272,14 +280,27 @@ def test_worker_persists_dual_indexes_and_deduplicates_delivery(
                     assert await writer.mark_published(claimed[0].proof) is True
 
                 async with httpx2.AsyncClient(trust_env=False) as internal_client:
+                    execution_settings = settings
+                    execution_store: PrivateFileObjectStore | None = store
+                    if unavailable_endpoint is not None:
+                        field = f"{unavailable_dependency}_endpoint"
+                        endpoint = (
+                            unavailable_endpoint
+                            if unavailable_dependency == "minio"
+                            else f"http://{unavailable_endpoint}"
+                        )
+                        execution_settings = settings.model_copy(update={field: endpoint})
+                        if unavailable_dependency == "minio":
+                            execution_store = create_private_file_object_store(execution_settings)
                     resources = create_ingestion_resources(
-                        settings,
+                        execution_settings,
                         session_factory,
                         jobs,
-                        store,
+                        execution_store,
                         internal_client,
                     )
                     handlers: dict[str, JobHandler] = {
+                        INDEX_REBUILD_TASK_NAME: IndexRebuildJobHandler(resources.rebuild_service),
                         KNOWLEDGE_INGESTION_TASK_NAME: KnowledgeIngestionJobHandler(
                             resources.service
                         ),
@@ -309,6 +330,48 @@ def test_worker_persists_dual_indexes_and_deduplicates_delivery(
                             is JobExecutionDisposition.NO_OP
                         )
 
+            retained_stages = {None: 7, "minio": 0, "milvus": 5, "elasticsearch": 6}[
+                unavailable_dependency
+            ]
+            if unavailable_dependency is not None:
+                # Reserve, but do not listen on, a local port. Real adapters encounter
+                # connection refusal; no shared development service is stopped or mocked.
+                with socket.socket() as refused:
+                    refused.bind(("127.0.0.1", 0))
+                    await execute_next(
+                        accepted.version.ingestion_job_id,
+                        JobExecutionDisposition.RETRY_SCHEDULED,
+                        unavailable_endpoint=f"127.0.0.1:{refused.getsockname()[1]}",
+                    )
+                async with session_factory.begin() as session:
+                    retry_job = await session.get(Job, accepted.version.ingestion_job_id)
+                    retry_version = await session.get(DocumentVersionRecord, accepted.version.id)
+                    assert retry_job is not None
+                    assert retry_version is not None
+                    assert retry_job.status is JobStatus.RETRY_WAIT
+                    assert retry_job.last_error_code == "ingestion_dependency_retryable"
+                    assert retry_version.status is DocumentVersionStatus.RETRYING
+                    assert retry_version.ready_at is None
+                    completed_stages = tuple(
+                        await session.scalars(
+                            select(IngestionCheckpointRecord).where(
+                                IngestionCheckpointRecord.document_version_id == accepted.version.id
+                            )
+                        )
+                    )
+                    assert len(completed_stages) == retained_stages
+                    assert retry_job.dispatch_generation == 2
+                    # Advance the retry clock in this disposable database only.
+                    due = datetime.now(UTC) - timedelta(seconds=1)
+                    retry_job.available_at = due
+                    await session.execute(
+                        update(OutboxEvent)
+                        .where(
+                            OutboxEvent.source_job_id == retry_job.id,
+                            OutboxEvent.job_dispatch_generation == 2,
+                        )
+                        .values(next_attempt_at=due)
+                    )
             await execute_next(accepted.version.ingestion_job_id)
 
             async with session_factory() as session:
@@ -364,8 +427,9 @@ def test_worker_persists_dual_indexes_and_deduplicates_delivery(
                 "status": "ready",
             }
             assert [checkpoint.stage_sequence for checkpoint in checkpoints] == list(range(1, 8))
-            assert all(checkpoint.fencing_token == 1 for checkpoint in checkpoints)
-            assert all(checkpoint.attempt_count == 1 for checkpoint in checkpoints)
+            expected_attempts = [1] * retained_stages + [2] * (7 - retained_stages)
+            assert [checkpoint.fencing_token for checkpoint in checkpoints] == expected_attempts
+            assert [checkpoint.attempt_count for checkpoint in checkpoints] == expected_attempts
             assert counts == {
                 "document_pages": 1,
                 "document_chunks": 1,
@@ -386,6 +450,15 @@ def test_worker_persists_dual_indexes_and_deduplicates_delivery(
                 asset.preview_url is not None and "X-Amz-Signature=" in asset.preview_url
                 for asset in detail.assets
             )
+
+            if unavailable_dependency is None:
+                await verify_index_reconstruction(
+                    settings=settings,
+                    session_factory=session_factory,
+                    scope=scope,
+                    knowledge_base_id=knowledge_base.id,
+                    version_id=accepted.version.id,
+                )
 
             version_command = CreateDocumentVersion(
                 knowledge_base_id=knowledge_base.id,

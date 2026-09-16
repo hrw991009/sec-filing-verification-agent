@@ -72,6 +72,7 @@ from industry_platform.modules.ingestion.domain import (
     IngestionNotFoundError,
     IngestionPersistenceError,
 )
+from industry_platform.modules.ingestion.rebuild import INDEX_REBUILD_TASK_NAME, IndexRebuildService
 from industry_platform.modules.ingestion.resources import create_ingestion_resources
 from industry_platform.modules.ingestion.service import KnowledgeIngestionService
 from industry_platform.modules.jobs.domain import (
@@ -272,6 +273,27 @@ class IndustryCollectionJobHandler:
 
 
 @dataclass(frozen=True, slots=True)
+class IndexRebuildJobHandler:
+    rebuild: IndexRebuildService = field(repr=False)
+
+    async def execute(self, job: AcquiredJob) -> Mapping[str, object]:
+        try:
+            return await self.rebuild.execute(job)
+        except ValueError:
+            raise InvalidJobPayloadError from None
+        except IngestionCancelledError:
+            raise CancelledJobHandlerError(JobExecutionErrorCode.INGESTION_CANCELLED) from None
+        except IngestionDependencyError:
+            raise RetryableJobHandlerError(
+                JobExecutionErrorCode.INGESTION_DEPENDENCY_RETRYABLE
+            ) from None
+        except IngestionPersistenceError:
+            raise RetryableJobHandlerError(JobExecutionErrorCode.INGESTION_UNAVAILABLE) from None
+        except (IngestionConflictError, IngestionNotFoundError):
+            raise PermanentJobHandlerError(JobExecutionErrorCode.INGESTION_STATE_INVALID) from None
+
+
+@dataclass(frozen=True, slots=True)
 class KnowledgeIngestionJobHandler:
     ingestion: KnowledgeIngestionService = field(repr=False)
 
@@ -404,6 +426,7 @@ class FixedJobHandlerRegistry:
         ingestion_use_case: KnowledgeIngestionService | None = None,
         deletion_use_case: KnowledgeDeletionService | None = None,
         monitor_use_case: SecMonitorApplicationService | None = None,
+        rebuild_use_case: IndexRebuildService | None = None,
     ) -> "FixedJobHandlerRegistry":
         handlers: dict[str, JobHandler] = {
             IDENTITY_REFRESH_RECOVERY_CLEANUP_HANDLER: (
@@ -425,6 +448,8 @@ class FixedJobHandlerRegistry:
             handlers[KNOWLEDGE_DELETION_TASK_NAME] = KnowledgeDeletionJobHandler(deletion_use_case)
         if monitor_use_case is not None:
             handlers[SEC_MONITOR_TASK_NAME] = SecMonitorJobHandler(monitor_use_case)
+        if rebuild_use_case is not None:
+            handlers[INDEX_REBUILD_TASK_NAME] = IndexRebuildJobHandler(rebuild_use_case)
         return cls(handlers)
 
     def resolve(self, task_name: str) -> JobHandler:
@@ -797,6 +822,7 @@ def create_job_delivery_runtime(
             ingestion.service,
             ingestion.deletion_service,
             monitor_service,
+            ingestion.rebuild_service,
         ),
         worker_id=f"celery-{uuid4().hex}",
         heartbeat_seconds=settings.job_heartbeat_seconds,
