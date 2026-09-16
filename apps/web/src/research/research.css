@@ -5,6 +5,104 @@
   background: #f5f6f3;
 }
 
+.result-metrics,
+.result-bars,
+.dupont-factors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.result-metrics,
+.result-bars {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.result-metric,
+.dupont-node {
+  padding: 0.8rem;
+  border: 1px solid #cbdcd3;
+  border-radius: 0.6rem;
+  background: #f5faf7;
+}
+
+.result-value,
+.dupont-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.result-value button {
+  align-self: flex-start;
+  color: #245c4d;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.result-metric h4 {
+  margin: 0 0 0.5rem;
+}
+.result-metric p {
+  font-size: 0.8rem;
+}
+.result-bar {
+  min-width: 0;
+  margin: 0;
+}
+.result-bar .safe-chart {
+  width: 100%;
+  height: 17rem;
+}
+.dupont-tree > .dupont-node {
+  max-width: 18rem;
+  margin: auto;
+}
+.dupont-equation {
+  text-align: center;
+}
+.dupont-factors > div {
+  border-top: 2px solid #789d8c;
+  padding-top: 0.75rem;
+}
+.dupont-factors .dupont-node + .dupont-node {
+  margin-top: 0.5rem;
+}
+.result-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.result-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.result-table-scroll th,
+.result-table-scroll td {
+  padding: 0.65rem;
+  border: 1px solid #dfe4e0;
+  text-align: left;
+  white-space: nowrap;
+}
+.result-table-scroll th {
+  background: #f5f7f5;
+}
+.result-table-scroll caption {
+  text-align: left;
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .result-metrics,
+  .dupont-factors,
+  .result-bars {
+    grid-template-columns: 1fr;
+  }
+}
+
 .research-layout {
   display: grid;
   grid-template-columns: minmax(18rem, 0.8fr) minmax(32rem, 1.6fr);

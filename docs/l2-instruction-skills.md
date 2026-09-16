@@ -56,7 +56,7 @@ alpha-first 返回 alpha，beta-first 才返回 beta；相同要求的 JSON 模�
 
 停止新提交并排空旧 worker 后整体更新；回滚前停止新标识的任务提交并处理在途 Run。旧 worker 不认识新任务标识，不得用它恢复新 Run。已经存在的记录、Evidence 与 Checkpoint 均保留。
 
-独立入口文档：[事实核验](sec-verification-workflow.md)、[两年杜邦分析](sec-dupont-workflow.md)。本次未新增图表组件；现有报告使用 Markdown 表格，图表展示应与执行架构分开验收。
+独立入口文档：[事实核验](sec-verification-workflow.md)、[多年杜邦分析](sec-dupont-workflow.md)。当前杜邦结果层提供指标卡、数据表、柱状图和分解图；从报告 Evidence 派生，独立于工作流执行状态。
 
 ## 验证入口
 

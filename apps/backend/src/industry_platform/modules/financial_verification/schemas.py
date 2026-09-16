@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from industry_platform.modules.financial_verification.domain import (
     FINANCIAL_RECONCILIATION_VERSION,
@@ -23,7 +24,7 @@ from industry_platform.modules.financial_verification.domain import (
 class FinancialScopePayload(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = Field(ge=1, le=1)
+    schema_version: int = Field(ge=1, le=2)
     cik: str = Field(pattern=r"^[0-9]{10}$")
     accession: str = Field(pattern=r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
     form: FinancialForm
@@ -31,6 +32,12 @@ class FinancialScopePayload(BaseModel):
     as_of: datetime
     unit: str = Field(pattern=r"^[A-Z][A-Z0-9_/-]{0,15}$")
     scale: int = Field(ge=-12, le=12)
+    analysis_years: int | None = Field(default=None, ge=3, le=5, exclude_if=lambda v: v is None)
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> Self:
+        self.to_domain()
+        return self
 
     @classmethod
     def from_domain(cls, scope: FinancialScope) -> FinancialScopePayload:
@@ -43,6 +50,7 @@ class FinancialScopePayload(BaseModel):
             as_of=scope.as_of,
             unit=scope.unit,
             scale=scope.scale,
+            analysis_years=scope.analysis_years,
         )
 
     def to_domain(self) -> FinancialScope:

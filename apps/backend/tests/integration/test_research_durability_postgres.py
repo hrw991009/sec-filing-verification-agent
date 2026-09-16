@@ -388,6 +388,8 @@ def test_approval_resume_is_atomic_idempotent_and_does_not_store_raw_token(
 
             assert stored_approval is not None
             assert resume_job is not None
+            assert resume_job.soft_time_limit_seconds == 1650
+            assert resume_job.hard_time_limit_seconds == 1800
             assert outbox is not None
             assert stored_run is not None
             assert stored_approval.resume_token_hash == codec.digest(token)

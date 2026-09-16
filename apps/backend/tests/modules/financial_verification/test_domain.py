@@ -39,6 +39,31 @@ def scope() -> FinancialScope:
     )
 
 
+@pytest.mark.parametrize("years", [3, 4, 5])
+def test_versioned_annual_scope_roundtrip_does_not_widen_historical_runs(years: int) -> None:
+    from industry_platform.modules.financial_verification.schemas import FinancialScopePayload
+
+    original = scope()
+    assert original.annual_period_count == 2
+    assert "analysis_years" not in original.to_mapping()
+    assert "analysis_years" not in FinancialScopePayload.from_domain(original).model_dump(
+        mode="json"
+    )
+    assert FinancialScopePayload.from_domain(original).to_domain() == original
+    selected = replace(original, schema_version=2, analysis_years=years)
+    assert selected.annual_period_count == years
+    assert FinancialScope.from_mapping(dict(selected.to_mapping())) == selected
+    assert FinancialScopePayload.from_domain(selected).to_domain() == selected
+    with pytest.raises(ValueError, match="Legacy Financial Scope"):
+        replace(original, analysis_years=years)
+
+
+@pytest.mark.parametrize("years", [None, 0, 2, 6, True])
+def test_new_scope_rejects_unsupported_year_counts(years: int | None) -> None:
+    with pytest.raises(ValueError, match="Multi-year Financial Scope"):
+        replace(scope(), schema_version=2, analysis_years=years)
+
+
 def evidence_operand(**changes: object) -> FinancialEvidenceOperand:
     values: dict[str, object] = {
         "evidence_ref": EVIDENCE_ID,

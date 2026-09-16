@@ -807,7 +807,52 @@ class FinancialContextCompilerV1(ContextCompilerV1):
             document = json.loads(observation.model_text)
         except (ValueError, RecursionError):
             return payload
-        if not isinstance(document, dict) or not (
+        if not isinstance(document, dict):
+            return payload
+        if observation.tool_name == "sec.get_xbrl_facts" and document.get("purpose") != "dupont":
+            # Full source metadata remains in the immutable Observation. Keep all
+            # facts and calculation references, but do not repeat URLs and verbose
+            # source context identifiers in the model's per-step token budget.
+            content = {
+                key: document[key]
+                for key in ("status", "error_code", "financial_scope", "purpose", "issues")
+                if key in document
+            }
+            facts = document.get("facts")
+            if isinstance(facts, list):
+                content["facts"] = [
+                    {
+                        key: fact.get(key)
+                        for key in (
+                            "id",
+                            "cik",
+                            "accession",
+                            "taxonomy",
+                            "concept",
+                            "value",
+                            "unit",
+                            "scale",
+                            "period",
+                            "dimensions",
+                            "is_custom",
+                            "source_kind",
+                            "source_available_at",
+                            "format",
+                            "decimals",
+                            "sign",
+                            "evidence_ref",
+                            "calculation_operand",
+                        )
+                    }
+                    for fact in facts
+                    if isinstance(fact, dict)
+                ]
+            payload["content_projection"] = "xbrl-model-context-v1"
+            payload["content"] = json.dumps(
+                content, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+            )
+            return payload
+        if not (
             (observation.tool_name == "sec.get_xbrl_facts" and document.get("purpose") == "dupont")
             or (
                 observation.tool_name == "finance.calculate"
@@ -829,14 +874,11 @@ class FinancialContextCompilerV1(ContextCompilerV1):
                 "dupont_periods",
                 "issues",
                 "operator",
-                "operands",
                 "components",
                 "result",
-                "formula",
                 "unit",
                 "scale",
                 "decimal_places",
-                "reconciliation",
             )
             if key in document
         }
@@ -855,7 +897,12 @@ class FinancialContextCompilerV1(ContextCompilerV1):
                 for fact in facts
                 if isinstance(fact, dict)
             ]
-        payload["content_projection"] = "dupont-model-context-v1"
+        reconciliation = document.get("reconciliation")
+        if isinstance(reconciliation, dict):
+            content["reconciliation"] = {
+                key: reconciliation.get(key) for key in ("status", "issues")
+            }
+        payload["content_projection"] = "dupont-model-context-v2"
         payload["content"] = json.dumps(
             content, ensure_ascii=False, separators=(",", ":"), sort_keys=True
         )

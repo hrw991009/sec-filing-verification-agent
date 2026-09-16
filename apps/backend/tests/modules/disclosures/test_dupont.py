@@ -41,10 +41,10 @@ def dupont_scope() -> FinancialScope:
     )
 
 
-def candidates() -> tuple[SecXbrlFact, ...]:
+def candidates(years: int = 2) -> tuple[SecXbrlFact, ...]:
     scope = dupont_scope()
     facts = []
-    for year in (2024, 2023):
+    for year in range(2024, 2024 - years, -1):
         for concept, value in (("Revenues", "1000"), ("NetIncomeLoss", "100")):
             facts.append(
                 replace(
@@ -62,7 +62,7 @@ def candidates() -> tuple[SecXbrlFact, ...]:
                     ),
                 )
             )
-    for year in (2022, 2023, 2024):
+    for year in range(2024 - years, 2025):
         for concept, value in (("Assets", "600"), ("StockholdersEquity", "250")):
             facts.append(
                 replace(
@@ -88,9 +88,16 @@ def test_two_years_share_three_balance_dates() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dupont_tool_and_context_keep_both_years_without_relaxing_ordinary_scope() -> None:
-    scope = dupont_scope()
-    selected = select_dupont_facts(scope, candidates())
+@pytest.mark.parametrize("years", [2, 3, 4, 5])
+async def test_dupont_tool_and_context_keep_requested_years_without_relaxing_ordinary_scope(
+    years: int,
+) -> None:
+    scope = (
+        dupont_scope()
+        if years == 2
+        else replace(dupont_scope(), schema_version=2, analysis_years=years)
+    )
+    selected = select_dupont_facts(scope, candidates(years))
     service = AsyncMock()
     service.get_dupont_facts.return_value = selected
     registry = ToolRegistry((SecGetXbrlFactsTool(service),))
@@ -101,13 +108,13 @@ async def test_dupont_tool_and_context_keep_both_years_without_relaxing_ordinary
         replace(context(), financial_scope=scope),
     )
     output = SecGetXbrlFactsOutput.model_validate_json(result.observation.model_text)
-    assert len(output.dupont_periods) == 2
-    assert len(output.facts) == 10
-    assert len(result.observation.sources) == 10
+    assert len(output.dupont_periods) == years
+    assert len(output.facts) == 4 * years + 2
+    assert len(result.observation.sources) == 4 * years + 2
     context_source = ToolL2Runtime._context_observation(result.observation)
     compiler = FinancialContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter())
     projection = compiler._tool_observation_payload(context_source)
-    assert projection["content_projection"] == "dupont-model-context-v1"
+    assert projection["content_projection"] == "dupont-model-context-v2"
     assert projection["content_sha256"] == result.observation.content_sha256
     assert isinstance(projection["content"], str)
     compact = json.loads(projection["content"])

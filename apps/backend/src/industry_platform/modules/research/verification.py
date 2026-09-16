@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
+from itertools import pairwise
 from typing import Final, Protocol
 from uuid import UUID, uuid5
 
@@ -43,7 +44,7 @@ from industry_platform.modules.financial_verification.domain import (
     calculate_financial_result,
 )
 from industry_platform.modules.research.ports import ResearchQueryRepository
-from industry_platform.modules.research.tasks import DUPONT_ANALYSIS, RESEARCH_TASKS
+from industry_platform.modules.research.tasks import RESEARCH_TASKS, is_dupont_task
 from industry_platform.modules.workspaces.domain import (
     WorkspaceAccessDeniedError,
     WorkspaceAction,
@@ -414,8 +415,9 @@ class ResearchVerificationService:
                 evidence_states=tuple(evidence_states),
                 runtime_stop_reason=view.stop_reason,
                 created_at=self.clock(),
-                require_dupont_comparison=RESEARCH_TASKS.from_harness(view.harness_version)
-                == DUPONT_ANALYSIS,
+                require_dupont_comparison=is_dupont_task(
+                    RESEARCH_TASKS.from_harness(view.harness_version)
+                ),
             )
         )
         return await self.report_repository.save(scope, report)
@@ -477,7 +479,11 @@ def evaluate_verification_snapshot(snapshot: VerificationSnapshot) -> Verificati
                 issue(
                     code=VerificationIssueCode.COVERAGE_INCOMPLETE,
                     claim_id=claim_id,
-                    expected_refs=("two_verified_consecutive_dupont_periods",),
+                    expected_refs=(
+                        "two_verified_consecutive_dupont_periods"
+                        if snapshot.financial_scope.schema_version == 1
+                        else "requested_verified_consecutive_dupont_periods",
+                    ),
                     repairability=VerificationRepairability.REPAIRABLE,
                     allowed_action=VerificationAllowedAction.RECALCULATE,
                 )
@@ -977,9 +983,9 @@ def _dupont_comparison_complete(
                 )
     ordered = sorted(periods, reverse=True)
     return (
-        len(ordered) == 2
+        len(ordered) == scope.annual_period_count
         and ordered[0][1] == scope.report_period
-        and (ordered[0][0] - ordered[1][1]).days == 1
+        and all((newer[0] - older[1]).days == 1 for newer, older in pairwise(ordered))
     )
 
 

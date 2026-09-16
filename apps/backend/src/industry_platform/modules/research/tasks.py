@@ -69,12 +69,24 @@ DUPONT_ANALYSIS = ResearchTaskDefinition(
     roles=FILING_VERIFICATION.roles,
 )
 
+DUPONT_MULTI_YEAR = ResearchTaskDefinition(
+    name="sec.dupont-analysis",
+    version="v2",
+    description="核对用户选定的连续 3 至 5 年数据, 发布可追溯的多期杜邦指标及可视化结果。",
+    graph_version=RESEARCH_GRAPH_VERSION,
+    roles=FILING_VERIFICATION.roles,
+)
+
+
+def is_dupont_task(definition: ResearchTaskDefinition | None) -> bool:
+    return definition in (DUPONT_ANALYSIS, DUPONT_MULTI_YEAR)
+
 
 class ResearchTaskRegistry:
     """Exact-version lookup; unknown versions never fall back to ordinary Research."""
 
     def definitions(self) -> tuple[ResearchTaskDefinition, ...]:
-        return (FILING_VERIFICATION, DUPONT_ANALYSIS)
+        return (FILING_VERIFICATION, DUPONT_ANALYSIS, DUPONT_MULTI_YEAR)
 
     def resolve(self, name: str, version: str) -> ResearchTaskDefinition:
         for definition in self.definitions():
@@ -87,9 +99,9 @@ class ResearchTaskRegistry:
             return None
         for definition in self.definitions():
             # Decode old persisted runs here only; never rewrite their identity/checkpoints.
-            if harness_version in (
-                definition.harness_version,
-                f"skill:{definition.name}:{definition.version}",
+            if harness_version == definition.harness_version or (
+                definition.version == "v1"
+                and harness_version == f"skill:{definition.name}:{definition.version}"
             ):
                 return definition
         raise ValueError("Persisted research task version is unsupported")

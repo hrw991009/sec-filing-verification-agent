@@ -245,7 +245,7 @@ class EvidenceNormalizationDecisionRecord(UUIDPrimaryKeyMixin, Base):
             name="fk_evidence_decisions_evidence_workspace",
             ondelete="RESTRICT",
         ),
-        CheckConstraint("source_ordinal BETWEEN 1 AND 16", name="source_ordinal_bounded"),
+        CheckConstraint("source_ordinal BETWEEN 1 AND 32", name="source_ordinal_bounded"),
         CheckConstraint("decision IN ('accepted', 'rejected')", name="decision_supported"),
         CheckConstraint(
             "(decision = 'accepted' AND reason = 'accepted' AND evidence_id IS NOT NULL) OR "

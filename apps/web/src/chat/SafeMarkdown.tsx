@@ -5,7 +5,7 @@ interface SafeMarkdownProps {
 }
 
 interface MarkdownBlock {
-  readonly kind: "code" | "heading" | "list" | "paragraph" | "quote";
+  readonly kind: "code" | "heading" | "list" | "paragraph" | "quote" | "table";
   readonly lines: readonly string[];
   readonly level?: number;
   readonly ordered?: boolean;
@@ -95,6 +95,21 @@ function parseBlocks(content: string): MarkdownBlock[] {
       flushParagraph();
       continue;
     }
+    const nextLine = lines[index + 1] ?? "";
+    if (
+      line.trim().startsWith("|") &&
+      /^\s*\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|\s*$/u.test(nextLine)
+    ) {
+      flushParagraph();
+      const tableLines = [line];
+      index += 1;
+      while (index + 1 < lines.length && (lines[index + 1] ?? "").trim().startsWith("|")) {
+        index += 1;
+        tableLines.push(lines[index] ?? "");
+      }
+      blocks.push({ kind: "table", lines: tableLines });
+      continue;
+    }
     const heading = /^(#{1,3})\s+(.+)$/.exec(line);
     if (heading !== null) {
       flushParagraph();
@@ -138,6 +153,44 @@ export function SafeMarkdown({ content }: SafeMarkdownProps) {
     <div className="safe-markdown">
       {blocks.map((block, index) => {
         const key = `${block.kind}-${String(index)}`;
+        if (block.kind === "table") {
+          const cells = (line: string) =>
+            line
+              .trim()
+              .replace(/^\||\|$/gu, "")
+              .split("|")
+              .map((cell) => cell.trim());
+          const header = cells(block.lines[0] ?? "");
+          return (
+            <div className="result-table-scroll" key={key}>
+              <table>
+                <thead>
+                  <tr>
+                    {header.map((cell, position) => (
+                      <th scope="col" key={position}>
+                        {inlineNodes(cell, `${key}-h-${String(position)}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.lines.slice(1).map((line, row) => (
+                    <tr key={row}>
+                      {header.map((_, column) => (
+                        <td key={column}>
+                          {inlineNodes(
+                            cells(line)[column] ?? "",
+                            `${key}-${String(row)}-${String(column)}`,
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
         if (block.kind === "code") {
           return (
             <pre key={key}>

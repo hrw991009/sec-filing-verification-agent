@@ -14,6 +14,7 @@ from uuid import UUID
 
 from industry_platform.modules.agent_runtime.domain import require_non_nil_uuid, require_utc
 from industry_platform.modules.identity.domain import TraceId
+from industry_platform.modules.tools.domain import MAX_TOOL_SOURCES
 
 EVIDENCE_SCHEMA_VERSION: Final = 1
 EVIDENCE_NORMALIZER_VERSION: Final = "evidence-normalizer-v1"
@@ -1259,7 +1260,7 @@ class Evidence:
             raise ValueError("Evidence revision is invalid")
         if (
             isinstance(self.origin_source_ordinal, bool)
-            or not 1 <= self.origin_source_ordinal <= 16
+            or not 1 <= self.origin_source_ordinal <= MAX_TOOL_SOURCES
         ):
             raise ValueError("Evidence origin source ordinal is invalid")
         if (
@@ -1308,7 +1309,10 @@ class EvidenceNormalizationItem:
     evidence: Evidence | None
 
     def __post_init__(self) -> None:
-        if isinstance(self.source_ordinal, bool) or not 1 <= self.source_ordinal <= 16:
+        if (
+            isinstance(self.source_ordinal, bool)
+            or not 1 <= self.source_ordinal <= MAX_TOOL_SOURCES
+        ):
             raise ValueError("Evidence source ordinal is invalid")
         if (self.decision is EvidenceDecision.ACCEPTED) != (self.evidence is not None):
             raise ValueError("Evidence normalization result is inconsistent")

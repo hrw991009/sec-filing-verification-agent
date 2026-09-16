@@ -228,6 +228,7 @@ const researchMocks = vi.hoisted(() => ({
   decideResearchApproval: vi.fn(),
   getResearchDurability: vi.fn(),
   getResearchRun: vi.fn(),
+  getResearchResultView: vi.fn(),
   getVerificationReport: vi.fn(),
   listResearchRuns: vi.fn(),
   resumeResearch: vi.fn(),
@@ -251,6 +252,12 @@ describe("ResearchWorkspace", () => {
     vi.clearAllMocks();
     researchMocks.listResearchRuns.mockResolvedValue([researchRun]);
     researchMocks.getResearchRun.mockResolvedValue(researchRun);
+    researchMocks.getResearchResultView.mockResolvedValue({
+      research_run_id: researchRunId,
+      draft_id: researchRun.draft?.id,
+      draft_revision: 1,
+      status: "not_applicable",
+    });
     researchMocks.getResearchDurability.mockResolvedValue(durability);
     researchMocks.getVerificationReport.mockRejectedValue(new ApiProblem(404, null));
     knowledgeMocks.listKnowledgeBases.mockResolvedValue([
@@ -682,14 +689,14 @@ describe("ResearchWorkspace", () => {
       "sec.dupont-analysis",
     );
     await user.click(screen.getByRole("button", { name: /补齐.*数据/ }));
-    expect(await screen.findByText(/两年输入已齐备/)).toBeInTheDocument();
+    expect(await screen.findByText(/所选年度输入已齐备/)).toBeInTheDocument();
     expect(secMocks.prepareSecDuPont).toHaveBeenCalledWith(
       workspaceId,
-      expect.objectContaining({ knowledge_base_id: knowledgeBaseId }),
+      expect.objectContaining({ knowledge_base_id: knowledgeBaseId, years: 5 }),
     );
     expect(screen.getByDisplayValue("0000950170-25-100235")).toBeInTheDocument();
     await user.clear(screen.getByDisplayValue("0000789019"));
-    expect(screen.queryByText(/两年输入已齐备/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/所选年度输入已齐备/)).not.toBeInTheDocument();
   });
 
   it("persists an approval decision before creating the resume job", async () => {

@@ -256,6 +256,7 @@ class SecDuPontPrepareRequest(BaseModel):
 
     cik: str = Field(pattern=r"^[0-9]{10}$")
     fiscal_year: int = Field(ge=2009, le=2100)
+    years: int = Field(default=2, ge=2, le=5)
     knowledge_base_id: UUID
     as_of: datetime
 

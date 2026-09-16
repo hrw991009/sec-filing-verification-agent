@@ -1,0 +1,2255 @@
+{
+  "schema_version": 1,
+  "suite_id": "product-stability-v1",
+  "batch_id": "35bb0964-5aa4-42e7-b507-10a5ea7c762f",
+  "execution_kind": "real_model_current_product_official_sec",
+  "source_identity": {
+    "head": "5682e36d761b281bb64607383ce5f5dcca6a2872",
+    "working_source_sha256": "5efd391ddc9af1ea8aa2e159fc003b4fd008b95e96bad1e4865bb4700deea27c"
+  },
+  "manifest_sha256": "4c1c427c5e76cad7919ebff9ccaa259917e6aee068cea6483ca644f757e29239",
+  "model_route": {
+    "model": "openai-compatible/gemini-3.8-flash",
+    "upstream_model": "gemini-3.8-flash",
+    "response_models": ["gemini-3.8-flash", "gemini-3.8-flash-tiered"],
+    "pricing_version": "iisbo-call-metered-token-unpriced-v1",
+    "input_micro_usd_per_million": 0,
+    "cached_input_micro_usd_per_million": 0,
+    "output_micro_usd_per_million": 0,
+    "supports_image_input": false,
+    "reasoning_enabled": false,
+    "structured_output_mode": "json_object",
+    "temperature": 0,
+    "seed": null
+  },
+  "provider_host": "ai.iisbo.com",
+  "started_at": "2026-09-15T13:49:52.415961+00:00",
+  "completed_at": "2026-09-15T14:32:55.844213+00:00",
+  "source_unchanged": true,
+  "diagnostic": false,
+  "total_runs": 50,
+  "passed_runs": 40,
+  "accepted": false,
+  "notes": [
+    "Independent full batch: failed attempts are not discarded or replaced.",
+    "Ten provider_unavailable failures clustered during the gateway incident.",
+    "Raw answers, calculation views and observation details remain in the ignored local batch artifact."
+  ],
+  "records": [
+    {
+      "case_id": "l2-excerpt",
+      "repetition": 1,
+      "run_id": "f1b3687e-cb51-57ce-87f8-2be8bcb51bcf",
+      "job_id": "0250dbe2-6e53-41bc-ad43-72196867f816",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3229,
+      "output_tokens": 3071,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 70.397,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-basis",
+      "repetition": 1,
+      "run_id": "39ffb88b-59c9-5db0-b8d8-d5697ce93270",
+      "job_id": "cf712142-d037-4752-b49f-527e44804ef4",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3236,
+      "output_tokens": 2053,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 96.754,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-basis-comparison",
+          "source_count": 0,
+          "sha256": "8f24cff26a6313f9f2f2baf92200d1a0331702af150000b9dfe2ee64c1a61f37",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-missing-excerpt",
+      "repetition": 1,
+      "run_id": "c6f0ec69-4185-571e-888c-6f0d9abfca36",
+      "job_id": "83144bdb-40a9-42a2-a0a8-72a700a06b33",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3209,
+      "output_tokens": 2012,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 51.665,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-no-skill",
+      "repetition": 1,
+      "run_id": "2ba460c4-1c37-5918-8744-3dd382b37be4",
+      "job_id": "b46becdc-4a65-47b9-9cdb-894c5b059f37",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1426,
+      "output_tokens": 285,
+      "step_count": 2,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 25.524,
+      "errors": [],
+      "failures": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-revenue",
+      "repetition": 1,
+      "run_id": "da44ad4d-2d19-597b-8325-823d71219dd2",
+      "job_id": "7db008dc-dc4d-4c66-9c38-a4f80d8ad799",
+      "research_run_id": "f3a7c88e-631e-5e5e-9a78-c91f44085bca",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 4777,
+      "output_tokens": 1430,
+      "step_count": 4,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 59.401,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-margin",
+      "repetition": 1,
+      "run_id": "3d934a00-f2c5-54e0-886c-60183ae16cb4",
+      "job_id": "44e69cfd-3eef-401a-92b4-c7e5dd1ac99c",
+      "research_run_id": "6fb07d87-e81d-504d-bebe-6a27dc22c99a",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 4,
+      "model_calls": 4,
+      "input_tokens": 19413,
+      "output_tokens": 6232,
+      "step_count": 8,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 135.846,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "1cbd71129ad0aa48fe7af69a7c7a907bf63acc1d41d2754715455595dac9d553",
+          "result": null
+        },
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "59047729f067f26fc5cbc0fc2575fa75e37505a7c988a4da1c1fcda4b251d09e",
+          "result": "36.1460"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-3",
+      "repetition": 1,
+      "run_id": "f841415e-e5fc-588e-921c-3185857b6af6",
+      "job_id": "e40b0b9c-7685-4e7c-8614-cca487ad0c16",
+      "research_run_id": "26e114fe-862d-5b6f-803a-95f70316b4d0",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 5,
+      "model_calls": 5,
+      "input_tokens": 37997,
+      "output_tokens": 9402,
+      "step_count": 10,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 155.391,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 14,
+          "sha256": "2ef5abf6acb4a4175a1efc2045f63f5dfacd30a9b3d228809854ff48a8bc90d9",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "d9308279eecb9d213c4f6171d8b8269a2f6b70d8f530da76d4de36e92d048b3c",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "f174dfefa631eb17a966bca9c16b8f7e627d4ea172a34dd9e4fda14d9bde763c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "53df51578be7ab9cecbbffd58e4af2c03306e30891a05c695ed7cf4f6fbb8616",
+          "result": "38.8239"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-4",
+      "repetition": 1,
+      "run_id": "38526419-e2bc-5eff-8cea-1bc2ad749747",
+      "job_id": "a8c657a3-918e-4015-9796-aa503dd3c7b3",
+      "research_run_id": "d3a56813-c5bb-5701-a582-1647f0efc7c5",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 6,
+      "model_calls": 6,
+      "input_tokens": 58352,
+      "output_tokens": 11280,
+      "step_count": 12,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 224.407,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 18,
+          "sha256": "cae17987fa2022c799658681e40b528c81d2ae638c29ee59b28d8c5b0eee6a93",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "4bbcd4c9af15f7c85d9553e063a8d4532cefda86b3a4267ecc7e62e53947fdea",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "8747a17f7bfd280255d184b7cca3a223e22f5d04c8084205f1645daeeb86e55c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "5f5038e0202be10493592efe20f40a86fbb0553a59491f236e97c9ee9399b9c2",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "7ff2c247aa6dcd81f7bb2bb971eaac5c0779fa313660431c5e14ce5cd323e21d",
+          "result": "47.1513"
+        }
+      ]
+    },
+    {
+      "case_id": "research-asof-unavailable",
+      "repetition": 1,
+      "run_id": "b0db7648-ee74-5476-827c-29b1c5ae0ab7",
+      "job_id": "42e2c0d4-58ee-4dcf-80f7-a1d007396efb",
+      "research_run_id": "0f3ac079-81ee-5c17-ba9d-4e317a5ca857",
+      "passed": true,
+      "status": "failed",
+      "stop_reason": "tool_error",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1787,
+      "output_tokens": 3934,
+      "step_count": 2,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 32.187,
+      "errors": [
+        {
+          "event_type": "agent.tool.failed",
+          "code": "sec_snapshot_not_visible"
+        },
+        {
+          "event_type": "agent.step.failed",
+          "code": "sec_snapshot_not_visible"
+        }
+      ],
+      "failures": [],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 1,
+      "run_id": "06896304-89e1-5df4-8069-7f502843449b",
+      "job_id": "d3087067-bbd0-4a87-b50e-0e373a944390",
+      "research_run_id": "e07d3a73-8a4d-5aa6-b11e-68d13a67ea76",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 7,
+      "model_calls": 7,
+      "input_tokens": 72719,
+      "output_tokens": 16476,
+      "step_count": 14,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 239.261,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2021-06-30", "2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 22,
+          "sha256": "35a406c2a9a22a9b1d49e929ba88fd539cfd0edacd0f3c97e8a0376e5d77751f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "fa906f3e7aa78218faa4ea44eabc5277c766aa0ece0e1c151aa66f43a0bb7ad0",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "44bc2bdf4bac3bd362b4fc03da850d329948531236c7242693942026badcea99",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "0c9b101fab5e602b7403551d0f8e94ef6ac54e2d9a7f669f185df16f5056821f",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "bfc7a984a44bea3a5d29fa1b913be6e2ee82740423f3606bad7165f7bb8f0f23",
+          "result": "47.1513"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "a04636fe796a809322803194cc2e9eec9bdb74a8370f73008d25322a44b8931b",
+          "result": "47.0787"
+        }
+      ]
+    },
+    {
+      "case_id": "l2-excerpt",
+      "repetition": 2,
+      "run_id": "747e74b3-784e-5a71-a452-3903a294e24b",
+      "job_id": "24bb31cd-cfe1-4e97-92d0-4ccb3dbc6dfe",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3229,
+      "output_tokens": 2341,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 73.335,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-basis",
+      "repetition": 2,
+      "run_id": "f8d12b92-3ce9-5fbf-a6d4-5ea8ffb55467",
+      "job_id": "805c476a-332f-4c96-adcb-28210bcd482c",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3236,
+      "output_tokens": 2536,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 49.355,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-basis-comparison",
+          "source_count": 0,
+          "sha256": "8f24cff26a6313f9f2f2baf92200d1a0331702af150000b9dfe2ee64c1a61f37",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-missing-excerpt",
+      "repetition": 2,
+      "run_id": "9c1517dc-c123-54a6-b6bf-2bb3c94cfe9a",
+      "job_id": "24aa7ac4-51e2-488f-830e-24b74241f4dd",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3209,
+      "output_tokens": 1805,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 62.568,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-no-skill",
+      "repetition": 2,
+      "run_id": "dc07f618-ccc9-5f28-b36c-30068c26667c",
+      "job_id": "3f657703-ae78-4166-a54d-67f1e36c38cc",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1426,
+      "output_tokens": 217,
+      "step_count": 2,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 36.472,
+      "errors": [],
+      "failures": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-revenue",
+      "repetition": 2,
+      "run_id": "bf8f5130-1087-5d21-84a9-2db42d164ecd",
+      "job_id": "e97d45b2-1000-4eec-b327-cd559a895aac",
+      "research_run_id": "21602c2b-8019-5166-809f-c790a23c78c8",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 4782,
+      "output_tokens": 1759,
+      "step_count": 4,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 48.943,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-margin",
+      "repetition": 2,
+      "run_id": "a66af453-92d2-5f2e-a40d-14b2ed8c96b8",
+      "job_id": "25fa8f6d-dc3f-4dd5-9d0a-cc7ed9a7d4eb",
+      "research_run_id": "f3d9c608-bdca-51a9-bc28-a33c5e1d3601",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 4,
+      "model_calls": 4,
+      "input_tokens": 19424,
+      "output_tokens": 8117,
+      "step_count": 8,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 195.106,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "1cbd71129ad0aa48fe7af69a7c7a907bf63acc1d41d2754715455595dac9d553",
+          "result": null
+        },
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "59047729f067f26fc5cbc0fc2575fa75e37505a7c988a4da1c1fcda4b251d09e",
+          "result": "36.1460"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-3",
+      "repetition": 2,
+      "run_id": "c2868242-ede0-5194-a424-84b3df48ffab",
+      "job_id": "4bef426e-1311-4754-93e0-a1bd794e6d1e",
+      "research_run_id": "3b675f4f-db2d-5d0e-9418-ef76102f747c",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 5,
+      "model_calls": 5,
+      "input_tokens": 38016,
+      "output_tokens": 9245,
+      "step_count": 10,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 206.746,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 14,
+          "sha256": "2ef5abf6acb4a4175a1efc2045f63f5dfacd30a9b3d228809854ff48a8bc90d9",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "d9308279eecb9d213c4f6171d8b8269a2f6b70d8f530da76d4de36e92d048b3c",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "f174dfefa631eb17a966bca9c16b8f7e627d4ea172a34dd9e4fda14d9bde763c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "53df51578be7ab9cecbbffd58e4af2c03306e30891a05c695ed7cf4f6fbb8616",
+          "result": "38.8239"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-4",
+      "repetition": 2,
+      "run_id": "a520e1b2-085f-5949-b112-7b2edabd2316",
+      "job_id": "7f30548a-0c2a-49e7-86f1-c130c8a41bfd",
+      "research_run_id": "0fc41073-cbcf-5441-adee-6d5242c18e2f",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 6,
+      "model_calls": 6,
+      "input_tokens": 58370,
+      "output_tokens": 12908,
+      "step_count": 12,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 209.343,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 18,
+          "sha256": "cae17987fa2022c799658681e40b528c81d2ae638c29ee59b28d8c5b0eee6a93",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "4bbcd4c9af15f7c85d9553e063a8d4532cefda86b3a4267ecc7e62e53947fdea",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "8747a17f7bfd280255d184b7cca3a223e22f5d04c8084205f1645daeeb86e55c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "5f5038e0202be10493592efe20f40a86fbb0553a59491f236e97c9ee9399b9c2",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "7ff2c247aa6dcd81f7bb2bb971eaac5c0779fa313660431c5e14ce5cd323e21d",
+          "result": "47.1513"
+        }
+      ]
+    },
+    {
+      "case_id": "research-asof-unavailable",
+      "repetition": 2,
+      "run_id": "28438cd2-e29c-5cad-997c-52462dab08e4",
+      "job_id": "3c34828a-cbd6-436d-93ce-ec6812835db7",
+      "research_run_id": "ac8e67f2-c3e8-50b6-8aa3-4771b72903cd",
+      "passed": true,
+      "status": "failed",
+      "stop_reason": "tool_error",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1787,
+      "output_tokens": 2188,
+      "step_count": 2,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 38.046,
+      "errors": [
+        {
+          "event_type": "agent.tool.failed",
+          "code": "sec_snapshot_not_visible"
+        },
+        {
+          "event_type": "agent.step.failed",
+          "code": "sec_snapshot_not_visible"
+        }
+      ],
+      "failures": [],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 2,
+      "run_id": "85db5035-5acf-5bd9-814c-fcd2528f4114",
+      "job_id": "acc8e47b-11ed-4d7f-baa6-154efe4c5c93",
+      "research_run_id": "4ff3b995-4b32-56e3-942e-3d98cb2ce7e3",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 7,
+      "model_calls": 7,
+      "input_tokens": 72750,
+      "output_tokens": 14369,
+      "step_count": 14,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 200.77,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2021-06-30", "2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 22,
+          "sha256": "35a406c2a9a22a9b1d49e929ba88fd539cfd0edacd0f3c97e8a0376e5d77751f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "fa906f3e7aa78218faa4ea44eabc5277c766aa0ece0e1c151aa66f43a0bb7ad0",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "44bc2bdf4bac3bd362b4fc03da850d329948531236c7242693942026badcea99",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "0c9b101fab5e602b7403551d0f8e94ef6ac54e2d9a7f669f185df16f5056821f",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "bfc7a984a44bea3a5d29fa1b913be6e2ee82740423f3606bad7165f7bb8f0f23",
+          "result": "47.1513"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "a04636fe796a809322803194cc2e9eec9bdb74a8370f73008d25322a44b8931b",
+          "result": "47.0787"
+        }
+      ]
+    },
+    {
+      "case_id": "l2-basis",
+      "repetition": 3,
+      "run_id": "87078eac-b3e4-54e9-b016-fed108d933df",
+      "job_id": "72382bb6-8d2e-4d9a-87e0-37045c48fc37",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3236,
+      "output_tokens": 2116,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 54.43,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-basis-comparison",
+          "source_count": 0,
+          "sha256": "8f24cff26a6313f9f2f2baf92200d1a0331702af150000b9dfe2ee64c1a61f37",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-excerpt",
+      "repetition": 3,
+      "run_id": "e0a21879-73f9-5f27-9876-be91a5a3f44c",
+      "job_id": "222cfdad-1908-429b-a27a-b0d45862a6bb",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3229,
+      "output_tokens": 2115,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 66.16,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-no-skill",
+      "repetition": 3,
+      "run_id": "d9db6ce1-83aa-5837-9764-6737a4a778c7",
+      "job_id": "f619b252-e469-4d56-beef-e603c618acf1",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1426,
+      "output_tokens": 244,
+      "step_count": 2,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 27.26,
+      "errors": [],
+      "failures": [],
+      "observations": []
+    },
+    {
+      "case_id": "l2-missing-excerpt",
+      "repetition": 3,
+      "run_id": "ed655a98-1529-5ce2-b94d-6b42f6c60b09",
+      "job_id": "656e78d2-229a-4849-b09d-1649cb9d8937",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3209,
+      "output_tokens": 1386,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 66.464,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-revenue",
+      "repetition": 3,
+      "run_id": "911e8bc9-3d12-5a6a-8a90-c966e1b0c8ba",
+      "job_id": "3598f89f-f1d7-4a3a-933d-ea9c2d7f89ed",
+      "research_run_id": "19ad9162-2c46-5387-9c81-224e6cc2af42",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 4781,
+      "output_tokens": 1848,
+      "step_count": 4,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 61.243,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-margin",
+      "repetition": 3,
+      "run_id": "ba839af4-9251-570d-8983-9bb51b4f2f8c",
+      "job_id": "18fc96ad-000e-4b48-ab8d-29335c7c8dff",
+      "research_run_id": "c6d88652-6faf-5bd6-93d4-3857db935099",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 4,
+      "model_calls": 4,
+      "input_tokens": 19409,
+      "output_tokens": 8430,
+      "step_count": 8,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 89.864,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "1cbd71129ad0aa48fe7af69a7c7a907bf63acc1d41d2754715455595dac9d553",
+          "result": null
+        },
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "59047729f067f26fc5cbc0fc2575fa75e37505a7c988a4da1c1fcda4b251d09e",
+          "result": "36.1460"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-3",
+      "repetition": 3,
+      "run_id": "5ede691e-54b6-599a-9d54-9d9f733f28df",
+      "job_id": "be292c75-65e5-49d2-a071-eaecfd63321b",
+      "research_run_id": "e8755636-672d-5267-b683-d54a4b1ea3d2",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 5,
+      "model_calls": 5,
+      "input_tokens": 38009,
+      "output_tokens": 9774,
+      "step_count": 10,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 204.465,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 14,
+          "sha256": "2ef5abf6acb4a4175a1efc2045f63f5dfacd30a9b3d228809854ff48a8bc90d9",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "d9308279eecb9d213c4f6171d8b8269a2f6b70d8f530da76d4de36e92d048b3c",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "f174dfefa631eb17a966bca9c16b8f7e627d4ea172a34dd9e4fda14d9bde763c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "53df51578be7ab9cecbbffd58e4af2c03306e30891a05c695ed7cf4f6fbb8616",
+          "result": "38.8239"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-4",
+      "repetition": 3,
+      "run_id": "2307350b-8c47-5685-8a17-a652aac11fea",
+      "job_id": "1090e311-8d79-4684-85de-f76a42aef50e",
+      "research_run_id": "1f733ecb-8442-5bc9-9c76-16c4c50ecf45",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 6,
+      "model_calls": 6,
+      "input_tokens": 58325,
+      "output_tokens": 10734,
+      "step_count": 12,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 218.684,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 18,
+          "sha256": "cae17987fa2022c799658681e40b528c81d2ae638c29ee59b28d8c5b0eee6a93",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "4bbcd4c9af15f7c85d9553e063a8d4532cefda86b3a4267ecc7e62e53947fdea",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "8747a17f7bfd280255d184b7cca3a223e22f5d04c8084205f1645daeeb86e55c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "5f5038e0202be10493592efe20f40a86fbb0553a59491f236e97c9ee9399b9c2",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "7ff2c247aa6dcd81f7bb2bb971eaac5c0779fa313660431c5e14ce5cd323e21d",
+          "result": "47.1513"
+        }
+      ]
+    },
+    {
+      "case_id": "research-asof-unavailable",
+      "repetition": 3,
+      "run_id": "2f1bb0ef-5173-5d28-aafd-f429d2516a0d",
+      "job_id": "e62e673e-6230-43c0-92f4-495b5f156a37",
+      "research_run_id": "11cc9037-d1e6-549a-9fee-dd6b67ec57d9",
+      "passed": true,
+      "status": "failed",
+      "stop_reason": "tool_error",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1787,
+      "output_tokens": 2171,
+      "step_count": 2,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 33.151,
+      "errors": [
+        {
+          "event_type": "agent.tool.failed",
+          "code": "sec_snapshot_not_visible"
+        },
+        {
+          "event_type": "agent.step.failed",
+          "code": "sec_snapshot_not_visible"
+        }
+      ],
+      "failures": [],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "l2-excerpt",
+      "repetition": 4,
+      "run_id": "8bb8dce6-805a-5f39-92fa-634f155dd625",
+      "job_id": "60de39ec-83df-47ec-be50-0390049b9cd5",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3229,
+      "output_tokens": 3379,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 96.758,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 3,
+      "run_id": "06aee115-c492-507c-b399-882b98587cb0",
+      "job_id": "ff8ece94-b31d-41d6-a4c2-caf658b9068c",
+      "research_run_id": "3ad2c5b3-23f0-5008-9008-3dd72e82ce73",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 7,
+      "model_calls": 7,
+      "input_tokens": 72700,
+      "output_tokens": 16020,
+      "step_count": 14,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 247.107,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2021-06-30", "2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 22,
+          "sha256": "35a406c2a9a22a9b1d49e929ba88fd539cfd0edacd0f3c97e8a0376e5d77751f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "fa906f3e7aa78218faa4ea44eabc5277c766aa0ece0e1c151aa66f43a0bb7ad0",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "44bc2bdf4bac3bd362b4fc03da850d329948531236c7242693942026badcea99",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "0c9b101fab5e602b7403551d0f8e94ef6ac54e2d9a7f669f185df16f5056821f",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "bfc7a984a44bea3a5d29fa1b913be6e2ee82740423f3606bad7165f7bb8f0f23",
+          "result": "47.1513"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "a04636fe796a809322803194cc2e9eec9bdb74a8370f73008d25322a44b8931b",
+          "result": "47.0787"
+        }
+      ]
+    },
+    {
+      "case_id": "l2-basis",
+      "repetition": 4,
+      "run_id": "d61ecff1-3df1-5820-93ec-d1cba85204df",
+      "job_id": "e5057297-af7c-4d5c-bc99-f2df9e3300ee",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3236,
+      "output_tokens": 2405,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 74.554,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-basis-comparison",
+          "source_count": 0,
+          "sha256": "8f24cff26a6313f9f2f2baf92200d1a0331702af150000b9dfe2ee64c1a61f37",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "l2-no-skill",
+      "repetition": 4,
+      "run_id": "b3dfafbb-d961-5e81-86ea-78a59bcf74c4",
+      "job_id": "d110d465-7e34-452d-80f1-26a5fc52984a",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1426,
+      "output_tokens": 307,
+      "step_count": 2,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 52.911,
+      "errors": [],
+      "failures": [],
+      "observations": []
+    },
+    {
+      "case_id": "l2-missing-excerpt",
+      "repetition": 4,
+      "run_id": "129fd40d-5a93-52ab-b304-83274a2ed4a7",
+      "job_id": "2c21fc42-3a1f-4ce0-b1cd-e75b28a1fe83",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 3209,
+      "output_tokens": 1662,
+      "step_count": 4,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 93.587,
+      "errors": [],
+      "failures": [],
+      "observations": [
+        {
+          "tool": "skill.read",
+          "status": null,
+          "error_code": null,
+          "skill": "financial-excerpt-explanation",
+          "source_count": 0,
+          "sha256": "252ff61b0b98ad9f0c46b4328f66063169b9185b0c44e24e6efbaf52f92f5bbb",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-revenue",
+      "repetition": 4,
+      "run_id": "56b9f376-8451-5d12-9442-1f5921a5a94e",
+      "job_id": "b08a13a5-b3d9-4955-9a55-961c4335d00e",
+      "research_run_id": "90f5efb1-db27-5625-8a72-9f239da52a7e",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 2,
+      "model_calls": 2,
+      "input_tokens": 4775,
+      "output_tokens": 1756,
+      "step_count": 4,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 70.676,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        }
+      ]
+    },
+    {
+      "case_id": "research-margin",
+      "repetition": 4,
+      "run_id": "c77daab3-0991-5912-8404-b17e6f08f54d",
+      "job_id": "e0ce509d-c586-4c50-9f8f-9a1695f49402",
+      "research_run_id": "461bb225-fc3c-57ac-834d-5e3d484a615c",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 4,
+      "model_calls": 4,
+      "input_tokens": 19427,
+      "output_tokens": 7846,
+      "step_count": 8,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 163.602,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "1cbd71129ad0aa48fe7af69a7c7a907bf63acc1d41d2754715455595dac9d553",
+          "result": null
+        },
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 3,
+          "sha256": "ffcc8645a8051a4a1db78ca2ab0fa950e4f5dc8483da283fdded63d49e859af5",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "59047729f067f26fc5cbc0fc2575fa75e37505a7c988a4da1c1fcda4b251d09e",
+          "result": "36.1460"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-3",
+      "repetition": 4,
+      "run_id": "bee29ed9-2e15-5c45-b742-02501acd8ea6",
+      "job_id": "f40c9ad1-9778-47a4-9f03-4bbdc383930c",
+      "research_run_id": "a963b0bc-546c-5814-81f6-e1b57dcc0783",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 5,
+      "model_calls": 5,
+      "input_tokens": 37984,
+      "output_tokens": 9421,
+      "step_count": 10,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 138.837,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 14,
+          "sha256": "2ef5abf6acb4a4175a1efc2045f63f5dfacd30a9b3d228809854ff48a8bc90d9",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "d9308279eecb9d213c4f6171d8b8269a2f6b70d8f530da76d4de36e92d048b3c",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "f174dfefa631eb17a966bca9c16b8f7e627d4ea172a34dd9e4fda14d9bde763c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "53df51578be7ab9cecbbffd58e4af2c03306e30891a05c695ed7cf4f6fbb8616",
+          "result": "38.8239"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 4,
+      "run_id": "55f13e24-3277-5097-8593-3ead928cec98",
+      "job_id": "7d77fd41-3e7a-4810-b51d-8ca6d20379f7",
+      "research_run_id": "0353a396-d181-5035-8717-9aa46c047b92",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 4,
+      "model_calls": 3,
+      "input_tokens": 25789,
+      "output_tokens": 5350,
+      "step_count": 7,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 243.897,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "failed_execution_step",
+        "research_not_verified",
+        "result_view_contract",
+        "annual_calculation_count",
+        "official_annual_values_or_lineage"
+      ],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 22,
+          "sha256": "35a406c2a9a22a9b1d49e929ba88fd539cfd0edacd0f3c97e8a0376e5d77751f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "fa906f3e7aa78218faa4ea44eabc5277c766aa0ece0e1c151aa66f43a0bb7ad0",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "44bc2bdf4bac3bd362b4fc03da850d329948531236c7242693942026badcea99",
+          "result": "37.1333"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-4",
+      "repetition": 4,
+      "run_id": "55157540-c32c-5809-b21e-ff65510f7d5e",
+      "job_id": "0c88ec16-20b6-40ac-b917-a81c3ccf3933",
+      "research_run_id": "fac2a7f5-5271-5bf4-a0b4-cf78bf22471f",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 6,
+      "model_calls": 5,
+      "input_tokens": 46130,
+      "output_tokens": 12252,
+      "step_count": 11,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 280.891,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "failed_execution_step",
+        "research_not_verified",
+        "result_view_contract",
+        "official_annual_values_or_lineage"
+      ],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 18,
+          "sha256": "cae17987fa2022c799658681e40b528c81d2ae638c29ee59b28d8c5b0eee6a93",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "4bbcd4c9af15f7c85d9553e063a8d4532cefda86b3a4267ecc7e62e53947fdea",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "8747a17f7bfd280255d184b7cca3a223e22f5d04c8084205f1645daeeb86e55c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "5f5038e0202be10493592efe20f40a86fbb0553a59491f236e97c9ee9399b9c2",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "7ff2c247aa6dcd81f7bb2bb971eaac5c0779fa313660431c5e14ce5cd323e21d",
+          "result": "47.1513"
+        }
+      ]
+    },
+    {
+      "case_id": "l2-excerpt",
+      "repetition": 5,
+      "run_id": "36b9c671-8ba0-5880-a2fd-d32cca7f6742",
+      "job_id": "5e909b83-8e63-4ea6-8a3c-8b7706fb6094",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 5.644,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "skill_selection_or_tool_surface",
+        "answer_contract"
+      ],
+      "observations": []
+    },
+    {
+      "case_id": "research-asof-unavailable",
+      "repetition": 4,
+      "run_id": "8a6c2a6d-5f30-528d-a08a-18f61b97097c",
+      "job_id": "51522fb5-60c2-4d21-9dff-df5478afa848",
+      "research_run_id": "f49416c3-3017-58ee-8335-e8d16e879357",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 6.647,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": ["no_real_model_call", "required_xbrl_missing", "unexpected_boundary_failure"],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "l2-missing-excerpt",
+      "repetition": 5,
+      "run_id": "ee95d9ce-0938-5de6-8639-668f2a8eee65",
+      "job_id": "e38ff1d6-0af2-4f6d-98e5-03e1af2b629b",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 4.285,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "skill_selection_or_tool_surface",
+        "answer_contract"
+      ],
+      "observations": []
+    },
+    {
+      "case_id": "l2-basis",
+      "repetition": 5,
+      "run_id": "5f5cc979-7f3e-5f55-9c58-3d409d4cc3cb",
+      "job_id": "61795c17-9b70-4d68-9c32-9b39cfeb5ca7",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 5.286,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "skill_selection_or_tool_surface",
+        "answer_contract"
+      ],
+      "observations": []
+    },
+    {
+      "case_id": "l2-no-skill",
+      "repetition": 5,
+      "run_id": "705819e7-8734-5b05-bc09-ddaa583d0d0d",
+      "job_id": "308f2a3e-aa4c-408a-82d5-2d4336bfe510",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 8,
+      "max_total_tokens": 32768,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 7.443,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "answer_contract"
+      ],
+      "observations": []
+    },
+    {
+      "case_id": "research-revenue",
+      "repetition": 5,
+      "run_id": "97018936-4c75-574b-8887-f9c337eb9093",
+      "job_id": "9f27b70c-823d-4ee3-877b-4cb1cb5a3af9",
+      "research_run_id": "af2b0eba-ce86-504f-8991-5f3ff6703741",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 9.878,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "required_xbrl_missing",
+        "research_not_verified",
+        "answer_contract"
+      ],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-dupont-3",
+      "repetition": 5,
+      "run_id": "4b40c74d-bd8f-5d27-829e-3431db2992d1",
+      "job_id": "9ff0a974-0920-4170-a7e6-67f1dfcc6d44",
+      "research_run_id": "606f0c99-3c86-5d9e-a176-573fc34e5ac7",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 4.929,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "required_xbrl_missing",
+        "research_not_verified",
+        "result_view_contract",
+        "annual_calculation_count",
+        "official_annual_values_or_lineage"
+      ],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-margin",
+      "repetition": 5,
+      "run_id": "7fde8f2a-f416-52f4-b77b-d5e7d8f53000",
+      "job_id": "337f383e-e156-4af8-81c0-6b9eb91f16af",
+      "research_run_id": "d4e6f727-c486-5c51-a095-c0d918c2f142",
+      "passed": false,
+      "status": "failed",
+      "stop_reason": "provider_error",
+      "model_attempts": 1,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "step_count": 1,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 8.161,
+      "errors": [
+        {
+          "event_type": "agent.step.failed",
+          "code": "provider_unavailable"
+        }
+      ],
+      "failures": [
+        "run_not_completed",
+        "no_real_model_call",
+        "failed_execution_step",
+        "required_xbrl_missing",
+        "research_not_verified",
+        "missing_calculation",
+        "net_margin_gold_mismatch",
+        "answer_contract"
+      ],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    },
+    {
+      "case_id": "research-dupont-4",
+      "repetition": 5,
+      "run_id": "730fa47b-27f3-5326-bd26-250e2b04cad8",
+      "job_id": "3d4c36d0-9e25-49bd-8818-bc953dc6153d",
+      "research_run_id": "bd35295f-ec0b-5886-af13-816143e80cb7",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 6,
+      "model_calls": 6,
+      "input_tokens": 58365,
+      "output_tokens": 13684,
+      "step_count": 12,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 246.04,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 18,
+          "sha256": "cae17987fa2022c799658681e40b528c81d2ae638c29ee59b28d8c5b0eee6a93",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "4bbcd4c9af15f7c85d9553e063a8d4532cefda86b3a4267ecc7e62e53947fdea",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "8747a17f7bfd280255d184b7cca3a223e22f5d04c8084205f1645daeeb86e55c",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "5f5038e0202be10493592efe20f40a86fbb0553a59491f236e97c9ee9399b9c2",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "7ff2c247aa6dcd81f7bb2bb971eaac5c0779fa313660431c5e14ce5cd323e21d",
+          "result": "47.1513"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 5,
+      "run_id": "d95267c2-7dfa-545d-bfbf-0819d3aae82b",
+      "job_id": "39a87bf4-65be-45d2-8564-44d1b6f25e33",
+      "research_run_id": "734248f1-1740-5434-9e69-1b52b1e90cd0",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 7,
+      "model_calls": 7,
+      "input_tokens": 72742,
+      "output_tokens": 16715,
+      "step_count": 14,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 256.607,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "result_status": "ready",
+      "periods": ["2021-06-30", "2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 22,
+          "sha256": "35a406c2a9a22a9b1d49e929ba88fd539cfd0edacd0f3c97e8a0376e5d77751f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "fa906f3e7aa78218faa4ea44eabc5277c766aa0ece0e1c151aa66f43a0bb7ad0",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "44bc2bdf4bac3bd362b4fc03da850d329948531236c7242693942026badcea99",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "0c9b101fab5e602b7403551d0f8e94ef6ac54e2d9a7f669f185df16f5056821f",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "bfc7a984a44bea3a5d29fa1b913be6e2ee82740423f3606bad7165f7bb8f0f23",
+          "result": "47.1513"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "skill": null,
+          "source_count": 1,
+          "sha256": "a04636fe796a809322803194cc2e9eec9bdb74a8370f73008d25322a44b8931b",
+          "result": "47.0787"
+        }
+      ]
+    },
+    {
+      "case_id": "research-asof-unavailable",
+      "repetition": 5,
+      "run_id": "2078c2d6-bd10-5485-a33b-fecbabc1a9c8",
+      "job_id": "b1c3fd03-0c42-48a3-9210-5909915020e1",
+      "research_run_id": "3970d992-86f9-557e-a6c2-f95c2810f8ad",
+      "passed": true,
+      "status": "failed",
+      "stop_reason": "tool_error",
+      "model_attempts": 1,
+      "model_calls": 1,
+      "input_tokens": 1787,
+      "output_tokens": 2630,
+      "step_count": 2,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "terminal_event_count": 1,
+      "elapsed_seconds": 54.938,
+      "errors": [
+        {
+          "event_type": "agent.tool.failed",
+          "code": "sec_snapshot_not_visible"
+        },
+        {
+          "event_type": "agent.step.failed",
+          "code": "sec_snapshot_not_visible"
+        }
+      ],
+      "failures": [],
+      "verification_status": null,
+      "result_status": "not_applicable",
+      "periods": [],
+      "observations": []
+    }
+  ]
+}

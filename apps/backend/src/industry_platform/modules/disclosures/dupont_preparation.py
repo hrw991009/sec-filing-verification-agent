@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from itertools import pairwise
 from typing import Literal
 from uuid import UUID
 
@@ -49,18 +50,21 @@ class DuPontPreparationService:
         knowledge_base_id: UUID,
         as_of: datetime,
         trace_id: TraceId,
+        years: int = 2,
     ) -> DuPontPreparation:
         if not scope_allows(scope, WorkspaceAction.CREATE_RESOURCE):
             raise WorkspaceAccessDeniedError
         if isinstance(fiscal_year, bool) or not 2009 <= fiscal_year <= as_of.year:
             raise ValueError("DuPont fiscal year is invalid")
+        if isinstance(years, bool) or not 2 <= years <= 5 or fiscal_year - years + 1 < 2009:
+            raise ValueError("DuPont annual comparison range is invalid")
         await self.imports.knowledge_service.get_knowledge_base(scope, knowledge_base_id)
         selection = await self.selection.select(
             scope,
             selection_scope=FilingSelectionScope(
                 cik=cik,
                 allowed_forms=(SecFilingForm.TEN_K, SecFilingForm.TEN_K_AMENDMENT),
-                report_period_start=date(fiscal_year - 1, 1, 1),
+                report_period_start=date(fiscal_year - years + 1, 1, 1),
                 report_period_end=date(fiscal_year, 12, 31),
                 as_of=as_of,
                 amendment_policy=SecAmendmentPolicy.LATEST_KNOWN_BY_AS_OF,
@@ -69,14 +73,24 @@ class DuPontPreparationService:
         filings = sorted(selection.filings, key=lambda filing: filing.report_date, reverse=True)
         if (
             selection.status is not SecFilingSelectionStatus.OK
-            or len(filings) != 2
+            or len(filings) != years
             or any(filing.form is not SecFilingForm.TEN_K for filing in filings)
             or filings[0].report_date.year != fiscal_year
-            or not 350 <= (filings[0].report_date - filings[1].report_date).days <= 380
+            or any(
+                not 350 <= (newer.report_date - older.report_date).days <= 380
+                for newer, older in pairwise(filings)
+            )
         ):
             return DuPontPreparation(
                 "insufficient_data",
-                issues=(selection.error_code or "two_unamended_consecutive_10k_filings_required",),
+                issues=(
+                    selection.error_code
+                    or (
+                        "two_unamended_consecutive_10k_filings_required"
+                        if years == 2
+                        else "requested_unamended_consecutive_10k_filings_required"
+                    ),
+                ),
             )
         latest = filings[0]
         financial_scope = FinancialScope(
@@ -87,6 +101,8 @@ class DuPontPreparationService:
             as_of=as_of,
             unit="USD",
             scale=6,
+            schema_version=1 if years == 2 else 2,
+            analysis_years=None if years == 2 else years,
         )
         existing: dict[str, SecWorkspaceFilingImport] = {}
         for existing_item in await self.imports.list_imports(scope):

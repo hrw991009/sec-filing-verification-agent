@@ -135,7 +135,10 @@ class SqlAlchemySecXbrlRepository:
                                 SecFilingRecord.cik == financial_scope.cik,
                                 SecFilingRecord.form.in_(("10-K", "10-K/A")),
                                 SecFilingRecord.report_date.between(
-                                    financial_scope.report_period - timedelta(days=380),
+                                    financial_scope.report_period
+                                    - timedelta(
+                                        days=380 * (financial_scope.annual_period_count - 1)
+                                    ),
                                     financial_scope.report_period,
                                 ),
                                 SecFilingRecord.public_available_at <= financial_scope.as_of,

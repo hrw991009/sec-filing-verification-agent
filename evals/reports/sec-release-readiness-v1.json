@@ -26,9 +26,9 @@
     },
     {
       "artifact_id": "readme",
-      "byte_size": 14061,
+      "byte_size": 14237,
       "relative_path": "README.md",
-      "sha256": "d5393a14020baaa584c5c0bdcf823c81a33e1d5c46ca588d437994b9e5cd847b"
+      "sha256": "178a6d241a77a3e7cdb8a7819b491cfc30438f48a7dcd288f90951af5d336a0b"
     },
     {
       "artifact_id": "product-scope",
@@ -272,9 +272,9 @@
     },
     {
       "artifact_id": "evidence-domain-boundary-tests",
-      "byte_size": 18069,
+      "byte_size": 18268,
       "relative_path": "apps/backend/tests/modules/evidence/test_domain.py",
-      "sha256": "c74f3c3020808731bdf2645a74d5d4007a3da854c7a959bf4dc32c094294235a"
+      "sha256": "9c7a16d1c9eb664066125f84dc2cb0283e04afa82fa132572c36ed4f2def5a4e"
     },
     {
       "artifact_id": "research-service-boundary-tests",
@@ -302,21 +302,21 @@
     },
     {
       "artifact_id": "research-workbench-ui",
-      "byte_size": 67016,
+      "byte_size": 68584,
       "relative_path": "apps/web/src/research/ResearchWorkspace.tsx",
-      "sha256": "30c3a27ebe1e9d6262afee056f2a1f4f1d3e00876e086ac5fd9f1c82240cee42"
+      "sha256": "64a695924c375af434d4635494e0c245156dbbd137529fee7aa60dcacd6ee38e"
     },
     {
       "artifact_id": "research-workbench-tests",
-      "byte_size": 30552,
+      "byte_size": 30810,
       "relative_path": "apps/web/src/research/ResearchWorkspace.test.tsx",
-      "sha256": "922dfb619c90116055d653224639e6d1969682ca0b228e2224743def52ec1c8e"
+      "sha256": "6aee35f12eeba6421167099f6ea63eb4e17222d646455d02fb36d8bc1bd75fcd"
     },
     {
       "artifact_id": "research-web-api",
-      "byte_size": 5600,
+      "byte_size": 6181,
       "relative_path": "apps/web/src/research/research-api.ts",
-      "sha256": "a08c472af581ff4d108dac1fe52ec23c69ffc282e68daa501712fbfcd2051aa7"
+      "sha256": "2c173a066223bc2f08aa3e7ef40d41d14385c11d74c14d13430bc16d8b8ddf1f"
     },
     {
       "artifact_id": "research-web-api-tests",
@@ -332,15 +332,15 @@
     },
     {
       "artifact_id": "research-http-router",
-      "byte_size": 19028,
+      "byte_size": 19986,
       "relative_path": "apps/backend/src/industry_platform/modules/research/router.py",
-      "sha256": "50505bdb0f375a056566d1191472192593359c5c80989c42f9f8934662148a26"
+      "sha256": "24e081fd889cf1b17a2b36985d0839381bebfc7d0bd090efebec5191e67e5728"
     },
     {
       "artifact_id": "research-verifier",
-      "byte_size": 41927,
+      "byte_size": 42228,
       "relative_path": "apps/backend/src/industry_platform/modules/research/verification.py",
-      "sha256": "211b12fc1fe99a9d0c387463f8c67d388524ecccb5300b6d56cfbd8c1f147bf2"
+      "sha256": "9bcab4c7141aa8206ec42b531848c2672863d566864d3ecd2507005bd30d171c"
     },
     {
       "artifact_id": "sec-monitor-service",

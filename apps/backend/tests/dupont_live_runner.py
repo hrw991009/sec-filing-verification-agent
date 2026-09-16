@@ -30,6 +30,7 @@ from industry_platform.modules.jobs.domain import JobDispatchMessage, OutboxStat
 from industry_platform.modules.jobs.models import Job, OutboxEvent
 from industry_platform.modules.knowledge.domain import CreateKnowledgeBase
 from industry_platform.modules.research.domain import ResearchBriefInput
+from industry_platform.modules.research.results import ResearchResultService
 from industry_platform.modules.research.service import StartResearch
 from industry_platform.modules.workspaces.domain import WorkspaceScope
 from industry_platform.server import create_selector_event_loop
@@ -127,6 +128,7 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
             knowledge_base_id=str(kb.id),
             cik=args.cik,
             fiscal_year=args.fiscal_year,
+            years=args.years,
         )
         emit({"stage": "preparing", **record})
 
@@ -139,6 +141,7 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
             scope,
             cik=args.cik,
             fiscal_year=args.fiscal_year,
+            years=args.years,
             knowledge_base_id=kb.id,
             as_of=cutoff,
             trace_id=trace_id,
@@ -154,6 +157,7 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
                 scope,
                 cik=args.cik,
                 fiscal_year=args.fiscal_year,
+                years=args.years,
                 knowledge_base_id=kb.id,
                 as_of=cutoff,
                 trace_id=trace_id,
@@ -207,12 +211,13 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
                 industry_id=None,
                 brief=ResearchBriefInput(
                     original_question=(
-                        "请用中文完成连续两年三因素杜邦分析, "
+                        f"请用中文完成连续 {args.years} 年三因素杜邦分析, "
                         "给出净利率、总资产周转率、权益乘数、ROE的对比表、计算引用及数据口径局限。"
                     ),
                     confirmed_scope=(
                         f"CIK {args.cik}, "
-                        f"fiscal years {args.fiscal_year - 1} and {args.fiscal_year}",
+                        f"fiscal years {args.fiscal_year - args.years + 1} "
+                        f"through {args.fiscal_year}",
                     ),
                     exclusions=(
                         "DCF",
@@ -221,7 +226,7 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
                         "unsupported causal explanations",
                     ),
                     completion_criteria=(
-                        "Both years have source-backed DuPont calculations and verified citations",
+                        "All selected years have source-backed calculations and verified citations",
                     ),
                     financial_scope=financial_scope,
                 ),
@@ -233,7 +238,7 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
                 max_cost_micro_usd=1_000_000,
                 timeout_seconds=1200,
                 task_name="sec.dupont-analysis",
-                task_version="v1",
+                task_version="v1" if args.years == 2 else "v2",
             ),
         )
         record["research_run_id"] = str(receipt.research_run_id)
@@ -253,11 +258,19 @@ async def run(args: argparse.Namespace, record: dict[str, Any]) -> None:
             if report is None
             else [item.code.value for item in report.issues],
         )
+        result_view = await ResearchResultService(
+            research.query_service,
+            research.verification_service.evidence_service,
+            research.verification_service,
+        ).get(scope, receipt.research_run_id)
+        record["result_view"] = result_view.model_dump(mode="json")
         if (
             view.agent_status.value != "completed"
             or report is None
             or report.status.value != "verified"
             or report.issues
+            or result_view.status != "ready"
+            or result_view.verification_status != "verified"
         ):
             raise RuntimeError(
                 "Live DuPont Research did not finish with a clean verification report"
@@ -271,6 +284,7 @@ def main() -> None:
     parser.add_argument("--user-id", type=UUID, required=True)
     parser.add_argument("--cik", default="0000789019")
     parser.add_argument("--fiscal-year", type=int, default=2025)
+    parser.add_argument("--years", type=int, choices=(2, 3, 4, 5), default=5)
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--output", type=Path, default=Path(".data/evals/dupont-live-v1.json"))
     args = parser.parse_args()

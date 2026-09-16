@@ -74,6 +74,39 @@ async def test_preparation_imports_exactly_two_then_returns_ready() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("years", [3, 4, 5])
+async def test_preparation_pins_exact_multi_year_scope(years: int) -> None:
+    selected = service()
+    current = canonical_filing()
+    filings = tuple(
+        replace(
+            current, accession=f"0000320193-{year % 100:02d}-000106", report_date=date(year, 9, 30)
+        )
+        for year in range(2023, 2023 - years, -1)
+    )
+    selected.selection.select.return_value = SimpleNamespace(  # type: ignore[attr-defined]
+        filings=filings, status=SecFilingSelectionStatus.OK, error_code=None
+    )
+    selected.imports.import_filing.side_effect = [  # type: ignore[attr-defined]
+        replace(workspace_import(), accession=item.accession) for item in filings
+    ]
+    result = await selected.prepare(
+        scope(),
+        cik="0000320193",
+        fiscal_year=2023,
+        years=years,
+        knowledge_base_id=KNOWLEDGE_BASE_ID,
+        as_of=NOW,
+        trace_id=TraceId("multi-year-test"),
+    )
+    assert result.status == "ready"
+    assert len(result.imports) == years
+    assert result.financial_scope is not None
+    assert result.financial_scope.schema_version == 2
+    assert result.financial_scope.analysis_years == years
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("status", [SecFilingImportStatus.QUEUED, SecFilingImportStatus.FAILED])
 async def test_pending_and_failed_ingestion_are_not_ready(status: SecFilingImportStatus) -> None:
     selected = service()

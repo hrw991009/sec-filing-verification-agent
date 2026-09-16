@@ -6,6 +6,24 @@ export type ResearchRun = components["schemas"]["ResearchRunDetailResponse"];
 export type ResearchApproval = components["schemas"]["ResearchApprovalResponse"];
 export type ResearchDurability = components["schemas"]["ResearchDurabilityTimelineResponse"];
 export type VerificationReport = components["schemas"]["VerificationReportResponse"];
+export type ResearchResultView = components["schemas"]["ResearchResultView"];
+
+export function getResearchResultView(
+  workspaceId: string,
+  researchRunId: string,
+): Promise<ResearchResultView> {
+  return withAccessToken(async (accessToken) =>
+    unwrapData<ResearchResultView>(
+      await apiClient.GET(
+        "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/result-view",
+        {
+          headers: authorization(accessToken),
+          params: { path: { workspace_id: workspaceId, research_run_id: researchRunId } },
+        },
+      ),
+    ),
+  );
+}
 export type StartResearchRequest = components["schemas"]["StartResearchRequest"];
 export type StartResearchResponse = components["schemas"]["StartResearchResponse"];
 export type ResumeResearchResponse = components["schemas"]["ResumeResearchResponse"];

@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "suite_id": "product-stability-v1",
+  "batch_id": "9b2b646f-9305-4905-ab50-1ef5d09cae8c",
+  "execution_kind": "real_model_current_product_official_sec",
+  "source_identity": {
+    "head": "5682e36d761b281bb64607383ce5f5dcca6a2872",
+    "working_source_sha256": "5756081332de46fbe01b01c6a56fa246aec96911d13e63a4164d22af4eb864bc"
+  },
+  "manifest_sha256": "4c1c427c5e76cad7919ebff9ccaa259917e6aee068cea6483ca644f757e29239",
+  "model_route": {
+    "model": "openai-compatible/gemini-3.8-flash",
+    "upstream_model": "gemini-3.8-flash",
+    "response_models": ["gemini-3.8-flash", "gemini-3.8-flash-tiered"],
+    "pricing_version": "iisbo-call-metered-token-unpriced-v1",
+    "input_micro_usd_per_million": 0,
+    "cached_input_micro_usd_per_million": 0,
+    "output_micro_usd_per_million": 0,
+    "supports_image_input": false,
+    "reasoning_enabled": false,
+    "structured_output_mode": "json_object",
+    "temperature": 0,
+    "seed": null
+  },
+  "provider_host": "ai.iisbo.com",
+  "started_at": "2026-09-16T01:27:58.968790+00:00",
+  "completed_at": "2026-09-16T01:29:06.317857+00:00",
+  "source_unchanged": true,
+  "diagnostic": true,
+  "total_runs": 2,
+  "passed_runs": 2,
+  "accepted": false,
+  "recheck_passed": true,
+  "same_source_and_route_as_batch_03": true,
+  "notes": [
+    "User-requested targeted fresh reruns of batch 03's two failed five-year DuPont cases.",
+    "This is not a resumed Run or a new full 50-Run acceptance batch. Original failures and accepted=false remain unchanged.",
+    "Financial as_of uses the new preparation time; the same official FY2021-FY2025 scope and independent oracle are used.",
+    "Initial startup failed the preparation readiness check before creating analysis Runs; exact preparation issues were not captured. A separate prepare-only invocation confirmed five periods and 22 facts ready before these reruns."
+  ],
+  "records": [
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 1,
+      "run_id": "5495aa00-29b4-5047-81f0-6e8a68b7d3c3",
+      "job_id": "c66da328-3761-4b00-aa19-e7e772865afc",
+      "research_run_id": "5732667f-7048-5117-ab9a-6d7ac420d635",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 7,
+      "model_calls": 7,
+      "input_tokens": 72980,
+      "output_tokens": 16787,
+      "step_count": 14,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "cost_micro_usd": 0,
+      "max_cost_micro_usd": 1000000,
+      "deadline": "2026-09-16T01:47:59.835977+00:00",
+      "terminal_at": "2026-09-16T01:29:04.162639+00:00",
+      "terminal_event_count": 1,
+      "elapsed_seconds": 65.203,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "verification_issues": [],
+      "rechecks": {
+        "batch_id": "5eabc94d-9cd3-4269-a745-a81886065dec",
+        "run_id": "a36155e5-7152-555c-b973-b3bfbac1a105",
+        "repetition": 4,
+        "error_code": "provider_unavailable"
+      },
+      "result_status": "ready",
+      "periods": ["2021-06-30", "2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "result_row_count": 12,
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 22,
+          "sha256": "eb1644810820fdf6a260a72f7dff9ff70dc2d94f544bc71a9e3b5c9614eb236f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "22cd475dfd32bde70b7cd4f09506223b9c2bb008c9511247f5df8a25371bb06c",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "07866152f53e49d11d9ba7c1b16d292c5748aa5f98ee8af3fad24071e6ed6f6b",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "7c244664b76da24a3a8562ea947936f8643102fa709830a438f2acd2f76a5016",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "d348e29828076391fe4414faecc1849a9b65081cc4eac8c28873dfa18037fe94",
+          "result": "47.1513"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "3ca8b664aa2463ca870429e9cb4abd5a2bcf236e27f7399a6ce4c5259fe74ad8",
+          "result": "47.0787"
+        }
+      ]
+    },
+    {
+      "case_id": "research-dupont-5",
+      "repetition": 2,
+      "run_id": "0a14ea98-a75c-5a27-be05-1badfcd159a7",
+      "job_id": "8e716866-74a1-4cb6-b1d7-5401166739ff",
+      "research_run_id": "cb5575c3-44c7-5435-9f71-f273f5c65466",
+      "passed": true,
+      "status": "completed",
+      "stop_reason": "final",
+      "model_attempts": 7,
+      "model_calls": 7,
+      "input_tokens": 73000,
+      "output_tokens": 16978,
+      "step_count": 14,
+      "max_steps": 40,
+      "max_total_tokens": 100000,
+      "cost_micro_usd": 0,
+      "max_cost_micro_usd": 1000000,
+      "deadline": "2026-09-16T01:47:59.838025+00:00",
+      "terminal_at": "2026-09-16T01:29:05.304484+00:00",
+      "terminal_event_count": 1,
+      "elapsed_seconds": 66.221,
+      "errors": [],
+      "failures": [],
+      "verification_status": "verified",
+      "verification_issues": [],
+      "rechecks": {
+        "batch_id": "5eabc94d-9cd3-4269-a745-a81886065dec",
+        "run_id": "f8c5b883-8ad7-522b-9202-0eb5455b02b6",
+        "repetition": 5,
+        "error_code": "provider_unavailable"
+      },
+      "result_status": "ready",
+      "periods": ["2021-06-30", "2022-06-30", "2023-06-30", "2024-06-30", "2025-06-30"],
+      "result_row_count": 12,
+      "observations": [
+        {
+          "tool": "sec.get_xbrl_facts",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 22,
+          "sha256": "eb1644810820fdf6a260a72f7dff9ff70dc2d94f544bc71a9e3b5c9614eb236f",
+          "result": null
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "22cd475dfd32bde70b7cd4f09506223b9c2bb008c9511247f5df8a25371bb06c",
+          "result": "33.2808"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "07866152f53e49d11d9ba7c1b16d292c5748aa5f98ee8af3fad24071e6ed6f6b",
+          "result": "37.1333"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "7c244664b76da24a3a8562ea947936f8643102fa709830a438f2acd2f76a5016",
+          "result": "38.8239"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "d348e29828076391fe4414faecc1849a9b65081cc4eac8c28873dfa18037fe94",
+          "result": "47.1513"
+        },
+        {
+          "tool": "finance.calculate",
+          "status": "ok",
+          "error_code": null,
+          "source_count": 1,
+          "sha256": "3ca8b664aa2463ca870429e9cb4abd5a2bcf236e27f7399a6ce4c5259fe74ad8",
+          "result": "47.0787"
+        }
+      ]
+    }
+  ]
+}

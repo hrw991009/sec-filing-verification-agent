@@ -1512,6 +1512,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/result-view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Result View */
+        get: operations["get_result_view_api_v1_workspaces__workspace_id__research_runs__research_run_id__result_view_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/research-runs/{research_run_id}/resume": {
         parameters: {
             query?: never;
@@ -2928,6 +2945,8 @@ export interface components {
         FinancialScopePayload: {
             /** Accession */
             accession: string;
+            /** Analysis Years */
+            analysis_years?: number | null;
             /**
              * As Of
              * Format: date-time
@@ -4081,6 +4100,48 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** ResearchResultView */
+        ResearchResultView: {
+            /** Draft Id */
+            draft_id: string | null;
+            /** Draft Revision */
+            draft_revision: number | null;
+            /**
+             * Limitations
+             * @default []
+             */
+            limitations: string[];
+            /**
+             * Periods
+             * @default []
+             */
+            periods: string[];
+            /**
+             * Research Run Id
+             * Format: uuid
+             */
+            research_run_id: string;
+            /**
+             * Rows
+             * @default []
+             */
+            rows: components["schemas"]["ResultRow"][];
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "unavailable" | "not_applicable";
+            /** Verification Report Id */
+            verification_report_id?: string | null;
+            /** Verification Status */
+            verification_status?: string | null;
+        };
         /** ResearchRoleResponse */
         ResearchRoleResponse: {
             /** Name */
@@ -4185,6 +4246,28 @@ export interface components {
             target_memory_id?: string | null;
             /** Target Revision */
             target_revision?: number | null;
+        };
+        /** ResultRow */
+        ResultRow: {
+            /** Change Unit */
+            change_unit: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Unit */
+            unit: string;
+            /** Values */
+            values: components["schemas"]["ResultValue"][];
+        };
+        /** ResultValue */
+        ResultValue: {
+            /** Change */
+            change?: string | null;
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /** Value */
+            value: string;
         };
         /** ResumeResearchRequest */
         ResumeResearchRequest: {
@@ -4341,6 +4424,11 @@ export interface components {
              * Format: uuid
              */
             knowledge_base_id: string;
+            /**
+             * Years
+             * @default 2
+             */
+            years: number;
         };
         /** SecDuPontPrepareResponse */
         SecDuPontPrepareResponse: {
@@ -22364,6 +22452,183 @@ export interface operations {
                 };
             };
             /** @description SEC filer discovery temporarily unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+        };
+    };
+    get_result_view_api_v1_workspaces__workspace_id__research_runs__research_run_id__result_view_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                research_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchResultView"];
+                };
+            };
+            /** @description Invalid authenticated session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Workspace access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research request rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Code */
+                        code: string;
+                        /** Detail */
+                        detail: string;
+                        /** Status */
+                        status: number;
+                        /** Title */
+                        title: string;
+                        /** Trace Id */
+                        trace_id: string;
+                        /** Type */
+                        type: string;
+                    };
+                };
+            };
+            /** @description Research service temporarily unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

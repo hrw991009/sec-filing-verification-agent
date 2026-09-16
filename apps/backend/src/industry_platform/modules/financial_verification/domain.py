@@ -77,10 +77,21 @@ class FinancialScope:
     unit: str
     scale: int
     schema_version: int = FINANCIAL_SCOPE_SCHEMA_VERSION
+    analysis_years: int | None = None
 
     def __post_init__(self) -> None:
-        if self.schema_version != FINANCIAL_SCOPE_SCHEMA_VERSION:
+        if self.schema_version not in (1, 2):
             raise ValueError("Financial Scope schema version is unsupported")
+        if self.schema_version == 1:
+            if self.analysis_years is not None:
+                raise ValueError("Legacy Financial Scope cannot expand its period range")
+        elif (
+            isinstance(self.analysis_years, bool)
+            or not isinstance(self.analysis_years, int)
+            or not 3 <= self.analysis_years <= 5
+            or self.form is not FinancialForm.TEN_K
+        ):
+            raise ValueError("Multi-year Financial Scope requires 3 to 5 annual periods")
         if not _CIK_PATTERN.fullmatch(self.cik):
             raise ValueError("Financial Scope CIK is invalid")
         if not _ACCESSION_PATTERN.fullmatch(self.accession):
@@ -105,6 +116,7 @@ class FinancialScope:
                 "as_of": self.as_of.isoformat(),
                 "unit": self.unit,
                 "scale": self.scale,
+                **({"analysis_years": self.analysis_years} if self.schema_version == 2 else {}),
             }
         )
 
@@ -120,6 +132,8 @@ class FinancialScope:
             "unit",
             "scale",
         }
+        if value.get("schema_version") == 2:
+            expected.add("analysis_years")
         if set(value) != expected:
             raise ValueError("Financial Scope fields are invalid")
         schema_version = value["schema_version"]
@@ -141,9 +155,14 @@ class FinancialScope:
                 as_of=datetime.fromisoformat(str(value["as_of"])),
                 unit=str(value["unit"]),
                 scale=scale,
+                analysis_years=value.get("analysis_years"),  # type: ignore[arg-type]
             )
         except (TypeError, ValueError):
             raise ValueError("Financial Scope is invalid") from None
+
+    @property
+    def annual_period_count(self) -> int:
+        return self.analysis_years if self.analysis_years is not None else 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,7 +267,7 @@ class FinancialEvidenceOperand:
             if not value.strip() or len(value) > maximum:
                 raise ValueError(f"Financial Evidence {field_name} is invalid")
         if self.context_id is not None and (
-            not self.context_id.strip() or len(self.context_id) > 255
+            not self.context_id.strip() or len(self.context_id) > 512
         ):
             raise ValueError("Financial Evidence context is invalid")
         if self.source_available_at.tzinfo is None or self.source_available_at.utcoffset() is None:

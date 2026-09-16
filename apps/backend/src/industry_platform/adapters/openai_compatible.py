@@ -704,9 +704,11 @@ class OpenAICompatibleModelProvider:
                 # Explicit JSON mode changes transport only: the full schema is
                 # still supplied and validated locally before any Action executes.
                 # ContextCompiler already budgets the logical response schema.
-                schema_instruction = "\nJSON:\n" + json.dumps(
-                    schema, ensure_ascii=False, separators=(",", ":"), sort_keys=True
-                )
+                schema_instruction = (
+                    "\nReturn exactly one raw JSON object matching the schema below. "
+                    "Do not wrap it in Markdown code fences. No text before or after the object."
+                    "\nJSON:\n"
+                ) + json.dumps(schema, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
                 if (
                     messages
                     and messages[0]["role"] == "system"

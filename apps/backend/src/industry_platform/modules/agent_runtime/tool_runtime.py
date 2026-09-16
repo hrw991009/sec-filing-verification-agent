@@ -2090,10 +2090,17 @@ class ToolL2Runtime(ToolL1Runtime):
                 for name in required_tool_names
                 if completed_tools.count(name) < counts.get(name, 1)
             ]
+            # A required stage establishes a minimum, not a ban on retrieving
+            # another prerequisite. For example, margin needs separate revenue
+            # and income queries before calculation. Only the current stage and
+            # its predecessors are available; later stages cannot be skipped to.
+            active_names = (
+                required_tool_names[: required_tool_names.index(pending_tools[0]) + 1]
+                if pending_tools
+                else ()
+            )
             active_definitions = (
-                tuple(
-                    item for item in definitions if pending_tools and item.name == pending_tools[0]
-                )
+                tuple(item for item in definitions if item.name in active_names)
                 if required_tool_names
                 else definitions
             )
@@ -2244,7 +2251,7 @@ class ToolL2Runtime(ToolL1Runtime):
             signature = (decision.name, decision.version, audit.arguments_sha256)
             guard: tuple[RunStopReason, str] | None = None
             additional_tool_count = tool_index - initial_observation_count
-            if required_tool_names and (not pending_tools or decision.name != pending_tools[0]):
+            if required_tool_names and decision.name not in active_names:
                 guard = (RunStopReason.TOOL_DENIED, "required_tool_sequence_mismatch")
             elif required_signature is not None and signature != required_signature:
                 guard = (RunStopReason.TOOL_DENIED, "verification_action_mismatch")

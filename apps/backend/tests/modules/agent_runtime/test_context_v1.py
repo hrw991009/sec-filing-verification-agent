@@ -26,6 +26,7 @@ from industry_platform.modules.agent_runtime.context_compiler import (
     ContextCompilerV0,
     ContextCompilerV1,
     FinancialContextCompilerV1,
+    Utf8UpperBoundTokenCounter,
 )
 from industry_platform.modules.agent_runtime.domain import (
     AGENT_RUNTIME_SCHEMA_VERSION,
@@ -694,6 +695,66 @@ def test_financial_context_records_malformed_source_and_token_budget_exclusions(
                 max_input_tokens=baseline.manifest.budget.estimated_input_tokens,
             )
         )
+
+
+def test_five_compact_calculation_receipts_keep_prerequisite_context() -> None:
+    scope = financial_scope()
+    prerequisite = financial_observation(scope, text_suffix="annual inputs " * 900)
+    sources = [prerequisite]
+    for ordinal in range(2, 7):
+        document = {
+            "financial_scope": dict(scope.to_mapping()),
+            "operator": "dupont",
+            "status": "ok",
+            "operands": ["operand metadata " * 300] * 6,
+            "resolved_operands": [
+                {"start_date": "2024-01-01", "end_date": "2024-12-31", "raw_context_id": "x" * 512}
+            ]
+            * 6,
+            "formula": "formula " * 200,
+            "components": {"roe_percent": "40.0000"},
+            "result": "40.0000",
+            "reconciliation": {"status": "consistent", "issues": [], "operands": "metadata " * 400},
+        }
+        text = json.dumps(document)
+        sources.append(
+            replace(
+                prerequisite,
+                ordinal=ordinal,
+                observation_id=UUID(int=ordinal),
+                tool_call_id=UUID(int=ordinal + 10),
+                tool_name="finance.calculate",
+                model_text=text,
+                content_sha256=hashlib.sha256(text.encode()).hexdigest(),
+                envelope_sha256="",
+            )
+        )
+    compiler = FinancialContextCompilerV1(token_counter=Utf8UpperBoundTokenCounter())
+    compiled = compiler.compile(
+        compilation(
+            compiler_version=FINANCIAL_CONTEXT_COMPILER_V1,
+            financial_scope=scope,
+            tool_observations=tuple(sources),
+            max_input_tokens=32768,
+            selected_budget=budget(max_total_tokens=100000),
+        )
+    )
+    observations = [
+        entry
+        for entry in compiled.manifest.sources
+        if entry.source_kind is ContextSourceKind.TOOL_OBSERVATION
+    ]
+    assert len(observations) == 6
+    assert all(entry.included for entry in observations)
+    assert compiled.manifest.budget.estimated_input_tokens < 32768
+    projected = compiler._tool_observation_payload(sources[-1])
+    assert isinstance(projected["content"], str)
+    compact = json.loads(projected["content"])
+    assert compact["calculation_period"]["end_date"] == "2024-12-31"
+    assert "operands" not in compact
+    assert "resolved_operands" not in compact
+    assert compact["reconciliation"] == {"status": "consistent", "issues": []}
+    assert sources[-1].model_text == text
 
 
 def test_financial_context_keeps_latest_result_when_older_results_do_not_fit() -> None:

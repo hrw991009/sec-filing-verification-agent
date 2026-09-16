@@ -205,6 +205,7 @@ async def test_json_object_keeps_all_union_branches_and_enforces_host_schema(
         body = json.loads(incoming.content)
         assert body["response_format"] == {"type": "json_object"}
         assert body["messages"][0]["role"] == "system"
+        assert "Do not wrap it in Markdown code fences" in body["messages"][0]["content"]
         assert '"const":"alpha"' in body["messages"][0]["content"]
         assert '"const":"beta"' in body["messages"][0]["content"]
         return response_with_bytes(
