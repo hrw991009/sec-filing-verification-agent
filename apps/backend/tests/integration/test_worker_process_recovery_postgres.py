@@ -1,7 +1,6 @@
 """Kill an owned process after durable Run/Job checkpoints, then resume in a new process."""
 
 import asyncio
-import os
 import subprocess
 import sys
 from dataclasses import replace
@@ -39,6 +38,9 @@ def test_hard_killed_process_resumes_same_job_run_and_checkpoint_once(
     async def exercise() -> None:
         engine = create_database_engine(migrated_postgres_probe.settings)
         factory = create_database_session_factory(engine)
+        creationflags = 0
+        if sys.platform == "win32":
+            creationflags = subprocess.CREATE_NO_WINDOW
         child: subprocess.Popen[bytes] | None = None
         try:
             await seed_workspace(factory)
@@ -70,7 +72,7 @@ def test_hard_killed_process_resumes_same_job_run_and_checkpoint_once(
                 (*base, "1"),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                creationflags=creationflags,
             )
             async with asyncio.timeout(30):
                 while True:
@@ -130,7 +132,7 @@ def test_hard_killed_process_resumes_same_job_run_and_checkpoint_once(
                     capture_output=True,
                     check=False,
                     timeout=30,
-                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                    creationflags=creationflags,
                 )
                 assert completed.returncode == 0, completed.stderr.decode(errors="replace")
             async with factory() as session:
