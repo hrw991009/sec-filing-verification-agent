@@ -26,9 +26,9 @@
     },
     {
       "artifact_id": "readme",
-      "byte_size": 14151,
+      "byte_size": 14237,
       "relative_path": "README.md",
-      "sha256": "407b73b97deffea9fa6141aff15d4ee2e375e8bfe432366c1f182b38b13c88ea"
+      "sha256": "178a6d241a77a3e7cdb8a7819b491cfc30438f48a7dcd288f90951af5d336a0b"
     },
     {
       "artifact_id": "product-scope",
