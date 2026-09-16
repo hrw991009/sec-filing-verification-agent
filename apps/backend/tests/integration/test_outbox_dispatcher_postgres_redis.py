@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import socket
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import cast
@@ -171,6 +172,93 @@ def test_real_postgres_dispatches_fixed_message_to_real_redis(
         assert routing_key == queue_name
         assert "private" not in str(payload)
         assert "research.collect" not in str(payload)
+    finally:
+        _delete_queue(celery_app, queue_name)
+        celery_app.close()
+
+
+def test_connection_outage_retains_outbox_then_publishes_original_identity_once(
+    migrated_postgres_probe: PostgresProbe,
+) -> None:
+    if os.getenv(REDIS_TESTS_REQUIRED) != "1":
+        pytest.skip(f"Set {REDIS_TESTS_REQUIRED}=1 to run Redis integration tests")
+
+    settings = migrated_postgres_probe.settings
+    queue_name = f"outbox-recovery-{uuid4().hex}"
+    celery_app = create_celery_app(settings)
+
+    async def exercise() -> None:
+        engine = create_database_engine(settings)
+        session_factory = create_database_session_factory(engine)
+        service = _job_service(session_factory)
+        transactions = SqlAlchemyOutboxTransactionFactory(session_factory)
+        try:
+            submitted = await service.submit(_submission(queue_name=queue_name))
+            with socket.socket() as refused:
+                refused.bind(("127.0.0.1", 0))
+                offline_app = create_celery_app(
+                    settings.model_copy(
+                        update={"redis_host": "127.0.0.1", "redis_port": refused.getsockname()[1]}
+                    )
+                )
+                try:
+                    result = await OutboxDispatcher(
+                        transaction_factory=transactions,
+                        publisher=CeleryJobDispatchPublisher(offline_app),
+                        dispatcher_id="recovery-offline",
+                        batch_size=1,
+                        claim_seconds=60,
+                    ).dispatch_once()
+                finally:
+                    offline_app.close()
+            assert result.retry_scheduled == 1
+            assert result.published == result.dead_lettered == 0
+            async with session_factory.begin() as session:
+                job = await session.get(Job, submitted.job_id)
+                outbox = await session.get(OutboxEvent, submitted.outbox_event_id)
+                assert job is not None
+                assert outbox is not None
+                assert outbox.status is OutboxStatus.PENDING
+                assert outbox.attempt_count == 1
+                assert outbox.published_at is None
+                assert job.dispatch_attempt == 0
+                assert job.dispatch_generation == submitted.dispatch_generation
+                outbox.next_attempt_at = datetime.now(UTC) - timedelta(seconds=1)
+
+            dispatcher = OutboxDispatcher(
+                transaction_factory=transactions,
+                publisher=CeleryJobDispatchPublisher(celery_app),
+                dispatcher_id="recovery-online",
+                batch_size=1,
+                claim_seconds=60,
+            )
+            assert (await dispatcher.dispatch_once()).published == 1
+            assert (await dispatcher.dispatch_once()).claimed == 0
+            payload, headers, routing_key = await to_thread.run_sync(
+                partial(_consume_one, celery_app, queue_name)
+            )
+            assert isinstance(payload, list | tuple)
+            assert payload[1]["job_id"] == str(submitted.job_id)
+            assert payload[1]["outbox_id"] == str(submitted.outbox_event_id)
+            assert headers["id"] == str(submitted.outbox_event_id)
+            assert routing_key == queue_name
+            async with session_factory() as session:
+                assert await session.scalar(select(func.count()).select_from(Job)) == 1
+                assert await session.scalar(select(func.count()).select_from(OutboxEvent)) == 1
+                assert (
+                    await session.scalar(
+                        select(func.count())
+                        .select_from(JobEvent)
+                        .where(JobEvent.event_type == JobEventType.DISPATCHED)
+                    )
+                    == 1
+                )
+        finally:
+            await engine.dispose()
+
+    try:
+        with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+            runner.run(exercise())
     finally:
         _delete_queue(celery_app, queue_name)
         celery_app.close()

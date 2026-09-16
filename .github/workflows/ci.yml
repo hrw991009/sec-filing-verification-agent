@@ -297,6 +297,8 @@ jobs:
             >/dev/null
 
       - name: Exercise PostgreSQL, Redis, and MinIO integration paths
+        env:
+          RECOVERY_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
           uv run --locked --all-packages pytest \

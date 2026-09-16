@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import json
-import socket
 import subprocess
 import time
-import urllib.request
 from pathlib import Path
 from uuid import UUID
 
@@ -107,24 +105,12 @@ def test_binding_rejects_unknown_scenarios_and_partial_runtime_identity(tmp_path
         )
 
 
-def test_outage_execution_restores_the_service_before_running_verification(
+def test_outage_execution_uses_isolated_checks_without_stopping_shared_services(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     events: list[str] = []
     monkeypatch.setattr(exercise_module, "_settings", lambda: object())
-    monkeypatch.setattr(
-        exercise_module,
-        "_compose",
-        lambda service, action: events.append(f"compose:{service}:{action}"),
-    )
-    monkeypatch.setattr(
-        exercise_module,
-        "_wait_service",
-        lambda service, *, available, timeout=120.0: events.append(
-            f"wait:{service}:{available}:{timeout}"
-        ),
-    )
     monkeypatch.setattr(
         exercise_module,
         "_pytest",
@@ -134,42 +120,29 @@ def test_outage_execution_restores_the_service_before_running_verification(
     result = execute(_binding(tmp_path))
 
     assert result["ok"] is True
-    assert events == [
-        "compose:redis:stop",
-        "wait:redis:False:60",
-        "compose:redis:start",
-        "wait:redis:True:120.0",
-        "pytest:redis-outage-recovery",
-    ]
+    assert events == ["pytest:redis-outage-recovery"]
+    assert result["verification_level"] == "capability_checks"
     stored = json.loads(
         (tmp_path / "redis-outage-recovery" / "exercise-result.json").read_text(encoding="utf-8")
     )
-    assert stored["details"] == {"fault_observed": True, "service_recovered": True}
+    assert stored["details"] == {"verification_passed": True}
 
 
-def test_outage_execution_restarts_service_when_fault_probe_fails(
+def test_failed_capability_check_does_not_write_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    events: list[str] = []
     monkeypatch.setattr(exercise_module, "_settings", lambda: object())
     monkeypatch.setattr(
         exercise_module,
-        "_compose",
-        lambda service, action: events.append(f"{service}:{action}"),
+        "_pytest",
+        lambda scenario: (_ for _ in ()).throw(RecoveryExerciseFailure("fault was not observed")),
     )
-
-    def fail_wait(service: str, *, available: bool, timeout: float = 120.0) -> None:
-        del service, timeout
-        if not available:
-            raise RecoveryExerciseFailure("fault was not observed")
-
-    monkeypatch.setattr(exercise_module, "_wait_service", fail_wait)
 
     with pytest.raises(RecoveryExerciseFailure, match="not observed"):
         execute(_binding(tmp_path))
 
-    assert events == ["redis:stop", "redis:start"]
+    assert not (_binding(tmp_path).state_directory / "exercise-result.json").exists()
 
 
 def test_probe_requires_execution_and_compares_durable_state(
@@ -202,6 +175,7 @@ def test_probe_requires_execution_and_compares_durable_state(
 
     assert final.checks == {
         "exercise_completed": True,
+        "scenario_verified": False,
         "durable_state_preserved": True,
         "runtime_binding_visible": True,
     }
@@ -274,32 +248,6 @@ def test_json_and_command_helpers_are_fail_closed(
         exercise_module._run(("fixed-command",))
 
 
-@pytest.mark.parametrize("action", ["stop", "start"])
-def test_compose_builds_only_registered_fixed_commands(
-    action: str,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[tuple[str, ...], int]] = []
-    monkeypatch.setattr(
-        exercise_module,
-        "_run",
-        lambda command, timeout: calls.append((tuple(command), timeout)),
-    )
-    exercise_module._compose("milvus", action)  # type: ignore[arg-type]
-    command, timeout = calls[0]
-    assert command[:7] == (
-        "docker",
-        "compose",
-        "--env-file",
-        ".env",
-        "-f",
-        "infra/compose/compose.yaml",
-        "--profile",
-    )
-    assert command[-2:] == (("stop", "milvus") if action == "stop" else ("--wait", "milvus"))
-    assert timeout == 300
-
-
 def test_pytest_runner_rejects_unknown_and_skipped_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -318,53 +266,6 @@ def test_pytest_runner_rejects_unknown_and_skipped_evidence(
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, b"1 passed", b""),
     )
     exercise_module._pytest("fresh-migration")
-
-
-def test_service_probes_and_waits_for_expected_state(monkeypatch: pytest.MonkeyPatch) -> None:
-    class SocketContext:
-        def __enter__(self) -> None:
-            return None
-
-        def __exit__(self, *args: object) -> None:
-            return None
-
-    monkeypatch.setattr(socket, "create_connection", lambda *args, **kwargs: SocketContext())
-    assert exercise_module._service_available("redis") is True
-    monkeypatch.setattr(
-        socket,
-        "create_connection",
-        lambda *args, **kwargs: (_ for _ in ()).throw(OSError()),
-    )
-    assert exercise_module._service_available("redis") is False
-
-    class HttpResponse:
-        status = 204
-
-        def __enter__(self) -> HttpResponse:
-            return self
-
-        def __exit__(self, *args: object) -> None:
-            return None
-
-    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: HttpResponse())
-    assert exercise_module._service_available("minio") is True
-    monkeypatch.setattr(
-        urllib.request,
-        "urlopen",
-        lambda *args, **kwargs: (_ for _ in ()).throw(OSError()),
-    )
-    assert exercise_module._service_available("minio") is False
-
-    responses = iter((False, True))
-    monkeypatch.setattr(exercise_module, "_service_available", lambda service: next(responses))
-    monkeypatch.setattr(time, "sleep", lambda seconds: None)
-    exercise_module._wait_service("redis", available=True, timeout=5)
-
-    monkeypatch.setattr(exercise_module, "_service_available", lambda service: False)
-    moments = iter((0.0, 0.0, 1.0))
-    monkeypatch.setattr(time, "monotonic", lambda: next(moments))
-    with pytest.raises(RecoveryExerciseFailure, match="did not become available"):
-        exercise_module._wait_service("redis", available=True, timeout=1)
 
 
 def test_database_state_hashes_business_rows_and_revision(
@@ -520,6 +421,52 @@ def test_backup_restore_verifies_digest_and_always_drops_disposable_database(
     with pytest.raises(RecoveryExerciseFailure, match="digest differs"):
         exercise_module._backup_restore(test_settings)
     assert connections[-1].executed
+
+
+def test_failed_database_creation_never_drops_an_existing_database(
+    test_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RejectedConnection(_FakeConnection):
+        def execute(self, statement: object) -> None:
+            raise RecoveryExerciseFailure("database already exists")
+
+    dropped: list[str] = []
+    monkeypatch.setattr(
+        exercise_module,
+        "_connect",
+        lambda *args: RejectedConnection(_ScriptedCursor()),
+    )
+    monkeypatch.setattr(
+        exercise_module,
+        "_run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, b"dump", b""),
+    )
+    monkeypatch.setattr(
+        exercise_module, "_drop_owned_restore_database", lambda settings, name: dropped.append(name)
+    )
+    with pytest.raises(RecoveryExerciseFailure, match="already exists"):
+        exercise_module._backup_restore(test_settings)
+    assert dropped == []
+
+
+@pytest.mark.parametrize("container", ["", "--privileged", "postgres other", "$(hostname)"])
+def test_postgres_client_rejects_non_exact_container_identities(
+    container: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RECOVERY_POSTGRES_CONTAINER", container)
+    with pytest.raises(RecoveryExerciseFailure, match="exact identity"):
+        exercise_module._postgres_exec()
+
+
+def test_postgres_client_accepts_exact_ci_service_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RECOVERY_POSTGRES_CONTAINER", "ci-postgres_123")
+    assert exercise_module._postgres_exec() == ("docker", "exec", "-i", "ci-postgres_123")
+
+
+def test_restore_cleanup_rejects_unscoped_database(test_settings: Settings) -> None:
+    with pytest.raises(RecoveryExerciseFailure, match="unscoped"):
+        exercise_module._drop_owned_restore_database(test_settings, "postgres")
 
 
 def test_previous_image_requires_valid_inspection_and_smoke(

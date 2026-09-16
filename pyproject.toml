@@ -88,6 +88,7 @@ ignore-packages = ["sec-filing-verification-agent-backend", "face", "peewee"]
 allow-only = "3-Clause BSD License;Apache Software License;Apache-2.0;Apache-2.0 OR BSD-2-Clause;Apache-2.0 OR BSD-3-Clause;Apache-2.0 OR MIT;BSD;BSD License;Public Domain;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0;BSD-3-Clause, Apache-2.0, dependency licenses;ISC License (ISCL);LGPL-2.1-or-later;LGPL-3.0-only;MIT;MIT AND PSF-2.0;MIT License;MIT-0;MIT-CMU;MPL-2.0 AND (Apache-2.0 OR MIT);MPL-2.0 AND MIT;Mozilla Public License 2.0 (MPL 2.0);PSF-2.0;Python Software Foundation License;The Unlicense (Unlicense)"
 
 [tool.pytest.ini_options]
+pythonpath = ["apps/backend/tests"]
 addopts = [
   "--import-mode=importlib",
   "--strict-config",

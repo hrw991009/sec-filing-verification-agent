@@ -7,12 +7,9 @@ import hashlib
 import json
 import os
 import re
-import socket
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,49 +43,38 @@ _IMAGE_DIGEST_PATTERN: Final = re.compile(r"^[^\s:@]+(?:/[^\s:@]+)*@sha256:[a-f0
 _STATE_FILE = "start-state.json"
 _RESULT_FILE = "exercise-result.json"
 _COMPOSE_FILE = "infra/compose/compose.yaml"
-_TABLES: Final = (
-    "agent_runs",
-    "agent_events",
-    "agent_checkpoints",
-    "jobs",
-    "job_events",
-    "outbox_events",
-    "evidence",
-    "research_runs",
-    "research_side_effects",
-    "sec_disclosure_monitors",
-    "sec_disclosure_monitor_runs",
-    "sec_disclosure_cases",
-    "sec_disclosure_case_evidence",
-)
-_PYTEST_REFS: Final[Mapping[str, tuple[str, ...]]] = {
+RECOVERY_CAPABILITY_CHECKS: Final[Mapping[str, tuple[str, ...]]] = {
     "fresh-migration": (
         "apps/backend/tests/integration/test_migration_smoke.py::"
         "test_complete_migration_history_round_trip",
     ),
+    "postgres-backup-restore": (
+        "apps/backend/tests/integration/test_release_backup_restore_postgres.py::"
+        "test_backup_restore_preserves_populated_jobs_and_all_public_tables",
+    ),
     "filing-index-rebuild": (
         "apps/backend/tests/integration/test_knowledge_ingestion_worker_postgres_minio.py::"
-        "test_worker_persists_dual_indexes_and_deduplicates_delivery",
+        "test_worker_persists_dual_indexes_and_deduplicates_delivery[None]",
     ),
     "worker-interruption-resume": (
-        "apps/backend/tests/integration/test_jobs_postgres.py::"
-        "test_hard_kill_expiry_refences_old_worker_and_honours_cancellation",
+        "apps/backend/tests/integration/test_worker_process_recovery_postgres.py::"
+        "test_hard_killed_process_resumes_same_job_run_and_checkpoint_once",
     ),
     "redis-outage-recovery": (
         "apps/backend/tests/integration/test_outbox_dispatcher_postgres_redis.py::"
-        "test_real_postgres_dispatches_fixed_message_to_real_redis",
+        "test_connection_outage_retains_outbox_then_publishes_original_identity_once",
     ),
     "minio-outage-recovery": (
-        "apps/backend/tests/integration/test_file_lifecycle_postgres_minio.py::"
-        "test_file_lifecycle_converges_across_postgres_and_minio",
+        "apps/backend/tests/integration/test_knowledge_ingestion_worker_postgres_minio.py::"
+        "test_worker_persists_dual_indexes_and_deduplicates_delivery[minio]",
     ),
     "elasticsearch-outage-rebuild": (
         "apps/backend/tests/integration/test_knowledge_ingestion_worker_postgres_minio.py::"
-        "test_worker_persists_dual_indexes_and_deduplicates_delivery",
+        "test_worker_persists_dual_indexes_and_deduplicates_delivery[elasticsearch]",
     ),
     "milvus-outage-rebuild": (
         "apps/backend/tests/integration/test_knowledge_ingestion_worker_postgres_minio.py::"
-        "test_worker_persists_dual_indexes_and_deduplicates_delivery",
+        "test_worker_persists_dual_indexes_and_deduplicates_delivery[milvus]",
     ),
     "sec-429-backoff": (
         "apps/backend/tests/modules/disclosures/test_sec_edgar_adapter.py::"
@@ -96,29 +82,13 @@ _PYTEST_REFS: Final[Mapping[str, tuple[str, ...]]] = {
         "apps/backend/tests/integration/test_sec_request_budget_redis.py",
     ),
     "dead-letter-replay": (
-        "apps/backend/tests/integration/test_jobs_postgres.py::"
-        "test_retry_generation_outbox_and_bounded_dead_letter_are_atomic",
+        "apps/backend/tests/integration/test_job_recovery_postgres.py::"
+        "test_authorized_replay_keeps_identity_and_history_and_rejects_stale_owner",
     ),
     "notification-unknown-idempotency": (
-        "apps/backend/tests/modules/tools/test_registry.py::"
-        "test_hard_timeout_returns_unknown_when_adapter_outlives_the_bounded_drain",
+        "apps/backend/tests/integration/test_write_recovery_postgres.py::"
+        "test_unknown_delivery_is_reconciled_before_original_key_retry",
     ),
-}
-_OUTAGE_SERVICE: Final[Mapping[str, str]] = {
-    "redis-outage-recovery": "redis",
-    "minio-outage-recovery": "minio",
-    "elasticsearch-outage-rebuild": "elasticsearch",
-    "milvus-outage-rebuild": "milvus",
-}
-_COMPOSE_PROFILES: Final[Mapping[str, tuple[str, ...]]] = {
-    "elasticsearch": ("--profile", "search"),
-    "milvus": ("--profile", "vector"),
-}
-_SERVICE_ENDPOINTS: Final[Mapping[str, tuple[str, int, str | None]]] = {
-    "redis": ("127.0.0.1", 16379, None),
-    "minio": ("127.0.0.1", 19000, "http://127.0.0.1:19000/minio/health/live"),
-    "elasticsearch": ("127.0.0.1", 19200, "http://127.0.0.1:19200/_cluster/health"),
-    "milvus": ("127.0.0.1", 19091, "http://127.0.0.1:19091/healthz"),
 }
 
 
@@ -220,14 +190,15 @@ def _database_state(settings: Settings, *, database: str | None = None) -> dict[
     state: dict[str, object] = {}
     row_hashes: dict[str, str] = {}
     with _connect(settings, database) as connection, connection.cursor() as cursor:
+        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         cursor.execute(
             "SELECT tablename FROM pg_catalog.pg_tables "
             "WHERE schemaname = 'public' ORDER BY tablename"
         )
         available = {str(row[0]) for row in cursor.fetchall()}
-        for table in _TABLES:
-            if table not in available:
-                continue
+        # Include every public business table, including newly added financial,
+        # ingestion and identity records. A fixed shortlist silently missed data loss.
+        for table in sorted(available - {"alembic_version"}):
             identifier = sql.Identifier("public", table)
             cursor.execute(sql.SQL("SELECT count(*) FROM {}").format(identifier))
             count_row = cursor.fetchone()
@@ -241,6 +212,7 @@ def _database_state(settings: Settings, *, database: str | None = None) -> dict[
             cursor.execute("SELECT version_num FROM alembic_version")
             revision = cursor.fetchone()
             state["alembic_revision"] = "none" if revision is None else str(revision[0])
+            row_hashes["alembic_version"] = _json_sha256(state["alembic_revision"])
     state["database_sha256"] = _json_sha256(row_hashes)
     return state
 
@@ -326,50 +298,8 @@ def _integrity_counts(settings: Settings, binding: ExerciseBinding) -> tuple[int
     return duplicate_count, int(cast(int, unauthorized_row[0]))
 
 
-def _service_available(service: str, *, timeout: float = 1.0) -> bool:
-    host, port, url = _SERVICE_ENDPOINTS[service]
-    if url is None:
-        try:
-            with socket.create_connection((host, port), timeout=timeout):
-                return True
-        except OSError:
-            return False
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
-            return 200 <= int(response.status) < 500
-    except (OSError, urllib.error.URLError):
-        return False
-
-
-def _wait_service(service: str, *, available: bool, timeout: float = 120.0) -> None:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if _service_available(service) is available:
-            return
-        time.sleep(0.5)
-    expected = "available" if available else "unavailable"
-    raise RecoveryExerciseFailure(f"Compose service did not become {expected}: {service}")
-
-
-def _compose(service: str, action: Literal["stop", "start"]) -> None:
-    profiles = _COMPOSE_PROFILES.get(service, ())
-    base = (
-        "docker",
-        "compose",
-        "--env-file",
-        ".env",
-        "-f",
-        _COMPOSE_FILE,
-        *profiles,
-    )
-    command = (
-        (*base, "stop", service) if action == "stop" else (*base, "up", "-d", "--wait", service)
-    )
-    _run(command, timeout=300)
-
-
 def _pytest(scenario_id: str) -> None:
-    refs = _PYTEST_REFS.get(scenario_id)
+    refs = RECOVERY_CAPABILITY_CHECKS.get(scenario_id)
     if not refs:
         raise RecoveryExerciseFailure(
             f"Recovery scenario has no fixed pytest reference: {scenario_id}"
@@ -406,17 +336,10 @@ def _backup_restore(settings: Settings) -> dict[str, object]:
     restore_database = f"iip_restore_{suffix}"
     if re.fullmatch(r"iip_restore_[a-f0-9]{16}", restore_database) is None:
         raise RecoveryExerciseFailure("Disposable restore database name is invalid")
+    postgres_exec = _postgres_exec()
     dump = _run(
         (
-            "docker",
-            "compose",
-            "--env-file",
-            ".env",
-            "-f",
-            _COMPOSE_FILE,
-            "exec",
-            "-T",
-            "postgres",
+            *postgres_exec,
             "pg_dump",
             "--username",
             settings.postgres_user,
@@ -428,23 +351,17 @@ def _backup_restore(settings: Settings) -> dict[str, object]:
         ),
         timeout=1_800,
     ).stdout
+    created = False
     try:
         with _connect(settings, "postgres") as connection:
             connection.autocommit = True
             connection.execute(
                 sql.SQL("CREATE DATABASE {}").format(sql.Identifier(restore_database))
             )
+            created = True
         _run(
             (
-                "docker",
-                "compose",
-                "--env-file",
-                ".env",
-                "-f",
-                _COMPOSE_FILE,
-                "exec",
-                "-T",
-                "postgres",
+                *postgres_exec,
                 "pg_restore",
                 "--username",
                 settings.postgres_user,
@@ -467,13 +384,37 @@ def _backup_restore(settings: Settings) -> dict[str, object]:
             "restored_sha256": restored_sha256,
         }
     finally:
-        with _connect(settings, "postgres") as connection:
-            connection.autocommit = True
-            connection.execute(
-                sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(
-                    sql.Identifier(restore_database)
-                )
-            )
+        if created:
+            _drop_owned_restore_database(settings, restore_database)
+
+
+def _postgres_exec() -> tuple[str, ...]:
+    container = os.getenv("RECOVERY_POSTGRES_CONTAINER")
+    if container is not None:
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", container) is None:
+            raise RecoveryExerciseFailure("Recovery PostgreSQL container must be an exact identity")
+        return ("docker", "exec", "-i", container)
+    return (
+        "docker",
+        "compose",
+        "--env-file",
+        ".env",
+        "-f",
+        _COMPOSE_FILE,
+        "exec",
+        "-T",
+        "postgres",
+    )
+
+
+def _drop_owned_restore_database(settings: Settings, database: str) -> None:
+    if re.fullmatch(r"iip_restore_[a-f0-9]{16}", database) is None:
+        raise RecoveryExerciseFailure("Refusing to remove an unscoped restore database")
+    with _connect(settings, "postgres") as connection:
+        connection.autocommit = True
+        connection.execute(
+            sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(database))
+        )
 
 
 def _previous_image() -> dict[str, object]:
@@ -505,20 +446,10 @@ def _previous_image() -> dict[str, object]:
 def execute(binding: ExerciseBinding) -> dict[str, object]:
     settings = _settings()
     details: dict[str, object]
-    service = _OUTAGE_SERVICE.get(binding.scenario_id)
     if binding.scenario_id == "postgres-backup-restore":
         details = _backup_restore(settings)
     elif binding.scenario_id == "previous-image-rollback":
         details = _previous_image()
-    elif service is not None:
-        _compose(service, "stop")
-        try:
-            _wait_service(service, available=False, timeout=60)
-        finally:
-            _compose(service, "start")
-        _wait_service(service, available=True)
-        _pytest(binding.scenario_id)
-        details = {"fault_observed": True, "service_recovered": True}
     else:
         _pytest(binding.scenario_id)
         details = {"verification_passed": True}
@@ -529,6 +460,11 @@ def execute(binding: ExerciseBinding) -> dict[str, object]:
         "run_id": None if binding.run_id is None else str(binding.run_id),
         "workspace_id": None if binding.workspace_id is None else str(binding.workspace_id),
         "ok": True,
+        "verification_level": (
+            "full_scenario"
+            if binding.scenario_id in {"fresh-migration", "postgres-backup-restore"}
+            else "capability_checks"
+        ),
         "details": details,
     }
     _write_json(binding.state_directory / _RESULT_FILE, result)
@@ -571,6 +507,9 @@ def probe(binding: ExerciseBinding, *, phase: Literal["start", "final"]) -> Reco
     )
     checks = {
         "exercise_completed": result.get("ok") is True,
+        # A production Run merely visible before/after unrelated disposable tests
+        # has NOT been subjected to the fault. Nor is an image import a rollback.
+        "scenario_verified": result.get("verification_level") == "full_scenario",
         "durable_state_preserved": data_loss_count == 0,
         "runtime_binding_visible": binding_visible,
     }

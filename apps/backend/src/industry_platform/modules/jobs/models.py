@@ -264,8 +264,9 @@ class JobEvent(UUIDPrimaryKeyMixin, Base):
         CheckConstraint("event_sequence >= 0", name="event_sequence_nonnegative"),
         UniqueConstraint("job_id", "generation", "event_sequence"),
         Index(
-            "uq_job_events_one_terminal_per_job",
+            "uq_job_events_one_terminal_per_dispatch",
             "job_id",
+            "dispatch_generation",
             unique=True,
             postgresql_where=text(f"event_type IN ({_TERMINAL_EVENT_VALUES})"),
         ),

@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from industry_platform.core.http import get_trace_id, problem_openapi_response, set_no_store_headers
 from industry_platform.modules.identity.domain import AuthenticatedPrincipal, TraceId
 from industry_platform.modules.identity.http_auth import require_authenticated_principal
+from industry_platform.modules.ingestion.rebuild import IndexRebuildSubmissionService
+from industry_platform.modules.jobs.schemas import JobSubmissionResponse
 from industry_platform.modules.knowledge.domain import (
     ActivateDocumentVersion,
     CancelDocumentVersion,
@@ -72,6 +74,45 @@ def get_knowledge_service(
     resources: Annotated[KnowledgeResources, Depends(get_knowledge_resources)],
 ) -> KnowledgeApplicationService:
     return resources.service
+
+
+def get_rebuild_service(
+    resources: Annotated[KnowledgeResources, Depends(get_knowledge_resources)],
+) -> IndexRebuildSubmissionService:
+    return resources.rebuild_service
+
+
+@router.post(
+    "/{knowledge_base_id}/versions/{document_version_id}/rebuild-indexes",
+    response_model=JobSubmissionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=_RESPONSES,
+)
+async def rebuild_document_indexes(
+    workspace_id: UUID,
+    knowledge_base_id: UUID,
+    document_version_id: UUID,
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[IndexRebuildSubmissionService, Depends(get_rebuild_service)],
+    idempotency_key: Annotated[IdempotencyKey, Header(alias="Idempotency-Key")],
+) -> JobSubmissionResponse:
+    receipt = await service.submit(
+        _scope(principal, workspace_id),
+        knowledge_base_id=knowledge_base_id,
+        document_version_id=document_version_id,
+        idempotency_key=idempotency_key,
+        trace_id=TraceId(get_trace_id(request)),
+    )
+    set_no_store_headers(response)
+    return JobSubmissionResponse(
+        job_id=receipt.job_id,
+        outbox_event_id=receipt.outbox_event_id,
+        dispatch_generation=receipt.dispatch_generation,
+        status=receipt.status,
+        created=receipt.created,
+    )
 
 
 @router.post(

@@ -6,6 +6,7 @@ from fastapi import Request
 
 from industry_platform.core.config import Settings
 from industry_platform.core.database import AsyncSessionFactory
+from industry_platform.modules.jobs.adapters.recovery import SqlAlchemyJobRecoveryRepository
 from industry_platform.modules.jobs.adapters.sqlalchemy import (
     ScheduleOccurrenceObserver,
     SqlAlchemyJobTransactionFactory,
@@ -13,6 +14,7 @@ from industry_platform.modules.jobs.adapters.sqlalchemy import (
     ignore_schedule_occurrence,
 )
 from industry_platform.modules.jobs.ports import JobApplicationUseCase, ScheduleApplicationUseCase
+from industry_platform.modules.jobs.recovery import JobRecoveryService
 from industry_platform.modules.jobs.service import JobApplicationService, ScheduleApplicationService
 
 
@@ -22,6 +24,7 @@ class JobResources:
 
     application_service: JobApplicationUseCase
     schedule_service: ScheduleApplicationUseCase
+    recovery_service: JobRecoveryService
 
 
 def create_job_resources(
@@ -33,6 +36,7 @@ def create_job_resources(
     """Compose reliable job application services from validated settings."""
 
     return JobResources(
+        recovery_service=JobRecoveryService(SqlAlchemyJobRecoveryRepository(session_factory)),
         application_service=JobApplicationService(
             transaction_factory=SqlAlchemyJobTransactionFactory(session_factory),
             lease_seconds=settings.job_lease_seconds,

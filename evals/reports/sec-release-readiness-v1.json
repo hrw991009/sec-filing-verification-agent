@@ -176,15 +176,15 @@
     },
     {
       "artifact_id": "release-recovery-exercise",
-      "byte_size": 23656,
+      "byte_size": 22387,
       "relative_path": "apps/backend/src/industry_platform/modules/evaluation/release_recovery_exercise.py",
-      "sha256": "733880943422755e1b6f8b8ef83d45a7d62fa7dbb451262d0ed9b6c4a1e922f7"
+      "sha256": "28dcba3d34f8023cbbc962010ec790a69e089fac8542d4d78c0f984dd90234e1"
     },
     {
       "artifact_id": "release-recovery-exercise-tests",
-      "byte_size": 21474,
+      "byte_size": 20027,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_recovery_exercise.py",
-      "sha256": "6da4250b195f1dddcf35dfd75ba61a014a054fe33aeb53d4f97491cdbc1e0754"
+      "sha256": "390669908357664556a64386d833c8b807a2365d897573868928f33e1e4bdb17"
     },
     {
       "artifact_id": "release-recovery-manifest",
@@ -212,9 +212,9 @@
     },
     {
       "artifact_id": "release-recovery-runbook",
-      "byte_size": 10106,
+      "byte_size": 13146,
       "relative_path": "docs/runbooks/day-10-release-recovery.md",
-      "sha256": "fc88d9fdc9072147d163ae2a3247b56f6a0fd2786f80e7793d079918a3f0b5c4"
+      "sha256": "98ecd7c274d9648dd0d959e73b08e0be12b8019db588f84793ae434af74408eb"
     },
     {
       "artifact_id": "release-acceptance-runner",
@@ -350,15 +350,15 @@
     },
     {
       "artifact_id": "package-scripts",
-      "byte_size": 11604,
+      "byte_size": 11774,
       "relative_path": "package.json",
-      "sha256": "f764716ddbe84348994b4300e89533fb5c469829e1c8b7dce69a0847c6fe7c36"
+      "sha256": "323dd6f46d1f392261e763ae9167bbcd4a6c11c786f2d75a6f5d2b45d0e5cf71"
     },
     {
       "artifact_id": "python-project-policy",
-      "byte_size": 2585,
+      "byte_size": 2621,
       "relative_path": "pyproject.toml",
-      "sha256": "c57ba4e43e8db7c31460d4e1dc1d70b8e749edd2c8991738a23267170c29e3a0"
+      "sha256": "545ff4b2b1816600be78a0402ca5849e11795839d2719b7f1aef640bd3a46232"
     },
     {
       "artifact_id": "python-lockfile",
@@ -374,9 +374,9 @@
     },
     {
       "artifact_id": "ci-workflow",
-      "byte_size": 26546,
+      "byte_size": 26630,
       "relative_path": ".github/workflows/ci.yml",
-      "sha256": "54239028074370782ce2286f1f4a0f7c22aa50077b357fdd6b8a848631753a0f"
+      "sha256": "6e73cb4a7e0fb3164abf16fab9b52c89924e2dbf6b3815215324bb2180b5bbf0"
     },
     {
       "artifact_id": "credential-audit",

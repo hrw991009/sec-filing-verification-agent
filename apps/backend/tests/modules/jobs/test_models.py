@@ -155,7 +155,7 @@ def test_job_events_have_monotonic_coordinates_and_one_terminal_fact() -> None:
     }
 
     assert ("job_id", "generation", "event_sequence") in unique_column_sets
-    terminal_index = named_indexes(table)["uq_job_events_one_terminal_per_job"]
+    terminal_index = named_indexes(table)["uq_job_events_one_terminal_per_dispatch"]
     terminal_predicate = str(terminal_index.dialect_options["postgresql"]["where"])
 
     assert terminal_index.unique is True
