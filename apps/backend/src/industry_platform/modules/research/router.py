@@ -24,6 +24,7 @@ from industry_platform.modules.research.durability import (
     ResumeResearch,
 )
 from industry_platform.modules.research.resources import ResearchResources, get_research_resources
+from industry_platform.modules.research.results import ResearchResultService, ResearchResultView
 from industry_platform.modules.research.schemas import (
     DecideResearchApprovalRequest,
     ResearchApprovalResponse,
@@ -175,6 +176,33 @@ async def get_research(
     view = await service.get(_workspace_scope(principal, workspace_id), research_run_id)
     set_no_store_headers(response)
     return _view_response(view)
+
+
+def get_result_service(
+    resources: Annotated[ResearchResources, Depends(get_research_resources)],
+) -> ResearchResultService:
+    return ResearchResultService(
+        resources.query_service,
+        resources.verification_service.evidence_service,
+        resources.verification_service,
+    )
+
+
+@router.get(
+    "/{research_run_id}/result-view",
+    response_model=ResearchResultView,
+    responses=_RESPONSES,
+)
+async def get_result_view(
+    workspace_id: UUID,
+    research_run_id: UUID,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_authenticated_principal)],
+    service: Annotated[ResearchResultService, Depends(get_result_service)],
+) -> ResearchResultView:
+    result = await service.get(_workspace_scope(principal, workspace_id), research_run_id)
+    set_no_store_headers(response)
+    return result
 
 
 @router.get(

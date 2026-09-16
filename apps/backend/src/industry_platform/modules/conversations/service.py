@@ -24,7 +24,11 @@ from industry_platform.modules.jobs.domain import (
     PreparedJobSubmission,
     hash_job_idempotency_key,
 )
-from industry_platform.modules.research.domain import RESEARCH_TASK_NAME
+from industry_platform.modules.research.domain import (
+    RESEARCH_JOB_HARD_TIME_LIMIT_SECONDS,
+    RESEARCH_JOB_SOFT_TIME_LIMIT_SECONDS,
+    RESEARCH_TASK_NAME,
+)
 
 
 class ConversationNotFoundError(LookupError):
@@ -107,8 +111,12 @@ class ConversationApplicationService:
             available_at=now,
             max_attempts=3,
             idempotency_key=command.idempotency_key,
-            soft_time_limit_seconds=300,
-            hard_time_limit_seconds=330,
+            soft_time_limit_seconds=(
+                RESEARCH_JOB_SOFT_TIME_LIMIT_SECONDS if command.research_brief is not None else 300
+            ),
+            hard_time_limit_seconds=(
+                RESEARCH_JOB_HARD_TIME_LIMIT_SECONDS if command.research_brief is not None else 330
+            ),
         )
         idempotency_hash = hash_job_idempotency_key(command.idempotency_key)
         job = PreparedJobSubmission(

@@ -495,7 +495,7 @@ class SecXbrlContextRecord(UUIDPrimaryKeyMixin, Base):
     source_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("sec_xbrl_sources.id", ondelete="RESTRICT"), nullable=False
     )
-    raw_context_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    raw_context_id: Mapped[str] = mapped_column(String(512), nullable=False)
     entity_identifier: Mapped[str] = mapped_column(String(255), nullable=False)
     period_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     instant: Mapped[date | None] = mapped_column(Date(), nullable=True)
@@ -564,14 +564,14 @@ class SecXbrlFactRecord(UUIDPrimaryKeyMixin, Base):
     end_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
     filed_date: Mapped[date] = mapped_column(Date(), nullable=False)
     form: Mapped[str] = mapped_column(String(16), nullable=False)
-    raw_context_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    raw_context_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     dimensions: Mapped[dict[str, str]] = mapped_column(JSON(), nullable=False)
     decimals: Mapped[str | None] = mapped_column(String(32), nullable=True)
     scale: Mapped[int | None] = mapped_column(nullable=True)
     format: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_custom: Mapped[bool] = mapped_column(Boolean(), nullable=False)
     ordinal: Mapped[int] = mapped_column(nullable=False)
-    locator_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    locator_key: Mapped[str] = mapped_column(String(1024), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

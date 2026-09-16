@@ -398,6 +398,9 @@ def test_locator_parser_rejects_ambiguous_or_coerced_documents(
 
 
 def test_evidence_and_normalization_commands_reject_inconsistent_security_state() -> None:
+    assert replace(evidence(), origin_source_ordinal=32).origin_source_ordinal == 32
+    with pytest.raises(ValueError, match="source ordinal"):
+        replace(evidence(), origin_source_ordinal=33)
     with pytest.raises(ValueError, match="origin is incomplete"):
         replace(evidence(), origin_step_id=None)
     with pytest.raises(ValueError, match="canonical URL"):

@@ -36,11 +36,16 @@ from .test_verification import (
 )
 
 
-def dupont_snapshot() -> VerificationSnapshot:
-    scope = financial_scope()
+def dupont_snapshot(years: int = 2) -> VerificationSnapshot:
+    scope = (
+        financial_scope()
+        if years == 2
+        else replace(financial_scope(), schema_version=2, analysis_years=years)
+    )
     calculations: list[Evidence] = []
     sources: list[Evidence] = []
     for start, end in (
+        *((date(year - 1, 9, 26), date(year, 9, 25)) for year in range(2024 - years, 2022)),
         (date(2021, 9, 26), date(2022, 9, 24)),
         (date(2022, 9, 25), date(2023, 9, 30)),
     ):
@@ -92,6 +97,7 @@ def dupont_snapshot() -> VerificationSnapshot:
                 locator=replace(
                     evidence.locator,
                     operator="dupont",
+                    financial_scope=scope.to_mapping(),
                     operand_values=values,
                     input_evidence_refs=tuple(item.evidence_id for item in facts),
                     decimal_places=4,
@@ -116,6 +122,7 @@ def dupont_snapshot() -> VerificationSnapshot:
             ),
         ),
         require_dupont_comparison=True,
+        financial_scope=scope,
     )
 
 

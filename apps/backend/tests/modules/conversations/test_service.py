@@ -102,6 +102,8 @@ async def test_service_prepares_one_linked_queued_run_and_durable_job() -> None:
     assert prepared.run.turn_id == prepared.turn_id
     assert prepared.run.job_id == prepared.job.job_id == receipt.job_id
     assert prepared.job.scope.workspace_id == WORKSPACE_ID
+    assert prepared.job.soft_time_limit_seconds == 300
+    assert prepared.job.hard_time_limit_seconds == 330
     assert prepared.job.payload == {"agent_run_id": str(prepared.run.run_id), "schema_version": 1}
     assert prepared.attachment_ids == ATTACHMENT_IDS
     assert "private-user-question" not in repr(prepared)
@@ -226,10 +228,14 @@ async def test_submission_materializes_web_mode_as_a_bounded_tool_run() -> None:
 
 
 @pytest.mark.asyncio
-async def test_research_brief_prepares_one_research_run_and_the_research_job() -> None:
+@pytest.mark.parametrize("timeout_seconds", [300, 600, 1200, 1500])
+async def test_research_brief_prepares_one_research_run_and_the_research_job(
+    timeout_seconds: int,
+) -> None:
     writer = RecordingWriter()
     research_request = replace(
         request(),
+        budget=replace(request().budget, deadline=NOW + timedelta(seconds=timeout_seconds)),
         runtime_version="agent-runtime-v1",
         harness_version="harness-research-v1",
         search_mode=TurnSearchMode.WEB,
@@ -250,6 +256,9 @@ async def test_research_brief_prepares_one_research_run_and_the_research_job() -
     assert prepared.run.runtime_version == "agent-runtime-v1"
     assert prepared.run.harness_version == "harness-research-v1"
     assert prepared.job.task_name == "agent.run.research"
+    assert prepared.job.soft_time_limit_seconds == 1650
+    assert prepared.job.hard_time_limit_seconds == 1800
+    assert prepared.job.soft_time_limit_seconds > timeout_seconds
     assert prepared.job.payload == {
         "agent_run_id": str(prepared.run.run_id),
         "schema_version": 1,

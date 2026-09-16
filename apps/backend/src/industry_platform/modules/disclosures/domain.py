@@ -1322,7 +1322,7 @@ class SecXbrlContextData:
 
     def __post_init__(self) -> None:
         _require_text(self.source_version, field_name="SEC XBRL context source", maximum=128)
-        _require_text(self.context_id, field_name="SEC XBRL context ID", maximum=255)
+        _require_text(self.context_id, field_name="SEC XBRL context ID", maximum=512)
         _require_text(self.entity_identifier, field_name="SEC XBRL entity", maximum=255)
         dimensions = tuple(sorted(self.dimensions))
         if len(dimensions) > 64 or len({name for name, _value in dimensions}) != len(dimensions):
@@ -1354,7 +1354,7 @@ class SecXbrlFactData:
 
     def __post_init__(self) -> None:
         _require_text(self.source_version, field_name="SEC XBRL fact source", maximum=128)
-        _require_text(self.locator_key, field_name="SEC XBRL fact locator", maximum=512)
+        _require_text(self.locator_key, field_name="SEC XBRL fact locator", maximum=1024)
         _require_xbrl_name(self.taxonomy, field_name="SEC XBRL taxonomy")
         _require_xbrl_name(self.concept, field_name="SEC XBRL concept")
         _require_text(
@@ -1367,7 +1367,7 @@ class SecXbrlFactData:
         if self.unit is not None:
             _require_text(self.unit, field_name="SEC XBRL unit", maximum=255)
         if self.context_id is not None:
-            _require_text(self.context_id, field_name="SEC XBRL context ID", maximum=255)
+            _require_text(self.context_id, field_name="SEC XBRL context ID", maximum=512)
         if self.decimals is not None:
             _require_text(self.decimals, field_name="SEC XBRL decimals", maximum=32)
         if self.scale is not None and not -100 <= self.scale <= 100:

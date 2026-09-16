@@ -4,6 +4,21 @@ import { describe, expect, it } from "vitest";
 import { SafeMarkdown } from "./SafeMarkdown";
 
 describe("SafeMarkdown", () => {
+  it("renders report tables without enabling HTML or executable links", () => {
+    render(
+      <SafeMarkdown
+        content={
+          "| 指标 | 2025 |\n| --- | ---: |\n| **ROE** | 44.13% |\n| <img src=x onerror=alert(1)> | [危险](javascript:alert(1)) |"
+        }
+      />,
+    );
+    expect(screen.getByRole("table")).toBeVisible();
+    expect(screen.getAllByRole("row")).toHaveLength(3);
+    expect(screen.getByRole("columnheader", { name: "2025" })).toBeVisible();
+    expect(screen.getByRole("cell", { name: "44.13%" })).toBeVisible();
+    expect(document.querySelector("img")).toBeNull();
+    expect(screen.queryByRole("link", { name: "危险" })).toBeNull();
+  });
   it("renders useful Markdown without interpreting raw HTML", () => {
     render(
       <SafeMarkdown

@@ -71,6 +71,12 @@ class StartResearch:
             if self.search_mode is not TurnSearchMode.LOCAL:
                 raise ValueError("SEC verification Research task requires local financial scope")
             if self.task_name == "sec.dupont-analysis":
+                financial_scope = self.brief.financial_scope
+                if financial_scope is None or (
+                    (self.task_version == "v1" and financial_scope.schema_version != 1)
+                    or (self.task_version == "v2" and financial_scope.schema_version != 2)
+                ):
+                    raise ValueError("DuPont task version does not match its annual scope")
                 required = ("sec.get_xbrl_facts", "finance.calculate")
                 object.__setattr__(
                     self,

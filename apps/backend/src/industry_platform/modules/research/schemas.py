@@ -97,6 +97,11 @@ class StartResearchRequest(StrictResearchModel):
             RESEARCH_TASKS.resolve(self.task_name, self.task_version)
             if self.mode != "local":
                 raise ValueError("SEC verification Research task requires local financial scope")
+            if self.task_name == "sec.dupont-analysis" and (
+                self.financial_scope is None
+                or self.financial_scope.schema_version != (2 if self.task_version == "v2" else 1)
+            ):
+                raise ValueError("DuPont task version does not match its annual scope")
         if len(set(self.knowledge_base_ids)) != len(self.knowledge_base_ids):
             raise ValueError("Knowledge Base IDs must be unique")
         if self.mode == "web":

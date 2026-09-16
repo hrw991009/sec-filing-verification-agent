@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation, localcontext
+from itertools import pairwise
 
 from industry_platform.modules.disclosures.domain import SecXbrlFact, SecXbrlPeriodKind
 from industry_platform.modules.disclosures.xbrl_numeric import supported_numeric_format
@@ -60,16 +61,25 @@ def select_dupont_facts(
         and 350 <= (fact.period.end_date - fact.period.start_date).days + 1 <= 380
         and (
             fact.period.end_date == scope.report_period
-            or 350 <= (scope.report_period - fact.period.end_date).days <= 380
+            or any(
+                350 * offset <= (scope.report_period - fact.period.end_date).days <= 380 * offset
+                for offset in range(1, scope.annual_period_count)
+            )
         )
     }
     ordered = sorted(annual, key=lambda period: period[1], reverse=True)
     if (
-        len(ordered) != 2
+        len(ordered) != scope.annual_period_count
         or ordered[0][1] != scope.report_period
-        or ordered[0][0] != ordered[1][1] + timedelta(days=1)
+        or any(newer[0] != older[1] + timedelta(days=1) for newer, older in pairwise(ordered))
     ):
-        return DuPontSelection(issues=("two_consecutive_annual_periods_required",))
+        return DuPontSelection(
+            issues=(
+                "two_consecutive_annual_periods_required"
+                if scope.schema_version == 1
+                else "requested_consecutive_annual_periods_required",
+            )
+        )
     periods: list[DuPontPeriod] = []
     issues: list[str] = []
     for start, end in ordered:

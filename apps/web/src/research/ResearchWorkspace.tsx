@@ -19,6 +19,7 @@ import {
   runStatusNames,
 } from "../chat/chat-workbench-model";
 import { SafeMarkdown } from "../chat/SafeMarkdown";
+import { ResearchResultPanel } from "./ResearchResultPanel";
 import { listResearchClaims, type ResearchClaim } from "../evidence/evidence-api";
 import {
   decideResearchApproval,
@@ -179,6 +180,7 @@ export function ResearchWorkspace({
   const [scale, setScale] = useState(secReviewDraft?.scale ?? 6);
   const [requireAmbiguityApproval, setRequireAmbiguityApproval] = useState(false);
   const [selectedTask, setSelectedTask] = useState("");
+  const [analysisYears, setAnalysisYears] = useState(5);
   const useResearchTask = selectedTask !== "";
   const [preparingData, setPreparingData] = useState(false);
   const [dataPreparation, setDataPreparation] = useState<SecDuPontPreparation | null>(null);
@@ -270,6 +272,7 @@ export function ResearchWorkspace({
     const request: SecDuPontPrepareRequest = {
       cik: cik.trim(),
       fiscal_year: Number(reportPeriod.slice(0, 4)),
+      years: analysisYears,
       knowledge_base_id: selectedKnowledgeBaseId,
       as_of: new Date(asOf).toISOString(),
     };
@@ -473,12 +476,18 @@ export function ResearchWorkspace({
           form,
           report_period: reportPeriod,
           scale,
-          schema_version: 1,
+          schema_version: selectedTask === "sec.dupont-analysis" ? 2 : 1,
+          ...(selectedTask === "sec.dupont-analysis" ? { analysis_years: analysisYears } : {}),
           unit: unit.trim().toUpperCase(),
         },
         knowledge_base_ids: [selectedKnowledgeBaseId],
         mode,
-        ...(useResearchTask ? { task_name: selectedTask, task_version: "v1" } : {}),
+        ...(useResearchTask
+          ? {
+              task_name: selectedTask,
+              task_version: selectedTask === "sec.dupont-analysis" ? "v2" : "v1",
+            }
+          : {}),
         ...(requireAmbiguityApproval
           ? { approval_reason: "company_or_period_ambiguity" as const }
           : {}),
@@ -711,10 +720,10 @@ export function ResearchWorkspace({
                       if (event.currentTarget.value === "sec.dupont-analysis") {
                         setForm("10-K");
                         setOriginalQuestion(
-                          "请对该公司连续两年的年报做三因素杜邦分析，对比净利率、总资产周转率、权益乘数和 ROE，列明原始数据口径、计算引用及局限。",
+                          "请按照确认的分析年数对连续年报做三因素杜邦分析，对比净利率、总资产周转率、权益乘数和 ROE，列明原始数据口径、计算引用及局限。",
                         );
                         setCompletionCriteria(
-                          "两年杜邦分解均完成，三期资产和归母权益余额对齐，计算引用可复算；缺失或冲突明确标记。",
+                          "所选各年杜邦分解均完成，期初期末资产和归母权益余额对齐，计算引用可复算；缺失或冲突明确标记。",
                         );
                         setMaxSteps(40);
                         setMaxTotalTokens(100_000);
@@ -724,13 +733,30 @@ export function ResearchWorkspace({
                   >
                     <option value="">普通 Research</option>
                     <option value="sec.filing-verification">SEC 事实核验工作流</option>
-                    <option value="sec.dupont-analysis">两年杜邦分析工作流</option>
+                    <option value="sec.dupont-analysis">多年度杜邦分析工作流</option>
                   </select>
                 </label>
                 {selectedTask === "sec.dupont-analysis" && (
                   <div>
+                    <label>
+                      分析年数
+                      <select
+                        value={analysisYears}
+                        disabled={!canManage || submitting || preparingData}
+                        onChange={(event) => {
+                          setAnalysisYears(Number(event.currentTarget.value));
+                          setDataPreparation(null);
+                        }}
+                      >
+                        {[3, 4, 5].map((years) => (
+                          <option key={years} value={years}>
+                            {years} 年
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <p>
-                      按 CIK 和报告期所在财年补齐两份 10-K，复用导入任务。研究工作流
+                      按 CIK 和报告期所在财年补齐 {analysisYears} 份 10-K，复用导入任务。研究工作流
                       本身只读，不创建监控。
                     </p>
                     <button
@@ -750,7 +776,7 @@ export function ResearchWorkspace({
                     {dataPreparation !== null && (
                       <p role="status">
                         {dataPreparation.status === "ready"
-                          ? "两年输入已齐备，可以开始分析。"
+                          ? "所选年度输入已齐备，可以开始分析。"
                           : dataPreparation.status === "awaiting_ingestion"
                             ? "年报正在入库，完成后自动同步 XBRL。"
                             : `数据尚不足：${dataPreparation.issues.join("；")}`}
@@ -1662,6 +1688,14 @@ export function ResearchWorkspace({
                       </p>
                     )}
                     <SafeMarkdown content={visibleDetail.draft.content_markdown} />
+                    <ResearchResultPanel
+                      workspaceId={workspaceId}
+                      researchRunId={visibleDetail.id}
+                      draftId={visibleDetail.draft.id}
+                      draftRevision={visibleDetail.draft.revision}
+                      refreshRevision={detailRefreshRevision}
+                      onOpenEvidence={onOpenEvidence}
+                    />
                   </>
                 )}
               </section>

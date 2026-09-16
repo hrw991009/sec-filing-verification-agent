@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "suite_id": "product-stability-v1",
+  "repetitions": 5,
+  "cases": [
+    {
+      "id": "l2-excerpt",
+      "mode": "l2",
+      "question": "请解释以下财报片段，不需要检索：营业收入120亿元，同比增长10%；净利润18亿元，同比下降5%。区分原文事实与解释，不新增数字。",
+      "skill": "financial-excerpt-explanation",
+      "answer_patterns": ["120", "18", "10", "5", "收入", "利润"]
+    },
+    {
+      "id": "l2-basis",
+      "mode": "l2",
+      "question": "比较这两组财务数据是否可直接比较，不要计算增幅：2024年营业收入120亿元，仅含原有业务；2025年营业收入150亿元，包含当年收购业务。请指出口径差异及需补充的数据，不检索。",
+      "skill": "financial-basis-comparison",
+      "answer_patterns": ["120", "150", "收购|并购", "口径", "不能|不可|不宜|无法|不适合|不具备"]
+    },
+    {
+      "id": "l2-missing-excerpt",
+      "mode": "l2",
+      "question": "请帮我解释财报片段，但我还没有提供片段。请先告诉我需要补充什么，不检索，不编造公司或财务数字。",
+      "skill": "financial-excerpt-explanation",
+      "answer_patterns": ["片段|原文", "提供|补充|粘贴|发送"]
+    },
+    {
+      "id": "l2-no-skill",
+      "mode": "l2",
+      "question": "用中文一句话解释软件中的幂等性，不涉及金融，不需要检索。",
+      "skill": null,
+      "answer_patterns": ["重复|多次", "相同|一致|不变"]
+    },
+    {
+      "id": "research-revenue",
+      "mode": "research",
+      "question": "核验 Microsoft 2025 财年营业收入。读取 RevenueFromContractWithCustomerExcludingAssessedTax 的年度 XBRL 事实，引用来源，不计算其他指标。",
+      "metric": "revenue",
+      "answer_patterns": ["281[,.]?724|2817[.]24"]
+    },
+    {
+      "id": "research-margin",
+      "mode": "research",
+      "question": "计算 Microsoft 2025 财年净利率。使用年度营业收入与归母净利润的 XBRL 事实，调用 finance.calculate percentage，保留四位小数并引用计算，不做投资建议。",
+      "metric": "margin",
+      "answer_patterns": ["36[.]146"]
+    },
+    {
+      "id": "research-dupont-3",
+      "mode": "dupont",
+      "question": "按照锁定的三年范围完成三因素杜邦分析，列明输入、平均余额、各因子和ROE、来源及局限。",
+      "years": 3,
+      "answer_patterns": []
+    },
+    {
+      "id": "research-dupont-4",
+      "mode": "dupont",
+      "question": "按照锁定的四年范围完成三因素杜邦分析，列明输入、平均余额、各因子和ROE、来源及局限。",
+      "years": 4,
+      "answer_patterns": []
+    },
+    {
+      "id": "research-dupont-5",
+      "mode": "dupont",
+      "question": "按照锁定的五年范围完成三因素杜邦分析，列明输入、平均余额、各因子和ROE、来源及局限。",
+      "years": 5,
+      "answer_patterns": []
+    },
+    {
+      "id": "research-asof-unavailable",
+      "mode": "unavailable",
+      "expected_error": "sec_snapshot_not_visible",
+      "question": "仅使用截止2025年7月1日已公开的信息核验 Microsoft 2025 财年营业收入。必须先读取 XBRL；若该申报当时不可用，应明确证据不足，不得引用之后发布的数据。",
+      "answer_patterns": []
+    }
+  ]
+}

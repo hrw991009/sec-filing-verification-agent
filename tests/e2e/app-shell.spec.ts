@@ -539,6 +539,71 @@ test.describe("browser identity lifecycle", () => {
     await page.getByRole("button", { name: "Research" }).click();
     await expect(page.getByRole("heading", { name: question })).toBeVisible();
     await expect(page.getByText("uncertain_draft")).toBeVisible();
+    // Controlled result-view replay tests rendering only. Official calculations are
+    // independently exercised by product_stability_runner against the real runtime.
+    await page.route("**/research-runs/*/result-view", async (route) => {
+      const upstream = await route.fetch();
+      const base = requireRecord((await upstream.json()) as unknown, "result view");
+      const labels = [
+        "营业收入",
+        "归母净利润",
+        "期初总资产",
+        "期末总资产",
+        "期初归母权益",
+        "期末归母权益",
+        "平均总资产",
+        "平均归母权益",
+        "净利率",
+        "总资产周转率",
+        "权益乘数",
+        "ROE",
+      ];
+      const keys = [
+        "revenue",
+        "net_income",
+        "opening_assets",
+        "closing_assets",
+        "opening_equity",
+        "closing_equity",
+        "average_assets",
+        "average_equity",
+        "net_profit_margin_percent",
+        "asset_turnover",
+        "equity_multiplier",
+        "roe_percent",
+      ];
+      await route.fulfill({
+        response: upstream,
+        json: {
+          ...base,
+          status: "ready",
+          verification_status: null,
+          periods: ["2023-06-30", "2024-06-30", "2025-06-30"],
+          limitations: ["浏览器受控展示数据，不是财务核验结果"],
+          rows: keys.map((key, index) => ({
+            key,
+            label: labels[index],
+            unit: key.endsWith("percent") ? "%" : "倍",
+            change_unit: key.endsWith("percent") ? "百分点" : "倍",
+            values: [0, 1, 2].map((position) => ({
+              value: String(10 + position),
+              change: position === 0 ? null : "1",
+              evidence_refs: [],
+            })),
+          })),
+        },
+      });
+    });
+    await page.getByRole("button", { name: "刷新服务端状态" }).click();
+    const results = page.getByRole("region", { name: "研究结果展示" });
+    await expect(results.getByText("尚未核验当前版本")).toBeVisible();
+    await expect(results.getByRole("img", { name: /跨年度柱状图/u })).toHaveCount(4);
+    await expect(results.locator(".safe-chart svg")).toHaveCount(4);
+    await expect(results.getByRole("table").getByRole("row")).toHaveCount(13);
+    await results.getByLabel("展示财年").selectOption("2023-06-30");
+    await expect(results.getByText("无上年可比值")).toHaveCount(4);
+    await expect(results.getByLabel("杜邦分解图")).toContainText("ROE = 净利率");
+    await page.screenshot({ path: test.info().outputPath("research-results.png"), fullPage: true });
   });
 
   test("creates and restores a queued Knowledge document", async ({ page }) => {

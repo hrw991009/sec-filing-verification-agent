@@ -7,9 +7,10 @@ from typing import cast
 from industry_platform.modules.agent_runtime.tool_runtime_contracts import ToolL2RuntimePolicy
 from industry_platform.modules.disclosures.profile import create_sec_l4_profile
 from industry_platform.modules.research.tasks import (
-    DUPONT_ANALYSIS,
+    DUPONT_MULTI_YEAR,
     RESEARCH_TASKS,
     ResearchTaskDefinition,
+    is_dupont_task,
 )
 from industry_platform.modules.tools.domain import ToolDefinition
 
@@ -40,6 +41,26 @@ by the host schema. Missing prerequisites are limitations, not successful verifi
 Do not create monitor subscriptions or invent causal business explanations.
 """.strip()
 
+DUPONT_MULTI_INSTRUCTIONS = """
+Return one raw JSON object only, with no code fences or extra text.
+Execute the locked 3-to-5-year consolidated parent-equity DuPont analysis.
+First call sec.get_xbrl_facts with exactly {"purpose":"dupont"}.
+The host returns the requested annual periods, each with six ordered operands:
+revenue, parent net income, opening assets, closing assets, opening parent equity,
+closing parent equity. Copy each period's operands intact to finance.calculate,
+operator=dupont, decimal_places=4, rounding_mode=half_even, exactly once per period.
+Never compute values yourself, invent missing operands, mix periods, or repeat a call.
+After all periods are calculated, return the final envelope with an ASCII completion
+receipt citing every actual calculation source, e.g. Complete [T2S1] [T3S1] [T4S1].
+Use exactly this JSON envelope:
+{"decision":{"schema_version":1,"kind":"final","content_markdown":"Complete [T2S1]."}}
+with all actual calculation labels substituted. Never write tables, numeric summaries,
+Chinese prose or extra JSON keys in this internal receipt. Do not retry rejected inputs.
+The host publishes numeric tables and visualizations from calculation Evidence.
+Missing/conflicting inputs or rejected balances are limitations, not completed analysis.
+Do not invent business causality or create monitor subscriptions.
+""".strip()
+
 
 def bind_research_task_policy(
     definition: ResearchTaskDefinition,
@@ -54,7 +75,7 @@ def bind_research_task_policy(
     harness_version = persisted_harness_version or definition.harness_version
     if RESEARCH_TASKS.from_harness(harness_version) != definition:
         raise ValueError("Persisted research task identity does not match its definition")
-    dupont = definition == DUPONT_ANALYSIS
+    dupont = is_dupont_task(definition)
     references = tuple(
         tool
         for tool in baseline.available_tools
@@ -66,10 +87,26 @@ def bind_research_task_policy(
         baseline,
         available_tools=references,
         profile_version=harness_version,
-        prompt_version="sec-dupont-analysis-prompt-v2"
+        prompt_version="sec-dupont-analysis-prompt-v3"
+        if definition == DUPONT_MULTI_YEAR
+        else "sec-dupont-analysis-prompt-v2"
         if dupont
-        else "sec-filing-verification-prompt-v1",
-        system_instructions=DUPONT_INSTRUCTIONS if dupont else baseline.system_instructions,
+        else "sec-filing-verification-prompt-v2",
+        system_instructions=DUPONT_MULTI_INSTRUCTIONS
+        if definition == DUPONT_MULTI_YEAR
+        else DUPONT_INSTRUCTIONS
+        if dupont
+        else baseline.system_instructions
+        + (
+            "\nReturn one raw JSON decision object, without code fences. "
+            "Answer only the requested financial period. Comparative historical values in "
+            "a filing do not expand the locked scope: do not add or cite other periods "
+            "unless the user requested a supported comparison. For a current-period fact, "
+            "select the duration end_date or balance instant matching report_period. "
+            "For a calculation, retrieve each known concept in its own targeted query; "
+            "do not collect an unfiltered list of unrelated metrics. "
+            "Keep the final finding concise and cite the actual matching observation label."
+        ),
         max_input_tokens=min(baseline.max_input_tokens, available.max_input_tokens),
         max_decision_output_tokens=min(
             baseline.max_decision_output_tokens, available.max_decision_output_tokens
@@ -86,7 +123,7 @@ def bind_research_tool_definitions(
     DuPont has a fixed selection purpose, formula and precision. Keeping unrelated
     filters out of its model interface prevents accidental partial selection.
     """
-    if RESEARCH_TASKS.from_harness(harness_version) != DUPONT_ANALYSIS:
+    if not is_dupont_task(RESEARCH_TASKS.from_harness(harness_version)):
         return definitions
     result = []
     for definition in definitions:

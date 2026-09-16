@@ -41,16 +41,21 @@ def render_dupont_report(
                 end = calculation.resolved_operands[0].end_date
                 if end is not None:
                     periods[end.isoformat()] = calculation, label
-    if len(periods) != 2 or scope.report_period.isoformat() not in periods:
-        limitations = "; ".join(dict.fromkeys(issues)) or "缺少两年已规范化、可复算的杜邦计算证据。"
+    if len(periods) != scope.annual_period_count or scope.report_period.isoformat() not in periods:
+        limitations = (
+            "; ".join(dict.fromkeys(issues)) or "缺少所选年度已规范化、可复算的杜邦计算证据。"
+        )
         return (
             f"## 杜邦分析尚未完成\n\n{limitations}\n\n"
-            "需要补齐连续两年年度收入、归母净利润及三期资产与归母权益余额，"
+            "需要补齐所选连续年度收入、归母净利润及各年期初期末资产与归母权益余额，"
             "不能用零值或估算替代。"
         )
     ordered = sorted(periods.items())
+    count_label = "两年" if scope.annual_period_count == 2 else f"{scope.annual_period_count} 年"
+    year_header = "| 指标 | " + " | ".join(f"{period} 财年" for period, _ in ordered) + " |"
+    separator = "| --- |" + " ---: |" * len(ordered)
     rows = [
-        "## 两年三因素杜邦分析",
+        f"## {count_label}三因素杜邦分析",
         "",
         f"公司 CIK：{scope.cik}；锚定申报：{scope.accession}；"
         f"截止时点：{scope.as_of.isoformat()}。",
@@ -60,8 +65,8 @@ def render_dupont_report(
         f"金额单位：{scope.unit} × 10^{scope.scale}。"
         "期初、期末均为合并报表口径，权益为归母股东权益。",
         "",
-        f"| 指标 | {ordered[0][0]} 财年 | {ordered[1][0]} 财年 |",
-        "| --- | ---: | ---: |",
+        year_header,
+        separator,
     ]
     inputs = ("营业收入", "归母净利润", "期初总资产", "期末总资产", "期初归母权益", "期末归母权益")
     for index, name in enumerate(inputs):
@@ -85,8 +90,8 @@ def render_dupont_report(
             "",
             "ROE = 净利率 × 总资产周转率 × 权益乘数。",
             "",
-            f"| 指标 | {ordered[0][0]} 财年 | {ordered[1][0]} 财年 |",
-            "| --- | ---: | ---: |",
+            year_header,
+            separator,
         ]
     )
     metrics = (
@@ -100,8 +105,8 @@ def render_dupont_report(
             f"{calculation.components[key]}{unit} [{label}]" for _, (calculation, label) in ordered
         ]
         rows.append(f"| {name} | {' | '.join(cells)} |")
-    rows.extend(["", "### 两年变化与口径限制", ""])
-    prior, current = ordered[0][1], ordered[1][1]
+    rows.extend(["", "### 最近两年变化与口径限制", ""])
+    prior, current = ordered[-2][1], ordered[-1][1]
     for key, name, _ in metrics:
         before, after = Decimal(prior[0].components[key]), Decimal(current[0].components[key])
         direction = "上升" if after > before else "下降" if after < before else "按四位小数显示不变"

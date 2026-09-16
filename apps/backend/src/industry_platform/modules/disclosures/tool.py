@@ -1115,7 +1115,7 @@ class SecGetXbrlFactsInput(BaseModel):
 
     purpose: Literal["facts", "dupont"] = Field(
         default="facts",
-        description="dupont selects complete two-year annual inputs; omit other filters.",
+        description="dupont selects the scope's complete annual inputs; omit other filters.",
     )
 
     taxonomy: str | None = Field(
@@ -1204,14 +1204,16 @@ def sec_get_xbrl_facts_definition() -> ToolDefinition:
         description=(
             "Read source-typed aggregate or raw XBRL facts from one imported, "
             "server-locked SEC accession. taxonomy and concept are exact single identifiers, "
-            "not search text or lists. For multiple metrics or unknown identifiers, omit both "
-            "filters (or use null) and select the returned facts. Do not guess a concept name. "
+            "not search text or lists. For multiple known metrics, make one targeted query "
+            "per concept. An unfiltered response is limited and is not a complete statement. "
+            "If an identifier is unknown, first inspect filing evidence to identify it; "
+            "do not substitute unrelated returned concepts or guess a concept name. "
             "Copy a numeric fact's calculation_operand object directly into finance.calculate; "
             "it binds value, evidence_ref and source_fact_id together. "
             "The limit is at most 16. Omit optional filters rather than guessing them."
-            " For a two-year annual DuPont analysis set purpose=dupont and omit other filters. "
+            " For annual DuPont analysis set purpose=dupont and omit other filters. "
             "It selects authorized adjacent filings, checks duplicate disclosures, and returns "
-            "two dupont_periods with six ordered operands each. Never invent missing balances."
+            "the scope's dupont_periods with six ordered operands each. Never invent balances."
         ),
         input_schema_version="sec-get-xbrl-facts-input-v1",
         output_schema_version="sec-get-xbrl-facts-output-v1",

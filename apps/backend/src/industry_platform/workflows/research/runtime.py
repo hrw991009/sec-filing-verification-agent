@@ -97,7 +97,7 @@ from industry_platform.modules.research.task_policy import (
     bind_research_task_policy,
     bind_research_tool_definitions,
 )
-from industry_platform.modules.research.tasks import DUPONT_ANALYSIS, RESEARCH_TASKS
+from industry_platform.modules.research.tasks import RESEARCH_TASKS, is_dupont_task
 from industry_platform.modules.research.verification import (
     ResearchVerificationUseCase,
     VerificationAllowedAction,
@@ -184,6 +184,16 @@ class FinancialResearchWorkflow(ToolL2Runtime):
         if any(tool.name == "skill.read" for tool in command.loop_command.policy.available_tools):
             raise ValueError("Financial Research does not load instruction skills")
         task = RESEARCH_TASKS.from_harness(run.harness_version)
+        if is_dupont_task(task):
+            financial_scope = command.brief.input.financial_scope
+            if financial_scope is None or (
+                task is not None
+                and (
+                    (task.version == "v1" and financial_scope.schema_version != 1)
+                    or (task.version == "v2" and financial_scope.schema_version != 2)
+                )
+            ):
+                raise ValueError("DuPont task version does not match its annual scope")
         if task is not None:
             if (
                 self._verification_service is None
@@ -766,8 +776,14 @@ class _ResearchExecution:
             outcome=outcome,
             decision_index_start=decision_index,
             required_tool_names=self.command.brief.input.required_tool_names,
-            required_tool_counts={"finance.calculate": 2}
-            if RESEARCH_TASKS.from_harness(self.run.harness_version) == DUPONT_ANALYSIS
+            required_tool_counts={
+                "finance.calculate": (
+                    self.command.brief.input.financial_scope.annual_period_count
+                    if self.command.brief.input.financial_scope is not None
+                    else 2
+                )
+            }
+            if is_dupont_task(RESEARCH_TASKS.from_harness(self.run.harness_version))
             else None,
         ):
             pass
@@ -854,7 +870,7 @@ class _ResearchExecution:
             self.graph_state.graph["error_summary"] = claim.verification_status.value
 
     def _render_task_decision(self, decision: ToolLoopFinalDecision) -> ToolLoopFinalDecision:
-        if RESEARCH_TASKS.from_harness(self.run.harness_version) == DUPONT_ANALYSIS:
+        if is_dupont_task(RESEARCH_TASKS.from_harness(self.run.harness_version)):
             from industry_platform.modules.research.dupont_report import render_dupont_report
 
             financial_scope = self.command.brief.input.financial_scope
@@ -1117,7 +1133,7 @@ class _ResearchExecution:
             raise ValueError("Research revise requires an origin Model Step")
         await self._normalize_evidence()
         decision = self._render_task_decision(decision)
-        if RESEARCH_TASKS.from_harness(self.run.harness_version) == DUPONT_ANALYSIS:
+        if is_dupont_task(RESEARCH_TASKS.from_harness(self.run.harness_version)):
             statement = _claim_statement(decision.content_markdown)
         evidence_ids = tuple(UUID(value) for value in self.graph_state.graph["evidence_refs"])
         cited_ids = _cited_evidence_ids(

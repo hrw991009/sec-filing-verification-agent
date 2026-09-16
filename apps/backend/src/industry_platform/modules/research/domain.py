@@ -32,6 +32,10 @@ RESEARCH_RUNTIME_VERSION: Final = "agent-runtime-v1"
 RESEARCH_HARNESS_VERSION: Final = "harness-research-v1"
 RESEARCH_TASK_NAME: Final = "agent.run.research"
 RESEARCH_QUEUE_NAME: Final = "agents"
+# Leave settlement time beyond the maximum 1,500-second Run budget. Initial
+# submissions and resumed Jobs must use the same execution envelope.
+RESEARCH_JOB_SOFT_TIME_LIMIT_SECONDS: Final = 1_650
+RESEARCH_JOB_HARD_TIME_LIMIT_SECONDS: Final = 1_800
 MAX_RESEARCH_LIST_ITEMS: Final = 16
 MAX_RESEARCH_TEXT_LENGTH: Final = 4_000
 MAX_RESEARCH_DRAFT_LENGTH: Final = 60_000

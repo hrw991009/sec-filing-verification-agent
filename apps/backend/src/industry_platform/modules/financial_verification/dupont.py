@@ -38,7 +38,7 @@ DUPONT_COMPONENT_KEYS = (
 def dupont_filing_in_scope(
     scope: FinancialScope, *, cik: str, accession: str, form: str, report_period: date
 ) -> bool:
-    """Only the anchor 10-K and its immediately preceding annual period are eligible."""
+    """Only the anchor and the explicitly authorized annual comparison range are eligible."""
 
     lag = (scope.report_period - report_period).days
     return (
@@ -47,7 +47,13 @@ def dupont_filing_in_scope(
         and form == "10-K"
         and (
             (lag == 0 and accession == scope.accession)
-            or (350 <= lag <= 380 and accession != scope.accession)
+            or (
+                accession != scope.accession
+                and any(
+                    350 * offset <= lag <= 380 * offset
+                    for offset in range(1, scope.annual_period_count)
+                )
+            )
         )
     )
 
@@ -107,7 +113,13 @@ def reconcile_dupont_operands(
     else:
         duration = (revenue.end_date - revenue.start_date).days + 1
         lag = (scope.report_period - revenue.end_date).days
-        if not 350 <= duration <= 380 or not (lag == 0 or 350 <= lag <= 380):
+        if not 350 <= duration <= 380 or not (
+            lag == 0
+            or any(
+                350 * offset <= lag <= 380 * offset
+                for offset in range(1, scope.annual_period_count)
+            )
+        ):
             reject(FinancialReconciliationIssueCode.PERIOD_NOT_COMPARABLE)
         opening = revenue.start_date - timedelta(days=1)
         if (

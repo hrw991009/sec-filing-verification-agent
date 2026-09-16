@@ -91,6 +91,7 @@ async def prepare_dupont(
         _workspace_scope(principal, workspace_id),
         cik=payload.cik,
         fiscal_year=payload.fiscal_year,
+        years=payload.years,
         knowledge_base_id=payload.knowledge_base_id,
         as_of=payload.as_of,
         trace_id=TraceId(get_trace_id(request)),

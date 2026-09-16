@@ -53,7 +53,7 @@ MAX_CONTEXT_WORKSPACE_NAME_LENGTH: Final = 256
 MAX_CONTEXT_ATTACHMENT_TEXT_LENGTH: Final = 500_000
 MAX_CONTEXT_ATTACHMENTS: Final = 4
 MAX_CONTEXT_TOOL_OBSERVATION_TEXT_LENGTH: Final = 50_000
-# The Tool contract permits up to sixteen 2 KiB Unicode source locators. Keep
+# The Tool contract permits up to thirty-two 2 KiB Unicode source locators. Keep
 # the aggregate envelope hard-bounded while accepting every domain-valid
 # Observation; the Context token budget remains the stricter model-call gate.
 MAX_CONTEXT_TOOL_OBSERVATION_LOCATOR_BYTES: Final = 256 * 1_024

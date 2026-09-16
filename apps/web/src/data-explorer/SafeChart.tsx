@@ -26,16 +26,27 @@ registerEChartsModules([
 interface SafeChartProps {
   readonly option: Record<string, unknown>;
   readonly title: string;
+  readonly onDataClick?: (index: number) => void;
 }
 
-export function SafeChart({ option, title }: SafeChartProps) {
+export function SafeChart({ option, title, onDataClick }: SafeChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const clickRef = useRef(onDataClick);
+  useEffect(() => {
+    clickRef.current = onDataClick;
+  }, [onDataClick]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (container === null || !isSafeChartOption(option)) return;
     const chart = init(container, undefined, { renderer: "svg" });
     chart.setOption(option, { notMerge: true });
+    chart.on("click", (event: unknown) => {
+      if (typeof event !== "object" || event === null || !("dataIndex" in event)) return;
+      const index = event.dataIndex;
+      if (typeof index === "number" && Number.isSafeInteger(index) && index >= 0)
+        clickRef.current?.(index);
+    });
     const observer = new ResizeObserver(() => {
       chart.resize();
     });

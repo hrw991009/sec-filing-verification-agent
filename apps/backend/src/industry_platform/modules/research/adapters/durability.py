@@ -29,6 +29,8 @@ from industry_platform.modules.jobs.domain import (
     PreparedJobSubmission,
 )
 from industry_platform.modules.research.domain import (
+    RESEARCH_JOB_HARD_TIME_LIMIT_SECONDS,
+    RESEARCH_JOB_SOFT_TIME_LIMIT_SECONDS,
     RESEARCH_QUEUE_NAME,
     RESEARCH_TASK_NAME,
     ResearchApprovalOutcome,
@@ -343,8 +345,8 @@ class SqlAlchemyResearchDurabilityRepository:
                     available_at=resumed_at,
                     max_attempts=3,
                     priority=0,
-                    soft_time_limit_seconds=1_500,
-                    hard_time_limit_seconds=1_800,
+                    soft_time_limit_seconds=RESEARCH_JOB_SOFT_TIME_LIMIT_SECONDS,
+                    hard_time_limit_seconds=RESEARCH_JOB_HARD_TIME_LIMIT_SECONDS,
                     trace_id=TraceId(run.trace_id),
                     idempotency_key_hash=None,
                     request_fingerprint=None,

@@ -29,6 +29,26 @@ AVAILABLE = datetime(2023, 11, 3, 18, 1, tzinfo=UTC)
 SNAPSHOT_ID = UUID("11111111-1111-4111-8111-111111111111")
 
 
+@pytest.mark.parametrize("length", [269, 512, 513])
+def test_official_long_context_ids_preserve_identity_with_a_bounded_limit(length: int) -> None:
+    context_id = "C" * length
+    body = f'''<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+      xmlns:us-gaap="http://fasb.org/us-gaap/2023" xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+      <xbrli:context id="{context_id}"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000320193</xbrli:identifier></xbrli:entity>
+      <xbrli:period><xbrli:instant>2023-09-30</xbrli:instant></xbrli:period></xbrli:context>
+      <xbrli:unit id="USD"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+      <us-gaap:Assets contextRef="{context_id}" unitRef="USD" decimals="0">100</us-gaap:Assets>
+      </xbrli:xbrl>'''.encode()
+    if length > 512:
+        with pytest.raises(SecSourceError):
+            parse_raw_xbrl(source(body, SecXbrlSourceKind.RAW_INSTANCE), filing())
+    else:
+        batch = parse_raw_xbrl(source(body, SecXbrlSourceKind.RAW_INSTANCE), filing())
+        assert batch.contexts[0].context_id == context_id
+        assert batch.facts[0].context_id == context_id
+        assert batch.facts[0].locator_key.endswith(context_id)
+
+
 def filing() -> SecCanonicalFiling:
     return SecCanonicalFiling(
         id=UUID("22222222-2222-4222-8222-222222222222"),

@@ -93,7 +93,9 @@ class SqlAlchemyFinancialOperandRepository(FinancialOperandRepository):
         filing_predicates = (
             (
                 SecFilingRecord.form == "10-K",
-                SecFilingRecord.report_date >= financial_scope.report_period - timedelta(days=380),
+                SecFilingRecord.report_date
+                >= financial_scope.report_period
+                - timedelta(days=380 * (financial_scope.annual_period_count - 1)),
                 SecFilingRecord.report_date <= financial_scope.report_period,
             )
             if dupont

@@ -14,6 +14,7 @@ from industry_platform.modules.research.task_policy import (
 )
 from industry_platform.modules.research.tasks import (
     DUPONT_ANALYSIS,
+    DUPONT_MULTI_YEAR,
     FILING_VERIFICATION,
     RESEARCH_TASKS,
     ResearchTaskDefinition,
@@ -37,6 +38,9 @@ def test_unknown_versions_fail_closed(version: str) -> None:
 def test_persisted_identity_resolves_and_legacy_research_is_unaffected() -> None:
     assert RESEARCH_TASKS.from_harness(FILING_VERIFICATION.harness_version) == FILING_VERIFICATION
     assert RESEARCH_TASKS.from_harness("harness-research-v1") is None
+    assert RESEARCH_TASKS.from_harness(DUPONT_MULTI_YEAR.harness_version) == DUPONT_MULTI_YEAR
+    with pytest.raises(ValueError, match="unsupported"):
+        RESEARCH_TASKS.from_harness("skill:sec.dupont-analysis:v2")
 
 
 @pytest.mark.parametrize("definition", [FILING_VERIFICATION, DUPONT_ANALYSIS])

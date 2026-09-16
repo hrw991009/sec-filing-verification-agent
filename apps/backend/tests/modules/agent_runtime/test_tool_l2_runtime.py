@@ -793,10 +793,27 @@ async def test_l2_completes_two_tool_rounds_in_the_unified_runtime() -> None:
 
 
 @pytest.mark.asyncio
-async def test_l2_selects_two_different_tools_from_one_exact_allowlist() -> None:
+@pytest.mark.parametrize("revisit", [False, True])
+async def test_l2_selects_two_different_tools_from_one_exact_allowlist(
+    monkeypatch: pytest.MonkeyPatch, revisit: bool
+) -> None:
+    if revisit:
+        monkeypatch.setattr(
+            ToolL2Runtime,
+            "_run_loop_segment",
+            partialmethod(
+                ToolL2Runtime._run_loop_segment,
+                required_tool_names=(FAKE_LOOKUP_TOOL_NAME, FAKE_DATABASE_TOOL_NAME),
+            ),
+        )
     provider = QueueModelProvider(
         (
             model_response(action_decision("steel"), request_id="multi-decision-1"),
+            *(
+                (model_response(action_decision("copper"), request_id="prerequisite-2"),)
+                if revisit
+                else ()
+            ),
             model_response(
                 action_decision(
                     "revenue",
@@ -814,7 +831,12 @@ async def test_l2_selects_two_different_tools_from_one_exact_allowlist() -> None
                 text="Steel demand rose 3%.",
                 locator="fixture://industry/steel/2026-08",
                 source_version="fixture-2026-08-v1",
-            )
+            ),
+            "copper": FakeLookupRecord(
+                text="Copper demand rose 2%.",
+                locator="fixture://industry/copper/2026-08",
+                source_version="fixture-2026-08-v1",
+            ),
         }
     )
     database_tool = FakeDatabaseLookupTool(
@@ -850,15 +872,22 @@ async def test_l2_selects_two_different_tools_from_one_exact_allowlist() -> None
             clock=selected_clock,
         ),
     )
-    selected_budget = budget()
+    selected_budget = budget(max_steps=20)
     selected_policy = replace(
         policy(),
+        max_tool_calls=3,
         toolset_version="fake-multitool-v1",
         available_tools=(industry_tool.definition.reference, database_tool.definition.reference),
     )
     selected_command = replace(
         command(selected_budget=selected_budget),
         policy=selected_policy,
+        decision_model_step_ids=tuple(stable_id(f"multi-model-{index}") for index in range(4)),
+        decision_manifest_ids=tuple(stable_id(f"multi-manifest-{index}") for index in range(4)),
+        tool_step_ids=tuple(stable_id(f"multi-step-{index}") for index in range(3)),
+        tool_call_ids=tuple(stable_id(f"multi-call-{index}") for index in range(3)),
+        approval_request_ids=tuple(stable_id(f"multi-approval-{index}") for index in range(3)),
+        side_effect_idempotency_keys=(None, None, None),
     )
 
     events = [
@@ -870,14 +899,32 @@ async def test_l2_selects_two_different_tools_from_one_exact_allowlist() -> None
     ]
 
     assert_terminal(events, event_type=AgentEventType.RUN_COMPLETED, reason=RunStopReason.FINAL)
-    assert [item.query for item in industry_tool.invocations] == ["steel"]
+    assert [item.query for item in industry_tool.invocations] == (
+        ["steel", "copper"] if revisit else ["steel"]
+    )
     assert [item.query for item in database_tool.invocations] == ["revenue"]
     assert [
         event.payload["requested_tool_name"]
         for event in events
         if event.event_type is AgentEventType.TOOL_REQUESTED
-    ] == [FAKE_LOOKUP_TOOL_NAME, FAKE_DATABASE_TOOL_NAME]
+    ] == [*([FAKE_LOOKUP_TOOL_NAME] * (2 if revisit else 1)), FAKE_DATABASE_TOOL_NAME]
     assert all(request.response_schema is not None for request in provider.requests)
+    if revisit:
+        first, second, _, last = provider.requests
+        assert first.response_schema is not None
+        assert second.response_schema is not None
+        assert last.response_schema is not None
+        with pytest.raises(InvalidProviderResponse):
+            validate_structured_output(
+                action_decision(
+                    "revenue", name=FAKE_DATABASE_TOOL_NAME, version=FAKE_DATABASE_TOOL_VERSION
+                ),
+                first.response_schema,
+            )
+        validate_structured_output(action_decision("copper"), second.response_schema)
+        with pytest.raises(InvalidProviderResponse):
+            validate_structured_output(final_decision(), second.response_schema)
+        validate_structured_output(final_decision(), last.response_schema)
 
 
 @pytest.mark.asyncio
