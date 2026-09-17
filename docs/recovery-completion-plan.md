@@ -107,3 +107,25 @@ Backend JUnit and coverage evidence are under `.data/evals/recovery-20260916/` a
 `full-regression-final.xml` and `coverage-final.json`. The release ledger still retains
 its 15 existing release blockers; no owner sign-off or remote CI result is inferred
 from these local results.
+
+## Independent container exercise closeout (2026-09-17)
+
+The [isolated recovery exercise](isolated-recovery-exercise.md) now has passing latest
+results for all eleven actual container/data/Research checks on a pinned candidate image.
+It found and fixed two production gaps: orphan cleanup incorrectly terminalized resumable
+Research Jobs, and the loader rejected interruption after a checkpoint once a model attempt
+had started. Recovery now retains interrupted model attempts and budgets while keeping unknown
+Tool effects fail-closed. Cancellation and terminal-job cleanup remain covered.
+
+The candidate is `sec-filing-verification-agent:recovery-dd8ca16-3a7e2aa8a42c`; the immutable
+image ID, source patch, archive hash and evidence summary hash are recorded in
+[the image baseline](../infra/recovery/baseline-research-recovery.json). All 327 application
+Python source files matched its frozen build export. Full backend regression passed 1,779
+tests; supplemental Research tests bring measured branch coverage to 80.71% overall and
+90.18% core. The final populated backup/restore includes successful Research recovery facts.
+
+This completes the agreed recovery engineering work, not release approval. Diagnostic
+failures remain in the attempt ledger; the eleven-check summary reports latest verified
+results and explicitly is not a failure-free first batch. Historical-image rollback remains
+owner-deferred. Clean committed/published provenance, remote CI and owner acceptance are not
+inferred, and the frozen twelve-scenario release observations have not been marked passed.

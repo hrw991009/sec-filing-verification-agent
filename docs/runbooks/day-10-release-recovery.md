@@ -34,6 +34,12 @@ The pytest references in `evals/manifests/sec-release-recovery-v1.json` must als
 
 ## Isolated executor
 
+For the independent **actual-container** exercise and its verified candidate image, see
+[Isolated recovery exercise](../isolated-recovery-exercise.md). It covers a real Worker kill
+during a Research model request, scoped container outages and populated backup/restore.
+Keep its latest-attempt summary separate from the full diagnostic ledger and the frozen
+twelve-scenario release gate below. The historical-image rollback is still owner-deferred.
+
 For the eleven locally executable capability checks, use a new evidence directory:
 
 ```powershell

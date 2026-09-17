@@ -807,12 +807,19 @@ def _resume_snapshot(
             raise DirectAnswerRunNotExecutableError
     elif record.status is AgentRunStatus.RUNNING:
         kind = ResearchResumeKind.RECOVERY
-        tail = events[-1]
+        saved = next(
+            (
+                event
+                for event in reversed(events)
+                if event.event_type is AgentEventType.CHECKPOINT_SAVED
+            ),
+            None,
+        )
         if (
             approval is not None
-            or tail.event_type is not AgentEventType.CHECKPOINT_SAVED
-            or tail.payload.get("checkpoint_id") != str(checkpoint.id)
-            or tail.payload.get("revision") != checkpoint.revision
+            or saved is None
+            or saved.payload.get("checkpoint_id") != str(checkpoint.id)
+            or saved.payload.get("revision") != checkpoint.revision
         ):
             raise DirectAnswerRunNotExecutableError
     else:
@@ -910,6 +917,26 @@ def _resume_snapshot(
         if approved_observation is not None:
             observations = (*observations, approved_observation)
         steps = _restore_steps(execution.get("steps"), record.id, record.workspace_id)
+        if kind is ResearchResumeKind.RECOVERY:
+            from industry_platform.workflows.research.recovery import restore_model_attempts
+
+            checkpoint_event = next(
+                event
+                for event in reversed(events)
+                if event.event_type is AgentEventType.CHECKPOINT_SAVED
+            )
+            steps = restore_model_attempts(
+                steps,
+                tuple(
+                    _domain_event(event)
+                    for event in events
+                    if event.sequence > checkpoint_event.sequence
+                ),
+                next_node=next_node,
+                revision=max((step.state_revision for step in steps), default=0),
+            )
+            if len(steps) != record.step_count:
+                raise ValueError("Recovery Steps do not match persisted execution accounting")
         decision = _restore_final_decision(execution.get("final_decision"))
         response = _restore_model_response(execution.get("final_response"))
         final_markdown = execution.get("final_markdown")

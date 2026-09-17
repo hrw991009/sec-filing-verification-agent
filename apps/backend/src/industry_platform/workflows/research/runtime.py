@@ -23,6 +23,7 @@ from industry_platform.modules.agent_runtime.domain import (
     AgentRunStatus,
     AgentStep,
     AgentStepKind,
+    AgentStepStatus,
     RunStopReason,
 )
 from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
@@ -237,6 +238,39 @@ class FinancialResearchWorkflow(ToolL2Runtime):
             yield queued
 
         initial_at = self._time(not_before=events[-1].occurred_at if events else run.created_at)
+        if resumed and steps:
+            # Preserve attempted work and the original budget. Never reuse an interrupted
+            # model Step/manifest identity or leave it RUNNING beside the replacement.
+            revision = max(state.revision, steps[-1].state_revision)
+            if steps[-1].status is AgentStepStatus.RUNNING:
+                interrupted = steps[-1]
+                if interrupted.kind is not AgentStepKind.MODEL:
+                    raise ValueError("Interrupted Tool requires effect reconciliation")
+                revision += 1
+                steps[-1] = self._settled_step(
+                    interrupted,
+                    status=AgentStepStatus.FAILED,
+                    revision=revision,
+                    completed_at=initial_at,
+                    error_code="worker_interrupted",
+                )
+                failed_attempt = self._event(
+                    run,
+                    events,
+                    event_type=AgentEventType.STEP_FAILED,
+                    occurred_at=initial_at,
+                    payload={
+                        "step_id": str(interrupted.step_id),
+                        "error_code": "worker_interrupted",
+                        "provider_usage_unknown": True,
+                    },
+                )
+                await self._commit(events, failed_attempt)
+                yield failed_attempt
+            state = replace(
+                state, revision=revision, event_count=len(events), updated_at=initial_at
+            )
+            run = replace(run, state_revision=revision)
         if initial_at >= run.budget.deadline:
             terminal = self._terminal_event(
                 run=run,

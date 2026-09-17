@@ -19,6 +19,7 @@ from industry_platform.modules.agent_runtime.adapters.persistence import (
 )
 from industry_platform.modules.agent_runtime.domain import (
     AgentRunStatus,
+    AgentRunType,
     AgentStepStatus,
     RunStopReason,
 )
@@ -28,6 +29,7 @@ from industry_platform.modules.agent_runtime.events import (
     AgentEventType,
 )
 from industry_platform.modules.agent_runtime.models import (
+    AgentCheckpointRecord,
     AgentEventRecord,
     AgentRunRecord,
     AgentStepRecord,
@@ -40,6 +42,7 @@ from industry_platform.modules.conversations.service import ConversationApplicat
 from industry_platform.modules.identity.domain import TraceId
 from industry_platform.modules.jobs.domain import JobEventType, JobStatus
 from industry_platform.modules.jobs.models import Job, JobEvent
+from industry_platform.modules.research.models import ResearchRunRecord
 from industry_platform.server import create_selector_event_loop
 
 from .postgres import PostgresProbe
@@ -49,6 +52,112 @@ from .test_conversation_agent_postgres import (
     command,
     seed_workspace,
 )
+
+
+@pytest.mark.parametrize(
+    ("run_type", "checkpoint", "job_status", "cancel_target", "preserved"),
+    [
+        (AgentRunType.RESEARCH, True, JobStatus.PENDING, None, True),
+        (AgentRunType.RESEARCH, True, JobStatus.DISPATCHED, None, True),
+        (AgentRunType.RESEARCH, True, JobStatus.RETRY_WAIT, None, True),
+        (AgentRunType.RESEARCH, False, JobStatus.RETRY_WAIT, None, False),
+        (AgentRunType.DIRECT_ANSWER, True, JobStatus.RETRY_WAIT, None, False),
+        (AgentRunType.RESEARCH, True, JobStatus.RETRY_WAIT, "run", False),
+        (AgentRunType.RESEARCH, True, JobStatus.RETRY_WAIT, "job", False),
+        (AgentRunType.RESEARCH, True, JobStatus.DEAD_LETTER, None, False),
+    ],
+)
+def test_orphan_cleanup_preserves_only_checkpoint_backed_research_retries(
+    migrated_postgres_probe: PostgresProbe,
+    run_type: AgentRunType,
+    checkpoint: bool,
+    job_status: JobStatus,
+    cancel_target: str | None,
+    preserved: bool,
+) -> None:
+    async def exercise() -> None:
+        engine = create_database_engine(migrated_postgres_probe.settings)
+        session_factory = create_database_session_factory(engine)
+        try:
+            await seed_workspace(session_factory)
+            service = ConversationApplicationService(
+                transaction_factory=SqlAlchemyDirectAnswerTurnTransactionFactory(session_factory),
+                clock=lambda: NOW,
+            )
+            receipt = await service.start_direct_answer(command())
+            other = await service.start_direct_answer(
+                replace(command(), idempotency_key="other-orphan", new_conversation_title="Other")
+            )
+            async with session_factory.begin() as session:
+                run = await session.get(AgentRunRecord, receipt.run_id)
+                job = await session.get(Job, receipt.job_id)
+                orphan = await session.get(AgentRunRecord, other.run_id)
+                assert run is not None
+                assert job is not None
+                assert orphan is not None
+                run.run_type = run_type
+                if run_type is AgentRunType.RESEARCH:
+                    session.add(
+                        ResearchRunRecord(
+                            id=uuid4(),
+                            agent_run_id=run.id,
+                            workspace_id=run.workspace_id,
+                            owner_user_id=run.user_id,
+                        )
+                    )
+                run.status = AgentRunStatus.RUNNING
+                run.updated_at = NOW
+                job.status = job_status
+                if job_status is JobStatus.DISPATCHED:
+                    job.dispatched_at = NOW
+                    job.dispatch_attempt = 1
+                if job_status is JobStatus.DEAD_LETTER:
+                    job.terminal_at = NOW
+                if cancel_target == "run":
+                    run.cancel_requested_at = NOW
+                if cancel_target == "job":
+                    job.cancel_requested_at = NOW
+                orphan.status = AgentRunStatus.RUNNING
+                orphan.updated_at = NOW + timedelta(seconds=1)
+                if checkpoint:
+                    # Eligibility is separate from loader validation of the full envelope.
+                    session.add(
+                        AgentCheckpointRecord(
+                            id=uuid4(),
+                            run_id=run.id,
+                            workspace_id=run.workspace_id,
+                            revision=0,
+                            envelope_schema_version=1,
+                            state_schema_version=1,
+                            state={"payload": {"kind": "research_l5_v1"}},
+                            saved_at=NOW,
+                        )
+                    )
+            terminalizer = SqlAlchemyAgentRunTerminalizer(session_factory)
+            # LIMIT=1 must still reach the later non-resumable orphan.
+            assert await terminalizer.reconcile_orphans(batch_size=1) == 1
+            assert await terminalizer.reconcile_orphans(batch_size=1) == (0 if preserved else 1)
+            assert await terminalizer.reconcile_orphans(batch_size=1) == 0
+            async with session_factory() as session:
+                run = await session.get(AgentRunRecord, receipt.run_id)
+                job = await session.get(Job, receipt.job_id)
+                orphan = await session.get(AgentRunRecord, other.run_id)
+                assert run is not None
+                assert job is not None
+                assert orphan is not None
+                assert orphan.status is AgentRunStatus.FAILED
+                if preserved:
+                    assert run.status is AgentRunStatus.RUNNING
+                    assert job.status is job_status
+                    assert run.event_count == 1
+                else:
+                    expected = AgentRunStatus.CANCELLED if cancel_target else AgentRunStatus.FAILED
+                    assert run.status is expected
+        finally:
+            await engine.dispose()
+
+    with asyncio.Runner(loop_factory=create_selector_event_loop) as runner:
+        runner.run(exercise())
 
 
 def test_agent_event_batch_rolls_back_every_projection_when_one_event_is_invalid(

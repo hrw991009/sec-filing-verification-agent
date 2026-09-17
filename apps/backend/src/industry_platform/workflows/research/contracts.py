@@ -155,14 +155,43 @@ class ResearchL3RunCommand:
             ResearchResumeKind.RECOVERY: AgentRunStatus.RUNNING,
         }[self.resume.kind]
         tail_type = self.resume.event_history[-1].event_type.value
-        expected_tail = {
-            ResearchResumeKind.APPROVAL: "agent.approval.decided",
-            ResearchResumeKind.RECOVERY: "agent.checkpoint.saved",
-        }[self.resume.kind]
+        valid_tail = tail_type == "agent.approval.decided"
+        if self.resume.kind is ResearchResumeKind.RECOVERY:
+            from industry_platform.workflows.research.recovery import restore_model_attempts
+
+            saved = next(
+                (
+                    event
+                    for event in reversed(self.resume.event_history)
+                    if event.event_type.value == "agent.checkpoint.saved"
+                ),
+                None,
+            )
+            if saved is None or saved.payload.get("revision") != self.resume.checkpoint_revision:
+                return False
+            tail = tuple(
+                event for event in self.resume.event_history if event.sequence > saved.sequence
+            )
+            attempts = sum(event.event_type.value == "agent.step.started" for event in tail)
+            base = (
+                self.resume.steps[: len(self.resume.steps) - attempts]
+                if attempts
+                else self.resume.steps
+            )
+            try:
+                restored = restore_model_attempts(
+                    base,
+                    tail,
+                    next_node=self.resume.next_node,
+                    revision=int(str(saved.payload.get("run_state_revision", 0))),
+                )
+                valid_tail = restored == self.resume.steps
+            except (KeyError, TypeError, ValueError):
+                return False
         return (
             self.run.status is expected_status
             and self.state.status is expected_status
-            and tail_type == expected_tail
+            and valid_tail
             and self.resume.event_history[-1].sequence == self.state.event_count
         )
 
