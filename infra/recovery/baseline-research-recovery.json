@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "status": "isolated_recovery_verified",
+  "source_commit": "dd8ca1672ea92e4111b0d261c379120bb170effd",
+  "source_patch_sha256": "3a7e2aa8a42cf69ee8ed78667a9fb292774645c6d9df2981b46a3a9371d3e8f2",
+  "source_is_clean_commit": false,
+  "application_tag": "sec-filing-verification-agent:recovery-dd8ca16-3a7e2aa8a42c",
+  "local_image_id": "sha256:e2cace07a9e8749f939094843f98d5f7f187b6fe3dc9e3a29821ccf403deef92",
+  "registry_digest": null,
+  "archive_relative_path": ".data/recovery-images/sec-filing-verification-agent-recovery-dd8ca16-3a7e2aa8a42c.tar",
+  "archive_sha256": "419b4891d0d03d2da458967ad2ec45bb431145234a4f98cdddd2c245c38142c9",
+  "dockerfile_sha256": "20c702a4db43e3165a4189b7ec314efa4174c0dfff7e29813e6a9ecc376da0f9",
+  "infrastructure_baseline": "baseline-dd8ca16.json",
+  "inherited_infrastructure_fields": ["python_image", "uv_image", "services"],
+  "exercise_project": "iip-recovery-20260917-b2",
+  "verification_relative_path": ".data/isolated-recovery/iip-recovery-20260917-b2/verification-summary.json",
+  "verification_sha256": "978bace7d3729b131c83ff771b0aa7d5d5268238a295894608f5a78f42c27d5a",
+  "verified_logical_checks": 11,
+  "single_failure_free_batch": false,
+  "release_accepted": false
+}

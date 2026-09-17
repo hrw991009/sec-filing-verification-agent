@@ -33,6 +33,7 @@ from industry_platform.modules.agent_runtime.domain import (
 )
 from industry_platform.modules.agent_runtime.events import AgentEvent, AgentEventType
 from industry_platform.modules.agent_runtime.models import (
+    AgentCheckpointRecord,
     AgentEventRecord,
     AgentRunRecord,
     AgentStepRecord,
@@ -897,7 +898,7 @@ def _settle_interrupted_tool_fact(
 
 @dataclass(frozen=True, slots=True)
 class SqlAlchemyAgentRunTerminalizer:
-    """Close non-resumable Day 2 Runs after execution or Job infrastructure failure."""
+    """Settle abandoned Runs without consuming checkpoint-backed Research retries."""
 
     session_factory: AsyncSessionFactory
 
@@ -941,6 +942,20 @@ class SqlAlchemyAgentRunTerminalizer:
             JobStatus.DISPATCHED,
             JobStatus.RETRY_WAIT,
         )
+        # The loader owns full checkpoint validation. Leave checkpoint-backed Research
+        # retries to it; they are not abandoned merely because their lease expired.
+        # Filter before LIMIT so resumable Runs cannot starve actual orphan cleanup.
+        recovery_candidate = and_(
+            AgentRunRecord.run_type == AgentRunType.RESEARCH,
+            AgentRunRecord.cancel_requested_at.is_(None),
+            Job.cancel_requested_at.is_(None),
+            select(AgentCheckpointRecord.id)
+            .where(
+                AgentCheckpointRecord.run_id == AgentRunRecord.id,
+                AgentCheckpointRecord.workspace_id == AgentRunRecord.workspace_id,
+            )
+            .exists(),
+        )
         try:
             async with self.session_factory.begin() as session:
                 rows = tuple(
@@ -955,6 +970,7 @@ class SqlAlchemyAgentRunTerminalizer:
                                     and_(
                                         AgentRunRecord.status == AgentRunStatus.RUNNING,
                                         Job.status.in_(stranded_after_lease),
+                                        ~recovery_candidate,
                                     ),
                                 ),
                             )

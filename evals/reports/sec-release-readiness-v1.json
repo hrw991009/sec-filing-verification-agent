@@ -212,9 +212,9 @@
     },
     {
       "artifact_id": "release-recovery-runbook",
-      "byte_size": 13146,
+      "byte_size": 13595,
       "relative_path": "docs/runbooks/day-10-release-recovery.md",
-      "sha256": "98ecd7c274d9648dd0d959e73b08e0be12b8019db588f84793ae434af74408eb"
+      "sha256": "9ce8fa6a1a7eff125719014115efba8e82a742af73ddf3216b43bfe3a61a5b61"
     },
     {
       "artifact_id": "release-acceptance-runner",

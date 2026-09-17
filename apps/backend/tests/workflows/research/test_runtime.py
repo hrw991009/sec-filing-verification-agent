@@ -1275,13 +1275,25 @@ def recovery_command(
     )
     raw_outline = execution["outline"]
     assert isinstance(raw_outline, list)
+    from industry_platform.workflows.research.recovery import restore_model_attempts
+
+    checkpoint_sequence = max(
+        event.sequence for event in events if event.event_type is AgentEventType.CHECKPOINT_SAVED
+    )
+    restored_steps = restore_model_attempts(
+        _restore_steps(execution["steps"], RUN_ID, WORKSPACE_ID),
+        tuple(event for event in events if event.sequence > checkpoint_sequence),
+        next_node=None if next_node_value is None else ResearchNode(cast(str, next_node_value)),
+        revision=checkpoint.state.revision,
+    )
+    state = replace(state, step_count=len(restored_steps))
     snapshot = ResearchResumeSnapshot(
         kind=ResearchResumeKind.RECOVERY,
         checkpoint_revision=checkpoint.revision,
         next_node=(None if next_node_value is None else ResearchNode(cast(str, next_node_value))),
         graph=cast(ResearchGraphState, dict(graph)),
         event_history=events,
-        steps=_restore_steps(execution["steps"], RUN_ID, WORKSPACE_ID),
+        steps=restored_steps,
         observations=_restore_observations(execution["observations"], WORKSPACE_ID),
         final_decision=_restore_final_decision(execution["final_decision"]),
         final_response=_restore_model_response(execution["final_response"]),
@@ -1728,7 +1740,10 @@ async def test_l5_monitor_tool_request_checkpoints_and_pauses_for_durable_approv
 
 
 @pytest.mark.asyncio
-async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effects() -> None:
+@pytest.mark.parametrize("during_model", [False, True])
+async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effects(
+    during_model: bool,
+) -> None:
     case = next(
         item
         for item in load_scenario_dataset(SEC_L4_SCENARIOS).cases
@@ -1776,7 +1791,7 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
         max_cost_micro_usd=10_000,
         deadline=NOW + timedelta(minutes=10),
     )
-    command = sec_research_command(budget)
+    command = sec_revise_command(budget) if during_model else sec_research_command(budget)
     store = RecordingWorkflowStore()
     evidence = SecEvidenceService()
     checkpoints = RecordingCheckpointStore()
@@ -1787,7 +1802,24 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
         token_codec=ResumeTokenCodec(b"r" * 32),
         clock=IncrementingClock(),
     )
-    committer = RecordingCommitter()
+
+    class WorkerKilled(BaseException):
+        pass
+
+    class InterruptedCommitter(RecordingCommitter):
+        interrupted = False
+
+        async def append(self, event: AgentEvent) -> None:
+            await super().append(event)
+            if (
+                during_model
+                and not self.interrupted
+                and event.event_type is AgentEventType.MODEL_STARTED
+            ):
+                self.interrupted = True
+                raise WorkerKilled
+
+    committer = InterruptedCommitter()
     runtime, knowledge, calculator = build_sec_runtime(
         provider,
         store,
@@ -1799,7 +1831,7 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
         runtime_clock=runtime_clock,
     )
 
-    with pytest.raises(ResearchHardStopError):
+    with pytest.raises(WorkerKilled if during_model else ResearchHardStopError):
         _ = [
             event
             async for event in runtime.run(
@@ -1808,12 +1840,14 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
             )
         ]
 
-    assert checkpoints.checkpoints[-1].payload["node"] == ResearchNode.RESEARCH_LOOP.value
+    assert checkpoints.checkpoints[-1].payload["node"] == (
+        ResearchNode.PLAN.value if during_model else ResearchNode.RESEARCH_LOOP.value
+    )
     assert checkpoints.checkpoints[-1].payload["financial_scope"] == dict(
         sec_financial_scope().to_mapping()
     )
-    assert knowledge.queries == ["Apple 2023 and 2022 net sales"]
-    assert len(calculator.values) == 1
+    assert knowledge.queries == ([] if during_model else ["Apple 2023 and 2022 net sales"])
+    assert len(calculator.values) == (0 if during_model else 1)
     assert evidence.normalizations == []
 
     resumed_command = recovery_command(
@@ -1822,7 +1856,7 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
         tuple(committer.events),
     )
     resumed_runtime, _, _ = build_sec_runtime(
-        QueueModelProvider(()),
+        provider if during_model else QueueModelProvider(()),
         store,
         evidence,
         knowledge_service=knowledge,
@@ -1840,7 +1874,9 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
         )
     ]
 
-    assert resumed_events[-1].event_type is AgentEventType.RUN_COMPLETED
+    assert resumed_events[-1].event_type is AgentEventType.RUN_COMPLETED, [
+        (event.event_type, dict(event.payload)) for event in resumed_events[-6:]
+    ]
     assert knowledge.queries == ["Apple 2023 and 2022 net sales"]
     assert len(calculator.values) == 1
     assert len(evidence.normalizations) == 2
@@ -1849,6 +1885,19 @@ async def test_l4_hard_stop_resumes_after_tool_loop_without_duplicate_side_effec
     assert len(durability_repository.effects) == 5
     assert sum(kind == "artifact" for kind, _identifier in durability_repository.effects) == 1
     assert [event.event_type for event in committer.events].count(AgentEventType.RUN_RESUMED) == 1
+    interrupted_steps = [
+        event
+        for event in committer.events
+        if event.event_type is AgentEventType.STEP_FAILED
+        and event.payload.get("error_code") == "worker_interrupted"
+    ]
+    assert len(interrupted_steps) == int(during_model)
+    started_steps = [
+        event.payload["step_id"]
+        for event in committer.events
+        if event.event_type is AgentEventType.STEP_STARTED
+    ]
+    assert len(started_steps) == len(set(started_steps))
 
 
 @pytest.mark.asyncio
