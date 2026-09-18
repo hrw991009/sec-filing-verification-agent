@@ -1,6 +1,8 @@
 # Isolated recovery exercise
 
-This exercise uses the merged application source at `dd8ca1672ea92e4111b0d261c379120bb170effd`.
+The initial exercise used merged source at `dd8ca1672ea92e4111b0d261c379120bb170effd`.
+The current owner-selected clean baseline and its successful rollback rehearsal are
+recorded in the final section, using merged source `bfe9f742c344be9fe579f944d4df74056a5ef952`.
 The application is built from a Git archive, not the developer working tree. Python,
 uv and infrastructure images are pinned by digest; the local application image ID,
 source revision and exercise artifacts are recorded together. A local image ID is
@@ -82,7 +84,7 @@ alone is insufficient identity. Dependencies must already be present locally, an
 selected loopback ports 25432/26379/28000/29000/29200/29530 must be free.
 
 ```powershell
-uv run --locked python infra/recovery/exercise.py prepare --directory .data/isolated-recovery/iip-recovery-20260917-c1 --image sec-filing-verification-agent:recovery-dd8ca16-3a7e2aa8a42c
+uv run --locked python infra/recovery/exercise.py prepare --directory .data/isolated-recovery/iip-recovery-20260917-c1 --image sec-filing-verification-agent:recovery-dd8ca16-3a7e2aa8a42c --revision dd8ca1672ea92e4111b0d261c379120bb170effd
 uv run --locked python infra/recovery/exercise.py start --directory .data/isolated-recovery/iip-recovery-20260917-c1
 uv run --locked python infra/recovery/exercise.py exercise --directory .data/isolated-recovery/iip-recovery-20260917-c1
 uv run --locked python infra/recovery/exercise.py configure-model --directory .data/isolated-recovery/iip-recovery-20260917-c1
@@ -168,4 +170,83 @@ or actual notification channel is claimed by this exercise.
 
 Closeout: the exercise projects have been stopped; their data volumes, image archives and
 evidence remain available. No development service was stopped, and the developer `.env` was
-not changed. Implementation and documentation changes remain local and uncommitted.
+not changed. At this original closeout the changes were local and uncommitted;
+PR #25 subsequently merged them as `bfe9f742c344be9fe579f944d4df74056a5ef952`.
+
+## Owner-selected clean baseline (2026-09-17)
+
+The owner selected the current merged version as the baseline. Its
+[baseline record](../infra/recovery/baseline-bfe9f74.json) pins the clean Git archive,
+Dockerfile, local immutable image ID, exported archive and verification summary.
+Both PR #25 checks and [merged-commit CI](https://github.com/hrw991009/sec-filing-verification-agent/actions/runs/35202733652)
+passed. No source patch or untracked source was present in the frozen build context.
+The first build encountered an OpenCV wheel download timeout; retrying the **same**
+context and Dockerfile succeeded. This is retained as a build attempt, not an exercise failure.
+
+- Tag: `sec-filing-verification-agent:recovery-bfe9f74-d85a8b85fcba`.
+- Local image ID: `sha256:f3cb5da408fd8751d4db3397daaecb98aa51f839233c256ad702aa0440377394`.
+- Archive: `.data/recovery-images/sec-filing-verification-agent-recovery-bfe9f74-d85a8b85fcba.tar`.
+- Fresh isolated project: `iip-recovery-20260917-c1`, schema `f8c0d2e4a579`.
+- All **11 logical recovery checks plus actual image rollback passed without a failed exercise attempt**.
+  The populated backup was repeated after successful live-model Research recovery.
+- Authenticated SEC filing reads, completed Research results and two retained Evidence
+  citations resolved successfully. Monitor/Case collection reads returned zero rows;
+  this proves endpoint reads, not populated Monitor/Case recovery.
+
+The application image uses clean merged production source. Subsequent changes are to
+the external exercise harness/tests/documentation, not the application runtime.
+All 327 application Python files match the earlier verified candidate snapshot.
+The archive is local, not a published registry image; publishing is not required for
+this local recovery baseline. A local image ID must not be advertised as a remote pull address.
+
+The previous verified candidate `recovery-dd8ca16-3a7e2aa8a42c` was used for an actual
+**same-schema image rollback** rehearsal. It has the same schema and application source
+as this baseline; this is not proof of cross-schema downgrade or a materially different
+application-version rollback. The unpatched `dd8ca16` image has known Research recovery
+failures and was not used. The owner approved the current clean baseline; this rehearsal
+does not designate the older candidate as an owner-approved long-term historical release.
+
+The opt-in runner `infra/recovery/rollback.py` checks immutable, distinct image IDs,
+all four running actors and compatible schema heads. It stops only the scoped actors,
+restores a complete snapshot into a fresh database, switches all actors to the previous
+image, verifies retained reads/citations, and exercises real Research interruption on
+that image. Its cleanup returns to the original baseline/configuration. It never
+downgrades or overwrites the source database. Unit checks cover fail-closed image
+validation and configuration restoration after a failed old-image smoke.
+**The runner's existence does not count as an executed rollback.** In this case it was
+executed successfully: all four actors used the previous immutable image, retained
+Research results and two Evidence citations resolved, and a fresh live-model Research
+Worker interruption recovered on the restored database. The previous-image part took
+78.921 seconds. All four actors then returned to the clean current image and passed
+the retained-result smoke again.
+
+The source and restored pre-smoke all-public-table digests were both
+`0ce107533e3706706f9e3759c166f512fb6451e1662f7e61b20042f4277d4ef0`.
+The original database remained unchanged throughout the previous-image execution.
+The restored database's final digest is
+`1caa36c3bd5fe31156e09e1073bf69eefb75d958c26ede7c658ab3677694739c`;
+it legitimately differs because the smoke logged in and completed a **new** Research Run.
+
+The rollback-required summary passed **12/12 scoped logical checks**,
+`single_failure_free_batch=true`, SHA-256
+`5dca428c632645f2ecc75fcf25586da8589618531cc33e1f22553ea9a6f436ba`.
+This closes the recovery engineering and local independent-environment acceptance work.
+
+To repeat this scoped rehearsal against the retained c1 environment:
+
+```powershell
+uv run --locked python infra/recovery/exercise.py start --directory .data/isolated-recovery/iip-recovery-20260917-c1
+uv run --locked python infra/recovery/rollback.py --directory .data/isolated-recovery/iip-recovery-20260917-c1 --previous-image sha256:e2cace07a9e8749f939094843f98d5f7f187b6fe3dc9e3a29821ccf403deef92
+uv run --locked python infra/recovery/exercise.py summarize --directory .data/isolated-recovery/iip-recovery-20260917-c1 --require-rollback
+uv run --locked python infra/recovery/exercise.py collect --directory .data/isolated-recovery/iip-recovery-20260917-c1
+uv run --locked python infra/recovery/exercise.py stop --directory .data/isolated-recovery/iip-recovery-20260917-c1
+```
+
+The optional rollback-required summary is explicitly scoped to the eleven container
+checks plus actual image rollback. It does not replace or mark passed the different
+frozen twelve-scenario release gate. Overall release approval remains separate.
+
+Closeout: only c1 containers were stopped; its volumes, restored database and evidence
+were retained. Shared development containers and `.env` were untouched. Harness
+guardrails and recovery/report regression: 45 tests passed; Ruff and mypy passed.
+These final harness/documentation changes are local and not committed or pushed.
