@@ -38,7 +38,11 @@ For the independent **actual-container** exercise and its verified candidate ima
 [Isolated recovery exercise](../isolated-recovery-exercise.md). It covers a real Worker kill
 during a Research model request, scoped container outages and populated backup/restore.
 Keep its latest-attempt summary separate from the full diagnostic ledger and the frozen
-twelve-scenario release gate below. The historical-image rollback is still owner-deferred.
+twelve-scenario release gate below. The owner-selected clean `bfe9f74` baseline now has
+passing fresh eleven-check evidence and merged-commit CI. An additional same-schema
+rollback to the previous verified candidate has also passed (12 scoped checks total).
+It uses identical application source and schema, not a cross-schema downgrade or an
+owner-designated historical release. See that record's latest section for exact scope.
 
 For the eleven locally executable capability checks, use a new evidence directory:
 

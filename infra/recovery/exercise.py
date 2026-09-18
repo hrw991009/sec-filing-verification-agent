@@ -28,7 +28,6 @@ from psycopg.rows import dict_row
 from reportlab.pdfgen import canvas
 
 ROOT = Path(__file__).resolve().parents[2]
-REVISION = "dd8ca1672ea92e4111b0d261c379120bb170effd"
 SERVICES = ("postgres", "redis", "minio", "minio-init", "etcd", "milvus", "elasticsearch")
 PORTS = {"postgres": 25432, "redis": 26379, "minio": 29000, "milvus": 29530, "elasticsearch": 29200}
 REQUIRED_CHECKS = (
@@ -46,14 +45,23 @@ REQUIRED_CHECKS = (
 )
 
 
-def verification_summary(report: dict[str, Any]) -> dict[str, Any]:
+def verification_summary(
+    report: dict[str, Any], *, require_rollback: bool = False
+) -> dict[str, Any]:
     """Keep failures visible while reporting every required check's latest verified attempt."""
     latest = {row["name"]: row for row in report["scenarios"]}
-    checks = {name: latest.get(name) for name in REQUIRED_CHECKS}
+    required = (
+        (*REQUIRED_CHECKS, "previous-immutable-image-rollback")
+        if require_rollback
+        else REQUIRED_CHECKS
+    )
+    checks = {name: latest.get(name) for name in required}
     return {
         "checks_passed": all(row is not None and row["passed"] is True for row in checks.values()),
         "release_accepted": False,
-        "logical_check_count": len(REQUIRED_CHECKS),
+        "logical_check_count": len(required),
+        "scope": "isolated_container_recovery_not_frozen_release_gate",
+        "rollback_required": require_rollback,
         "source_commit": report["source_commit"],
         "source_patch_sha256": report["source_patch_sha256"],
         "application_image_id": report["application_image_id"],
@@ -169,7 +177,6 @@ class Exercise:
             raise ValueError("Invalid isolated project identity")
         self.compose_file = self.directory / "compose.json"
         self.report: dict[str, Any] = {
-            "source_commit": REVISION,
             "project": self.project,
             "release_accepted": False,
             "scenarios": [],
@@ -188,7 +195,13 @@ class Exercise:
             timeout=timeout,
         )
 
-    def prepare(self, image: str) -> None:
+    def prepare(self, image: str, revision: str | None = None) -> None:
+        expected_revision = (
+            command("git", "rev-parse", "--verify", revision or "HEAD").decode().strip()
+        )
+        app = json.loads(command("docker", "image", "inspect", image))[0]
+        if app["Config"]["Labels"].get("org.opencontainers.image.revision") != expected_revision:
+            raise ValueError("Application revision mismatch")
         self.directory.mkdir(parents=True, exist_ok=False)
         password = secrets.token_urlsafe(30)
         signing = secrets.token_bytes(32)
@@ -274,9 +287,6 @@ class Exercise:
                         "protocol": "tcp",
                     }
                 ]
-        app = json.loads(command("docker", "image", "inspect", image))[0]
-        if app["Config"]["Labels"]["org.opencontainers.image.revision"] != REVISION:
-            raise ValueError("Application revision mismatch")
         for name, module in {
             "api": None,
             "worker": "celery_app",
@@ -314,6 +324,7 @@ class Exercise:
         )
         self.report.update(
             {
+                "source_commit": expected_revision,
                 "images": images,
                 "application_image_id": app["Id"],
                 "application_tag": image,
@@ -339,7 +350,7 @@ class Exercise:
         with psycopg.connect(
             host="127.0.0.1",
             port=25432,
-            dbname="iip_recovery",
+            dbname=self.env["POSTGRES_DB"],
             user="recovery",
             password=self.env["POSTGRES_PASSWORD"],
             row_factory=dict_row,
@@ -1066,13 +1077,21 @@ def main() -> None:
         ),
     )
     parser.add_argument("--directory", type=Path, required=True)
-    parser.add_argument("--image", default="sec-filing-verification-agent:recovery-dd8ca16")
+    parser.add_argument("--image", help="Explicit application image for prepare")
+    parser.add_argument("--revision", help="Expected source revision for prepare (default: HEAD)")
+    parser.add_argument(
+        "--require-rollback",
+        action="store_true",
+        help="Require actual image rollback in the summary",
+    )
     args = parser.parse_args()
     exercise = Exercise(args.directory)
     if args.action == "build":
         build_image(args.directory)
     elif args.action == "prepare":
-        exercise.prepare(args.image)
+        if not args.image:
+            parser.error("prepare requires --image")
+        exercise.prepare(args.image, args.revision)
     else:
         exercise.load()
         if args.action == "start":
@@ -1089,7 +1108,9 @@ def main() -> None:
             exercise.scenario("populated-database-backup-restore", exercise.backup_restore)
         elif args.action == "summarize":
             report_file = exercise.directory / "report.json"
-            summary = verification_summary(json.loads(report_file.read_text()))
+            summary = verification_summary(
+                json.loads(report_file.read_text()), require_rollback=args.require_rollback
+            )
             summary["attempt_report_sha256"] = hashlib.sha256(report_file.read_bytes()).hexdigest()
             summary["environment_sha256"] = hashlib.sha256(
                 (exercise.directory / "environment.json").read_bytes()

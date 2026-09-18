@@ -129,3 +129,27 @@ failures remain in the attempt ledger; the eleven-check summary reports latest v
 results and explicitly is not a failure-free first batch. Historical-image rollback remains
 owner-deferred. Clean committed/published provenance, remote CI and owner acceptance are not
 inferred, and the frozen twelve-scenario release observations have not been marked passed.
+
+## Clean baseline verification (2026-09-17, after PR #25)
+
+PR #25 is merged as `bfe9f742c344be9fe579f944d4df74056a5ef952`, and its merged-commit
+CI passed. The owner selected this version as the recovery image baseline. The new
+[baseline record](../infra/recovery/baseline-bfe9f74.json) identifies the image built
+from that clean Git export, its local archive and a fresh independent `c1` exercise.
+All eleven container/data/Research checks passed with no failed exercise attempt;
+backup/restore was repeated after live-model Research completion. Clean source and
+main CI are therefore no longer pending. No production source changed in this closeout.
+
+The known-good prior candidate has now also passed an actual same-schema image rollback:
+restore into a fresh database, switch all four actors, read retained results/citations,
+recover a newly interrupted Research Run, then return all actors to the current baseline.
+The source database digest remained unchanged. The rollback-required summary passed
+12/12 scoped logical checks with no failed exercise attempt. The new harness's focused
+recovery/report regression passed 45 tests; Ruff and mypy passed.
+
+This closes problem three's recovery engineering and local isolated acceptance. This
+rehearsal uses identical application source and schema, not a cross-schema downgrade.
+It does not appoint the prior candidate as an owner-approved long-term historical release,
+publish an image, or approve the frozen full-product release gate. Those are separate
+release decisions, not unimplemented recovery features. See the isolated-exercise record
+for exact identities, hashes, execution scope and reproduction commands.
