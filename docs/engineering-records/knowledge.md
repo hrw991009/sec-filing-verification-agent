@@ -1,22 +1,22 @@
-# Day 5 执行计划：Knowledge 基础与 SEC Fixture Durable Research L4
+# Knowledge：工程实现与验证记录
 
 > 制定日期：2026-08-23
 >
 > 更新日期：2026-08-26
 >
-> 原计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.2 Day 5
+> 原计划基线：[完整工程范围 主计划](../engineering-baseline.md) 2.0.2 Knowledge
 >
-> 2026-08-26 状态同步基线：[Day 1～Day 10 主计划](../master-plan.md) 2.0.4
+> 2026-08-26 状态同步基线：[完整工程范围 主计划](../engineering-baseline.md) 2.0.4
 >
-> 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D5-01～D5-09
+> 能力边界：[完整工程范围 目标能力矩阵](../feature-matrix.md) D5-01～D5-09
 >
 > 相关架构：[系统架构](../architecture.md)第 3、5、6、10.3、11、12、15.2、15.4、15.6、18 节，[ADR 0002](../adr/0002-postgresql-source-of-truth.md)、[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0004](../adr/0004-celery-redis-background-jobs.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)、[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态：五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，分支 push、PR 与合并提交 CI 均通过；D5-01～D5-07 为 `complete`。现有记录明确缺少 ready SEC fixture 的“Dense/calculation Evidence → 暂停/审批/resume → 刷新反查”真实浏览器旅程，因此 D5-08、D5-09 与 Day 5 总门禁仍为 `implemented_pending_verification`。项目所有者于 2026-08-26 授权进入 Day 6 文档规划，不视为放弃该 DoD；Day 6 代码实现仍须等待该旅程关闭。本文件保留 2026-08-23～25 的过程状态作为历史快照。
+> 当前状态：五步已由 [PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，分支 push、PR 与合并提交 CI 均通过；D5-01～D5-07 为 `complete`。现有记录明确缺少 ready SEC fixture 的“Dense/calculation Evidence → 暂停/审批/resume → 刷新反查”真实浏览器旅程，因此 D5-08、D5-09 与 Knowledge 总门禁仍为 `implemented_pending_verification`。项目所有者于 2026-08-26 授权进入 SEC 数据源 文档规划，不视为放弃该 DoD；SEC 数据源 代码实现仍须等待该旅程关闭。本文件保留 2026-08-23～25 的过程状态作为历史快照。
 
-## 1. 当前门禁与今日边界
+## 1. 当前门禁与范围边界
 
-Day 5 从 Day 4 已完成的 Memory、Observation→Evidence→Claim、ResearchBrief、唯一 `ResearchL3Runtime` 和正式 Workbench 继续演进，不重写 Runtime、Tool loop、Evidence 账本或 Research graph。Step 1～3 建立通用私有文档入库底座；Step 4～5 在冻结 SEC filing fixture 上打通 Dense `knowledge_search`、确定性 `finance.calculate@v1`、可定位 Evidence 和可中断/审批/恢复的 L4，为 Day 6 官方 SEC 来源与 Day 7 双通道检索提供可验证起点。
+Knowledge 从 Memory 与 Evidence 已完成的 Memory、Observation→Evidence→Claim、ResearchBrief、唯一 `ResearchL3Runtime` 和正式 Workbench 继续演进，不重写 Runtime、Tool loop、Evidence 账本或 Research graph。Step 1～3 建立通用私有文档入库底座；Step 4～5 在冻结 SEC filing fixture 上打通 Dense `knowledge_search`、确定性 `finance.calculate@v1`、可定位 Evidence 和可中断/审批/恢复的 L4，为 SEC 数据源 官方 SEC 来源与 财务检索与计算 双通道检索提供可验证起点。
 
 正式链路固定为：
 
@@ -34,34 +34,34 @@ Day 5 从 Day 4 已完成的 Memory、Observation→Evidence→Claim、ResearchB
 今日必须守住以下边界：
 
 - PostgreSQL 保存 Knowledge、Job、Checkpoint、Approval 和 Research 业务事实；MinIO 保存私有字节，Milvus/Elasticsearch 只是可重建索引。
-- Document 只有 vector 与 lexical 两类索引写入都成功后才能进入 `ready`；Day 5 查询只启用 Dense baseline。
-- 官方 SEC 在线接入属于 Day 6；BM25 查询、RRF、rerank 与 XBRL+filing 双通道属于 Day 7；Verifier、bounded revise 和监控属于 Day 8，不提前混入。
+- Document 只有 vector 与 lexical 两类索引写入都成功后才能进入 `ready`；Knowledge 查询只启用 Dense baseline。
+- 官方 SEC 在线接入属于 SEC 数据源；BM25 查询、RRF、rerank 与 XBRL+filing 双通道属于 财务检索与计算；Verifier、bounded revise 和监控属于 核验与监控，不提前混入。
 - Agent Checkpoint 与 ingestion stage checkpoint 是两种 typed 状态机，不共用 revision、无类型 state JSON 或恢复入口。
 - LangGraph 仅是现有 Research graph 的内部编排适配器；普通 CRUD、文档入库和 Tool loop 不进入 LangGraph。
 - Worker hard stop、重复 resume、审批重复提交和 Celery 重投都必须收敛到同一业务结果，不宣称 exactly-once。
-- 跨刷新与 Worker 重启的组合恢复在 Day 5 实现基础链并保留证据；包含官方 SEC、双通道、Verifier 和 Monitor 的发布级组合回归在 Day 10 统一关闭。
+- 跨刷新与 Worker 重启的组合恢复在 Knowledge 实现基础链并保留证据；包含官方 SEC、双通道、Verifier 和 Monitor 的发布级组合回归在 发布验收 统一关闭。
 
-已登记但不阻断 Day 5 的历史债务保持不变：Day 4 核心 Domain/Application/Research workflow 合集覆盖率为 85%，须在 Day 10 总门禁前补到 90%；D1-09 的 6 组参考仓历史凭据候选仍阻断 Day 10 发布标签。
+已登记但不阻断 Knowledge 的历史债务保持不变：Memory 与 Evidence 核心 Domain/Application/Research workflow 合集覆盖率为 85%，须在 发布验收 总门禁前补到 90%；D1-09 的 6 组参考仓历史凭据候选仍阻断 发布验收 发布标签。
 
-历史环境预检记录：本计划创建时仓库 `.nvmrc`/`package.json` 固定 Node `24.16.0`，当时终端为 Node `24.19.0`、pnpm `10.10.0`。该记录不否定已取得的远端分支 CI；Step 4 及后续本地完整门禁必须切换到 Node `24.16.0`，否则只能记录非锁定环境的局部结果，不能表述为可复现的 Day 5 验收通过。
+历史环境预检记录：本计划创建时仓库 `.nvmrc`/`package.json` 固定 Node `24.16.0`，当时终端为 Node `24.19.0`、pnpm `10.10.0`。该记录不否定已取得的远端分支 CI；Step 4 及后续本地完整门禁必须切换到 Node `24.16.0`，否则只能记录非锁定环境的局部结果，不能表述为可复现的 Knowledge 验收通过。
 
 ### 1.1 2026-08-25 分支证据快照
 
 | 步骤 | 提交 | 当前证据 | 尚缺门禁 |
 |---|---|---|---|
-| Step 1 | `bba63e6` | 私有上传 acceptance 切片；对应分支 CI 已通过 | 与后续步骤一起合入 `main`、合并 CI、Day 5 DoD/owner 收口 |
+| Step 1 | `bba63e6` | 私有上传 acceptance 切片；对应分支 CI 已通过 | 与后续步骤一起合入 `main`、合并 CI、Knowledge DoD/owner 收口 |
 | Step 2 | `ad57073`，CI 修复 `adec643` | 版本化解析资产切片；修复后的分支 CI 已通过 | 同上；失败的旧提交不能冒充通过证据 |
-| Step 3 | `4daa028` | Embedding、双索引写入、删除对账与 Workbench 切片；当前 head CI `32796096690` 通过 | `main` 合并、完整故障/恢复门禁、Day 5 DoD；Dense 查询和 Tool/Evidence 由 Step 4 关闭 |
+| Step 3 | `4daa028` | Embedding、双索引写入、删除对账与 Workbench 切片；当前 head CI `32796096690` 通过 | `main` 合并、完整故障/恢复门禁、Knowledge DoD；Dense 查询和 Tool/Evidence 由 Step 4 关闭 |
 | Step 4 | 当前工作树，未提交 | 固定 SEC fixture、Dense `knowledge_search`、`FinancialScope`、`finance.calculate@v1`、filing/calculation Evidence、F0～F2 报告与 Workbench 请求合同；本地全量门禁通过 | Step 4 提交与分支 CI、`main` 合并 CI、owner 复核；F0/F1 真实可执行对照和 SEC 浏览器全链仍需后续增强 |
-| Step 5 | 当前工作树，未提交 | 成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 Approval/Decision、同 Run resume、Job/Outbox、副作用账本、Workbench 时间线与 7 条 L4 recovery 场景；本地统一门禁通过 | Step 5 提交/分支 CI、`main` 合并 CI、Day 5 DoD/owner 复核；后台超时扫描和 Day 8 跨刷新/Worker 重启组合门未实现 |
+| Step 5 | 当前工作树，未提交 | 成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 Approval/Decision、同 Run resume、Job/Outbox、副作用账本、Workbench 时间线与 7 条 L4 recovery 场景；本地统一门禁通过 | Step 5 提交/分支 CI、`main` 合并 CI、Knowledge DoD/owner 复核；后台超时扫描和 核验与监控 跨刷新/Worker 重启组合门未实现 |
 
 在该历史快照时点，这些证据只支持 `implemented_pending_verification`；2026-08-26 的提交、远端 CI、合并与所有者收口见第 8 节，后者取代本段作为当前状态。
 
 ## 2. 现有实现与复用边界
 
-Day 5 最终实现已在 Step 1～3 的正式 `knowledge`、`ingestion` 与索引写入链上增加 Step 4 的 `retrieval`、SEC fixture/FinancialScope、财务计算 Tool 与 Evidence lineage，并在同一 Research graph 上增加 Step 5 L4 Checkpoint/HITL/resume；没有建立第二套 Runtime、Tool loop、Research graph 或索引真相源。
+Knowledge 最终实现已在 Step 1～3 的正式 `knowledge`、`ingestion` 与索引写入链上增加 Step 4 的 `retrieval`、SEC fixture/FinancialScope、财务计算 Tool 与 Evidence lineage，并在同一 Research graph 上增加 Step 5 L4 Checkpoint/HITL/resume；没有建立第二套 Runtime、Tool loop、Research graph 或索引真相源。
 
-| 现有能力 | 必须复用 | Day 5 扩展 | 禁止做法 |
+| 现有能力 | 必须复用 | Knowledge 扩展 | 禁止做法 |
 |---|---|---|---|
 | 私有文件 | `FileApplicationService`、`PrivateFileObjectStore`、`FileObject`、MinIO 短签名 URL、服务端 complete 校验 | Knowledge 上传复用同一 FileObject 与对象存储合同；增加 PDF/TXT/Markdown 知识文件规则 | 新建第二套上传服务、公开 Bucket、信任浏览器 MIME/大小/hash |
 | 附件解析 | `AttachmentParserPort`、`BoundedAttachmentParser` 的有界校验与安全模式 | 新建版本化 `DocumentParser -> ParsedDocument` Port/Adapter，支持页面、OCR、图片和复杂表格资产 | 把聊天附件 parser 直接扩成万能解析器，或在 API 请求内解析 |
@@ -72,9 +72,9 @@ Day 5 最终实现已在 Step 1～3 的正式 `knowledge`、`ingestion` 与索�
 | Evidence | `EvidenceApplicationService`、Normalizer、typed locator、当前 Workspace/资源重授权 | 增加 DocumentVersion/Chunk/Asset locator 与 Knowledge 来源类型 | 把 retrieval result、模型摘要、URL 或 `[S1]` 直接写成 Evidence |
 | Workbench/Eval | `ChatWorkbench`、`TracePanel`、`EvidenceWorkspace`、`ResearchWorkspace`、Scenario/Fake/Replay/Scorer | 增加 Knowledge locator、ingestion、Checkpoint/HITL 与恢复视图 | 前端保存第二份业务事实或仅用 Mock trajectory 展示 |
 
-Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表示该私有对象已经通过附件合同并可供现有会话使用，不表示知识文档已经解析和建立双索引。Day 5 的 Knowledge 专用 Application Service 复用文件存储、服务端校验和事务模式，独立管理 `DocumentVersion` 的 queued/processing/ready/deleting/deleted 状态；不能全局改写现有 `/files/{id}/complete` 的含义，也不能让附件状态替代知识入库状态。
+Agent Runtime 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表示该私有对象已经通过附件合同并可供现有会话使用，不表示知识文档已经解析和建立双索引。Knowledge 的 Knowledge 专用 Application Service 复用文件存储、服务端校验和事务模式，独立管理 `DocumentVersion` 的 queued/processing/ready/deleting/deleted 状态；不能全局改写现有 `/files/{id}/complete` 的含义，也不能让附件状态替代知识入库状态。
 
-如果 Day 5 实现需要改变技术栈、数据所有权、模块职责、Research graph 公共语义或安全边界，必须先更新相应 ADR 和主计划；按既有决策实现时不为形式新增 ADR。
+如果 Knowledge 实现需要改变技术栈、数据所有权、模块职责、Research graph 公共语义或安全边界，必须先更新相应 ADR 和主计划；按既有决策实现时不为形式新增 ADR。
 
 ## 3. 五个可验收步骤
 
@@ -84,7 +84,7 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 | 2. 版本化解析与可追溯资产 | D5-03、D5-04、D5-05 的解析部分 | 数字 PDF、扫描 PDF、图表 PDF、TXT/Markdown → ParsedDocument → Page/Chunk/Asset | Parser contract、页码/bbox/hash、OCR/图片/复杂表格、阶段恢复 |
 | 3. 双索引 ready、删除对账与文档 Workbench | D5-05、D5-06、D5-07，D5-08 的 Embedding/index-write 部分 | Embedding → vector/lexical index → ready；版本切换、删除和故障可见 | 两类索引门禁、确定性 ID、重投幂等、跨存储补偿、详情界面 |
 | 4. SEC Fixture Knowledge、计算与 Evidence 闭环 | D5-08 | 固定 accession fixture → `knowledge_search` → `FinancialScope` → `finance.calculate@v1` → Evidence/Claim | Dense baseline、数值/单位/期间/公式、稳定失败语义、Context manifest 与 F0～F2 fixture 对照 |
-| 5. SEC Fixture Durable Research L4、HITL 与收口 | D5-09 与全部 Day 5 门禁 | hard stop → 最后成功 Checkpoint → approve/deny/timeout → resume → 零重复副作用 | 同一 Run 恢复、持久审批、SEC locator Workbench、Scenario/Eval、DoD 与 CI |
+| 5. SEC Fixture Durable Research L4、HITL 与收口 | D5-09 与全部 Knowledge 门禁 | hard stop → 最后成功 Checkpoint → approve/deny/timeout → resume → 零重复副作用 | 同一 Run 恢复、持久审批、SEC locator Workbench、Scenario/Eval、DoD 与 CI |
 
 ### 步骤 1：知识库、私有上传与异步受理闭环
 
@@ -123,7 +123,7 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 
 ### 步骤 3：双索引 ready、跨存储删除与文档 Workbench 闭环
 
-定义独立版本化 `EmbeddingProvider` Port/Adapter 和索引 Port，完成 embedding、vector_indexing、lexical_indexing 两类写入。Milvus/Elasticsearch 使用 `chunk_id:index_version` 等确定性外部 ID；只有两类索引记录都成功后，DocumentVersion 才进入 `ready` 并可切换为 active。Day 5 的 Elasticsearch 只完成 lexical index 写入，不开放 BM25 查询。
+定义独立版本化 `EmbeddingProvider` Port/Adapter 和索引 Port，完成 embedding、vector_indexing、lexical_indexing 两类写入。Milvus/Elasticsearch 使用 `chunk_id:index_version` 等确定性外部 ID；只有两类索引记录都成功后，DocumentVersion 才进入 `ready` 并可切换为 active。Knowledge 的 Elasticsearch 只完成 lexical index 写入，不开放 BM25 查询。
 
 验收条件：
 
@@ -137,7 +137,7 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 
 本步必须保留的证据：代表性文档进入 `ready` 的双索引记录、一条索引依赖失败记录、一条 hard-stop/重投恢复记录、一条跨存储删除与对账记录，以及从 DocumentVersion 导航到 Chunk/Asset 的浏览器证据。
 
-本步不开放 BM25 查询、RRF、rerank 或 Hybrid 搜索；索引写入能力不能被表述为 Day 6 RAG 已完成。
+本步不开放 BM25 查询、RRF、rerank 或 Hybrid 搜索；索引写入能力不能被表述为 SEC 数据源 RAG 已完成。
 
 ### 步骤 4：SEC Fixture Knowledge、计算与 Evidence 闭环
 
@@ -151,12 +151,12 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 - filing locator 至少包含 CIK、accession、form、filed/accepted time、document/version/chunk、section/page、content hash 和 parser/chunker/index version；数值 locator 还包含 period、unit/scale 与输入 Evidence refs。
 - `finance.calculate@v1` 只接受 allowlisted operator、Decimal 输入、兼容 unit、rounding policy 和 Evidence refs；保存公式与输出 lineage，拒绝任意代码、无来源数字、单位冲突和除零。
 - `knowledge_search`、calculator 与 `KnowledgeContextSource` 复用统一 Tool loop/Context Compiler；Research graph 不改 Runtime 即可消费 Observation。
-- 至少覆盖一条原文事实问答、一条派生计算和一条证据不足问题，形成“Dense candidate → Observation → typed calculation → Evidence/Claim → supported/uncertain L3 draft”链路；Day 8 Verifier 的四类最终业务状态不在本步实现。
-- F0 fixture oracle/full-context、F1 fixture Dense RAG、F2 F1+calculator 的机器可比较报告分别给出来源、数值、公式、Evidence 支持、Token、费用和延迟，不能只报告向量分数或最终答案。F0～F2 仅是 Day 5 合同对照，不占用 Day 7～Day 8 正式 A0～A4 的语义。
+- 至少覆盖一条原文事实问答、一条派生计算和一条证据不足问题，形成“Dense candidate → Observation → typed calculation → Evidence/Claim → supported/uncertain L3 draft”链路；核验与监控 Verifier 的四类最终业务状态不在本步实现。
+- F0 fixture oracle/full-context、F1 fixture Dense RAG、F2 F1+calculator 的机器可比较报告分别给出来源、数值、公式、Evidence 支持、Token、费用和延迟，不能只报告向量分数或最终答案。F0～F2 仅是 Knowledge 合同对照，不占用 财务检索与计算～核验与监控 正式 A0～A4 的语义。
 
 本步必须保留的证据：成功 Dense/计算 Trace、no-result 或 period-mismatch Trace、跨 Workspace 与 cutoff 后零召回记录，以及 F0～F2 JSON/Markdown 报告。
 
-本步不实现 live SEC Adapter、XBRL 结构化通道、BM25/RRF/rerank、Verifier、bounded revise 或 Monitor；这些分别属于 Day 6～Day 8。
+本步不实现 live SEC Adapter、XBRL 结构化通道、BM25/RRF/rerank、Verifier、bounded revise 或 Monitor；这些分别属于 SEC 数据源～核验与监控。
 
 #### 2026-08-25 本地实施与验收记录
 
@@ -167,7 +167,7 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 - 本地门禁：锁定 Node `24.16.0`、pnpm `10.10.0`、Python `3.13.14`；Ruff format/check、mypy 416 文件通过；pytest 在 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch required 模式下 `1013 passed`；Vitest `82 passed`、Playwright `7 passed`、前端关键状态覆盖率 100%、生产 build、OpenAPI 重新生成前后 hash 一致。Python/Node 锁定依赖审计无已知漏洞，62 个提交的 Gitleaks 历史扫描及改动目录扫描无泄漏。现有 Playwright 只覆盖 Research/Knowledge 通用真实链，没有准备 ready Apple fixture，不能记为 SEC 浏览器端到端。
 - 状态与限制：Step 4/D5-08 推进为 `implemented_pending_verification`。工作树尚未提交或推送，没有 Step 4 分支 CI、`main` 合并 CI、owner 复核；live SEC、XBRL、BM25/RRF/rerank、Verifier/bounded revise/Monitor 均未实现。
 
-### 步骤 5：SEC Fixture Durable Research L4、HITL 与 Day 5 收口
+### 步骤 5：SEC Fixture Durable Research L4、HITL 与 Knowledge 收口
 
 将包含 `FinancialScope`、SEC fixture Evidence 和 calculation refs 的 `ResearchGraphState` 映射到统一版本化 Agent State/`CheckpointEnvelope`，在每个安全节点完成后用 expected revision/CAS 保存 Checkpoint。增加持久 `ApprovalRequest/Decision`、resume token、副作用账本和恢复 Application Service/API/SSE；重复 resume 继续同一 AgentRun，并从最后成功节点恢复。
 
@@ -180,23 +180,23 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 - allow 从同一 Checkpoint 继续，deny/timeout 形成稳定终态或受控分支；取消、deadline、max steps、Token/费用预算在 pause/resume 前后持续生效。
 - Research 主要节点被强制 hard stop 后，Reconciler/Worker 从最后成功 Checkpoint 恢复；Celery redelivery 不新增重复 Agent Step，Runtime retry 仍产生可观察 Step/Event。
 - Workbench 展示 Checkpoint revision/state diff、暂停原因、ApprovalRequest/Decision、恢复位置和结果；刷新后从正式 API/Event/Trace 重建，并能沿“SEC fixture/accession → Chunk → 数值/公式 Evidence → Research Step → Checkpoint”导航。
-- 保留 Day 4 已冻结的 50 条 Scenario，不用“数量已超过 30”替代 Day 5 覆盖；新增版本化 Day 5 场景覆盖入库故障、旧版本/删除、Knowledge 失败语义、hard stop、重复 resume、allow/deny/timeout、取消和预算。
+- 保留 Memory 与 Evidence 已冻结的 50 条 Scenario，不用“数量已超过 30”替代 Knowledge 覆盖；新增版本化 Knowledge 场景覆盖入库故障、旧版本/删除、Knowledge 失败语义、hard stop、重复 resume、allow/deny/timeout、取消和预算。
 - 形成 ingestion reliability、SEC fixture Knowledge/calculation/Evidence、L3/L4 runtime recovery 三类独立报告；规则/确定性 Scorer 与人工抽样同时存在，LLM judge 不是唯一判据。
 - 全量 format/lint/type、fresh migration、OpenAPI/SSE/typed contract、真实依赖、权限负向、组件、关键 E2E、覆盖率、依赖/许可证、Secret、隐私和回滚检查通过。
 
-本步必须完成 `docs/ingestion-state-machine.md`、统一 Agent Checkpoint/L4 合同、Day 5 运行与回滚说明，并按实际证据更新 `docs/agent-runtime.md`、`docs/research-state-machine.md`、能力矩阵、README 和本文验收记录。
+本步必须完成 `docs/ingestion-state-machine.md`、统一 Agent Checkpoint/L4 合同、Knowledge 运行与回滚说明，并按实际证据更新 `docs/agent-runtime.md`、`docs/research-state-machine.md`、能力矩阵、README 和本文验收记录。
 
-步骤 5 通过仍不等于可直接标记 Day 5 `complete`。只有功能分支 CI、合入 `main`、合并提交 CI、双向能力映射、正式 Trace/Eval/DoD 复核和项目所有者验收全部完成后，才能统一关闭 D5-01～D5-09 并开始 Day 6 官方 SEC 来源接入。
+步骤 5 通过仍不等于可直接标记 Knowledge `complete`。只有功能分支 CI、合入 `main`、合并提交 CI、双向能力映射、正式 Trace/Eval/DoD 复核和项目所有者验收全部完成后，才能统一关闭 D5-01～D5-09 并开始 SEC 数据源 官方 SEC 来源接入。
 
 #### 2026-08-25 本地实施记录
 
 - Checkpoint：通用 `CheckpointEnvelope` 增加领域 payload 与独立 Checkpoint revision，PostgreSQL Store 用 expected revision/CAS 保存。Research 在每个成功节点后保存 `research_l4_v1` payload，包含规范化 `FinancialScope`、graph state、下一节点和恢复所需 Step/Observation/decision/response refs；Loader 与当前 Brief scope、schema、节点和 committed Event 尾部做 fail-closed 比对。
 - HITL：`plan` 后可因 `company_or_period_ambiguity` 暂停；`research_approval_requests` 只保存 proof 摘要，Decision、Job/Outbox 领取和副作用账本分别持久化。allow/deny/timeout、重复 Decision/resume、错误 proof、取消和 Budget 在真实 PostgreSQL 合同中验证；当前 timeout 在到期后的 decision 时固化，没有后台自动过期扫描器。
-- 恢复：approval resume 与安全节点 hard-stop recovery 都继续同一 AgentRun 和 `next_node`。SEC fixture 可执行测试在 `research_loop` 后硬停，恢复时不重复 Knowledge/calculator，并只产生一组 Evidence/Claim/Draft；该证据不覆盖任意节点中点或 Day 8 跨刷新/Worker 重启组合门。
+- 恢复：approval resume 与安全节点 hard-stop recovery 都继续同一 AgentRun 和 `next_node`。SEC fixture 可执行测试在 `research_loop` 后硬停，恢复时不重复 Knowledge/calculator，并只产生一组 Evidence/Claim/Draft；该证据不覆盖任意节点中点或 核验与监控 跨刷新/Worker 重启组合门。
 - Workbench/API：增加 durability timeline、approval decision 和 resume typed API；页面显示 Checkpoint revision/state diff、审批原因/状态和恢复动作，组件测试验证先持久 Decision 再发 resume。
 - Eval/文档：新增 7 条 `sec-fixture-l4-v1` 场景与机器核对报告，覆盖 hard stop、allow、deny、timeout、repeat、cancel、budget；报告测试反算四项指标并校验证据路径。新增 [Checkpoint/HITL 合同](../research-checkpoint-contract.md) 与 [运行回滚手册](../runbooks/day-5-research-l4.md)。
 - 本地统一门禁：锁定 Node `24.16.0`、pnpm `10.10.0`、Python `3.13.14`；Ruff format/check 438 文件、mypy 420 文件通过；pytest 在 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch required 模式下 `1018 passed`、`0 skipped`，总覆盖率 `80.84%`，并完成 Alembic 全历史 downgrade/upgrade 往返；Vitest `83 passed`、Playwright `7 passed`、前端关键状态覆盖率 100%、Python/Web 生产构建通过。OpenAPI 连续生成 hash 一致；Python/Node 锁定依赖审计无已知漏洞，受控源码目录与 63 个提交的 Gitleaks 历史扫描无泄漏。Playwright 覆盖现有 Research/Knowledge 通用真实链和 durability 读取，但没有 ready Apple fixture 的暂停/审批/resume 浏览器旅程，不能记为 SEC L4 浏览器端到端。
-- 状态与限制：Step 5/D5-09 为 `implemented_pending_verification`。尚缺当前工作树提交、Step 4/5 分支 CI、`main` 合并提交 CI、完整 Day 5 DoD 和 owner 复核；不据此开始 Day 6。
+- 状态与限制：Step 5/D5-09 为 `implemented_pending_verification`。尚缺当前工作树提交、Step 4/5 分支 CI、`main` 合并提交 CI、完整 Knowledge DoD 和 owner 复核；不据此开始 SEC 数据源。
 
 ## 4. 步骤状态与转换规则
 
@@ -206,7 +206,7 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 | 2. 版本化解析与可追溯资产 | `complete` | 已由 PR #9、分支/PR/main CI、DoD 与所有者收口关闭 |
 | 3. 双索引 ready、删除对账与文档 Workbench | `complete` | 已由 PR #9、分支/PR/main CI、DoD 与所有者收口关闭；Dense query/Tool 仍由 Step 4 证明 |
 | 4. SEC Fixture Knowledge、计算与 Evidence | `implemented_pending_verification` | 实现、分支/PR/main CI 与确定性 Trace/Eval 已完成；仍缺 ready SEC fixture 的浏览器 Dense/calculation/Evidence 旅程 |
-| 5. SEC Fixture Durable Research L4、HITL 与收口 | `implemented_pending_verification` | 实现、分支/PR/main CI 与恢复场景已完成；仍缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程；Day 8 组合恢复门另行保留 |
+| 5. SEC Fixture Durable Research L4、HITL 与收口 | `implemented_pending_verification` | 实现、分支/PR/main CI 与恢复场景已完成；仍缺同一 fixture 的暂停/审批/resume/刷新浏览器旅程；核验与监控 组合恢复门另行保留 |
 
 状态只随证据推进：
 
@@ -218,11 +218,11 @@ Day 2 的聊天附件完成语义必须保持兼容：`FileObject ready` 只表�
 
 任一步的关闭记录必须追加在本文，至少包含提交/工作树范围、迁移、OpenAPI/SSE、单元/集成/组件/E2E、真实依赖、Scenario/Eval、覆盖率、安全/许可证、Trace、限制、回滚和复核人。保留各步骤当时的历史事实，不用后续结果覆盖原始时点。
 
-## 5. Scenario、Eval 与学习计划
+## 5. Scenario 与 Eval
 
 ### 5.1 数据集和故障矩阵
 
-Day 4 已有 50 条累计 Scenario，但它们只证明通用 Runtime/Memory/Evidence/L3 回归，不证明 SEC 或财务能力。Day 5 必须保留既有数据集和报告，不重写基线，并新增版本化场景：
+Memory 与 Evidence 已有 50 条累计 Scenario，但它们只证明通用 Runtime/Memory/Evidence/L3 回归，不证明 SEC 或财务能力。Knowledge 必须保留既有数据集和报告，不重写基线，并新增版本化场景：
 
 - ingestion：重复 complete、重复 Job、解析/OCR/资产/Chunk/Embedding/vector/lexical 各阶段失败或 hard stop、取消、旧 fencing token、依赖恢复；
 - lifecycle：旧版本、active 切换、partial_index、跨存储删除失败、对账修复、删除后查询；
@@ -245,25 +245,11 @@ Parser/Embedding 的 contract fixture、入库可靠性 case 和 Agent Scenario 
 
 所有报告固定 dataset、accession/snapshot hash、scenario、runtime/harness/tool/context/parser/chunker/embedding/index/graph/checkpoint/scorer version，并保存 deterministic fixture refs。固定/replay 不能表述为 live SEC 或真实 Provider 质量。
 
-### 5.3 当日学习问题
-
-编码前写下并在每步验收后回答：
-
-1. Knowledge Base 为什么既可以提供 Tool，又可以提供 Context Source，但仍不等于 Memory？
-2. 为什么 DocumentVersion/Chunk/Asset 是业务事实，而 Milvus/Elasticsearch 只是可重建候选索引？
-3. Agent Checkpoint 与 ingestion stage checkpoint 都使用版本和幂等时，为什么仍不能共用一个状态模型？
-4. Worker hard stop 后怎样证明是“从最后成功节点继续”，而不是从头重跑并隐藏重复费用或副作用？
-5. `no_result`、`not_ready`、`partial_index`、`dependency_failed` 和 `permission_denied` 分别会怎样改变 Agent 的下一步与用户界面？
-6. `FinancialScope` 为什么必须在检索、计算、Checkpoint 和 Citation 中保持同一 CIK/accession/period/`as_of`？
-7. 冻结 SEC fixture 能证明哪些合同，为什么不能证明 live EDGAR、新 filing 新鲜度或公开 benchmark 泛化能力？
-
-每步验收记录“假设 → 场景 → 实现 → Trace → Scorer → 结论”，并明确选择保留、回退或继续实验。不能只记录测试数量或最终页面截图。
-
-## 6. Day 5 Definition of Done 映射
+## 6. Knowledge Definition of Done 映射
 
 每个 D5 目标从过程状态改为 `complete` 前，逐项记录以下证据。`N/A` 必须写明具体理由、复核人和日期；面向用户的旅程、权限、失败/恢复和安全检查不得标为 `N/A`。
 
-| DoD 维度 | Day 5 必须提交的证据 |
+| DoD 维度 | Knowledge 必须提交的证据 |
 |---|---|
 | 真实用户旅程 | 创建 KB → 导入固定 SEC fixture → 观察入库 → ready filing 详情 → Dense Research/typed calculation → Evidence locator → hard stop/审批/resume → Workbench 反查 |
 | 正常/边界/失败/权限/恢复 | 五步各自的领域、API、真实依赖、故障注入、跨 Workspace、刷新和恢复场景 |
@@ -272,7 +258,7 @@ Parser/Embedding 的 contract fixture、入库可靠性 case 和 Agent Scenario 
 | 数据所有权和生命周期 | PG 事实、MinIO 私有对象、双索引派生、版本切换、deleting/deleted、补偿/对账、Checkpoint/Approval 保留与回滚 |
 | 安全与隐私 | MIME/magic/大小/页数/像素/输出预算、Workspace 重授权、短签名 URL、Prompt Injection 边界、Secret/CoT/私有全文不进日志或 Checkpoint |
 | 许可证与供应链 | Parser/OCR/Embedding/Milvus/ES/LangGraph 等新增或变更依赖的许可证、来源、NOTICE、锁文件和 audit |
-| Eval | 新增 Day 5 SEC fixture/计算/L4 Scenario、三类规则 Scorer、人工抽样、F0～F2 与 L3/L4 对照；报告 filing identity、数值/公式、轨迹、Evidence、恢复、副作用、Token/费用/延迟 |
+| Eval | 新增 Knowledge SEC fixture/计算/L4 Scenario、三类规则 Scorer、人工抽样、F0～F2 与 L3/L4 对照；报告 filing identity、数值/公式、轨迹、Evidence、恢复、副作用、Token/费用/延迟 |
 | 文档与回滚 | ingestion 状态机、Checkpoint/L4 合同、README/Runbook、能力矩阵、本文步骤证据；停用新入库/查询/恢复能力时不破坏既有 L3 事实 |
 | 干净环境 | format/lint/type/build、全量测试、真实 PG/Redis/MinIO/Milvus/ES、关键浏览器旅程、Secret/依赖扫描和干净 CI |
 
@@ -285,9 +271,9 @@ Agent 追加 DoD 同时要求：
 - Trace 能解释 `FinancialScope`、Context manifest、Knowledge/Calculator Tool Step、Evidence/Claim、Checkpoint、usage 和结果，但不保存原始 chain-of-thought 或完整 filing。
 - 真实用户可以看到 not-ready/partial/failed、审批、取消和恢复；UI 不能把错误、L3 草稿或 partial index 伪装成 complete/ready。
 
-## 7. Day 5 总门禁
+## 7. Knowledge 总门禁
 
-只有以下条件全部实际通过，才允许关闭 Day 5 并进入 Day 6：
+只有以下条件全部实际通过，才允许关闭 Knowledge 并进入 SEC 数据源：
 
 - 代表性 SEC fixture 进入 `ready`，Research 经同一 Harness/Runtime 检索并引用固定 accession/section/Chunk/数值/公式 Evidence。
 - 上传立即返回，Worker 各主要阶段可观察、可取消、可恢复或安全重试，重复 Chunk/索引/Artifact 为 0。
@@ -296,7 +282,7 @@ Agent 追加 DoD 同时要求：
 - Workbench 能沿“SEC fixture/accession → DocumentVersion/Chunk → 数值/公式 Evidence → Research Step → Checkpoint/Approval”导航并在刷新后恢复。
 - 全局与 Agent DoD、D5-01～D5-09 双向映射、功能分支 CI、`main` 合并提交 CI 和项目所有者复核全部完成。
 
-若任一条件未通过，保持 Day 5 相应过程状态并继续当前步骤，不开始 Day 6 官方 SEC 来源接入，不通过删除场景、放宽预算、静默 Mock、跳过真实依赖或把 Day 6～Day 8 能力提前混入来制造进度。
+若任一条件未通过，保持 Knowledge 相应过程状态并继续当前步骤，不开始 SEC 数据源 官方 SEC 来源接入，不通过删除场景、放宽预算、静默 Mock、跳过真实依赖或把 SEC 数据源～核验与监控 能力提前混入来制造进度。
 
 ## 8. 2026-08-26 合并证据与剩余 DoD
 
@@ -311,8 +297,8 @@ Agent 追加 DoD 同时要求：
 | 合并提交 CI | [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) | Python/Web 质量、PostgreSQL/Redis/MinIO 集成、Chromium E2E、Python/Node 依赖审计和完整历史 Secret 扫描共 7 个适用 Job 全部成功 |
 | Trace/Eval | 第 3～5 节及版本化报告、合同、Runbook | 后端/Harness/组件与通用浏览器证据已完成 |
 | 未关闭浏览器 DoD | 第 3 节记录没有 ready Apple fixture 浏览器全链，也没有该 fixture 的暂停/审批/resume 浏览器旅程 | D5-08、D5-09 保持 `implemented_pending_verification` |
-| 项目所有者 | 2026-08-26 明确要求进入 Day 6 | 授权进入 Day 6 文档规划；未明确放弃浏览器 DoD，故不作为豁免 |
+| 项目所有者 | 2026-08-26 明确要求进入 SEC 数据源 | 授权进入 SEC 数据源 文档规划；未明确放弃浏览器 DoD，故不作为豁免 |
 
-因此 D5-01～D5-07 更新为 `complete`；D5-08、D5-09 与 Day 5 总门禁保持 `implemented_pending_verification`。关闭条件是用真实 Chromium、正式 API 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 完成一条无手工改库旅程：准备 ready SEC fixture → 发起 Dense/typed calculation Research → 在 Workbench 反查 filing/calculation Evidence → 触发暂停 → allow/deny 或 timeout → resume → 刷新后仍从同一 Checkpoint 展示结果，并断言重复 Tool/计算/Artifact 为 0。该证据进入分支 CI 和 `main` CI 后，才可关闭 D5-08/D5-09 并开始 Day 6 代码实现。
+因此 D5-01～D5-07 更新为 `complete`；D5-08、D5-09 与 Knowledge 总门禁保持 `implemented_pending_verification`。关闭条件是用真实 Chromium、正式 API 和真实 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 完成一条无手工改库旅程：准备 ready SEC fixture → 发起 Dense/typed calculation Research → 在 Workbench 反查 filing/calculation Evidence → 触发暂停 → allow/deny 或 timeout → resume → 刷新后仍从同一 Checkpoint 展示结果，并断言重复 Tool/计算/Artifact 为 0。该证据进入分支 CI 和 `main` CI 后，才可关闭 D5-08/D5-09 并开始 SEC 数据源 代码实现。
 
-live SEC/XBRL 仍属于 Day 6，BM25/RRF/rerank 和正式核对属于 Day 7，Verifier/Monitor 与跨刷新/Worker 重启组合恢复属于 Day 8。D1-09 外部凭据治理和 Day 4 核心覆盖率 85%→90% 债务继续阻断 Day 10 发布标签。
+live SEC/XBRL 仍属于 SEC 数据源，BM25/RRF/rerank 和正式核对属于 财务检索与计算，Verifier/Monitor 与跨刷新/Worker 重启组合恢复属于 核验与监控。D1-09 外部凭据治理和 Memory 与 Evidence 核心覆盖率 85%→90% 债务继续阻断 发布验收 发布标签。

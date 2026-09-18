@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
@@ -156,6 +156,8 @@ class FilingSelectionQuery(BaseModel):
     @model_validator(mode="after")
     def validate_domain_scope(self) -> Self:
         self.to_domain()
+        if self.as_of > datetime.now(UTC):
+            raise ValueError("SEC filing selection as_of cannot be in the future")
         return self
 
     def to_domain(self) -> FilingSelectionScope:

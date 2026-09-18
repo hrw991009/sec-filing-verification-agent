@@ -80,6 +80,13 @@ export function listSecFilings(
         },
       }),
     );
+    if (response.status === "incomplete") {
+      throw new Error(
+        response.error_code === "source_version_not_visible_at_as_of"
+          ? "来源版本在截止时点不可见；请使用较新的截止时间或已有历史快照。"
+          : `申报覆盖不完整：${response.error_code ?? "unknown"}`,
+      );
+    }
     return response.filings;
   });
 }

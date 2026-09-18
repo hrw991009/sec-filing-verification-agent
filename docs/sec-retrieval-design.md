@@ -1,6 +1,6 @@
 # SEC Filing Retrieval 与财务计算设计
 
-> 状态：Day 7 五步代码已由 PR #11 合入 `main`，两组 PR 检查通过；合并提交 main CI `33156337673` 最终为 6/7 Job 通过、Browser E2E 失败。D7-01/D7-03～D7-08 保持 `implemented_pending_verification`，D7-02 保持 `thin_slice`，真实依赖、live/model、正式浏览器、中英 paired、main CI 与所有者复核待关闭
+> 状态：财务检索与计算 五步代码已由 PR #11 合入 `main`，两组 PR 检查通过；合并提交 main CI `33156337673` 最终为 6/7 Job 通过、Browser E2E 失败。D7-01/D7-03～D7-08 保持 `implemented_pending_verification`，D7-02 保持 `thin_slice`，真实依赖、live/model、正式浏览器、中英 paired、main CI 与所有者复核待关闭
 >
 > 基线：`IIP-MASTER-001` 2.1.6，D7-01～D7-08
 >
@@ -8,13 +8,13 @@
 
 ## 1. 目标与非目标
 
-本设计把 Day 6 已锁定的 SEC filer/accession/XBRL/source snapshot 链扩展为可评测的 Filing Hybrid Retrieval、SEC Evidence、确定性财务计算、period/unit/context 核对和中文 L4 draft。它不创建第二套 Agent loop、检索存储、calculator 或 Citation 模型。
+本设计把 SEC 数据源 已锁定的 SEC filer/accession/XBRL/source snapshot 链扩展为可评测的 Filing Hybrid Retrieval、SEC Evidence、确定性财务计算、period/unit/context 核对和中文 L4 draft。它不创建第二套 Agent loop、检索存储、calculator 或 Citation 模型。
 
-Day 7 不负责 L5 Verifier、bounded revise、Monitor/HITL、公开 benchmark release suite，也不输出投资建议或把 L4 draft 标记为 verified。
+财务检索与计算 不负责 L5 Verifier、bounded revise、Monitor/HITL、公开 benchmark release suite，也不输出投资建议或把 L4 draft 标记为 verified。
 
 ## 2. 现有组件复用
 
-| 现有边界 | Day 7 使用方式 |
+| 现有边界 | 财务检索与计算 使用方式 |
 |---|---|
 | `modules/retrieval` | 扩展当前 Dense candidate port/service 为版本化 Hybrid candidate pipeline |
 | `modules/disclosures` | 继续负责锁定 filing、XBRL fact、source snapshot、Workspace import 与 SEC read Tool |
@@ -60,7 +60,7 @@ Locator 只有在读取时重新通过 Workspace、source visibility、snapshot/
 
 ## 6. Calculation、reconciliation 与 diff
 
-`finance.calculate@v1` 的正式 SEC 路径只接受同时携带 `evidence_ref`、`source_fact_id` 和 canonical value 的 XBRL operand。Application port 必须从 PostgreSQL 重载当前 Workspace import、active Knowledge/DocumentVersion、filing/source/fact identity 与 cutoff；任何正式字段缺失、未授权或依赖失败都不得降级到 Day 5 fixture。fixture 路径只为无 `source_fact_id` 的历史调用保留。
+`finance.calculate@v1` 的正式 SEC 路径只接受同时携带 `evidence_ref`、`source_fact_id` 和 canonical value 的 XBRL operand。Application port 必须从 PostgreSQL 重载当前 Workspace import、active Knowledge/DocumentVersion、filing/source/fact identity 与 cutoff；任何正式字段缺失、未授权或依赖失败都不得降级到 Knowledge fixture。fixture 路径只为无 `source_fact_id` 的历史调用保留。
 
 计算器继续使用同一 Decimal implementation 和固定 operator，当前支持 add、subtract、ratio、percentage 与 percent change。XBRL fact value 先按自身 scale 规范到锁定 `FinancialScope.scale`，再执行算术与 half-even rounding；结果保存 formula、operand Evidence IDs、unit/scale/rounding、执行状态和输出 Evidence lineage。零分母、单位冲突、缺输入或越权输入返回 typed error。
 
@@ -84,9 +84,9 @@ scope -> resolve -> select -> decompose
 
 ## 8. 评测与回滚
 
-`sec-tool-v1` 的 A0/A1/A2 必须共用 case manifest、数据版本、Scope 和预算：A0 为 oracle/full context，A1 为纯 Filing Hybrid RAG，A2 为 RAG + SEC/XBRL Tool + calculator。核心门禁见 [Day 7 执行计划](learning-log/day-7.md) 和 [SEC Agent 评测计划](sec-agent-evaluation.md)。
+`sec-tool-v1` 的 A0/A1/A2 必须共用 case manifest、数据版本、Scope 和预算：A0 为 oracle/full context，A1 为纯 Filing Hybrid RAG，A2 为 RAG + SEC/XBRL Tool + calculator。核心门禁见 [财务检索与计算 执行计划](engineering-records/financial-retrieval.md) 和 [SEC Agent 评测计划](sec-agent-evaluation.md)。
 
-当前 deterministic contract 已冻结 10 个 case 和 30 个策略观察，报告从独立 observation 输入重算 identity、答案/Evidence、计算 lineage、Citation、拒答、Tool surface、预算与成本延迟；其 A2 复杂题净收益通过，且简单题无退化。该结果不包含 live/model、公开 benchmark、真实依赖浏览器全链或中英 paired run，不能据此把 Day 7 标为完成。
+当前 deterministic contract 已冻结 10 个 case 和 30 个策略观察，报告从独立 observation 输入重算 identity、答案/Evidence、计算 lineage、Citation、拒答、Tool surface、预算与成本延迟；其 A2 复杂题净收益通过，且简单题无退化。该结果不包含 live/model、公开 benchmark、真实依赖浏览器全链或中英 paired run，不能据此把 财务检索与计算 标为完成。
 
 ### 表格坐标与 Citation 解析收口
 

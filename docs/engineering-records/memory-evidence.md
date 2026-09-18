@@ -1,18 +1,18 @@
-# Day 4 执行计划：Agent Memory、Evidence 与 Deep Research L3
+# Memory 与 Evidence：工程实现与验证记录
 
 > 制定日期：2026-08-20
 >
-> 计划基线：[七天主计划](../master-plan.md) 1.7.2 Day 4
+> 计划基线：[七天主计划](../engineering-baseline.md) 1.7.2 Memory 与 Evidence
 >
 > 相关决策：[系统架构](../architecture.md)第 6.5～6.6、10.3、12、15.1、15.4、15.6、18 节，[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0005](../adr/0005-langgraph-research-only.md)
 >
-> 当前状态：Day 3、Day 4 门禁均已关闭。Day 4 步骤 1～5、正式 Trace/Eval/DoD 复核和项目所有者授权收口已经完成；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 `c0b854e` 的 GitHub CI `32549438592` 通过全部 7 个适用 Job。D4-01～D4-07 与步骤 1～5 均为 `complete`，可以进入 Day 5；核心合集 85% 覆盖率仍是 Day 7 前补到 90% 的明确债务。
+> 当前状态：工具执行、Memory 与 Evidence 门禁均已关闭。Memory 与 Evidence 步骤 1～5、正式 Trace/Eval/DoD 复核和项目所有者授权收口已经完成；[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 `c0b854e` 的 GitHub CI `32549438592` 通过全部 7 个适用 Job。D4-01～D4-07 与步骤 1～5 均为 `complete`，可以进入 Knowledge；核心合集 85% 覆盖率仍是 财务检索与计算 前补到 90% 的明确债务。
 
 ## 1. 执行边界
 
-Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、任务结果、Token、费用、延迟和 24 条累计 Scenario，不重做基线，也不另写 Runtime、Tool loop 或仅供展示的 Workbench 数据链路。每一步都必须沿正式 PostgreSQL、Application Service、统一 `UnifiedAgentRuntime`、Event/Trace/Context manifest、OpenAPI 和真实前端交互形成纵向闭环。
+Memory 与 Evidence 复用 Agent Runtime/3 已保存的 L0/L2 Run、Observation、Context manifest、任务结果、Token、费用、延迟和 24 条累计 Scenario，不重做基线，也不另写 Runtime、Tool loop 或仅供展示的 Workbench 数据链路。每一步都必须沿正式 PostgreSQL、Application Service、统一 `UnifiedAgentRuntime`、Event/Trace/Context manifest、OpenAPI 和真实前端交互形成纵向闭环。
 
-本日终点是可治理的 Short/Long-term Memory、Observation→Evidence→Claim 与可解释 Research L3 草稿。Durable Checkpoint、持久 HITL、Worker hard-stop resume 属于 Day 5，Verifier 与 bounded revise 属于 Day 6；不得用普通状态持久化、节点名称或 Mock 成功提前冒充这些能力。
+本日终点是可治理的 Short/Long-term Memory、Observation→Evidence→Claim 与可解释 Research L3 草稿。Durable Checkpoint、持久 HITL、Worker hard-stop resume 属于 Knowledge，Verifier 与 bounded revise 属于 SEC 数据源；不得用普通状态持久化、节点名称或 Mock 成功提前冒充这些能力。
 
 每一步只有在其正常、边界、失败、权限、刷新恢复、契约、可观测和评测条件全部通过后才能关闭。适用的全局与 Agent Definition of Done 必须逐项复核；任何 `N/A` 都要写明具体理由、复核人和日期。
 
@@ -24,7 +24,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 | 2. Memory 召回与治理 | D4-02、D4-03、D4-07 的 Memory 预算部分 | 实际 ModelInput/manifest、修改与删除残留 |
 | 3. Evidence/Claim 账本 | D4-06、D4-04 的 Evidence/Claim 前置事实 | 提升边界、lineage、coverage/conflict |
 | 4. Research L3 graph | D4-04、D4-07 的 Research 执行边界 | ResearchBrief、唯一 graph、预算与终态 |
-| 5. Workbench/Eval/门禁 | D4-05 与全部 Day 4 Eval/DoD | 正式可视化、对照报告、全量门禁 |
+| 5. Workbench/Eval/门禁 | D4-05 与全部 Memory 与 Evidence Eval/DoD | 正式可视化、对照报告、全量门禁 |
 
 ### 步骤 1：可控 Memory 写入纵向闭环
 
@@ -48,11 +48,11 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 ### 步骤 3：Observation→Evidence→Claim 账本闭环
 
-复用 Day 3 的 Web/行业与 Text2SQL Observation/EvidenceCandidate，建立统一 Evidence Normalizer、版本化 locator 判别联合、来源/许可与资源重新授权、去重、content hash、lineage、状态和失效语义。建立 `ResearchClaim` 与 `claim_evidence`，分别表达 supports/refutes/context 关系以及 supported/refuted/uncertain/conflicted 状态、coverage 和 conflict；证据图只从已持久化并授权的正式关系派生。
+复用 工具执行 的 Web/行业与 Text2SQL Observation/EvidenceCandidate，建立统一 Evidence Normalizer、版本化 locator 判别联合、来源/许可与资源重新授权、去重、content hash、lineage、状态和失效语义。建立 `ResearchClaim` 与 `claim_evidence`，分别表达 supports/refutes/context 关系以及 supported/refuted/uncertain/conflicted 状态、coverage 和 conflict；证据图只从已持久化并授权的正式关系派生。
 
 验收条件：
 
-- 至少各有一条 Day 3 Web/行业和 Text2SQL 正式 Observation 经过完整校验后成为 Evidence，并能反查 origin Run/Step/ToolCall、来源版本、normalizer version 和 locator。
+- 至少各有一条 工具执行 Web/行业和 Text2SQL 正式 Observation 经过完整校验后成为 Evidence，并能反查 origin Run/Step/ToolCall、来源版本、normalizer version 和 locator。
 - 未授权、locator 无效、来源版本或许可缺失、依赖失败、敏感内容超界和跨 Workspace 候选不得提升为 active Evidence；失效后不再暴露 excerpt、私有对象或签名 URL。
 - 每个关键 Claim 关联当前用户可访问的 Evidence，或明确标记 uncertain/conflicted；supports/refutes/context、coverage、conflict 和图节点/边可确定验证，不能由文案或 finalizer 伪造确定性。
 
@@ -66,16 +66,16 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 生产、Harness、Research 和 Workbench 使用同一 run_id、Step/Event sequence、Budget、stop reason 与 Trace；不存在图外 Research、Router/节点直连 Provider 或复制 Tool loop。
 - 正常、Tool/Provider 失败、Evidence 缺失/矛盾、max steps、Token/费用、deadline、取消和跨 Workspace 场景均有明确终态；本步只交付 L3，不宣称 durable resume、HITL、Verifier 或 bounded revise。
 
-### 步骤 5：Workbench、对照 Eval 与 Day 4 门禁收口
+### 步骤 5：Workbench、对照 Eval 与 Memory 与 Evidence 门禁收口
 
-扩展正式 Agent Learning Workbench 的 Memory、Context manifest、Research 时间线和 Evidence/Claim 图；所有状态从 OpenAPI、Event、Trace、manifest 和正式资源 API 重建。保留 Day 2/3 基线并增加 Day 4 的 Memory 候选/冲突/删除、Research scope、Evidence 缺失/矛盾、预算和权限 Scenario；Memory Scorer 与 Evidence/Research Scorer 分开报告，并完成同题 L0/L2/L3 对照。
+扩展正式 Agent Learning Workbench 的 Memory、Context manifest、Research 时间线和 Evidence/Claim 图；所有状态从 OpenAPI、Event、Trace、manifest 和正式资源 API 重建。保留 Agent Runtime/3 基线并增加 Memory 与 Evidence 的 Memory 候选/冲突/删除、Research scope、Evidence 缺失/矛盾、预算和权限 Scenario；Memory Scorer 与 Evidence/Research Scorer 分开报告，并完成同题 L0/L2/L3 对照。
 
 验收条件：
 
 - 刷新后仍能回答“什么被写入、为何召回、什么进入 Context、哪些 Claim 由哪些来源支持”；修改、停用、删除和 Evidence 失效会同时反映在界面与下一 Run。
 - 累计 Scenario 不少于主计划要求的 20 条且保留已有 24 条基线；报告同时包含结果、轨迹、Evidence、Memory 污染/删除残留、Token、费用和延迟，并由规则 Scorer、确定性夹具和人工抽样支持，LLM judge 不是唯一判据。
 - 全量 format/lint/type、fresh Alembic migration、OpenAPI/SSE contract、真实 PostgreSQL/Redis/MinIO、权限负向、组件、关键 E2E、依赖/许可证、Secret 与隐私检查通过；不存在静默 Mock、调试旁路或第二正式链路。
-- 完成 `docs/memory-policy.md`、`docs/research-state-machine.md`、本学习日志、能力矩阵和必要 README/运行回滚说明；逐项关闭 Day 4 验收门禁与适用 Definition of Done，干净 CI 通过后才能把 D4-01～D4-07 标记为 `complete` 并进入 Day 5。
+- 完成 `docs/memory-policy.md`、`docs/research-state-machine.md`、本工程记录、能力矩阵和必要 README/运行回滚说明；逐项关闭 Memory 与 Evidence 验收门禁与适用 Definition of Done，干净 CI 通过后才能把 D4-01～D4-07 标记为 `complete` 并进入 Knowledge。
 
 ## 3. 步骤状态
 
@@ -85,7 +85,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 | 2. Memory 召回与治理 | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
 | 3. Evidence/Claim 账本 | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
 | 4. Research L3 graph | `complete` | 本地验收、功能分支 CI、`main` 合并提交 CI 与总复核均已通过 |
-| 5. Workbench/Eval/Day 4 门禁 | `complete` | 正式 Trace/Eval/DoD、功能分支 CI、`main` 合并提交 CI 与授权收口均已通过 |
+| 5. Workbench/Eval/Memory 与 Evidence 门禁 | `complete` | 正式 Trace/Eval/DoD、功能分支 CI、`main` 合并提交 CI 与授权收口均已通过 |
 
 状态只随实际证据更新。代码存在、页面截图、单条漂亮答案、Mock success 或局部绿色测试都不能把任一步改为完成。
 
@@ -110,7 +110,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 正式下一次 Run：真实 Chromium 在 Conversation A 确认 Memory 后新建 Conversation B；测试驱动只替换外部 Provider，正式 Job/Loader、`UnifiedAgentRuntime`、`ContextCompilerV1`、Context manifest、Event/Trace 与 PostgreSQL 链路不变。Trace 明确显示 Long-term Memory“已送入模型”，并可导航到对应 revision 后继续治理。
 - ModelInput/manifest：契约测试同时断言被纳入 Memory 正文实际存在于 Provider `ModelRequest`，manifest 只保留 id/digest/revision/scope/ranking 元数据；排除项不进入 ModelInput，纳入项 Token 总数与预算快照一致。Short-term、Long-term、summary、附件、问题与 Observation 保持独立 source kind 和稳定顺序。
 - 召回策略与权限：真实 PostgreSQL 以 current goal、scope、freshness、status/expiry、敏感度、反馈、重复、冲突和预算执行确定性选择；Conversation B 只能召回本 Workspace 当前用户的相关 Memory，同题的外部 Workspace Memory 候选数为 0。
-- 治理与删除：搜索、反馈、修改、停用、启用、过期和删除均走正式 HTTP/Application/Repository；修改后召回 content v2，负反馈、停用与过期分别给出稳定排除原因。删除与重复删除均成功，随后召回、列表、详情、Revision 正文和 Revision source 的在线 residual 均为 0；备份介质擦除仍属于 Day 7 保留策略，不在本步冒充完成。
+- 治理与删除：搜索、反馈、修改、停用、启用、过期和删除均走正式 HTTP/Application/Repository；修改后召回 content v2，负反馈、停用与过期分别给出稳定排除原因。删除与重复删除均成功，随后召回、列表、详情、Revision 正文和 Revision source 的在线 residual 均为 0；备份介质擦除仍属于 财务检索与计算 保留策略，不在本步冒充完成。
 - Workbench：正式 Memory 管理页支持列表、搜索、筛选、详情、Revision、修改、scope/kind/expiry、停用/启用、反馈和删除确认；共享 Memory 对非 owner 只读。失败或 stale revision 后重新加载服务端，不用乐观 UI 假装成功；Trace 展示 scope、version、relevance、feedback、Token 与排除原因。
 - Eval：`day4-memory-v1` 通过共享 Harness Scenario loader，`memory-scorer-v1` 输出 write accuracy、retrieval precision/utility、pollution、conflict handling、edit effectiveness、deletion residual、input token 和 latency，并为每项比例固定 numerator/denominator。JSON/Markdown 是确定性 fixture 基线，不冒充真实 Provider 质量结论。
 - 契约与迁移：`d7c91e4a62bf` 在 fresh PostgreSQL 上完成步骤 2 schema upgrade，Memory migration 与治理测试 4/4 通过；OpenAPI/TypeScript 连续两次生成 SHA-256 一致。HTTP 使用统一 problem+json；本步未新增 SSE Event type，故 SSE schema 变更为 `N/A`（原因：召回事实进入既有 Context manifest/Trace，治理是同步资源操作；复核人 Codex，2026-08-20）。
@@ -123,7 +123,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 复核人：Codex；复核日期：2026-08-21。
 
-- 正式来源链路：Day 3 `industry.web_search:v1` 与 `database.text2sql:v1` 均通过统一 `ToolL2Runtime` 产生正式 PostgreSQL ToolCall/Observation；Normalizer 重新计算 Tool schema/content/envelope hash，不接受客户端重组的候选。
+- 正式来源链路：工具执行 `industry.web_search:v1` 与 `database.text2sql:v1` 均通过统一 `ToolL2Runtime` 产生正式 PostgreSQL ToolCall/Observation；Normalizer 重新计算 Tool schema/content/envelope hash，不接受客户端重组的候选。
 - Web/行业提升：真实 Web Conversation→Job/Outbox→Runtime→Tool→Observation 链路中，只有具备同 Workspace 不可变 SourceItem、精确 Provider version/hash 和允许许可的一项成为 Evidence；缺少快照的第二项保存 `source_snapshot_missing` 拒绝决策，重复归一化返回同一 Evidence。
 - Text2SQL 提升：独立 PostgreSQL 只读账号完成实际 SELECT；QueryRun 精确绑定 AgentRun/ToolCall，并携带 completed 状态、SchemaSnapshot、validated SQL、QueryResult 和 result hash。`sql_result_v1` locator 可反查 connection、QueryRun、SchemaSnapshot/hash、允许表、源列和行范围；跨 Workspace 读取为 0。
 - Claim 与图：supports/refutes/context、supported/refuted/uncertain/conflicted、coverage 与 conflict 使用纯 domain 规则；Claim→Evidence 节点/边只由正式关系生成。Evidence tombstone 后 excerpt 清空、relation/node/edge 失效，Claim 从 supported 重算为 uncertain、coverage 从 1 降为 0。
@@ -133,8 +133,8 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 迁移与契约：`f2a4c6e8b013` 已在 fresh PostgreSQL 通过 migration smoke；OpenAPI 和 TypeScript 契约由正式应用生成。未新增 SSE Event type，故 SSE schema 变更为 `N/A`（原因：提升与治理是同步资源决议，origin 复用既有 Tool Event/Trace；复核人 Codex，2026-08-21）。
 - 完整本地门禁：PostgreSQL/Redis/MinIO 全部强制开启时 Python `927 passed`、无 skip，包含 Evidence HTTP 权限/Revision 契约、fresh migration smoke、Web/Claim 与独立只读账号 Text2SQL Evidence 集成；354 个 Python 文件通过 format，Ruff、mypy 342 个源文件和 Python wheel/sdist 构建通过。Web format/lint/typecheck、16 个 Vitest 文件共 61 条测试、生产构建和 Playwright 5/5 通过；其中浏览器从正式 Trace 提升 Evidence 并在刷新后恢复 Inspector lineage。OpenAPI/TypeScript 连续两次生成 SHA-256 一致。
 - 安全与供应链：Python/Node audit 均无已知漏洞；受控源码、测试、文档、Eval 路径及 51 个 Git 提交的 Gitleaks 扫描无发现。普通日志、Trace 和 AuditLog 不保存 Secret、原始 Tool 参数、Provider 原始响应或 chain-of-thought。
-- 依赖/许可证 `N/A`：本步骤未新增 Python、Node、服务或 Provider 依赖；SQL lineage 复用 Day 3 已锁定的 SQLGlot，锁文件和 NOTICE 无变化；复核人 Codex，2026-08-21。
-- 尚未远端验证：步骤 3 验收时没有执行 commit、push 或 GitHub CI，因此步骤 3 保持 `implemented_pending_verification`；当时 D4-04 Research L3 尚未完成，其后续本地结果见 3.4。完整 D4-05 Workbench 和 Message/Report Citation 仍未完成，不能提前进入 Day 5。
+- 依赖/许可证 `N/A`：本步骤未新增 Python、Node、服务或 Provider 依赖；SQL lineage 复用 工具执行 已锁定的 SQLGlot，锁文件和 NOTICE 无变化；复核人 Codex，2026-08-21。
+- 尚未远端验证：步骤 3 验收时没有执行 commit、push 或 GitHub CI，因此步骤 3 保持 `implemented_pending_verification`；当时 D4-04 Research L3 尚未完成，其后续本地结果见 3.4。完整 D4-05 Workbench 和 Message/Report Citation 仍未完成，不能提前进入 Knowledge。
 - 本机运行时偏差：仓库固定 Node `24.16.0`，当前本机为 `24.19.0`，pnpm 给出 engine warning；所有上述 Web 门禁仍通过，但精确版本的干净环境复核必须由 CI 完成。
 
 ### 3.4 步骤 4 本地验收记录
@@ -150,7 +150,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 完整本地门禁：370 个 Python 文件通过 format，Ruff 无问题，mypy 检查 357 个源文件无错误；pytest 940 passed，默认未强制的两个 MinIO 测试随后以 `MINIO_TESTS_REQUIRED=1` 单独执行并 2/2 通过。Web format/lint/typecheck、16 个 Vitest 文件共 61 条测试、生产构建和 Playwright 5/5 通过；wheel/sdist 构建成功。
 - 依赖与安全：精确锁定 `langgraph==1.2.11`；主包、checkpoint/prebuilt/sdk 和 LangChain Core 为 MIT，ormsgpack 为 Apache-2.0 OR MIT，xxhash/uuid-utils 为 BSD。import probe 与 `uv audit --locked` 通过，Python/Node 无已知漏洞；受控路径和 52 个提交的 Gitleaks 扫描无发现。
 - 运行与文档：状态、事件、失败、L3/L4/L5 边界和回滚见 [Research L3 状态机](../research-state-machine.md)。本机 Node 与仓库固定版本均为 `24.16.0`，pnpm 为 `10.10.0`，没有步骤 2 曾记录的 Node engine 偏差。
-- 尚未远端验证：步骤 4 验收时没有执行 commit、push 或 GitHub CI，因此步骤 4、D4-04 和 Research 部分的 D4-07 保持 `implemented_pending_verification`；当时尚未完成的 Research Workbench、对照 Eval 和 Day 4 总门禁，其后续本地结果见 3.5。
+- 尚未远端验证：步骤 4 验收时没有执行 commit、push 或 GitHub CI，因此步骤 4、D4-04 和 Research 部分的 D4-07 保持 `implemented_pending_verification`；当时尚未完成的 Research Workbench、对照 Eval 和 Memory 与 Evidence 总门禁，其后续本地结果见 3.5。
 
 ### 3.5 步骤 5 本地验收记录
 
@@ -159,12 +159,12 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 正式 Workbench：新增 Research workspace，通过生成 OpenAPI 类型调用 Research create/list/detail、Claim/Evidence graph、Agent cancel 和 safe Trace API；显式展示 Brief、scope/exclusions/criteria、Plan、八个 graph node、统一 Step、usage/stop reason、Evidence/Claim、coverage/conflict、uncertain draft 和不可用状态。Evidence↔Research 可关联导航，刷新后只从 PostgreSQL/API/Event/Trace 重建；没有前端轨迹或分数缓存。
 - 真实用户旅程：Chromium 从页面创建 Research L3，经 ResearchRun/AgentRun/Job/Outbox、统一 Runtime、正式 Web Tool、Evidence Normalizer、Claim 和 draft，再查看安全节点时间线、跳转 Evidence/Claim，并在整页刷新后恢复同一 Run。冻结 Web Provider 缺少不可变 SourceItem snapshot 时稳定得到 rejected Evidence、uncertain Claim 和 uncertain draft，未被伪装成成功。
 - Trace 安全修复：Research 节点 Event 加入后端显式安全字段表，模块导入时强制该表穷举全部 `AgentEventType`；前端 Trace 解码器同步接受三个版本化 Research Event。`error_summary`、Prompt、Tool 原文、Memory/Evidence 正文和 chain-of-thought 不进入 Trace。
-- 独立 Eval：保留 Day 2/3 的 24 条基线；Day 4 使用 8 条 Memory、2 条同输入 Memory off/on、6 条 Evidence/Claim 和 10 条 Research Scenario，累计 50 条。`memory-scorer-v1`、`memory-ablation-scorer-v1`、`evidence-scorer-v1`、`research-scorer-v1` 分开计算；同题 L0/L2/L3 报告同时展示步骤、Token、费用、延迟、Evidence、Claim 和不确定项。执行代理人工抽样同题 L0/L2/L3、Evidence 缺失、冲突、取消与权限 case，确认规则字段与 frozen fixture/Trace ref 一致；这些报告不冒充真实 Provider 质量。
+- 独立 Eval：保留 Agent Runtime/3 的 24 条基线；Memory 与 Evidence 使用 8 条 Memory、2 条同输入 Memory off/on、6 条 Evidence/Claim 和 10 条 Research Scenario，累计 50 条。`memory-scorer-v1`、`memory-ablation-scorer-v1`、`evidence-scorer-v1`、`research-scorer-v1` 分开计算；同题 L0/L2/L3 报告同时展示步骤、Token、费用、延迟、Evidence、Claim 和不确定项。执行代理人工抽样同题 L0/L2/L3、Evidence 缺失、冲突、取消与权限 case，确认规则字段与 frozen fixture/Trace ref 一致；这些报告不冒充真实 Provider 质量。
 - Memory 消融：同一问题、Provider fixture、Prompt、Runtime 和预算下，Memory on 相对 off 的规则任务质量 `+1.0`、污染 `0.0`、冲突处理 `+1.0`，fixture 成本为 `+64` input tokens、`+7 ms`。该单一确定性用例不能外推为“Memory 对所有任务都有净收益”。
 - 完整本地门禁：固定 Python 3.13.14、Node 24.16.0、pnpm 10.10.0；373 个 Python 文件通过 format，Ruff 通过，mypy 检查 360 个源文件无问题。真实 PostgreSQL/Redis/MinIO 强制开启且无 skip，pytest `946 passed`；migration smoke 完成全历史 upgrade → Alembic check → downgrade base → upgrade。17 个 Vitest 文件 `75 passed`，全量 Playwright `6 passed`，Python wheel/sdist、Web production build、OpenAPI/TypeScript hash 确定性、Python/Node audit 均通过。
-- 覆盖率：后端全量 statement/branch 综合覆盖率 `82.12%`，超过整体 80% 门槛；前端关键 `chat-workbench-model.ts` 的 statement/branch/function/line 均为 `100%`，超过 75% 门槛。Day 4 选定 Domain/Application/Research workflow 合集为 `85%`，未达到目标 90%，记录为明确例外：原因是 PostgreSQL adapters 与公开 API/E2E 已覆盖主要纵向链，但多个纯校验失败分支尚未逐一补齐；风险是罕见畸形输入的分支回归发现较晚；缓解为 CI 固定 85% 不退化、全量 80%、真实集成和权限/失败 E2E，并在进入 Day 7 完整门禁前补到 90%。例外复核人 Codex，2026-08-22；它不等于豁免远端 CI。
-- 安全与供应链：受控源码/测试/文档/Eval 路径与完整历史 Gitleaks 无发现（当前受控路径含未提交变化，历史扫描 53 个可达提交）；`uv audit --locked` 与 `pnpm audit --audit-level high` 无已知漏洞。覆盖率工具锁定 `pytest-cov>=7.1.0,<8.0.0` 与匹配 Vitest 的 `@vitest/coverage-v8==4.1.10`，许可证均为 MIT；Day 4 LangGraph 许可证结论保持不变。安全/隐私和生命周期复核见 [Day 4 专项复核](../security/day-4-memory-research-review.md)。
-- 生命周期、Citation 与 N/A：在线 Memory deletion residual 为 0；Evidence tombstone/Claim 重算通过；备份一致性、恢复核对和回滚步骤已文档化，完整隔离恢复/物理 purge 按主计划保留为 Day 7，未虚报完成。Evidence scorer 的当前 locator 可解析率为 `2/2`，Research L3 不生成 Message/Report Citation，因此不存在新增悬空 Citation；最终 Report/Citation 完整门禁仍归 Day 6。durable graph resume/HITL/Verifier/bounded revise 为阶段性 `N/A`，原因是主计划明确分别归 Day 5/6，Day 4 用唯一终态、停止原因和 hard-stop 收敛替代；复核人 Codex，2026-08-22。
+- 覆盖率：后端全量 statement/branch 综合覆盖率 `82.12%`，超过整体 80% 门槛；前端关键 `chat-workbench-model.ts` 的 statement/branch/function/line 均为 `100%`，超过 75% 门槛。Memory 与 Evidence 选定 Domain/Application/Research workflow 合集为 `85%`，未达到目标 90%，记录为明确例外：原因是 PostgreSQL adapters 与公开 API/E2E 已覆盖主要纵向链，但多个纯校验失败分支尚未逐一补齐；风险是罕见畸形输入的分支回归发现较晚；缓解为 CI 固定 85% 不退化、全量 80%、真实集成和权限/失败 E2E，并在进入 财务检索与计算 完整门禁前补到 90%。例外复核人 Codex，2026-08-22；它不等于豁免远端 CI。
+- 安全与供应链：受控源码/测试/文档/Eval 路径与完整历史 Gitleaks 无发现（当前受控路径含未提交变化，历史扫描 53 个可达提交）；`uv audit --locked` 与 `pnpm audit --audit-level high` 无已知漏洞。覆盖率工具锁定 `pytest-cov>=7.1.0,<8.0.0` 与匹配 Vitest 的 `@vitest/coverage-v8==4.1.10`，许可证均为 MIT；Memory 与 Evidence LangGraph 许可证结论保持不变。安全/隐私和生命周期复核见 [Memory 与 Evidence 专项复核](../security/day-4-memory-research-review.md)。
+- 生命周期、Citation 与 N/A：在线 Memory deletion residual 为 0；Evidence tombstone/Claim 重算通过；备份一致性、恢复核对和回滚步骤已文档化，完整隔离恢复/物理 purge 按主计划保留为 财务检索与计算，未虚报完成。Evidence scorer 的当前 locator 可解析率为 `2/2`，Research L3 不生成 Message/Report Citation，因此不存在新增悬空 Citation；最终 Report/Citation 完整门禁仍归 SEC 数据源。durable graph resume/HITL/Verifier/bounded revise 为阶段性 `N/A`，原因是主计划明确分别归 Knowledge/6，Memory 与 Evidence 用唯一终态、停止原因和 hard-stop 收敛替代；复核人 Codex，2026-08-22。
 - 当时尚未远端验证：步骤 5 本地收口时还没有 commit、push 或 GitHub CI，因此当时步骤 1～5 与 D4-01～D4-07 只能保持 `implemented_pending_verification`。后续提交与分支 CI 结果见 3.6；本段不覆盖本地关闭时点的原始记录。
 
 ### 3.6 提交、分支/主分支 CI 与最终关闭审计
@@ -173,10 +173,10 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 - 提交与推送：五个步骤依次形成 `4243cb0`、`7f8c7ac`、`446c9cc`、`27b75ea`、`b99ca7a`，收口文档形成 `9c9a630`，均已推送到 `origin/feat/day-4`。
 - 干净分支 CI：最终提交 [`b99ca7a`](https://github.com/hrw991009/industry-intelligence-platform/commit/b99ca7a8eca3f51a726449bc2aa7462aa51c9cff) 的 [CI 32547497639](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32547497639) 状态为 `success`。7 个适用 Job 全部通过：Browser E2E、Python dependency audit、PostgreSQL integration、Python quality、Secret history、Node dependency audit、Web quality；覆盖率门槛也在正式 CI 步骤中执行。步骤 4 提交曾有失败运行 `32541399291`，最终提交修复后由成功运行取代，不以 rerun 掩盖失败。
-- 覆盖率例外：最终 CI 保持 Day 4 核心合集 85% 不退化、后端全量 80% 和前端关键状态 75% 门槛；本地测得 85%/82.12%/100%。核心合集距离 90% 的原因、风险、缓解和复核人仍以 3.5 为准，必须在 Day 7 总门禁前清偿，不能因 CI 通过删去。
+- 覆盖率例外：最终 CI 保持 Memory 与 Evidence 核心合集 85% 不退化、后端全量 80% 和前端关键状态 75% 门槛；本地测得 85%/82.12%/100%。核心合集距离 90% 的原因、风险、缓解和复核人仍以 3.5 为准，必须在 财务检索与计算 总门禁前清偿，不能因 CI 通过删去。
 - 主分支审计：[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 于 2026-08-22 合入 `main`；合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 状态为 `success`，7 个适用 Job 全部通过：Browser E2E、Python dependency audit、PostgreSQL integration、Python quality、Secret history、Node dependency audit、Web quality。
-- 文档审计：README、主计划、架构、能力矩阵、Harness、Memory/Evidence/Research 策略、运行手册和安全复核统一更新为已发生的 `main` 合并、合并提交 CI 与 Day 4 关闭事实；没有改变技术栈、数据所有权、安全边界、模块职责或 Day 5～7 冻结范围。
-- 最终结论：远端提交、功能分支 CI、`main` 合并提交 CI 与项目所有者授权收口均已完成；步骤 1～5 和 D4-01～D4-07 统一为 `complete`，允许进入 Day 5。85% 核心覆盖率例外继续作为 Day 7 前必须补到 90% 的债务，不因 Day 4 关闭而删除。
+- 文档审计：README、主计划、架构、能力矩阵、Harness、Memory/Evidence/Research 策略、运行手册和安全复核统一更新为已发生的 `main` 合并、合并提交 CI 与 Memory 与 Evidence 关闭事实；没有改变技术栈、数据所有权、安全边界、模块职责或 Knowledge～7 冻结范围。
+- 最终结论：远端提交、功能分支 CI、`main` 合并提交 CI 与项目所有者授权收口均已完成；步骤 1～5 和 D4-01～D4-07 统一为 `complete`，允许进入 Knowledge。85% 核心覆盖率例外继续作为 财务检索与计算 前必须补到 90% 的债务，不因 Memory 与 Evidence 关闭而删除。
 
 ### 3.7 Trace 复盘、双向映射与所有者授权
 
@@ -187,9 +187,9 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 1. **为什么多个节点不等于多个 Agent**：八个 L3 节点共享同一个 AgentRun、`UnifiedAgentRuntime`、Context Compiler、ToolExecutor、Budget、Event sequence、stop reason 与 Trace；节点只是同一 typed graph 中的职责分段，没有独立权限、工具循环或公共 Runtime。
 2. **Short-term Memory、Long-term Memory、State 与 Context 的区别**：Short-term Memory 是 Thread 内消息引用、摘要和 freshness 投影；Long-term Memory 是跨 Thread、用户可治理的版本化事实；State 是当前 Run 随 Step 演进的业务状态；Context 是某一次模型调用实际看到的有界输入。它们通过 manifest 关联，但所有权、生命周期和用途不同。
 3. **Observation 如何成为 Evidence**：Tool Observation 默认不可信；只有重新验证当前 Workspace/底层资源权限、Tool/schema/envelope hash、来源版本与许可、typed locator、content hash 和敏感内容边界，并经过版本化 Normalizer 决策后，才能成为 active Evidence。拒绝项保留稳定原因，不能被 Claim 或 finalizer 改写成有效证据。
-4. **为什么 L3 还不是完整可恢复研究**：L3 保存 Research State、Event 和业务事实，但没有把 LangGraph state 映射为版本化 Agent Checkpoint，也没有 interrupt/resume token、持久 Approval、CAS 和副作用账本；Worker hard stop 只能收敛为明确终态，不能从最后节点安全恢复。这些能力属于 Day 5 的 L4。
+4. **为什么 L3 还不是完整可恢复研究**：L3 保存 Research State、Event 和业务事实，但没有把 LangGraph state 映射为版本化 Agent Checkpoint，也没有 interrupt/resume token、持久 Approval、CAS 和副作用账本；Worker hard stop 只能收敛为明确终态，不能从最后节点安全恢复。这些能力属于 Knowledge 的 L4。
 
-双向映射复核确认：D4-01～D4-03 由正式 Memory 写入、跨 Thread 召回、Context manifest、治理和 deletion residual 证据覆盖；D4-04 与 D4-07 由唯一 Research L3 graph、预算/取消/失败和安全边界覆盖；D4-05 由正式 Workbench、刷新恢复和 L0/L2/L3 对照覆盖；D4-06 由 Observation→Evidence→Claim lineage、coverage/conflict、失效重算和授权复核覆盖。每项均具备实现、测试/Eval 与用户可见证据，不存在无人负责的 Day 4 门禁。
+双向映射复核确认：D4-01～D4-03 由正式 Memory 写入、跨 Thread 召回、Context manifest、治理和 deletion residual 证据覆盖；D4-04 与 D4-07 由唯一 Research L3 graph、预算/取消/失败和安全边界覆盖；D4-05 由正式 Workbench、刷新恢复和 L0/L2/L3 对照覆盖；D4-06 由 Observation→Evidence→Claim lineage、coverage/conflict、失效重算和授权复核覆盖。每项均具备实现、测试/Eval 与用户可见证据，不存在无人负责的 Memory 与 Evidence 门禁。
 
 ## 4. 每一步的详细实施说明
 
@@ -281,13 +281,13 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 复用 **ContextManifestRecord**、SqlAlchemyContextManifestStore、Trace 查询和 TracePanel 的正式链路。
 - 复用 **UnifiedAgentRuntime** 的 budget、deadline、取消、唯一终态和 Provider 调用入口。
 - 复用 **agent_harness/scenarios.py**、HarnessRunner、Fake/Replay 和版本化报告结构。
-- 复用 PostgreSQL 作为 Memory 当前投影和修订事实源；Day 4 不因召回方便而新增不可治理的进程内 dict。
+- 复用 PostgreSQL 作为 Memory 当前投影和修订事实源；Memory 与 Evidence 不因召回方便而新增不可治理的进程内 dict。
 
 #### 后端工作清单
 
 1. 为 Short-term Memory 定义消息引用、摘要、compaction revision、freshness 和 schema version；摘要必须指向源 Message，而不是复制无限历史。
 2. 为 Long-term Memory 定义可组合的候选检索和策略接口，输入至少包含 current goal、user/workspace scope、conversation、时间、敏感等级和 Context budget。
-3. 冻结排序与决策因素：任务相关性、scope、freshness、冲突、重复、敏感度、用户反馈、status/expiry 和 Token 成本。Day 4 可以使用可解释的确定性基线，不为追求相似度提前引入向量基础设施。
+3. 冻结排序与决策因素：任务相关性、scope、freshness、冲突、重复、敏感度、用户反馈、status/expiry 和 Token 成本。Memory 与 Evidence 可以使用可解释的确定性基线，不为追求相似度提前引入向量基础设施。
 4. 扩展 Context Compiler，使 Short-term 与 Long-term Memory 成为独立 source kind，并为每条候选写入 included、not available、stale、conflicted、duplicate、sensitive、disabled、expired、deleted 或 token budget 等明确决策原因。
 5. Context manifest 必须保存 run id、step id、source kind/id/version、included、decision reason、token count 和 budget snapshot；只保存资源引用和脱敏摘要，不保存不必要的全文。测试必须同时断言 manifest 与实际 ModelInput 一致，不能只证明数据库存在一条 manifest。
 6. 在 Provider 调用前完成预算结算；必需输入无法容纳时沿现有稳定 stop reason 失败，不能静默删除 system instructions 或可信约束。
@@ -334,7 +334,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 #### 目标与完成后的用户结果
 
-本步把 Day 3 已有的 Tool Observation 从“不可信但可追溯的结果”提升为经过重新授权、Schema/locator 校验、来源与许可检查、规范化和去重的 Evidence，并以 Claim–Evidence 关系表达支持、反驳、上下文、覆盖和冲突。成为 Evidence 只表示来源可授权、可定位、可追溯，不表示来源天然真实。
+本步把 工具执行 已有的 Tool Observation 从“不可信但可追溯的结果”提升为经过重新授权、Schema/locator 校验、来源与许可检查、规范化和去重的 Evidence，并以 Claim–Evidence 关系表达支持、反驳、上下文、覆盖和冲突。成为 Evidence 只表示来源可授权、可定位、可追溯，不表示来源天然真实。
 
 完成后应能演示：
 
@@ -362,15 +362,15 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
    - research_claims：workspace、research run、statement、confidence、verification status、coverage 和 conflict。
    - claim_evidence：claim、evidence、supports/refutes/context、relation version、verification status、ordering 和 origin Run/Step。
    - graph_nodes/graph_edges：只保存指向正式 Claim/Evidence/Entity 的派生关系，不保存新的事实副本。
-4. locator 必须是版本化判别联合，Day 4 至少真正支持现有 Web/行业和 SQL 结果类型。JSON 字段必须先经过 typed Schema，不接受任意 metadata。
-5. Web Evidence 只有在来源快照或等价的不可变来源版本满足 ADR 0003 时才能 active；若 Day 3 当前候选缺少必要 snapshot/resource version，应补足正式来源事实或返回稳定拒绝，不能降低 locator 规则。
+4. locator 必须是版本化判别联合，Memory 与 Evidence 至少真正支持现有 Web/行业和 SQL 结果类型。JSON 字段必须先经过 typed Schema，不接受任意 metadata。
+5. Web Evidence 只有在来源快照或等价的不可变来源版本满足 ADR 0003 时才能 active；若 工具执行 当前候选缺少必要 snapshot/resource version，应补足正式来源事实或返回稳定拒绝，不能降低 locator 规则。
 6. SQL Evidence 必须绑定真实 QueryRun、SchemaSnapshot、allowlisted table/column 和返回行范围，不能只保存模型生成 SQL。
 7. 相同 hash 只能在同一授权对象和来源版本内去重；不得跨 Workspace 或跨来源版本合并授权。
 8. Evidence 状态至少支持 active、superseded、tombstoned、unavailable。底层资源删除、权限收回或许可变化后，历史关系保留最小失效说明，但 excerpt、私有对象和签名 URL 不再返回。
 9. Claim 与 relation 分开建模。缺证据使用 uncertain，证据矛盾使用 conflicted；不得伪造一条 relation 来掩盖缺失。
 10. 扩展 Event/Trace 的版本化词汇，记录 Evidence added/invalidated、Claim updated 和 coverage/conflict 摘要；不在 payload 中写入大段原文。
 11. Evidence 与 Claim 查询每次都重新检查当前 Workspace 和底层资源权限，不只相信 Evidence 自身 workspace_id。
-12. Day 4 新生成的任何用户可见 Citation 都必须落到真实 Evidence，并在当前授权下 100% 可解析；来源失效时返回明确状态，而不是悬空链接。
+12. Memory 与 Evidence 新生成的任何用户可见 Citation 都必须落到真实 Evidence，并在当前授权下 100% 可解析；来源失效时返回明确状态，而不是悬空链接。
 
 #### 前端工作清单
 
@@ -392,7 +392,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 缺证据 Claim 明确 uncertain；冲突 Evidence 不被 finalizer 改写为 supported。
 - Evidence 失效后 excerpt/签名 URL 不再可读，历史关系仍可解释。
 - 图节点/边可反查正式资源，跨 Workspace 查询为 0。
-- Day 4 新生成的 Citation 全部可解析到当前用户有权查看的 Evidence；失效 Citation 返回稳定状态，不形成悬空链接。
+- Memory 与 Evidence 新生成的 Citation 全部可解析到当前用户有权查看的 Evidence；失效 Citation 返回稳定状态，不形成悬空链接。
 
 #### 本步交付证据
 
@@ -404,8 +404,8 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 #### 明确不在本步完成
 
-- 不实现 Day 5 文档/PDF/图片/表格的真实 Knowledge locator。
-- 不宣称 Day 6 Citation 可解析率或多模态引用门禁已经完成。
+- 不实现 Knowledge 文档/PDF/图片/表格的真实 Knowledge locator。
+- 不宣称 SEC 数据源 Citation 可解析率或多模态引用门禁已经完成。
 - 不实现 Verifier 或自动 revise。
 
 ### 4.4 ResearchBrief 与唯一 Research L3 graph 闭环
@@ -418,9 +418,9 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 1. 用户创建 Research Run，系统先澄清问题并保存 ResearchBrief。
 2. 用户确认范围、排除项、完成标准和预算后进入 plan。
-3. research loop 复用 Day 3 Tool surface，获取 Observation 并通过步骤 3 的 Normalizer 形成 Evidence。
+3. research loop 复用 工具执行 Tool surface，获取 Observation 并通过步骤 3 的 Normalizer 形成 Evidence。
 4. 系统生成 Claim、coverage、conflict、outline 和带不确定项的可解释草稿。
-5. 用户取消或遇到预算/Tool/Provider 失败时，Run 以统一 stop reason 收敛；Worker hard stop 在 Day 4 明确失败，不冒充可恢复。
+5. 用户取消或遇到预算/Tool/Provider 失败时，Run 以统一 stop reason 收敛；Worker hard stop 在 Memory 与 Evidence 明确失败，不冒充可恢复。
 
 #### 必须复用的现有实现
 
@@ -444,13 +444,13 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 2. 扩展步骤 3 建立的 research_runs 聚合壳，并使用 Alembic 增加版本化 ResearchBrief、research_plans 及 L3 草稿/报告所需事实；通过 agent_run_id 扩展统一 AgentRun，不建立 research_steps、research_events 或 research_checkpoints 第二套历史。
 3. 冻结 ResearchBrief：original question、confirmed scope、exclusions、completion criteria、budget、revision、confirmed by/at。
 4. 冻结 ResearchState：schema/run/scope、brief、plan/current node、pending actions、Evidence/Claim/Artifact refs、budget/step/revise counters、cancel flag、stop reason 和脱敏错误摘要。
-5. Graph 只包含 Day 4 节点：clarify scope、write brief、plan、research loop、normalize evidence、synthesize claims、outline、draft。
+5. Graph 只包含 Memory 与 Evidence 节点：clarify scope、write brief、plan、research loop、normalize evidence、synthesize claims、outline、draft。
 6. research loop 只能把推进请求交给统一 Runtime；节点不得直接调用 ToolExecutor，也不得复制 model → tool → observation 循环。
 7. 每个节点通过正式 Application/Domain Port 读写业务事实，并产生统一 Agent Event/Step；Event sequence 与 Run revision 保持单调。
 8. Research 创建 API 返回 202，并要求 Idempotency-Key；Application Service 在同一事务建立 ResearchRun、AgentRun、Job 和 Outbox，重复请求返回同一资源。Worker 从 PostgreSQL 重新装载可信 Runtime Context。
 9. 取消传播到 Job、graph 和 Runtime 的协作式安全点；取消后不继续提交 Claim 或草稿 Artifact。
 10. max steps、max concurrency、Token、费用、deadline、Tool allowlist 和 scope 都来自可信 Runtime/Harness profile；模型不能扩大。
-11. ResearchRun、Brief、Plan、节点进度、Evidence、Claim、统一 Event 和草稿状态必须落在 PostgreSQL，不允许依赖进程内字典保存业务事实。Day 4 不实现 durable graph resume；Worker hard stop 或进程丢失应由现有 Terminalizer/Reconciler 收敛为明确 failed/cancelled，并保留已提交 Evidence/Claim，不能从头静默重跑。
+11. ResearchRun、Brief、Plan、节点进度、Evidence、Claim、统一 Event 和草稿状态必须落在 PostgreSQL，不允许依赖进程内字典保存业务事实。Memory 与 Evidence 不实现 durable graph resume；Worker hard stop 或进程丢失应由现有 Terminalizer/Reconciler 收敛为明确 failed/cancelled，并保留已提交 Evidence/Claim，不能从头静默重跑。
 12. 暂不开放 resume/HITL API；若现有公共契约含 resume 路径，应返回稳定 readiness/error，而不是假成功。
 
 #### 前端工作清单
@@ -484,16 +484,16 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 #### 明确不在本步完成
 
-- 不实现持久 interrupt/resume、ApprovalRequest/Decision 或副作用账本；它们属于 Day 5。
+- 不实现持久 interrupt/resume、ApprovalRequest/Decision 或副作用账本；它们属于 Knowledge。
 - 不把普通 State 行保存称作 Agent Checkpoint。
-- 不实现 Verifier、bounded revise 或 complete/partial/uncertain 最终 Report；它们属于 Day 6。
+- 不实现 Verifier、bounded revise 或 complete/partial/uncertain 最终 Report；它们属于 SEC 数据源。
 - 不引入多 Agent、specialist handoff 或并行角色系统。
 
-### 4.5 Workbench、对照 Eval 与 Day 4 门禁收口
+### 4.5 Workbench、对照 Eval 与 Memory 与 Evidence 门禁收口
 
 #### 目标与完成后的用户结果
 
-本步不是最后补一个页面，而是把前四步的正式事实、失败语义和评测证据串成可解释的学习闭环，并按 Definition of Done 逐项决定 Day 4 是否真的完成。
+本步不是最后补一个页面，而是把前四步的正式事实、失败语义和评测证据串成可解释的学习闭环，并按 Definition of Done 逐项决定 Memory 与 Evidence 是否真的完成。
 
 完成后用户应能在同一 Workbench 中：
 
@@ -515,8 +515,8 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 
 #### Eval 与数据集工作清单
 
-1. 保留 Day 2/3 的 24 条版本化 Scenario、fixture、Trace snapshot 和报告作为不可变基线；另建一个明确版本号的 Day 4 数据集，禁止把新 case 混入旧版本。
-2. 新 Day 4 数据集必须增加覆盖以下行为的 Scenario：
+1. 保留 Agent Runtime/3 的 24 条版本化 Scenario、fixture、Trace snapshot 和报告作为不可变基线；另建一个明确版本号的 Memory 与 Evidence 数据集，禁止把新 case 混入旧版本。
+2. 新 Memory 与 Evidence 数据集必须增加覆盖以下行为的 Scenario：
    - Memory candidate、确认、编辑、merge/reject。
    - 相关召回、无关污染、冲突、过期、停用和删除残留。
    - Evidence 正常提升、locator/许可/权限拒绝、去重、失效和 conflict。
@@ -541,39 +541,39 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 - 日志/Trace/快照不含 Secret、敏感全文或原始 chain-of-thought。
 - 跨 Workspace Memory/Evidence/Research 泄漏为 0。
 - Memory deletion residual 为 0。
-- Day 4 新生成 Citation 可解析率为 100%，且每条都通过当前授权复核。
+- Memory 与 Evidence 新生成 Citation 可解析率为 100%，且每条都通过当前授权复核。
 - 覆盖率门槛：新增核心 Domain/Application 代码不低于 90%，后端整体不低于 80%，前端关键 hooks/state 分支不低于 75%；任何例外都需记录具体原因、风险和复核人。
-- Memory/Evidence/Research 的 retention、隐私删除、备份与恢复策略有文档和自动化验证；Day 7 的完整隔离恢复演练仍按主计划执行，不在 Day 4 虚报完成。
+- Memory/Evidence/Research 的 retention、隐私删除、备份与恢复策略有文档和自动化验证；财务检索与计算 的完整隔离恢复演练仍按主计划执行，不在 Memory 与 Evidence 虚报完成。
 - 所有 Run 保持唯一终态和明确 stop reason。
 - 无静默 Mock、Router/graph 直连 Provider、第二 Tool loop 或图外 Research。
 
 #### 文档与交付物清单
 
 - **docs/memory-policy.md**：写入、召回、冲突、治理、删除、隐私和回滚。
-- **docs/research-state-machine.md**：L3 state/graph/events/budget/error，以及与 Day 5/6 的边界。
-- **docs/learning-log/day-4.md**：逐步证据、失败、知识突破、保留/回退结论和复盘题。
-- Day 4 Scenario、fixtures、snapshots 和 Memory/Research 对照报告。
+- **docs/research-state-machine.md**：L3 state/graph/events/budget/error，以及与 Knowledge/6 的边界。
+- **docs/engineering-records/memory-evidence.md**：逐步证据、失败、知识突破、保留/回退结论和复盘题。
+- Memory 与 Evidence Scenario、fixtures、snapshots 和 Memory/Research 对照报告。
 - README 与必要 Runbook：启动、Provider/readiness、故障、限制、回滚和本地演示。
 - feature matrix D4-01～D4-07 的实际状态和证据链接。
 - 如架构、Evidence schema 或 graph 边界发生实质变化，更新对应 ADR、主计划版本和变更记录；没有变化时不做形式化改写。
 
 #### 本步关闭条件
 
-只有以下条件同时满足，Day 4 才能关闭：
+只有以下条件同时满足，Memory 与 Evidence 才能关闭：
 
-1. 主计划 Day 4 五条验收门禁全部通过。
+1. 主计划 Memory 与 Evidence 五条验收门禁全部通过。
 2. 全局 Definition of Done 和 Agent 追加 Definition of Done 的所有适用项通过。
 3. 每个 N/A 都有具体理由、复核人和日期，且没有把用户旅程、权限、失败/恢复或安全标为 N/A。
 4. 本地全量门禁、最终功能分支 CI 和 `main` 合并提交 CI 均通过，不能以定向绿色测试或仅分支绿色替代。
 5. 学习者能用 Trace 和运行证据回答复盘题，而不是只复述名词。
-6. D4-01～D4-07 才从过程状态更新为 complete；任何一项未满足则不进入 Day 5。
+6. D4-01～D4-07 才从过程状态更新为 complete；任何一项未满足则不进入 Knowledge。
 7. 完成步骤 1～5 与 D4-01～D4-07 的双向映射审计；每个能力项至少有一个实现证据、一个测试证据和一个用户可见验收证据，且不存在无人负责的门禁。
 
 ## 5. 跨步骤复用与依赖顺序
 
 依赖顺序固定为：
 
-    Day 3 Observation/Tool loop/Context Compiler v1
+    工具执行 Observation/Tool loop/Context Compiler v1
       → 步骤 1：可控 Memory 写入
       → 步骤 2：Memory 召回与 Context manifest
       → 步骤 3：Evidence/Claim 账本
@@ -583,7 +583,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 不允许为了并行开发破坏语义顺序：
 
 - 前端可以依据已冻结的 OpenAPI 和 Event contract 并行实现，但不能用 Mock 数据先宣布功能可用。
-- Evidence/Claim 可以在 Memory 工作后期开始编码，但步骤 3 关闭前必须使用正式 Day 3 Observation 和真实 PostgreSQL。
+- Evidence/Claim 可以在 Memory 工作后期开始编码，但步骤 3 关闭前必须使用正式 工具执行 Observation 和真实 PostgreSQL。
 - Research graph 可以先做依赖兼容性试验，但步骤 3 的 Evidence/Claim typed input 未冻结前不能形成第二套临时 Evidence。
 - Eval 数据和 Scorer 可以逐步增加，最终报告必须引用每一步的正式 Run/Trace，而不是事后手工编造摘要。
 
@@ -615,7 +615,7 @@ Day 4 复用 Day 2/3 已保存的 L0/L2 Run、Observation、Context manifest、�
 | 失败证据 | 至少一个边界/失败/权限/恢复或明确失败场景 |
 | Eval 证据 | dataset/case/version、Scorer 和报告路径 |
 | DoD 复核 | 每个适用项结论；N/A 理由、复核人、日期 |
-| 遗留边界 | 明确归属后续步骤或 Day 5/6/7，不能静默隐藏 |
+| 遗留边界 | 明确归属后续步骤或 Knowledge/6/7，不能静默隐藏 |
 | 回滚办法 | migration、契约、依赖、profile 或功能入口的回退方式 |
 
 步骤状态不能由文件数量、代码行数或页面截图决定。状态变化必须能从用户旅程追到 Application Service、统一 Runtime/Harness、正式数据、Event/Trace/manifest 和 Scorer。

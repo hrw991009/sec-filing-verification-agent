@@ -1,33 +1,33 @@
-# Day 8 执行计划：SEC Verified Agent L5、监控与 Durable HITL
+# 核验与监控：工程实现与验证记录
 
 > 制定日期：2026-08-28
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.1.8 Day 8
+> 计划基线：[完整工程范围 主计划](../engineering-baseline.md) 2.1.8 核验与监控
 >
-> 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D8-01～D8-08
+> 能力边界：[完整工程范围 目标能力矩阵](../feature-matrix.md) D8-01～D8-08
 >
 > 架构决策：[ADR 0003](../adr/0003-unified-evidence-model.md)、[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
 > 详细设计：[SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)
 >
-> 当前状态（2026-08-29）：Step 1～5 已在 `feat/day-8` 工作树实现，D8-01～D8-08 均为 `implemented_pending_verification`。Step 5 新增 14-case/42-run 的 `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 与可重生成 JSON/Markdown；deterministic/security/fault 三层合同门均通过，A3 对 A2 的复杂场景净增益为 `0.714286`、简单题退化为 `0`，A4 操作正确率和恢复率分列为 `1.0`。CI 同款五个真实依赖下 `1207 passed`，总体/核心分支覆盖率为 `80.21%`/`86%`，现有 Chromium `8 passed`，Python/Node 依赖审计与完整 Git 历史 Gitleaks 扫描通过。这仍是 frozen replay + executable contract refs，不是 live SEC/model 结果；专用 Monitor 审批浏览器旅程、Monitor hard-stop 故障注入、branch/PR/main CI、所有者复核与 Day 4～7 遗留债务仍缺，不能把 Day 8 写成完成。
+> 当前状态（2026-08-29）：Step 1～5 已在 `feat/day-8` 工作树实现，D8-01～D8-08 均为 `implemented_pending_verification`。Step 5 新增 14-case/42-run 的 `sec-verification-v1`、独立 A2/A3/A4 scorer、冻结 observations 与可重生成 JSON/Markdown；deterministic/security/fault 三层合同门均通过，A3 对 A2 的复杂场景净增益为 `0.714286`、简单题退化为 `0`，A4 操作正确率和恢复率分列为 `1.0`。CI 同款五个真实依赖下 `1207 passed`，总体/核心分支覆盖率为 `80.21%`/`86%`，现有 Chromium `8 passed`，Python/Node 依赖审计与完整 Git 历史 Gitleaks 扫描通过。这仍是 frozen replay + executable contract refs，不是 live SEC/model 结果；专用 Monitor 审批浏览器旅程、Monitor hard-stop 故障注入、branch/PR/main CI、所有者复核与 Memory 与 Evidence～7 遗留债务仍缺，不能把 核验与监控 写成完成。
 
-## 1. 进入基线与本日边界
+## 1. 进入基线与范围边界
 
-Day 7 已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head 为 [`6a25ab2`](https://github.com/hrw991009/industry-intelligence-platform/commit/6a25ab2b2ae93a3bf8c76dfec31c0f70558f0343)，合并提交为 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743)。push/PR 对应的 CI [`33155746624`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33155746624) 与 [`33155965096`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33155965096) 各有 7 个适用 Job 通过；合并提交 CI [`33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。失败用例是 `tests/e2e/app-shell.spec.ts:596` 的 Day 2 会话创建/停止/恢复旅程，在点击“重命名会话”按钮时达到 45 秒超时；同一 run 的 SEC Workbench locator 用例通过。该失败保留为待修门禁，不在规划文档中推断成已解决或简单归类为 flaky。
+财务检索与计算 已由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head 为 [`6a25ab2`](https://github.com/hrw991009/industry-intelligence-platform/commit/6a25ab2b2ae93a3bf8c76dfec31c0f70558f0343)，合并提交为 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743)。push/PR 对应的 CI [`33155746624`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33155746624) 与 [`33155965096`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33155965096) 各有 7 个适用 Job 通过；合并提交 CI [`33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。失败用例是 `tests/e2e/app-shell.spec.ts:596` 的 Agent Runtime 会话创建/停止/恢复旅程，在点击“重命名会话”按钮时达到 45 秒超时；同一 run 的 SEC Workbench locator 用例通过。该失败保留为待修门禁，不在规划文档中推断成已解决或简单归类为 flaky。
 
-以上事实只证明 Day 7 代码已合并且 PR 检查通过。Day 7 的 `sec-tool-v1` 仍是 frozen deterministic contract，不是 live/model/public benchmark；D7-02 仍有 ranking/table/Citation 缺口，D7 其余项仍待真实依赖、正式浏览器、中英 paired、main CI 与所有者复核。Day 6 的 `22/24`、bulk watermark/post-gap 和 live SEC 缺口，Day 5 的 SEC fixture 浏览器恢复链，以及 Day 4 核心覆盖率 90% 债务均继续登记为 Day 10 发布硬门。
+以上事实只证明 财务检索与计算 代码已合并且 PR 检查通过。财务检索与计算 的 `sec-tool-v1` 仍是 frozen deterministic contract，不是 live/model/public benchmark；D7-02 仍有 ranking/table/Citation 缺口，D7 其余项仍待真实依赖、正式浏览器、中英 paired、main CI 与所有者复核。SEC 数据源 的 `22/24`、bulk watermark/post-gap 和 live SEC 缺口，Knowledge 的 SEC fixture 浏览器恢复链，以及 Memory 与 Evidence 核心覆盖率 90% 债务均继续登记为 发布验收 发布硬门。
 
-Day 8 只交付两个相连的业务闭环：
+核验与监控 只交付两个相连的业务闭环：
 
-1. 对 Day 7 的 SEC L4 draft 做可判定的 Claim 级核验，并在必要时最多执行一次定向修订；
+1. 对 财务检索与计算 的 SEC L4 draft 做可判定的 Claim 级核验，并在必要时最多执行一次定向修订；
 2. 监控新 filing/amendment，经持久审批创建订阅，生成可幂等恢复的差异 Case。
 
-Day 8 不引入第二套 Runtime、Research graph、Evidence/Citation、计算器、审批、调度或通知账本；不实现多 Agent L6，不提前导入 Day 9 公开 benchmark，也不扩展到投资建议、估值、交易或审计意见。
+核验与监控 不引入第二套 Runtime、Research graph、Evidence/Citation、计算器、审批、调度或通知账本；不实现多 Agent L6，不提前导入 系统评测 公开 benchmark，也不扩展到投资建议、估值、交易或审计意见。
 
 ## 2. 复用边界与不变量
 
-| 现有正式能力 | Day 8 复用方式 | 禁止做法 |
+| 现有正式能力 | 核验与监控 复用方式 | 禁止做法 |
 |---|---|---|
 | `UnifiedAgentRuntime`、Research L4 graph、Checkpoint CAS | 在同一 typed graph 追加 `verify → bounded revise → finalize` 节点和版本映射 | 新建 verifier loop、finance runtime 或图外 Provider 调用 |
 | Evidence/Claim/Citation、`FinancialScope`、Calculation Evidence | Verifier 从 PostgreSQL 重载正式 identity、lineage 与授权后逐 Claim 判定 | 直接相信 draft、Context 文本或模型自报的引用/计算 |
@@ -52,7 +52,7 @@ Day 8 不引入第二套 Runtime、Research graph、Evidence/Citation、计算�
 | 2. One-revise L5 与不可信输入防线 | D8-03、D8-04 | 在唯一 Research graph 追加 verify/revise/finalize；最多一次 targeted retrieve/recalculate，冻结 Scope/toolset/budget；覆盖 filing/table/web 间接注入 | max-revise、no-progress、deadline/cancel/budget、injection/fake-tool tests；未授权写 Tool=0，攻击不改变 trusted context |
 | 3. Monitor、watermark 与幂等 Case | D8-05 | 建立 Monitor/rule/watermark/Case 正式模型和迁移；复用 Schedule/Occurrence/Job/Outbox、SEC sync 与 filing diff，新 filing/amendment 只生成一个 Case | 时区、misfire、watermark、429、lease、dead-letter、base/amendment 和重复 tick 的 PostgreSQL/Worker 测试；Case 可反查两份 accession/Evidence |
 | 4. `monitor.subscribe@v1`、Durable HITL 与 Workbench | D8-06、D8-07、D8-08 部分 | 模型仅创建写请求；当前用户 allow/deny/timeout 后落库。验证跨刷新/Worker 重启、Checkpoint CAS、重复 decision/resume 与取消竞态；UI 读取正式 API/Event/Trace | allow 一次写入、deny/timeout 零写入、重复副作用=0；L4/L5/Monitor 恢复成功 100%；浏览器展示 issue、revise diff、Approval、Monitor、Case 时间线 |
-| 5. `sec-verification-v1`、A2/A3/A4 与 Day 8 收口 | D8-08 | 冻结 support/refute/conflict/no-answer/revise/wrong-period/injection/approval/recovery/notification cases；同 manifest、数据、Scope 和预算比较 A2/A3/A4 | deterministic/fault/security JSON+Markdown；A3 复杂题有净收益且简单题退化 ≤2pp，A4 单独报告写入/恢复；三层 CI、所有者复核与遗留债务台账 |
+| 5. `sec-verification-v1`、A2/A3/A4 与 核验与监控 收口 | D8-08 | 冻结 support/refute/conflict/no-answer/revise/wrong-period/injection/approval/recovery/notification cases；同 manifest、数据、Scope 和预算比较 A2/A3/A4 | deterministic/fault/security JSON+Markdown；A3 复杂题有净收益且简单题退化 ≤2pp，A4 单独报告写入/恢复；三层 CI、所有者复核与遗留债务台账 |
 
 步骤按数据合同和恢复依赖顺序执行。每一步都要同时提交 domain/application、迁移或契约、正式 Adapter 装配、负向测试和可反查的 Workbench 数据；不允许先做展示页再用 Mock trajectory 补业务链。
 
@@ -110,7 +110,7 @@ CI 修复没有继续放宽业务超时：Elasticsearch bulk 写入和删除从 
 
 ## 8. Step 4 实现与证据
 
-`sec.monitor.subscribe@v1` 已作为严格 schema 的 `REQUIRE_APPROVAL`、`IDEMPOTENT_WRITE` Tool 注册。模型只能提交 CIK、Knowledge Base、forms、cron/timezone 和 typed rules；Workspace、当前用户、角色和审批决定均来自可信 Runtime/API。Day 7 已冻结的 `sec-l4-v1` 继续保持六个只读工具，Step 4 以新的 `sec-l5-v1`/`sec-l5-toolset-v1` 承载第七个写 Tool，避免破坏 `sec-tool-v1` A2 的可复算基线。
+`sec.monitor.subscribe@v1` 已作为严格 schema 的 `REQUIRE_APPROVAL`、`IDEMPOTENT_WRITE` Tool 注册。模型只能提交 CIK、Knowledge Base、forms、cron/timezone 和 typed rules；Workspace、当前用户、角色和审批决定均来自可信 Runtime/API。财务检索与计算 已冻结的 `sec-l4-v1` 继续保持六个只读工具，Step 4 以新的 `sec-l5-v1`/`sec-l5-toolset-v1` 承载第七个写 Tool，避免破坏 `sec-tool-v1` A2 的可复算基线。
 
 Research Runtime 遇到该 Tool 时保存包含 call/tool/arguments digest 的 ApprovalRequest 和同节点 Checkpoint，暂停而不发 `RUN_FAILED`。allow 在一个 PostgreSQL 事务内创建 Monitor、rules、初始 watermark、Schedule、完成 side-effect ledger、resume Job/Outbox 和 Decision；deny/timeout 只写终态审批事实。重复同决策返回既有结果，冲突决策、旧 Checkpoint revision、已取消或非 paused Run 在任何业务写入前拒绝。Worker 恢复从审批与 side-effect ledger 重建已批准 Tool Observation，回到同一 Research loop；Monitor write Observation 不冒充外部 Evidence。
 
@@ -126,15 +126,15 @@ Research Runtime 遇到该 Tool 时保存包含 call/tool/arguments digest 的 A
 
 最终本地门禁使用 CI 同款 PostgreSQL、Redis、MinIO、Milvus 与 Elasticsearch，共 `1207 passed`；总体分支覆盖率 `80.21%`，核心模块分支覆盖率 `86%`。全量测试还暴露并修复了 Agent Event 的真实时钟缺陷：连续合法事件使用相同逻辑时间时，SQLAlchemy 的通用 `onupdate=now()` 曾把 `AgentRun.updated_at` 推进到数据库墙钟，导致下一事件被误判为倒序；持久层现显式标记逻辑时间字段为已修改，并以真实 PostgreSQL 回归锁定。Web 的格式、lint、typecheck、`89 tests`、关键状态 `100%` coverage 和 build 均通过；仓库 Chromium `8 passed`，Python 锁文件 `115` 个包与 Node 高危依赖审计无已知漏洞，Gitleaks `8.30.1` 扫描完整 `91` 个提交无泄漏。上述均为本地证据，不替代远端 CI，也不补足专用 Monitor allow/deny/timeout 浏览器旅程。
 
-## 10. Day 8 完成定义
+## 10. 核验与监控 完成定义
 
-Day 8 只有同时满足以下条件才可关闭：
+核验与监控 只有同时满足以下条件才可关闭：
 
 - D8-01～D8-08 均达到矩阵定义的 `complete`，不是仅有代码或页面；
 - deterministic gate 中 fabricated source/accession/number/formula、future leakage、跨 Workspace、未授权写和重复副作用均为 0；
 - `verified` false support 为 0，Citation resolvability 为 100%，recovery scenarios 成功率为 100%；
 - A3 相对 A2 的收益/成本决定和 A4 的恢复结果有机器可比报告，不满足条件的策略已回退；
 - 分支、PR、合并提交 CI 均通过，正式浏览器旅程和所有者复核完成；
-- Day 5～7 遗留项仍在 Day 10 台账中逐项可见，没有被 Day 8 报告删除、改分母或伪写完成。
+- Knowledge～7 遗留项仍在 发布验收 台账中逐项可见，没有被 核验与监控 报告删除、改分母或伪写完成。
 
-当前 Step 1～5 均已有正式实现与本地合同证据，但仍不满足 Day 8 总完成条件。下一阶段按项目所有者安排进入 Day 9；Day 10 回收专用浏览器、完整 Monitor 故障演练、三层远端 CI、owner review 与既有遗留债务，不得用 frozen report 或当前 Workbench 代替这些证据。
+当前 Step 1～5 均已有正式实现与本地合同证据，但仍不满足 核验与监控 总完成条件。下一阶段按项目所有者安排进入 系统评测；发布验收 回收专用浏览器、完整 Monitor 故障演练、三层远端 CI、owner review 与既有遗留债务，不得用 frozen report 或当前 Workbench 代替这些证据。

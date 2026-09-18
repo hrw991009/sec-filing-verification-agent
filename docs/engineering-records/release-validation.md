@@ -1,10 +1,10 @@
-# Day 10 执行计划：SEC 工作台、发布评测与完整交付
+# 发布验收：工程实现与验证记录
 
 > 制定日期：2026-08-30
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.15 Day 10
+> 计划基线：[完整工程范围 主计划](../engineering-baseline.md) 2.2.15 发布验收
 >
-> 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
+> 能力边界：[完整工程范围 目标能力矩阵](../feature-matrix.md) D10-01～D10-08
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
@@ -14,20 +14,20 @@
 
 ## 1. 进入基线与最后一天边界
 
-Day 9 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head 为 [`6a79e4a`](https://github.com/hrw991009/industry-intelligence-platform/commit/6a79e4a)，合并提交为 [`4500505`](https://github.com/hrw991009/industry-intelligence-platform/commit/4500505)。功能 head 的 push CI [`33302689820`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302689820)、PR CI [`33302716257`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302716257) 与合并提交 main CI [`33303336316`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33303336316) 均已通过全部 7 个适用 Job。
+系统评测 已由 [PR #15](https://github.com/hrw991009/industry-intelligence-platform/pull/15) 合入 `main`，功能 head 为 [`6a79e4a`](https://github.com/hrw991009/industry-intelligence-platform/commit/6a79e4a)，合并提交为 [`4500505`](https://github.com/hrw991009/industry-intelligence-platform/commit/4500505)。功能 head 的 push CI [`33302689820`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302689820)、PR CI [`33302716257`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33302716257) 与合并提交 main CI [`33303336316`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33303336316) 均已通过全部 7 个适用 Job。
 
-合并只证明 Day 9 代码进入 `main`。`release-suite-v1` 当前仍有 9 个机器可读 release blocker：缺统一 A0～A4 common cases、Recall@5、真实 Runtime/Run/Trace/Evidence 绑定、公开集 prediction、外部许可复核、live 依赖、每项至少 3 次 live 重复、中文人工签字以及最终远端 CI/owner closeout。它们与 Day 1～8 遗留债务共同进入 Day 10，不因进入最后一天而删除、降级或改写分母。
+合并只证明 系统评测 代码进入 `main`。`release-suite-v1` 当前仍有 9 个机器可读 release blocker：缺统一 A0～A4 common cases、Recall@5、真实 Runtime/Run/Trace/Evidence 绑定、公开集 prediction、外部许可复核、live 依赖、每项至少 3 次 live 重复、中文人工签字以及最终远端 CI/owner closeout。它们与 身份与工程地基～8 遗留债务共同进入 发布验收，不因进入最后一天而删除、降级或改写分母。
 
-Day 10 只做发布收口：补齐真实产品闭环、评测证据、质量安全、恢复回滚和发布文档。它不增加新市场、form、Provider、Agent 角色、微服务、第二套 Runtime/RAG/Evidence/Eval，也不建设独立 Linux 客户端。没有真实证据的能力宁可保持阻断，不以 Mock、截图、手工数据库操作或放宽阈值换取标签。
+发布验收 只做发布收口：补齐真实产品闭环、评测证据、质量安全、恢复回滚和发布文档。它不增加新市场、form、Provider、Agent 角色、微服务、第二套 Runtime/RAG/Evidence/Eval，也不建设独立 Linux 客户端。没有真实证据的能力宁可保持阻断，不以 Mock、截图、手工数据库操作或放宽阈值换取标签。
 
 ## 2. 复用边界与不变量
 
-| 现有正式能力 | Day 10 复用方式 | 禁止做法 |
+| 现有正式能力 | 发布验收 复用方式 | 禁止做法 |
 |---|---|---|
 | `UnifiedAgentRuntime`、Research L5 graph、Tool Runtime、Checkpoint/HITL | 补齐正式装配、恢复和 E2E，不创建 release-only loop | 绕过 Runtime 直接调用模型或 Tool 生成演示结果 |
 | SEC source/XBRL、Hybrid Retrieval、Calculation、Evidence/Citation | 沿 canonical source version 与正式 locator 完成真实中文链和 Recall/Citation 验收 | 用当前网页摘要、错误 accession、gold Context 或人工结果替代检索 |
 | Verifier、Monitor、Case、Approval 与 side-effect ledger | 在同一 API/Worker/Workbench 链验证冲突、拒答、写审批和故障恢复 | 用前端状态模拟服务端完成，或为演示手工改库 |
-| Day 6～9 manifests、scorers 与 `release-suite-v1` | 绑定真实 Run/prediction，按 deterministic/offline/live 分报并从 blocker 生成发布决定 | 修改 observation/gold、合并不同 case suite 或以 LLM judge 作为唯一硬门 |
+| SEC 数据源～9 manifests、scorers 与 `release-suite-v1` | 绑定真实 Run/prediction，按 deterministic/offline/live 分报并从 blocker 生成发布决定 | 修改 observation/gold、合并不同 case suite 或以 LLM judge 作为唯一硬门 |
 | 现有 Compose、GitHub Actions 与质量脚本 | 扩充真实缺口并复用同一命令；Linux runner 仅用于 CI 可复现性 | 为通过 CI 跳过平台、服务、测试、coverage 或 secret/license 检查 |
 
 始终成立：
@@ -41,7 +41,7 @@ Day 10 只做发布收口：补齐真实产品闭环、评测证据、质量安�
 
 | 步骤 | 能力映射 | 实现范围 | 完成证据 |
 |---|---|---|---|
-| 1. 发布台账与全矩阵基线 | D10-07 部分 | 建立唯一 release manifest/ledger，双向审计 D1-01～D10-08、全局 DoD、Day 4～9 报告与机器 blocker；每项固定 owner、依赖、命令、artifact、状态和关闭条件 | 生成器/schema/负例；矩阵↔artifact↔CI/owner 可反查，未知/过期/缺 hash/状态矛盾均 fail closed；只关闭有证据的旧债 |
+| 1. 发布台账与全矩阵基线 | D10-07 部分 | 建立唯一 release manifest/ledger，双向审计 D1-01～D10-08、全局 DoD、Memory 与 Evidence～9 报告与机器 blocker；每项固定 owner、依赖、命令、artifact、状态和关闭条件 | 生成器/schema/负例；矩阵↔artifact↔CI/owner 可反查，未知/过期/缺 hash/状态矛盾均 fail closed；只关闭有证据的旧债 |
 | 2. SEC 工作台与完整中文用户路径 | D10-01、D10-02、D10-04 部分 | 收敛 Filer/Filings、Verification、Evidence/Calculation、Monitor/Case、Eval 路由和统一状态；沿正式 API/Runtime 完成 resolve→核验→引用→审批→新 filing diff | Playwright 使用真实认证、PostgreSQL/Redis/MinIO/ES/Milvus 与受控 SEC source；覆盖刷新、拒答、冲突、forbidden、审批、恢复，无 Mock/人工改库 |
 | 3. Release Eval、可观测与安全收口 | D10-04、D10-05、D10-07 部分 | 补齐 common-case A0～A4、ranked retrieval/Recall@5、case→Run/Trace/Evidence/DB final state、公开集 prediction、live≥3 分报；聚合 SEC freshness/leakage/citation/recovery 指标和安全套件 | 可复算 JSON/Markdown、阈值与回退决定；许可/中文抽样签字；跨 Workspace/future leakage/注入/Secret/未授权写/重复副作用均为 0 |
 | 4. 完整 CI、真实故障恢复与回滚 | D10-03、D10-06 | 清偿核心 90% coverage；运行 format/type/test/build/migration/OpenAPI/SSE/Gitleaks/Semgrep/audit/license/NOTICE；演练 fresh start、备份恢复、索引重建、Worker/Redis/MinIO/ES/Milvus/SEC 故障与上一镜像 | 核心≥90%、后端≥80%、关键前端≥75%；全量真实依赖和关键 E2E 通过；正式 Scenario 恢复率 100%、重复副作用 0，Runbook 命令可复现 |
@@ -61,7 +61,7 @@ Day 10 只做发布收口：补齐真实产品闭环、评测证据、质量安�
 
 ### Step 3：评测、观测与安全
 
-统一 A0～A4 只能使用相同 case manifest、数据、Scope 和预算。若成本不允许全量策略运行，必须先缩小并版本化 release 子集，保持各策略相同分母，不能把 Day 7/8 两套旧 case 拼接。FinQA/TAT-QA/FinanceBench/FinSearchComp 各用官方或冻结 scorer 单独报告；FinanceBench 权利未获确认时从 release claim 排除但 blocker 保留。live suite 固定 provider/model/tool/prompt/version，每 case 至少 3 次，失败分类为依赖、数据漂移、模型或产品问题。
+统一 A0～A4 只能使用相同 case manifest、数据、Scope 和预算。若成本不允许全量策略运行，必须先缩小并版本化 release 子集，保持各策略相同分母，不能把 财务检索与计算/8 两套旧 case 拼接。FinQA/TAT-QA/FinanceBench/FinSearchComp 各用官方或冻结 scorer 单独报告；FinanceBench 权利未获确认时从 release claim 排除但 blocker 保留。live suite 固定 provider/model/tool/prompt/version，每 case 至少 3 次，失败分类为依赖、数据漂移、模型或产品问题。
 
 ### Step 4：质量、恢复与回滚
 
@@ -73,11 +73,11 @@ coverage 必须使用冻结模块集合和真实依赖路径，不能通过新�
 
 ## 5. Step 1 实现与证据
 
-Step 1 在既有 `industry_platform.modules.evaluation` bounded context 新增唯一 `release_readiness` 生成器，没有建立第二套 Eval Runtime。机器 manifest 固定 Day 9 合并提交 `4500505` 为审计基线，并登记 Day 1～10 的 owner、依赖日、验证命令、30 个文档/代码/测试/报告/CI artifact，以及 9 个 Day 9 taxonomy blocker 和 7 个跨 Day 发布阻断族。每个 artifact 在报告中保存相对路径、byte size 与 SHA-256；manifest、矩阵、生成器、测试和命令入口也进入证据链。
+Step 1 在既有 `industry_platform.modules.evaluation` bounded context 新增唯一 `release_readiness` 生成器，没有建立第二套 Eval Runtime。机器 manifest 固定 系统评测 合并提交 `4500505` 为审计基线，并登记 完整工程范围 的 owner、依赖日、验证命令、30 个文档/代码/测试/报告/CI artifact，以及 9 个 系统评测 taxonomy blocker 和 7 个跨 Day 发布阻断族。每个 artifact 在报告中保存相对路径、byte size 与 SHA-256；manifest、矩阵、生成器、测试和命令入口也进入证据链。
 
-矩阵读取器只接受十张正式能力表，按结构识别 88 个唯一目标，并对完整规范化行计算 digest；它不会把 D1 的历史证据表重复算作目标，也能正确处理 code span 内的 `|`。manifest 固定 requirement count、digest 和全部六种状态计数，因此目标增删、状态漂移、未知状态、重复 ID、表格缺失或 Day 10 target 不是 `complete` 时均 fail closed。
+矩阵读取器只接受十张正式能力表，按结构识别 88 个唯一目标，并对完整规范化行计算 digest；它不会把 D1 的历史证据表重复算作目标，也能正确处理 code span 内的 `|`。manifest 固定 requirement count、digest 和全部六种状态计数，因此目标增删、状态漂移、未知状态、重复 ID、表格缺失或 发布验收 target 不是 `complete` 时均 fail closed。
 
-`sec-release-readiness-v1` 在 Step 3 后的当时重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、8 个 `thin_slice`、3 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定为 `no_go`/`rc_ready=false`。Day 9 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当时只剩最终 owner closeout，未改写 Day 9 不可变报告。
+`sec-release-readiness-v1` 在 Step 3 后的当时重算结果为：45 个 `complete`、32 个 `implemented_pending_verification`、8 个 `thin_slice`、3 个 `planned`，共 43 个未完成目标；16 个开放发布阻断族、5 个待外部门，发布判定为 `no_go`/`rc_ready=false`。系统评测 push/PR/main 三层 CI 分别绑定实际 run 与 commit 并记为 `verified`；旧 failure taxonomy 中合并描述的 CI/owner blocker 仍保持 open，但新台账明确当时只剩最终 owner closeout，未改写 系统评测 不可变报告。
 
 8 条聚焦测试覆盖 checked report/Markdown/schema 重算、全部 artifact hash、矩阵状态漂移、artifact 缺失、taxonomy 双向映射、仍 release-blocking 的 taxonomy 项伪关闭、无证据 external gate 和非法 hash。`pnpm run eval:release-readiness` 先规范化输入 manifest，再生成 JSON/Markdown 与 manifest/report 两份 JSON Schema，避免生成后格式化输入造成 hash 立即过期。
 
@@ -89,7 +89,7 @@ Step 2 没有复制 Research 或 Verifier。SEC Workbench 在用户选定并锁�
 
 Research Web API 新增已有 `GET /research-runs/{id}/verification-report` 的 generated-client wrapper。工作台从服务端报告显示 `verified`、`partial`、`conflict`、`insufficient_evidence` 四态、coverage、Claim verdict、Citation/Calculation 分母、typed issue、Runtime stop reason 和 Evidence snapshot；404 只表示报告尚未生成，其他读取失败仍显示为错误。active/paused Run 每 3 秒从正式列表、Run、Trace、Claim、Durability 和 Verification API 重建；Case 的 baseline/target Evidence 可直接进入 Evidence Workbench。页面不会按 Claim 数或 Draft 文本自行推导核验状态。
 
-当前 readiness manifest 新增 11 个正式实现/测试 artifact，总数为 41；非金融 Run 不请求金融 Verification Report，聚焦 Web 组件/API 为 `15 passed`，全量 Web 为 `94 passed`，Research/Verifier/Monitor/readiness 聚焦 Python 为 `37 passed`，TypeScript 和 ESLint 通过。尚未执行无接口拦截的真实认证 + PostgreSQL/Redis/MinIO/Elasticsearch/Milvus 浏览器旅程，也未运行受控 SEC source、Worker 恢复、分支/PR/main CI 或 owner review。因此 D10-01/D10-02 仅为 `implemented_pending_verification`，D10-04 仅为 `thin_slice`；Day 5/8 浏览器与恢复 blocker、16 个总 blocker 和 `NO_GO` 均保留。
+当前 readiness manifest 新增 11 个正式实现/测试 artifact，总数为 41；非金融 Run 不请求金融 Verification Report，聚焦 Web 组件/API 为 `15 passed`，全量 Web 为 `94 passed`，Research/Verifier/Monitor/readiness 聚焦 Python 为 `37 passed`，TypeScript 和 ESLint 通过。尚未执行无接口拦截的真实认证 + PostgreSQL/Redis/MinIO/Elasticsearch/Milvus 浏览器旅程，也未运行受控 SEC source、Worker 恢复、分支/PR/main CI 或 owner review。因此 D10-01/D10-02 仅为 `implemented_pending_verification`，D10-04 仅为 `thin_slice`；Knowledge/8 浏览器与恢复 blocker、16 个总 blocker 和 `NO_GO` 均保留。
 
 ## 7. Step 3 实现与证据
 
@@ -117,11 +117,11 @@ Step 5 只消费前四步 artifact 并继续使用唯一 `sec-release-readiness-
 
 本步聚焦 readiness/recovery 为 `17 passed`；全量无服务后端为 `1259 passed, 88 skipped`。Ruff format/check、strict mypy 517 个源文件、wheel/sdist、Prettier、ESLint、TypeScript、OpenAPI、Web `94 passed`、关键状态覆盖率 `100%` 和生产 build 通过；Semgrep 为 356 个 target/0 finding，Python/Node dependency audit 与 license/NOTICE 门通过。Gitleaks 对 102 个可达提交、Git diff 和新增候选说明均未发现 Secret。本机 Docker Desktop 在本步验证时未运行，因此没有重跑真实依赖和 Chromium；Step 4 提交前的 `1345 passed` 五依赖与 Chromium `8 passed` 是前一证据层，不冒充本步重跑或远端 CI。
 
-本步当时没有执行外部 Provider 凭据处置、公开/live 模型运行、中文人工签字、12 场景 staging 恢复、上一镜像回滚或 Day 10 远端 CI，也没有项目所有者最终验收。因此 D10-07/D10-08 均为 `thin_slice`，`v0.2.0-sec-disclosure-verifier` 仍只是禁止提升的候选说明草案。实现代理可以提交本步代码与文档供 branch/PR/main CI 验证，但不能自动 commit、push、merge 或打标签。
+本步当时没有执行外部 Provider 凭据处置、公开/live 模型运行、中文人工签字、12 场景 staging 恢复、上一镜像回滚或 发布验收 远端 CI，也没有项目所有者最终验收。因此 D10-07/D10-08 均为 `thin_slice`，`v0.2.0-sec-disclosure-verifier` 仍只是禁止提升的候选说明草案。实现代理可以提交本步代码与文档供 branch/PR/main CI 验证，但不能自动 commit、push、merge 或打标签。
 
 ### 9.1 合并、三层 CI 与覆盖率债务关闭
 
-2026-09-01，[PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 将 Day 10 合入 `main`。功能 head [`e1a6dcc`](https://github.com/hrw991009/industry-intelligence-platform/commit/e1a6dcc930dd1be7522330ec08b1e847e53ea82b) 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 [`778a196`](https://github.com/hrw991009/industry-intelligence-platform/commit/778a1966a5fd42df6b47d4a4002cb47e67435ac4) 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。早先失败的 Day 10 run 已由最终 head 修复并被上述成功证据取代，没有从历史中删除。
+2026-09-01，[PR #16](https://github.com/hrw991009/industry-intelligence-platform/pull/16) 将 发布验收 合入 `main`。功能 head [`e1a6dcc`](https://github.com/hrw991009/industry-intelligence-platform/commit/e1a6dcc930dd1be7522330ec08b1e847e53ea82b) 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 [`778a196`](https://github.com/hrw991009/industry-intelligence-platform/commit/778a1966a5fd42df6b47d4a4002cb47e67435ac4) 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 Browser E2E、Python quality、PostgreSQL integration、Web quality、Python/Node dependency audit 和 Secret history 共 7 个适用 Job。早先失败的 发布验收 run 已由最终 head 修复并被上述成功证据取代，没有从历史中删除。
 
 main PostgreSQL integration Job 在 PostgreSQL、Redis、MinIO、Milvus 与 Elasticsearch 五个真实依赖下完成 `1347 passed`；总体 branch coverage 为 `80.72%`，冻结核心模块集合为 `90%`。这满足 D10-03 的干净 feature head/PR/main CI、供应链与覆盖率验收，因此 D10-03 升为 `complete`，`day4-core-coverage-debt` 关闭。readiness 当前为 46 complete、32 implemented pending verification、10 thin slice、0 planned；42 个未完成目标、15 个 open blocker、5 个 pending external gate，仍为 `no_go`。
 
@@ -166,7 +166,7 @@ executor/scorer 与 live SEC one-shot；`pnpm run acceptance:sec:live` 将相同
 
 ## 10. 当日完成定义
 
-Day 10 只有同时满足以下条件才可关闭：
+发布验收 只有同时满足以下条件才可关闭：
 
 - D10-01～D10-08 以及所有仍非 `complete` 的冻结目标均有适用 DoD 证据并达到 `complete`；
 - `sec-release-failure-taxonomy-v1` 的 release blocker 为 0，且没有通过删除 case、降低阈值或改证据层实现；
@@ -176,7 +176,3 @@ Day 10 只有同时满足以下条件才可关闭：
 - README、ADR、架构、评测、Runbook、限制、rollback 和 release notes 与不可变 artifact 一致。
 
 任一条件未满足时，本日可以结束实施批次，但版本状态仍为 `NO_GO`，不得把计划完成等同于产品发布完成。
-
-## 11. 复盘题
-
-最终证据能支持哪些明确的产品声明？A0～A4 中哪一级在同一分母上产生了值得成本的净收益？哪些失败属于产品缺陷、外部依赖或治理阻断？在不读取开发者解释的情况下，运维人员能否只凭 Run/Trace/Evidence/报告与 Runbook 完成定位和回滚？

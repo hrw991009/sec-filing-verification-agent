@@ -1,4 +1,6 @@
-# Day 1～Day 10 目标能力矩阵：SEC 披露与财务事实核验 Agent
+# 目标能力矩阵：SEC 披露与财务事实核验 Agent
+
+本表是冻结的工程验收合同。D1～D10 及表内历史批次名称作为稳定证据标识保留，不用于表示开发耗时；学习日程已移除，专题记录见 `engineering-records/`。
 
 > 计划编号：`IIP-MASTER-001`
 >
@@ -6,7 +8,7 @@
 >
 > 更新日期：2026-09-01
 >
-> 权威来源：`docs/master-plan.md` 2.2.15
+> 权威来源：`docs/engineering-baseline.md` 2.2.15
 
 ## 1. 使用规则
 
@@ -108,7 +110,7 @@ D1-09 的参考仓历史凭据处置需要 Provider 侧外部操作。它不否�
 | D1-06～D1-07 | `apps/web/src/auth/`、`apps/web/src/app/`、`apps/web/src/api/` 实现真实身份旅程；`industry_platform/openapi.py` 和 `packages/api-contract/` 提供唯一生成契约；API 漂移、类型、Web 和 Playwright 门禁已通过 | 不适用独立业务 migration；OpenAPI、真实浏览器旅程和失败路径提供等价证据 | `complete`；2026-08-12 |
 | D1-08 | [提交 2c4e6e9](https://github.com/hrw991009/industry-intelligence-platform/commit/2c4e6e92237584bbac2816577e1509286f08b14b) 的 Python、Web、浏览器、迁移、PostgreSQL/Redis、契约、构建、依赖与密钥门禁已在本地及 [CI 31578083339](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/31578083339) 的干净环境通过 | 此目标本身不创建业务数据；以全链质量门和失败探针替代业务删除/恢复证据 | `complete`；2026-08-12 |
 | D1-09 | [CI 基线提交 54f7c48](https://github.com/hrw991009/industry-intelligence-platform/commit/54f7c48e8b01b194bb1ec7a0fa2f90682ef169ba) 与 [CI 30797166192](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/30797166192) 已证明新仓历史扫描及 Python/Node audit 通过；[参考仓凭据暴露审计](security/credential-exposure-audit.md) 记录 R1/R2 脱敏扫描及 6 组待处置候选 | 业务 migration、用户旅程和 RAG 评测不适用；但 Provider 侧吊销/轮换和复核证据尚缺，不能标为完成 | `thin_slice`；6 组候选全部处置并复扫后复核 |
-| D1-10 | Day 1 当时的文档包：[README](../README.md)、[产品范围](product-scope.md)、[能力矩阵](feature-matrix.md)、[架构与六项 ADR 索引](architecture.md#19-架构决策记录)、[Day 1 学习日志](learning-log/day-1.md) 与[参考仓凭据审计](security/credential-exposure-audit.md) 已同步到实际代码路径和运行方法；v2.0.0 后续新增 ADR 0007，不改写该历史收口 | 文档治理目标不改变业务数据；以结构、链接、事实一致性和版本控制检查替代运行时门禁 | `complete`；2026-08-12 |
+| D1-10 | Day 1 当时的文档包：[README](../README.md)、[产品范围](product-scope.md)、[能力矩阵](feature-matrix.md)、[架构与六项 ADR 索引](architecture.md#19-架构决策记录)、[Day 1 学习日志](engineering-records/identity.md) 与[参考仓凭据审计](security/credential-exposure-audit.md) 已同步到实际代码路径和运行方法；v2.0.0 后续新增 ADR 0007，不改写该历史收口 | 文档治理目标不改变业务数据；以结构、链接、事实一致性和版本控制检查替代运行时门禁 | `complete`；2026-08-12 |
 | D1-11～D1-12 | `migrations/versions/` 包含身份/Workspace 与可靠 Job/Outbox/Schedule 迁移；`modules/jobs/` 与 `workers/` 实现事务写入、独立发布、Worker fencing、对账及 DB-only Beat；fresh migration、并发与故障恢复测试已通过 | 不适用面向终端用户的页面旅程；以数据库迁移、Dispatcher/Worker/Scheduler 故障与恢复测试提供等价证据 | `complete`；2026-08-12 |
 
 ## 4. Day 2：Agent Runtime/Harness 基座、聊天、会话与可恢复 SSE
@@ -173,7 +175,7 @@ D3-01～D3-11 的冻结范围已经全部进入正式实现并通过本地验收
 | D4-06 | Claim 与证据图 | R2 + NEW | 关键 Claim、Evidence/Entity 基础图、locator、support/refute/uncertain、coverage/conflict | 图节点/边可反查，缺证据必须显示 uncertain | `complete` | `complete` |
 | D4-07 | Memory/Research 预算与策略边界 | NEW | Context、Token、费用、时间、Tool allowlist；不存原始 CoT、不执行模型代码 | 预算耗尽、跨租户、错误 Memory/Evidence 和审计测试 | `complete` | `complete` |
 
-Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进。单步只有代码或页面而未通过该步的真实链路、权限、失败、契约和评测条件时，只能记录过程状态，不能提前标记 `complete`。
+Day 4 的实现与验收按 [五步执行计划](engineering-records/memory-evidence.md) 推进。单步只有代码或页面而未通过该步的真实链路、权限、失败、契约和评测条件时，只能记录过程状态，不能提前标记 `complete`。
 
 2026-08-20 已完成步骤 1、2 的本地纵向验收：正式 Conversation/Message→候选→用户确认→跨 Conversation 的下一次正式 Run→PostgreSQL 重新授权召回→`ContextCompilerV1` ModelInput/manifest→Trace/Workbench→修改、反馈、停用、过期、删除与下一次召回链路通过；真实浏览器确认被纳入 Memory 实际送入模型并可反查 revision，真实 PostgreSQL 验证更新生效、稳定排除原因、重复删除、在线 deletion residual=0 和跨 Workspace 召回为 0。版本化 `day4-memory-v1`/`memory-scorer-v1` 固定质量、污染、删除、Token 与 latency 指标口径。PostgreSQL/Redis/MinIO 全部强制开启时 Python 916 条、Vitest 60 条、Playwright 5 条全部通过，Ruff、mypy、构建、OpenAPI 确定性、依赖审计与受控路径 Secret 扫描通过。由于尚未 commit/push 并取得干净 GitHub CI，D4-01～D4-03 保持 `implemented_pending_verification`；D4-07 只完成 Memory 预算和策略边界，Research 部分尚未开始，因此为 `thin_slice`。
 
@@ -214,7 +216,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D6-07 | Filing 入库与 Workbench | R1 + SEC | Workspace import 复用 File/Knowledge/Ingestion/双索引；CIK→accession→canonical snapshot→DocumentVersion/Chunk 与 XBRL context/fact 导航 | PG/MinIO/Milvus/ES 集成、OpenAPI、standard/raw fact 组件与浏览器旅程 | `implemented_pending_verification` | `complete` |
 | D6-08 | `sec-source-v1` 数据合同评测 | SEC + BENCH + NEW | ≥24 contract/closeout regression cases，`execution_kind=tool|sync`、`sync_kind=canonical_source|workspace_import`：identity、visibility/amendment、coverage watermark、snapshot、custom tag、unit/period、429、重复同步和跨 Workspace；每例固定 snapshot/import presence 预期 | manifest/scorer/eligible denominator、canonical/import lineage、失败例零已提交 snapshot/import、deterministic report、live smoke 分报、source/future leakage 指标 | `implemented_pending_verification` | `complete` |
 
-2026-08-27 收口映射：Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head `7a4766b` 的 push/PR CI `33053621106`、`33053623731` 和合并提交 `84a7945` 的 main CI `33054136204` 均通过 7 个适用 Job，项目所有者已要求核对 Day 6 并准备 Day 7 文档。提交、合并和 CI 条件已关闭，但确定性报告仍为 contract `18/18`、closeout `4/6`、总计 `22/24`，两条 bulk watermark case 保持 `capability_missing` 且没有从分母删除；当前也没有合法 SEC 联系身份对应的 live smoke。因此 D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 继续为 `implemented_pending_verification`，D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。Day 6 分支结束不等于 D6-01～D6-08 全部 `complete`。详见 [Day 6 执行计划](learning-log/day-6.md)。
+2026-08-27 收口映射：Day 6 已由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；功能 head `7a4766b` 的 push/PR CI `33053621106`、`33053623731` 和合并提交 `84a7945` 的 main CI `33054136204` 均通过 7 个适用 Job，项目所有者已要求核对 Day 6 并准备 Day 7 文档。提交、合并和 CI 条件已关闭，但确定性报告仍为 contract `18/18`、closeout `4/6`、总计 `22/24`，两条 bulk watermark case 保持 `capability_missing` 且没有从分母删除；当前也没有合法 SEC 联系身份对应的 live smoke。因此 D6-01/D6-03/D6-04/D6-05/D6-07/D6-08 继续为 `implemented_pending_verification`，D6-02/D6-06 因 bulk snapshot/watermark/post-gap 缺口保持 `thin_slice`。Day 6 分支结束不等于 D6-01～D6-08 全部 `complete`。详见 [Day 6 执行计划](engineering-records/sec-sources.md)。
 
 2026-09-01 技术债收口：新增 `submissions.zip`/`companyfacts.zip` 流式下载与内容寻址 MinIO snapshot、PostgreSQL archive/CIK entry/gap source 不可变账本、`Last-Modified` published watermark、`coverage_through=bulk_published_at-1s` 策略，以及水位后强制绕开普通 cache 的官方 API 增量读取。冻结 ZIP 的成功、截断、水位缺失、危险 member、CIK 缺失与重复同步测试已绑定原两条 closeout case，`sec-source-v1` 提升为 contract `18/18`、closeout `6/6`、总计 `24/24`、bulk readiness `2/2`。同日 `OfficialSecJsonClient` 使用已配置联系身份完成 CIK `0000320193` live smoke；非 PII 结果保存在 Git 忽略的 `.data/evals/sec-live-identity-v1.json`。D6-02/D6-06 升为 `implemented_pending_verification`；真实 1.4～1.6 GB bulk 运行、外部来源权利/所有者复核、适用浏览器与新分支/PR/main CI 尚未完成，因此 D6-01～D6-08 不改写为 `complete`。
 
@@ -256,7 +258,7 @@ Day 4 的实现与验收按 [五步执行计划](learning-log/day-4.md) 推进�
 | D8-07 | L4/L5 Durable recovery | R2 + NEW | Checkpoint CAS、hard stop、resume、取消竞态、副作用账本 | 恢复成功 100%，Tool/Calculation/Monitor/Case 重复数 0 | `implemented_pending_verification` | `complete` |
 | D8-08 | Verified/Monitor Workbench 与 A2/A3/A4 | NEW | Verifier issues、revise diff、Approval、Monitor、Case、两个 accession/Evidence | 正式 API/Event/Trace 驱动、fault/security report 和净收益决定 | `implemented_pending_verification` | `complete` |
 
-2026-08-29 实现映射：Day 8 五步均已在 `feat/day-8` 工作树落地。Step 5 的 `sec-verification-v1` 冻结 14 case/42 A2/A3/A4 run，同 manifest/data/Scope/budget 生成 deterministic/security/fault JSON+Markdown；A3 复杂题净增益 `0.714286`、简单题退化 `0`，A4 operational/recovery 分列为 `1.0/1.0`。报告是 frozen replay + executable contract refs，不是 live SEC/model；专用 Monitor 浏览器、真实 hard-stop 故障注入、branch/PR/main CI 与 owner review 未完成，因此 D8-01～D8-08 均保持 `implemented_pending_verification`，不是 `complete`。具体边界见 [Day 8 执行计划](learning-log/day-8.md) 和 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
+2026-08-29 实现映射：Day 8 五步均已在 `feat/day-8` 工作树落地。Step 5 的 `sec-verification-v1` 冻结 14 case/42 A2/A3/A4 run，同 manifest/data/Scope/budget 生成 deterministic/security/fault JSON+Markdown；A3 复杂题净增益 `0.714286`、简单题退化 `0`，A4 operational/recovery 分列为 `1.0/1.0`。报告是 frozen replay + executable contract refs，不是 live SEC/model；专用 Monitor 浏览器、真实 hard-stop 故障注入、branch/PR/main CI 与 owner review 未完成，因此 D8-01～D8-08 均保持 `implemented_pending_verification`，不是 `complete`。具体边界见 [Day 8 执行计划](engineering-records/verification-monitor.md) 和 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
 
 2026-08-29 Step 1 映射：当前工作树新增确定性 `sec-claim-verifier-v1`、四种业务状态与 typed issue，复用正式 Evidence availability、SEC locator/hash、`FinancialScope` 和 Calculation 重算链；新增 append-only PostgreSQL report/Claim/issue、授权只读 API、Event/Trace contract 和 OpenAPI。14 条聚焦规则/API 测试、真实 PostgreSQL append-only/stale-revision 测试及完整 Alembic 往返/autogenerate drift 检查通过；完整 Python 回归为 `1089 passed, 85 skipped`，并修复 `sec-tool-v1` 报告在 Windows/Linux 间的 LF 字节漂移。当前没有 graph 事件发射、one-revise、Workbench、frozen eval、提交或远端 CI，因此仅 D8-01/D8-02 更新为 `implemented_pending_verification`，D8-03～D8-08 保持 `planned`。
 

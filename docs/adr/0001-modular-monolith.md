@@ -6,7 +6,7 @@
 >
 > 修订日期：2026-08-12
 >
-> 依据：`docs/master-plan.md` v1.7.0 第 3.1、3.3、4、6.4、Day 2 与 17.1 节
+> 依据：`docs/engineering-baseline.md` v1.7.0 第 3.1、3.3、4、6.4、Agent Runtime 与 17.1 节
 
 ## 背景
 

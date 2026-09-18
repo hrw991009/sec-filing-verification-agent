@@ -8,13 +8,13 @@
 >
 > 决策人：用户
 >
-> 首次接受依据：`docs/master-plan.md` v2.0.0 第 1、5.6、6.7～6.8、Day 5 Step 4～Day 10
+> 首次接受依据：`docs/engineering-baseline.md` v2.0.0 第 1、5.6、6.7～6.8、Knowledge Step 4～发布验收
 >
-> 2026-09-01 修订同步基线：`docs/master-plan.md` v2.2.15
+> 2026-09-01 修订同步基线：`docs/engineering-baseline.md` v2.2.15
 
 ## 背景
 
-Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。Day 5～Day 9 的后续代码均已合入 `main`，但原冻结分母中的 SEC fixture 浏览器链、Day 6 bulk watermark/post-gap、Day 7 ranking/table/Citation、Day 8 专用浏览器与正式恢复、公开/live 评测、外部治理和 owner review 未被后续实现覆盖。Day 10 五步已在 `day-10` 分支完成本地实施：沿唯一正式链连接产品工作台，建立同分母 production Run evidence 合同、90% 核心 coverage 门、12 场景 recovery 合同和最终 readiness 审计。当前 production Run observation 为 0/50、recovery observation 为 0/12，机器结论为 `no_go`；该结论保留原缺口，不以最后一天排期、文档同步或候选说明草案豁免门禁。
+身份与工程地基～Memory 与 Evidence 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evidence/Claim 与 Research L3。Knowledge～系统评测 的后续代码均已合入 `main`，但原冻结分母中的 SEC fixture 浏览器链、SEC 数据源 bulk watermark/post-gap、财务检索与计算 ranking/table/Citation、核验与监控 专用浏览器与正式恢复、公开/live 评测、外部治理和 owner review 未被后续实现覆盖。发布验收 五步已在 `day-10` 分支完成本地实施：沿唯一正式链连接产品工作台，建立同分母 production Run evidence 合同、90% 核心 coverage 门、12 场景 recovery 合同和最终 readiness 审计。当前 production Run observation 为 0/50、recovery observation 为 0/12，机器结论为 `no_go`；该结论保留原缺口，不以最后一天排期、文档同步或候选说明草案豁免门禁。
 
 原计划后续继续构建通用 Hybrid/Multimodal RAG。该方向可以验证检索，却不足以充分展示 agent loop、typed Tool、确定性计算、point-in-time 和可恢复写操作的价值，也难以用一个明确业务结果判断 Agent 是否真正更好。
 
@@ -22,7 +22,7 @@ Day 1～Day 4 已完成统一 Agent Runtime/Harness、Tool loop、Memory、Evide
 
 ## 决定
 
-从 Day 5 Step 4 起，所有新增业务能力、数据、页面和发布验收围绕 SEC 披露与财务事实核验。已有通用基础继续复用，不建立第二套 finance Runtime、finance RAG、上传、索引、Evidence、Job 或评测 loop。
+从 Knowledge Step 4 起，所有新增业务能力、数据、页面和发布验收围绕 SEC 披露与财务事实核验。已有通用基础继续复用，不建立第二套 finance Runtime、finance RAG、上传、索引、Evidence、Job 或评测 loop。
 
 ### 产品边界
 
@@ -80,7 +80,7 @@ SEC canonical source catalog 是全局、按稳定来源身份去重的公共披
 - amendment/base relation；
 - source snapshot/hash。
 
-Day 6 在 accession 选择前新增版本化 `FilingSelectionScope v1`，至少包含 CIK 候选、allowed forms、report period、`as_of` 和 amendment policy；选定后才物化 accession-bound scope。现有 Day 5 `FinancialScope v1` 保持 replay 兼容，不原地改变字段或语义。`sec.list_filings@v1` 必须计算查询区间 coverage，跟随 submissions 响应中与该区间相交的 `filings.files` supplemental JSON，保存包含 bulk/incremental watermark 的 coverage manifest 并按 accession 去重；current、所需 supplemental 文件或截至 `as_of` 的时间覆盖未全部检查时不得返回 `no_result`，缺失、损坏或时间缺口使用 typed dependency/incomplete/partial error。
+SEC 数据源 在 accession 选择前新增版本化 `FilingSelectionScope v1`，至少包含 CIK 候选、allowed forms、report period、`as_of` 和 amendment policy；选定后才物化 accession-bound scope。现有 Knowledge `FinancialScope v1` 保持 replay 兼容，不原地改变字段或语义。`sec.list_filings@v1` 必须计算查询区间 coverage，跟随 submissions 响应中与该区间相交的 `filings.files` supplemental JSON，保存包含 bulk/incremental watermark 的 coverage manifest 并按 accession 去重；current、所需 supplemental 文件或截至 `as_of` 的时间覆盖未全部检查时不得返回 `no_result`，缺失、损坏或时间缺口使用 typed dependency/incomplete/partial error。
 
 `latest` 必须在运行时解析成明确 accession 并进入 Trace。Point-in-time 过滤使用 `public_available_at`、`visibility_basis` 和 `visibility_policy_version`：
 
@@ -128,7 +128,7 @@ source result
 
 前六个是只读 Tool；`monitor.subscribe@v1` 是写 Tool，必须持久审批。Tool capability、WorkspaceScope、`as_of`、allowed forms、Budget、SEC client policy 和审批结果来自可信 Runtime Context，模型不能提交或扩大这些字段。
 
-交付按日分层：Day 6 只验收前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Day 5 fixture 实现保留，正式 SEC 计算/核对与 `sec.diff_filings@v1` 在 Day 7 验收，`monitor.subscribe@v1` 在 Day 8 验收。`sec.search_filing@v1` 输出必须携带 `retrieval_profile_version`：Day 6 仅为 `dense-v1`，Day 7 才能声明 `hybrid-v1`；不能用同一 Tool 名静默把 Dense 结果描述为 Hybrid。Day 7 的五步顺序和具体合同见 [Day 7 执行计划](../learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](../sec-retrieval-design.md)。Day 8 的五步交付顺序见 [Day 8 执行计划](../learning-log/day-8.md)，Verifier 状态、one-revise guard、Monitor/watermark/Case、持久 HITL 和恢复合同见 [SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)。截至 2026-08-29，前三步已实现，第四、五步仍只是冻结合同；不能据此把 `monitor.subscribe@v1`、Durable HITL、Workbench 或评测写成现有能力。
+交付按日分层：SEC 数据源 只验收前五个 SEC 只读 Tool；`finance.calculate@v1` 的 Knowledge fixture 实现保留，正式 SEC 计算/核对与 `sec.diff_filings@v1` 在 财务检索与计算 验收，`monitor.subscribe@v1` 在 核验与监控 验收。`sec.search_filing@v1` 输出必须携带 `retrieval_profile_version`：SEC 数据源 仅为 `dense-v1`，财务检索与计算 才能声明 `hybrid-v1`；不能用同一 Tool 名静默把 Dense 结果描述为 Hybrid。财务检索与计算 的五步顺序和具体合同见 [财务检索与计算 执行计划](../engineering-records/financial-retrieval.md) 与 [SEC Filing Retrieval 与财务计算设计](../sec-retrieval-design.md)。核验与监控 的五步交付顺序见 [核验与监控 执行计划](../engineering-records/verification-monitor.md)，Verifier 状态、one-revise guard、Monitor/watermark/Case、持久 HITL 和恢复合同见 [SEC Verifier、Monitor 与恢复设计](../sec-verification-monitor-design.md)。截至 2026-08-29，前三步已实现，第四、五步仍只是冻结合同；不能据此把 `monitor.subscribe@v1`、Durable HITL、Workbench 或评测写成现有能力。
 
 `financial-context-v1` 必须扩展现有 Context Compiler，而不是新建 finance loop 或拼接器。LOCAL Tool L2 从可信 Runtime Context 注入完整 `FinancialScope`；Memory、filing/XBRL Observation 和其他文本均保持不可信 USER data。Compiler 对 scope/cutoff/unit/预算冲突 fail closed，并在 manifest/Trace 中记录 candidate identity、版本、hash、Token 与稳定决定原因；WEB Tool L2 保持 `context-v1`，历史 Trace 不被原地改写。
 
@@ -191,7 +191,7 @@ Planner、Retriever、Analyst、Calculator coordinator 和 Verifier 首先是同
 
 ## 迁移与回滚
 
-1. Day 1～Day 5 的表、API、页面、提交与验收事实不回滚。
+1. 身份与工程地基～Knowledge 的表、API、页面、提交与验收事实不回滚。
 2. 新增 `disclosures` 和 `financial_verification` 模块时通过 Alembic 扩展，不改写旧行业表或 Evidence 历史；migration 同时建立 canonical source 与 Workspace import 的引用/唯一约束。
 3. SEC filing 复用现有 File/Knowledge/Ingestion；旧私有知识仍可读取，默认新产品 profile 只暴露当前 Workspace 已导入的 SEC scope。
 4. 回滚时停止新 SEC sync、verification 和 monitor 创建；保留已落 PostgreSQL 的 Run/Evidence/Calculation/Audit，撤回新路由/profile，不删除历史快照。

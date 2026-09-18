@@ -2,51 +2,51 @@
   "artifacts": [
     {
       "artifact_id": "feature-matrix",
-      "byte_size": 80169,
+      "byte_size": 80430,
       "relative_path": "docs/feature-matrix.md",
-      "sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57"
+      "sha256": "b79ad5c17e06cd6937190f2129f6d3bb1a4c0c00b9c35a6767a2aeee0d844d0b"
     },
     {
       "artifact_id": "master-plan",
-      "byte_size": 151781,
-      "relative_path": "docs/master-plan.md",
-      "sha256": "9a033f6784b2d8ecb97b089dfee3f2f9b821e53898a470b0e830864af68d981d"
+      "byte_size": 62964,
+      "relative_path": "docs/engineering-baseline.md",
+      "sha256": "d5a31972eda6e50b7e060bb6cefc15689bb0b266640253ab131d5b3be7a2ce19"
     },
     {
       "artifact_id": "architecture",
-      "byte_size": 108155,
+      "byte_size": 109199,
       "relative_path": "docs/architecture.md",
-      "sha256": "83a5c15ab8a7d88e457d81c96a87f2a8c7350c47a3d90bf99df38ff16080855f"
+      "sha256": "85d91ddc679d951794f9846f6a74486677e9463cfc9dcff9ea9cc51e50d36658"
     },
     {
       "artifact_id": "release-readiness-contract",
-      "byte_size": 14909,
+      "byte_size": 15103,
       "relative_path": "docs/release-readiness.md",
-      "sha256": "24c2e570140e4435d43f463e6b57108d4e21b0ba64053cc72f2301e2c9ecac8d"
+      "sha256": "31b2cc8977f0555b3305ef12e18bbe7268a79fbd41e8500f19bcc069a7a26db3"
     },
     {
       "artifact_id": "readme",
-      "byte_size": 14237,
+      "byte_size": 8864,
       "relative_path": "README.md",
-      "sha256": "178a6d241a77a3e7cdb8a7819b491cfc30438f48a7dcd288f90951af5d336a0b"
+      "sha256": "ce2447be21c37033256e5c37949ef7e9c7b8ec5afae0618f0b49235aa405d5a0"
     },
     {
       "artifact_id": "product-scope",
-      "byte_size": 30906,
+      "byte_size": 31429,
       "relative_path": "docs/product-scope.md",
-      "sha256": "3b27b7c8b651f1e6d30103565a3f013f08c8aece69f97eb00f3926166611c69b"
+      "sha256": "4317a4f7625b384a281a0ebc3437fdd26255a3c79aa9f52a794f7e9c8b51bb5d"
     },
     {
       "artifact_id": "sec-domain-adr",
-      "byte_size": 15452,
+      "byte_size": 15754,
       "relative_path": "docs/adr/0007-sec-disclosure-financial-fact-verification.md",
-      "sha256": "7833670f0d7017012b0b332bcca5b142f9826329fa784aa90d635fbf4618e7a9"
+      "sha256": "fc12feadbeb329fb155b237cd52eab059db5c2aaa834dc55c305ba8d42265c4a"
     },
     {
       "artifact_id": "sec-agent-evaluation-plan",
-      "byte_size": 35126,
+      "byte_size": 35528,
       "relative_path": "docs/sec-agent-evaluation.md",
-      "sha256": "c6be41fa24de28f0d754c44314159374576ab0a14a34a4b8eaf9211c45b2f3cb"
+      "sha256": "68341a10d5ba8241cd4d371c38eb51e27ed09112a854036d3cd85c91d10088fe"
     },
     {
       "artifact_id": "release-candidate-draft",
@@ -56,9 +56,9 @@
     },
     {
       "artifact_id": "release-readiness-manifest",
-      "byte_size": 38482,
+      "byte_size": 38645,
       "relative_path": "evals/manifests/sec-release-readiness-v1.json",
-      "sha256": "b1a0a41d131297a438aef4f85de7af5169576a2f734c44e33cb751854859f3d1"
+      "sha256": "cbe760b96400172e7a27e08d47498eace47ced176ce2d1b8c61d878353f13eaa"
     },
     {
       "artifact_id": "release-readiness-generator",
@@ -68,9 +68,9 @@
     },
     {
       "artifact_id": "release-readiness-tests",
-      "byte_size": 11251,
+      "byte_size": 11281,
       "relative_path": "apps/backend/tests/modules/evaluation/test_release_readiness.py",
-      "sha256": "8e227b708e88bb7f7ea21a9707654a10280bc3427c94a475d7d63cffe5a981ff"
+      "sha256": "87a00e22842e25b2d67133e339667be6a1ceeaab2bfc536275d06e4d9b8f9ecf"
     },
     {
       "artifact_id": "release-evidence-generator",
@@ -302,9 +302,9 @@
     },
     {
       "artifact_id": "research-workbench-ui",
-      "byte_size": 68584,
+      "byte_size": 68693,
       "relative_path": "apps/web/src/research/ResearchWorkspace.tsx",
-      "sha256": "64a695924c375af434d4635494e0c245156dbbd137529fee7aa60dcacd6ee38e"
+      "sha256": "a4200e4285bfd71bdf9bf52fef0acc5611ce844a55e796a50d89a8c190ff7cce"
     },
     {
       "artifact_id": "research-workbench-tests",
@@ -386,63 +386,63 @@
     },
     {
       "artifact_id": "day-1-log",
-      "byte_size": 6583,
-      "relative_path": "docs/learning-log/day-1.md",
-      "sha256": "50fa80a825c468fb8253db8536932443f5c7ca3496051e9e03c2171f5126da2e"
+      "byte_size": 6763,
+      "relative_path": "docs/engineering-records/identity.md",
+      "sha256": "a45980aa4d9d2aa2fd571866ca6705f271930a5bae383a1536b43880bd4b33a5"
     },
     {
       "artifact_id": "day-2-log",
-      "byte_size": 11559,
-      "relative_path": "docs/learning-log/day-2.md",
-      "sha256": "8e9899fa5ab4c096aa7e06aefa0f0f7d08316598ff0f69950e8fd71b24234558"
+      "byte_size": 11738,
+      "relative_path": "docs/engineering-records/agent-runtime.md",
+      "sha256": "7ac9920df2cc98fc50b81ff077d7462a7e1fb3661550082df34b106a8df57755"
     },
     {
       "artifact_id": "day-3-log",
-      "byte_size": 15127,
-      "relative_path": "docs/learning-log/day-3.md",
-      "sha256": "e2d354af6983bff00c3ab19dc718720f114a8fae93ecda89419f9d0ee3a234e9"
+      "byte_size": 15259,
+      "relative_path": "docs/engineering-records/tool-runtime.md",
+      "sha256": "70657527c155ab54221285f924033956afd0db8b5e03deea05f61baf3fc3b421"
     },
     {
       "artifact_id": "day-4-log",
-      "byte_size": 68196,
-      "relative_path": "docs/learning-log/day-4.md",
-      "sha256": "8beae3ca8b6a11585177c07cff5a7eaf57268d855f3170724bf6214b388e0c93"
+      "byte_size": 69008,
+      "relative_path": "docs/engineering-records/memory-evidence.md",
+      "sha256": "4e63a6a7779250146be8caa58fddd2cd9947bad986eed676578b0476966803fc"
     },
     {
       "artifact_id": "day-5-log",
-      "byte_size": 40218,
-      "relative_path": "docs/learning-log/day-5.md",
-      "sha256": "658306499b13675767f6cf6e1c69bc11bd28a9de2c26dc171629a6a14a2659be"
+      "byte_size": 39537,
+      "relative_path": "docs/engineering-records/knowledge.md",
+      "sha256": "76278f54ea45e135e5fff390f25dbdde86ce418ec04119a70121460b12a74105"
     },
     {
       "artifact_id": "day-6-log",
-      "byte_size": 34693,
-      "relative_path": "docs/learning-log/day-6.md",
-      "sha256": "0fffb5b161da182ae4165b87b21f34a9108674c73f7916bee43c5059fc020742"
+      "byte_size": 34460,
+      "relative_path": "docs/engineering-records/sec-sources.md",
+      "sha256": "4a8dbd3c4e7daad2d61f40bbac5dfff438b335fab88f06c83bab98971fe98c35"
     },
     {
       "artifact_id": "day-7-log",
-      "byte_size": 22146,
-      "relative_path": "docs/learning-log/day-7.md",
-      "sha256": "1a10bb9f21a554caff98bdaeb09da81eafeed5bb2fcae036bd75f0df83677ae2"
+      "byte_size": 21971,
+      "relative_path": "docs/engineering-records/financial-retrieval.md",
+      "sha256": "6689b11daf6c45a5194f7e3ca98536e3f6586bcc92538cc41e0799bab84afd76"
     },
     {
       "artifact_id": "day-8-log",
-      "byte_size": 22260,
-      "relative_path": "docs/learning-log/day-8.md",
-      "sha256": "4f82a311e4fac12f8dadd1498ca766ed58334338a264d18aae98d2c5825fc0e2"
+      "byte_size": 22519,
+      "relative_path": "docs/engineering-records/verification-monitor.md",
+      "sha256": "0bf0e9d17dcf387954d04f5efe450efedde6769b819e3c31b97164f2a15ed251"
     },
     {
       "artifact_id": "day-9-log",
-      "byte_size": 18638,
-      "relative_path": "docs/learning-log/day-9.md",
-      "sha256": "c7d557b545827aac0bc66f6899badb199c8c64e42d922995d5dc3f5b340321af"
+      "byte_size": 18746,
+      "relative_path": "docs/engineering-records/evaluation.md",
+      "sha256": "37d0935e165f67a18073cc3d67268fba15f1311078584f21860c75a742f31d98"
     },
     {
       "artifact_id": "day-10-log",
-      "byte_size": 29173,
-      "relative_path": "docs/learning-log/day-10.md",
-      "sha256": "310de4b77bfd2b5b5fd58dc5095abf9181f363aa5210cbced1bc474f6a8fccbf"
+      "byte_size": 28993,
+      "relative_path": "docs/engineering-records/release-validation.md",
+      "sha256": "45cf2b83703912b442dc3263eb0bea78660975398c6e442175e8528a1459d860"
     },
     {
       "artifact_id": "day-4-report",
@@ -872,8 +872,8 @@
     "Historical complete requirements retain their accepted status; cross-day release debts remain separate blockers.",
     "Model credentials, rights, live model and large-bulk runs, and owner acceptance cannot be inferred from local code or CI."
   ],
-  "manifest_sha256": "b1a0a41d131297a438aef4f85de7af5169576a2f734c44e33cb751854859f3d1",
-  "matrix_sha256": "73958adaa885a1cd187e12cdc5a374f12032ccd9aa985a319d45fef54986de57",
+  "manifest_sha256": "cbe760b96400172e7a27e08d47498eace47ced176ce2d1b8c61d878353f13eaa",
+  "matrix_sha256": "b79ad5c17e06cd6937190f2129f6d3bb1a4c0c00b9c35a6767a2aeee0d844d0b",
   "pending_external_gate_count": 5,
   "rc_ready": false,
   "release_blocker_count": 15,

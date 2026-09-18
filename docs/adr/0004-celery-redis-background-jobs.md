@@ -6,7 +6,7 @@
 >
 > 修订日期：2026-08-12
 >
-> 依据：`docs/master-plan.md` v1.7.0 第 3.1～3.3、5.1、5.4、6.2～6.4、Day 1、Day 2、Day 5、Day 7 与 17.1 节
+> 依据：`docs/engineering-baseline.md` v1.7.0 第 3.1～3.3、5.1、5.4、6.2～6.4、身份与工程地基、Agent Runtime、Knowledge、财务检索与计算 与 17.1 节
 
 ## 背景
 
@@ -87,7 +87,7 @@ Celery redelivery 恢复同一个 Job/AgentRun 的执行所有权；用户显式
 - 两者可以共享 PostgreSQL、版本化、CAS、幂等和 fencing 原则，但不得共用一个无类型 state JSON、revision 序列或恢复状态机；
 - Agent 使用尚未 ready 的 Knowledge 时只接收 `not_ready/partial_index/dependency_failed` 等稳定 Observation，不能读取入库 checkpoint 冒充 Agent State；入库 Worker 也不能读取 Agent Trace 决定从哪个解析阶段恢复。
 
-Day 2 只冻结通用 Agent Checkpoint envelope、schema version、CAS 和不兼容拒绝；Day 5 才完成 LangGraph state 映射、持久 interrupt/resume、HITL 和 Worker hard stop 恢复。Document ingestion 从 Day 5 起使用独立 stage checkpoint；Embedding Provider 也只在 Day 5 实现，Hybrid RAG 查询策略不属于 Celery retry，并在 Day 6 启用。
+Agent Runtime 只冻结通用 Agent Checkpoint envelope、schema version、CAS 和不兼容拒绝；Knowledge 才完成 LangGraph state 映射、持久 interrupt/resume、HITL 和 Worker hard stop 恢复。Document ingestion 从 Knowledge 起使用独立 stage checkpoint；Embedding Provider 也只在 Knowledge 实现，Hybrid RAG 查询策略不属于 Celery retry，并在 SEC 数据源 启用。
 
 Celery 明确配置 `task_acks_late=true`、`task_reject_on_worker_lost=true`、`task_acks_on_failure_or_timeout=true` 和 `worker_cancel_long_running_tasks_on_connection_loss=true`：成功任务在 Application Service 提交业务结果后 ACK；已经持久化为可解释失败或显式重试的异常可以 ACK，并由应用创建新的受控尝试；子进程/节点丢失则 reject/requeue，再由过期 lease 对账兜底。Worker 丢失或 Broker 连接丢失时，旧执行不能与重投任务无限并行。Redis visibility timeout 必须大于该队列允许的最大 hard time limit 加安全余量。不同队列分别设置 soft/hard time limit，七天配置中任何任务 hard limit 不得超过 30 分钟，Redis visibility timeout 固定为 60 分钟。
 

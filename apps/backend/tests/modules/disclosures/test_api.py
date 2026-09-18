@@ -8,6 +8,7 @@ from typing import cast
 from unittest.mock import AsyncMock
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 
 from industry_platform.core.config import Settings
@@ -360,7 +361,13 @@ def test_authenticated_workspace_lists_point_in_time_filings(test_settings: Sett
     assert response.json()["filings"][0]["accession"] == "0000320193-24-000002"
 
 
-def test_invalid_filing_scope_is_a_sanitized_validation_failure(test_settings: Settings) -> None:
+@pytest.mark.parametrize(
+    ("cik", "as_of"),
+    [("0", "2026-08-26T03:00:00Z"), ("320193", "2999-01-01T00:00:00Z")],
+)
+def test_invalid_filing_scope_is_a_sanitized_validation_failure(
+    test_settings: Settings, cik: str, as_of: str
+) -> None:
     application = create_app(settings=test_settings)
     application.dependency_overrides[get_principal_resolver] = lambda: StubPrincipalResolver(
         principal()
@@ -370,11 +377,11 @@ def test_invalid_filing_scope_is_a_sanitized_validation_failure(test_settings: S
             f"/api/v1/workspaces/{WORKSPACE_ID}/disclosures/filings",
             headers=headers(),
             params={
-                "cik": "0",
+                "cik": cik,
                 "forms": ["10-K"],
                 "report_period_start": "2024-01-01",
                 "report_period_end": "2024-12-31",
-                "as_of": "2026-08-26T03:00:00Z",
+                "as_of": as_of,
             },
         )
 

@@ -44,7 +44,7 @@ AUDITED_RELEASE_DOCUMENTS = (
     "docs/runbooks/day-10-release-recovery.md",
     "docs/security/third-party-notices.md",
     "docs/release-notes/v0.2.0-sec-disclosure-verifier.md",
-    "docs/learning-log/day-10.md",
+    "docs/engineering-records/release-validation.md",
 )
 
 
@@ -160,7 +160,7 @@ def test_release_readiness_rejects_matrix_status_drift(tmp_path: Path) -> None:
 
 def test_release_readiness_rejects_missing_artifact(tmp_path: Path) -> None:
     root, manifest_path = _copy_readiness_root(tmp_path)
-    (root / "docs" / "learning-log" / "day-5.md").unlink()
+    (root / "docs" / "engineering-records" / "knowledge.md").unlink()
 
     with pytest.raises(ValueError, match="missing or outside repository root"):
         build_release_readiness(root=root, manifest_path=manifest_path)

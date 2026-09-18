@@ -1,0 +1,49 @@
+server {
+    listen 8443 ssl;
+    server_name localhost;
+    ssl_certificate /etc/local-tls/localhost.crt;
+    ssl_certificate_key /etc/local-tls/localhost.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    root /usr/share/nginx/html;
+    index index.html;
+    # Application enforces a 25 MiB file limit; leave room for multipart fields.
+    client_max_body_size 26m;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+
+    location /api/ {
+        set $backend http://api:8000;
+        proxy_pass $backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_read_timeout 650s;
+    }
+
+    location /health/ {
+        set $backend http://api:8000;
+        proxy_pass $backend;
+        proxy_set_header Host $http_host;
+    }
+
+    # Only the private application's bucket, not the MinIO admin console.
+    # Preserve Host and URI because presigned GET signatures include both.
+    # Match the bucket root too: a 301 trailing-slash redirect turns POST into GET.
+    location ~ ^/${MINIO_BUCKET}(?:/|$) {
+        access_log off;
+        set $objects http://minio:9000;
+        proxy_pass $objects;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_request_buffering off;
+        proxy_read_timeout 120s;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

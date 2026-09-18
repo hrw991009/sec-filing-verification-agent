@@ -8,15 +8,15 @@
 >
 > 修订日期：2026-09-01
 >
-> 权威范围：`docs/master-plan.md` v2.2.15 Day 5 Step 4～Day 10
+> 权威范围：`docs/engineering-baseline.md` v2.2.15 Knowledge Step 4～发布验收
 >
-> 状态：Day 6 `sec-source-v1` 已由 bulk watermark/post-gap 执行证据提升为 24/24，独立 SEC identity live smoke 通过；Day 7 `sec-tool-v1` 与 Day 8 `sec-verification-v1` deterministic contract 已合入 `main`。Day 10 已由 PR #16 合入 `main` 且三层 CI 通过，D10-03 与 Day 4 核心覆盖率债务已关闭。真实 Run observation 仍为 0/50，恢复 observation 为 0/12；Recall@5、Runtime binding、公开集 prediction、live model≥3、真实大体积 bulk、正式恢复演练、许可/中文/owner 复核仍缺。88 个目标仍有 42 个未完成，结论保持 `no_go`，候选说明仅为草案
+> 状态：SEC 数据源 `sec-source-v1` 已由 bulk watermark/post-gap 执行证据提升为 24/24，独立 SEC identity live smoke 通过；财务检索与计算 `sec-tool-v1` 与 核验与监控 `sec-verification-v1` deterministic contract 已合入 `main`。发布验收 已由 PR #16 合入 `main` 且三层 CI 通过，D10-03 与 Memory 与 Evidence 核心覆盖率债务已关闭。真实 Run observation 仍为 0/50，恢复 observation 为 0/12；Recall@5、Runtime binding、公开集 prediction、live model≥3、真实大体积 bulk、正式恢复演练、许可/中文/owner 复核仍缺。88 个目标仍有 42 个未完成，结论保持 `no_go`，候选说明仅为草案
 
-Day 7 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [Day 7 执行计划](learning-log/day-7.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
+财务检索与计算 的五步执行顺序、`hybrid-v1`、SEC locator、Financial Context、Calculation/reconciliation 和 A0/A1/A2 具体边界见 [财务检索与计算 执行计划](engineering-records/financial-retrieval.md) 与 [SEC Filing Retrieval 与财务计算设计](sec-retrieval-design.md)。
 
-Day 8 的 Claim Verifier、四种业务状态、one-revise、Monitor/HITL/恢复及 A2/A3/A4 边界见 [Day 8 执行计划](learning-log/day-8.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
+核验与监控 的 Claim Verifier、四种业务状态、one-revise、Monitor/HITL/恢复及 A2/A3/A4 边界见 [核验与监控 执行计划](engineering-records/verification-monitor.md) 与 [SEC Verifier、Monitor 与恢复设计](sec-verification-monitor-design.md)。
 
-Day 9 的公开集、SEC temporal、中英配对、Agent/security 与分层 release suite 见 [Day 9 执行计划](learning-log/day-9.md)。Day 10 的 common-case、Runtime binding、真实用户链和发布判定见 [Day 10 执行计划](learning-log/day-10.md) 与 [发布就绪合同](release-readiness.md)。
+系统评测 的公开集、SEC temporal、中英配对、Agent/security 与分层 release suite 见 [系统评测 执行计划](engineering-records/evaluation.md)。发布验收 的 common-case、Runtime binding、真实用户链和发布判定见 [发布验收 执行计划](engineering-records/release-validation.md) 与 [发布就绪合同](release-readiness.md)。
 
 ## 1. 目标与不能证明的能力
 
@@ -103,7 +103,7 @@ Day 9 的公开集、SEC temporal、中英配对、Agent/security 与分层 rele
 
 ### 4.1 `sec-fixture-v1`
 
-Day 5 使用少量已审核 SEC filing 快照验证 Knowledge、locator、calculator 和 L4 合同。它不访问 live SEC，也不作为模型能力报告。
+Knowledge 使用少量已审核 SEC filing 快照验证 Knowledge、locator、calculator 和 L4 合同。它不访问 live SEC，也不作为模型能力报告。
 
 最低覆盖：
 
@@ -116,7 +116,7 @@ Day 5 使用少量已审核 SEC filing 快照验证 Knowledge、locator、calcul
 
 ### 4.2 `sec-source-v1`
 
-Day 6 验证官方数据和 point-in-time source contract。最低规模为 24 个确定性 case：18 个 `contract` cases 用于开发期回归，6 个 `closeout_regression` cases 在步骤收口时复跑。两组 case/gold 均对开发可见，只保证 gold 不进入模型 Context，不支持“未见数据泛化”声明。它不是公开 benchmark，也不评价开放式投资判断。
+SEC 数据源 验证官方数据和 point-in-time source contract。最低规模为 24 个确定性 case：18 个 `contract` cases 用于开发期回归，6 个 `closeout_regression` cases 在步骤收口时复跑。两组 case/gold 均对开发可见，只保证 gold 不进入模型 Context，不支持“未见数据泛化”声明。它不是公开 benchmark，也不评价开放式投资判断。
 
 每个 case manifest 至少固定：
 
@@ -158,7 +158,7 @@ argument_constraints / budget / scorer_version
 
 ### 4.3 `sec-tool-v1`
 
-Day 7 使用同一 10-case manifest、`sec-tool-contract-data-v1` 和共享预算运行 30 个 A0/A1/A2 策略观察。主类别简单事实、计算、跨章节、base/amendment 和无答案各 2 条；A0 是 full-context/no-tools oracle，A1 只允许 filing Hybrid search/read，A2 必须使用正式 `sec-l4-v1` 六 Tool surface。三者不能获得不同 gold、Scope、预算或数据版本。
+财务检索与计算 使用同一 10-case manifest、`sec-tool-contract-data-v1` 和共享预算运行 30 个 A0/A1/A2 策略观察。主类别简单事实、计算、跨章节、base/amendment 和无答案各 2 条；A0 是 full-context/no-tools oracle，A1 只允许 filing Hybrid search/read，A2 必须使用正式 `sec-l4-v1` 六 Tool surface。三者不能获得不同 gold、Scope、预算或数据版本。
 
 输入与产物分层保存：
 
@@ -168,11 +168,11 @@ Day 7 使用同一 10-case manifest、`sec-tool-contract-data-v1` 和共享预�
 
 Scorer 要求 10×3 组合精确覆盖，缺失或重复即拒绝评分；错误 company/period/accession 从实际选择直接计算，不读取自报布尔值。答案、Evidence、Citation、calculation program/lineage、无答案拒答、Tool allowlist、预算、步骤、Token、成本和延迟分别报告。当前 deterministic report 的 A2 复杂题相对 A1 净增益为 `0.833333`，简单题退化为 `0`，错误 identity 为 `0`，A2 拒答/Citation/calculation lineage 均为 `1.0`。
 
-这些 observation 绑定 production component pytest，但仍是 frozen contract，不是当前模型实际运行。报告必须保留 `live_sec_executed=false`、`live_model_executed=false`、`browser_e2e_executed=false` 等边界，并在真实依赖、中英 paired、分支/PR/main CI 和 owner review 未齐时输出 `day7_closeout_ready=false`。A0/A1/A2 的 public/offline 与 live repeated run 属于 Day 9/10，不能回填或平均到该 deterministic 报告。
+这些 observation 绑定 production component pytest，但仍是 frozen contract，不是当前模型实际运行。报告必须保留 `live_sec_executed=false`、`live_model_executed=false`、`browser_e2e_executed=false` 等边界，并在真实依赖、中英 paired、分支/PR/main CI 和 owner review 未齐时输出 `day7_closeout_ready=false`。A0/A1/A2 的 public/offline 与 live repeated run 属于 系统评测/10，不能回填或平均到该 deterministic 报告。
 
-### 4.4 `sec-verification-v1`（Day 8）
+### 4.4 `sec-verification-v1`（核验与监控）
 
-Day 8 在不改写 `sec-tool-v1` 的前提下新增独立 manifest/observation/report，覆盖五类能力：
+核验与监控 在不改写 `sec-tool-v1` 的前提下新增独立 manifest/observation/report，覆盖五类能力：
 
 - Claim support/refute/conflict/insufficient、Citation resolvability、scope/period/unit 和 Calculation 重算；
 - one-revise success/no-progress/max-revision、budget/deadline/cancel 和 dependency failure；
@@ -182,13 +182,13 @@ Day 8 在不改写 `sec-tool-v1` 的前提下新增独立 manifest/observation/r
 
 每个 case 固定相同的 source/data hash、`FinancialScope`、allowed/forbidden actions、Evidence/Calculation gold、expected verification status、Runtime stop reason、最终数据库状态和预算。A2/A3/A4 必须复用同一适用 case；不允许给 A3 额外 gold Evidence，或把 A4 的 Monitor 恢复结果平均成问答准确率。
 
-Day 8 deterministic 硬门为：verified false support=0、Citation/source identity resolvability=100%、fabricated source/accession/number/formula=0、future leakage=0、跨 Workspace=0、未授权写=0、重复副作用=0、恢复成功率=100%。A3 只有在复杂检索/计算/冲突类相对 A2 有净收益、简单题退化不超过 2pp 且成本/延迟未越界时保留 mandatory verifier/one-revise；A4 主要以审批、最终数据库状态和恢复正确性验收。
+核验与监控 deterministic 硬门为：verified false support=0、Citation/source identity resolvability=100%、fabricated source/accession/number/formula=0、future leakage=0、跨 Workspace=0、未授权写=0、重复副作用=0、恢复成功率=100%。A3 只有在复杂检索/计算/冲突类相对 A2 有净收益、简单题退化不超过 2pp 且成本/延迟未越界时保留 mandatory verifier/one-revise；A4 主要以审批、最终数据库状态和恢复正确性验收。
 
-Day 8 已冻结 14-case/42-run `sec-verification-v1`，独立 scorer 重算 deterministic/security/fault 三层合同；A3 复杂题相对 A2 净增益为 `0.714286`、简单题退化为 `0`，A4 operational/recovery 为 `1.0/1.0`。PR #14 的 push/PR/main CI 均通过。该结果仍是 frozen replay + executable contract refs；专用 Monitor 浏览器旅程、真实 hard-stop 故障注入、live SEC/model 和 owner closeout 仍留在 Day 10，不能平均进 Day 9 offline score。
+核验与监控 已冻结 14-case/42-run `sec-verification-v1`，独立 scorer 重算 deterministic/security/fault 三层合同；A3 复杂题相对 A2 净增益为 `0.714286`、简单题退化为 `0`，A4 operational/recovery 为 `1.0/1.0`。PR #14 的 push/PR/main CI 均通过。该结果仍是 frozen replay + executable contract refs；专用 Monitor 浏览器旅程、真实 hard-stop 故障注入、live SEC/model 和 owner closeout 仍留在 发布验收，不能平均进 系统评测 offline score。
 
-### 4.5 Day 9 pinned registry baseline
+### 4.5 系统评测 pinned registry baseline
 
-Day 9 Step 1 只固定来源元数据，不提交外部数据 payload。以下 revision 与原始 artifact SHA-256 于 2026-08-29 从官方 GitHub/Hugging Face 来源核验；后续 Adapter 必须下载精确 revision 后按 byte size 与 hash 校验，禁止使用浮动 `main`：
+系统评测 Step 1 只固定来源元数据，不提交外部数据 payload。以下 revision 与原始 artifact SHA-256 于 2026-08-29 从官方 GitHub/Hugging Face 来源核验；后续 Adapter 必须下载精确 revision 后按 byte size 与 hash 校验，禁止使用浮动 `main`：
 
 | Dataset | Source revision | Frozen artifacts | 许可与接入边界 |
 |---|---|---|---|
@@ -203,7 +203,7 @@ Day 9 Step 1 只固定来源元数据，不提交外部数据 payload。以下 r
 
 ### 4.6 `sec-temporal-v1`
 
-Day 9 冻结至少 60 个 release cases。所有 case 必须来自 `as_of` 前可见的官方 filing snapshot，并锁定：
+系统评测 冻结至少 60 个 release cases。所有 case 必须来自 `as_of` 前可见的官方 filing snapshot，并锁定：
 
 ```text
 case_id
@@ -268,17 +268,17 @@ FinSearchComp 将 391 个 historical case（T2 219、T3 172）与 244 个 dynami
 
 ### 4.9 `release-suite-v1`
 
-Step 5 的 release suite 只消费受检派生报告和 Step 1 registry/release manifest，不重新解释原始数据或复制各 benchmark scorer。每个输入保存 report identity/version、case/run denominator、evidence layer 和文件 SHA-256。外部公开集 release manifest 仍是没有 strategy/case 的 `contract_only` 状态；Day 10 common-case 使用独立受检 `sec-release-evidence-v1` 输入，避免在许可/owner 未关闭前把内部 SEC case 冒充公开集 release-ready 数据。
+Step 5 的 release suite 只消费受检派生报告和 Step 1 registry/release manifest，不重新解释原始数据或复制各 benchmark scorer。每个输入保存 report identity/version、case/run denominator、evidence layer 和文件 SHA-256。外部公开集 release manifest 仍是没有 strategy/case 的 `contract_only` 状态；发布验收 common-case 使用独立受检 `sec-release-evidence-v1` 输入，避免在许可/owner 未关闭前把内部 SEC case 冒充公开集 release-ready 数据。
 
-deterministic 报告保留三段同 manifest/data/Scope/budget 的局部决策：10-case `sec-tool-v1` A1→A2、14-case `sec-verification-v1` A2→A3，以及同 14-case 的 A3→A4 operational extension。A2/A3 可以进入下一证据层，A4 只保留于审批/恢复范围。Day 10 common-case 合同已统一引用 10 个 case，但实际 Run 为 0/50，所以仍不生成全局 A0～A4 score，也不选择 production default。没有 ranked retrieval candidate 时，`retrieval_recall_at_5` 必须为 `not_measured`，不能以 answer/complex accuracy 代替。
+deterministic 报告保留三段同 manifest/data/Scope/budget 的局部决策：10-case `sec-tool-v1` A1→A2、14-case `sec-verification-v1` A2→A3，以及同 14-case 的 A3→A4 operational extension。A2/A3 可以进入下一证据层，A4 只保留于审批/恢复范围。发布验收 common-case 合同已统一引用 10 个 case，但实际 Run 为 0/50，所以仍不生成全局 A0～A4 score，也不选择 production default。没有 ranked retrieval candidate 时，`retrieval_recall_at_5` 必须为 `not_measured`，不能以 answer/complex accuracy 代替。
 
 offline 报告仅声明四个 Adapter 的可用 denominator，model/prediction/official scores 全为空；live 报告冻结 FinSearchComp dynamic、SEC temporal、Agent security 三类目标的 case 数和最低 3 次要求，provider/model/version、均值、方差、`pass^k`、成本和延迟在未运行时均为空。failure taxonomy 将缺失证据与真实运行失败分开；当前 9 项均为 release blocker，但 observed runtime failure 为 0。该实现使缺口可机器审计，不代表 D9-08 已完成。
 
 ### 4.10 `sec-release-readiness-v1`
 
-Day 10 在同一 `evaluation` bounded context 将能力矩阵、Day 1～10 日志、代码/测试、CI workflow 和既有评测报告投影为单一发布台账。manifest 固定 88 个正式 requirement 的规范化 digest、六种状态计数、Day owner/依赖/验证命令、当前 68 个 artifact、9 个 taxonomy blocker 的双向映射、7 个跨 Day blocker 和 8 个 external gate。生成报告为每个 artifact 计算 byte size/SHA-256，并要求全部非 `complete` requirement 被 open blocker 精确覆盖、全部 pending gate 被 open blocker 引用。
+发布验收 在同一 `evaluation` bounded context 将能力矩阵、完整工程范围 日志、代码/测试、CI workflow 和既有评测报告投影为单一发布台账。manifest 固定 88 个正式 requirement 的规范化 digest、六种状态计数、Day owner/依赖/验证命令、当前 68 个 artifact、9 个 taxonomy blocker 的双向映射、7 个跨 Day blocker 和 8 个 external gate。生成报告为每个 artifact 计算 byte size/SHA-256，并要求全部非 `complete` requirement 被 open blocker 精确覆盖、全部 pending gate 被 open blocker 引用。
 
-当前结果是 46 个 `complete`、32 个 `implemented_pending_verification`、10 个 `thin_slice`、0 个 `planned`；42 个未完成目标、15 个 open blocker、5 个 pending gate，故 `release_decision=no_go`、`rc_ready=false`。Day 9 与 Day 10 push/PR/main CI 均已有 URL/commit 证据并标记 verified；最终 owner acceptance 仍 pending。该层只审计证据完整性，不运行模型、Runtime、公开 benchmark、恢复演练或 live SEC，也不把历史 `complete` 自动升级为当前发布能力。
+当前结果是 46 个 `complete`、32 个 `implemented_pending_verification`、10 个 `thin_slice`、0 个 `planned`；42 个未完成目标、15 个 open blocker、5 个 pending gate，故 `release_decision=no_go`、`rc_ready=false`。系统评测 与 发布验收 push/PR/main CI 均已有 URL/commit 证据并标记 verified；最终 owner acceptance 仍 pending。该层只审计证据完整性，不运行模型、Runtime、公开 benchmark、恢复演练或 live SEC，也不把历史 `complete` 自动升级为当前发布能力。
 
 本地验证为聚焦/evaluation `8/65 passed`、readiness branch coverage `84%`、无强制真实服务全量 `1184 passed, 88 skipped`；Python/Web/构建/OpenAPI、依赖审计和 98-commit Gitleaks 通过。真实依赖、Chromium、远端分支/PR/main CI 和 owner review 未在本步执行，继续保留为发布证据缺口。
 
@@ -286,11 +286,11 @@ Day 10 在同一 `evaluation` bounded context 将能力矩阵、Day 1～10 日�
 
 Step 2 把已锁定 Filing 的 `FinancialScope` 输入交给现有 Research Runtime，并让 Workbench 读取正式 Verification Report 的四态、Claim、Citation、Calculation、issue、stop reason 和 Evidence snapshot。相关组件/API 回归证明页面不会自行推断状态、amendment 不会静默降级、Case Evidence 可反查，且 active/paused Run 会从正式 API 刷新。这些测试登记进 readiness artifact，但不进入 capability score，也不替代 `sec-verification-v1` scorer。
 
-无拦截的真实依赖 Playwright、受控 SEC source、Worker resume、新 Filing Monitor/Case、forbidden/cancelled/retry 和刷新恢复尚未执行；现有 `tests/e2e/sec-workbench.spec.ts` 仍是浏览器接口回放，只能证明前端渲染与响应式布局。因此 Step 2 不关闭 Day 5/8 browser/recovery blocker，不改变 Day 9 deterministic/offline/live 报告，也不支持对外声称完整中文闭环。
+无拦截的真实依赖 Playwright、受控 SEC source、Worker resume、新 Filing Monitor/Case、forbidden/cancelled/retry 和刷新恢复尚未执行；现有 `tests/e2e/sec-workbench.spec.ts` 仍是浏览器接口回放，只能证明前端渲染与响应式布局。因此 Step 2 不关闭 Knowledge/8 browser/recovery blocker，不改变 系统评测 deterministic/offline/live 报告，也不支持对外声称完整中文闭环。
 
 ### 4.12 `sec-release-evidence-v1`
 
-Day 10 Step 3 不修改 `sec-tool-v1` 的冻结观察，而是以它的 10 个 case ID、gold identity/Evidence/program 和共享预算作为唯一 common-case source。新 manifest 只补齐 A3 mandatory verifier 与 A4 durable monitor 配置，A0～A4 必须在相同 10 case 上执行；offline 固定 50 个 Run，live 固定每格至少 3 次共 150 个 Run。任一 case/strategy/repetition 缺失或重复均拒绝评分。
+发布验收 Step 3 不修改 `sec-tool-v1` 的冻结观察，而是以它的 10 个 case ID、gold identity/Evidence/program 和共享预算作为唯一 common-case source。新 manifest 只补齐 A3 mandatory verifier 与 A4 durable monitor 配置，A0～A4 必须在相同 10 case 上执行；offline 固定 50 个 Run，live 固定每格至少 3 次共 150 个 Run。任一 case/strategy/repetition 缺失或重复均拒绝评分。
 
 每条生产 observation 必须绑定 Run/Trace/Workspace、终态 hash、Evidence/Calculation IDs、ranked candidates、Citation、Tool、Token/成本/延迟，以及 future source、跨 Workspace、注入、未授权写、重复副作用和恢复事实。规则 scorer 由这些实际字段计算 case accuracy、Recall@5、Citation、拒答、runtime binding、freshness/security/recovery 指标和告警，不接受自报“passed”。合成完整/越权 observation 只存在于单元测试，用于证明公式和告警行为，不能写入 checked capability report。
 
@@ -300,7 +300,7 @@ Day 10 Step 3 不修改 `sec-tool-v1` 的冻结观察，而是以它的 10 个 c
 
 ### 4.13 `sec-release-recovery-v1`
 
-Day 10 Step 4 新增的 recovery scorer 只消费 12 个冻结场景的真实 exercise observation，不操作生产资源。场景覆盖 fresh migration、PostgreSQL 备份恢复、Filing 索引重建、Worker 中断、Redis/MinIO/Elasticsearch/Milvus 故障、SEC 429、dead-letter、通知结果未知和上一镜像回滚。执行态必须全覆盖，且每条 observation 绑定环境/commit、exercise、适用的 Run/Workspace、起止时间、恢复命令/终态 hash、证据路径/SHA-256、耗时及三类负面副作用计数。
+发布验收 Step 4 新增的 recovery scorer 只消费 12 个冻结场景的真实 exercise observation，不操作生产资源。场景覆盖 fresh migration、PostgreSQL 备份恢复、Filing 索引重建、Worker 中断、Redis/MinIO/Elasticsearch/Milvus 故障、SEC 429、dead-letter、通知结果未知和上一镜像回滚。执行态必须全覆盖，且每条 observation 绑定环境/commit、exercise、适用的 Run/Workspace、起止时间、恢复命令/终态 hash、证据路径/SHA-256、耗时及三类负面副作用计数。
 
 当前 checked observation 显式为 `not_executed`，报告为 0/12；恢复成功、零重复副作用、零数据损失和零越权写四个指标均为 `not_measured`，对应告警均为 `unknown`，`recovery_gate_passed=false`。聚焦单测中的完整合成 observation 只验证计分、完整性与 fail-closed 行为，不进入 checked report。Runbook 只给出 disposable/staging 命令和取证字段，不能替代 actual exercise、上一镜像 artifact、远端 CI 或 owner acceptance。
 
@@ -308,7 +308,7 @@ Day 10 Step 4 新增的 recovery scorer 只消费 12 个冻结场景的真实 ex
 
 Step 5 不增加新 scorer，也不重新解释 deterministic/offline/live/recovery 指标。它只同步 README、产品范围、ADR 0007、架构、评测、Runbook、NOTICE 和候选说明草案，将这些文件加入 readiness hash 台账，并以 Markdown AST 校验受审计文档的仓库内链接。候选说明草案必须与 checked readiness 报告一致标记 `NO_GO`；当 `rc_ready=false` 时，测试拒绝把文档写成可发布候选。
 
-D10-08 为 `thin_slice` 只表示文档包、链接门和候选提升条件已实现。Day 10 branch/PR/main CI 已验证，但 owner acceptance、外部权利/凭据、中文签字、50 个 production Run、12 个实际恢复场景和上一镜像 artifact 仍缺，所以本层不产生 capability score、不选择 production default，也不允许 tag 或发布声明。
+D10-08 为 `thin_slice` 只表示文档包、链接门和候选提升条件已实现。发布验收 branch/PR/main CI 已验证，但 owner acceptance、外部权利/凭据、中文签字、50 个 production Run、12 个实际恢复场景和上一镜像 artifact 仍缺，所以本层不产生 capability score、不选择 production default，也不允许 tag 或发布声明。
 
 ## 5. Scorer 分层
 
