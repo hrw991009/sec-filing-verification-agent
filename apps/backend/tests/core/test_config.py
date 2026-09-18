@@ -333,6 +333,23 @@ def test_partial_or_url_shaped_minio_configuration_is_rejected(
 
 
 @pytest.mark.parametrize(
+    "endpoint",
+    ["https://localhost:8443", "localhost:8443/path", "user@localhost", "localhost?query"],
+)
+def test_public_minio_endpoint_rejects_non_origins(
+    monkeypatch: pytest.MonkeyPatch, endpoint: str
+) -> None:
+    configure_valid_environment(monkeypatch)
+    monkeypatch.setenv("MINIO_ENDPOINT", "minio:9000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "test")
+    monkeypatch.setenv("MINIO_SECRET_KEY", "test-secret")
+    monkeypatch.setenv("MINIO_BUCKET", "test-private")
+    monkeypatch.setenv("MINIO_PUBLIC_ENDPOINT", endpoint)
+    with pytest.raises(ValidationError, match="public endpoint"):
+        Settings(_env_file=None)
+
+
+@pytest.mark.parametrize(
     "variable_name",
     [
         "POSTGRES_PASSWORD",

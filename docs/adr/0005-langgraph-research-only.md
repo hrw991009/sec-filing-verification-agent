@@ -6,7 +6,7 @@
 >
 > 修订日期：2026-08-12
 >
-> 依据：`docs/master-plan.md` v1.7.0 第 3.1、3.3、5.1～5.2、6.4、Day 4～Day 6 与 17.1 节
+> 依据：`docs/engineering-baseline.md` v1.7.0 第 3.1、3.3、5.1～5.2、6.4、Memory 与 Evidence～SEC 数据源 与 17.1 节
 
 ## 背景
 
@@ -129,7 +129,7 @@ L6 specialist/handoff 或 orchestrator-workers 不是七天硬指标。Planner�
 - 未授权 Tool、其他 Workspace Run/Checkpoint/Report/Evidence 均不可访问；
 - 取消、预算耗尽、最大步骤和最大 revise 真实生效；
 - Report 的关键 Claim 均能解析到真实 Evidence，数据库中不存在原始 chain-of-thought；
-- Day 7 比较 L0/L2/L3/L4/L5，只有存在净收益时才提出 L6 ADR。
+- 财务检索与计算 比较 L0/L2/L3/L4/L5，只有存在净收益时才提出 L6 ADR。
 
 ## 变更与回滚
 

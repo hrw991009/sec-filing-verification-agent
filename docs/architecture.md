@@ -6,11 +6,11 @@
 >
 > 更新日期：2026-09-01
 >
-> 权威来源：`docs/master-plan.md` 2.2.15
+> 权威来源：`docs/engineering-baseline.md` 2.2.15
 
 ## 1. 架构目标
 
-系统采用模块化单体作为 Day 1～Day 10 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。Day 1～Day 4 已完成；Day 5～Day 9 代码已合入 `main`。Day 6 bulk watermark/post-gap 已于 2026-09-01 实现并通过 24/24 deterministic gate，SEC identity live smoke 也已独立通过；SEC fixture 浏览器链、真实大体积 bulk、Retrieval/Citation、Monitor 故障恢复、公开/live 模型评测和外部治理证据仍是发布阻断项。Day 10 Step 1～Step 3 分别建立 readiness 台账、复用正式 owner 连接产品页面并加入 common-case Run evidence scorer；Step 4 只增加仓库质量门和 checked recovery evidence 投影；Step 5 只消费这些 artifact 完成最终文档和 `NO_GO` 判定，没有创建第二套 Runtime、业务状态、运维状态机或发布状态机。空 observation、页面连通、组件测试、Runbook 和候选说明草案都不代表真实 Runtime、浏览器、恢复演练或发布已经通过。
+系统采用模块化单体作为 完整工程范围 的业务形态，同时使用独立 Celery Worker 和 Celery Beat Scheduler 执行异步任务。身份与工程地基～Memory 与 Evidence 已完成；Knowledge～系统评测 代码已合入 `main`。SEC 数据源 bulk watermark/post-gap 已于 2026-09-01 实现并通过 24/24 deterministic gate，SEC identity live smoke 也已独立通过；SEC fixture 浏览器链、真实大体积 bulk、Retrieval/Citation、Monitor 故障恢复、公开/live 模型评测和外部治理证据仍是发布阻断项。发布验收 Step 1～Step 3 分别建立 readiness 台账、复用正式 owner 连接产品页面并加入 common-case Run evidence scorer；Step 4 只增加仓库质量门和 checked recovery evidence 投影；Step 5 只消费这些 artifact 完成最终文档和 `NO_GO` 判定，没有创建第二套 Runtime、业务状态、运维状态机或发布状态机。空 observation、页面连通、组件测试、Runbook 和候选说明草案都不代表真实 Runtime、浏览器、恢复演练或发布已经通过。
 
 架构需要同时满足：
 
@@ -32,23 +32,23 @@
 
 本阶段不引入微服务、Kubernetes、Neo4j、市场行情或交易执行，也不建立第二套 Runtime、Tool loop、Research graph 或 Evidence 模型。SEC 能力必须接入已有正式链路，不能以领域特殊性绕过 Workspace、预算、审批、幂等、Trace 和评测门禁。
 
-### 1.1 Day 1～Day 10 能力与成熟度边界
+### 1.1 完整工程范围 能力与成熟度边界
 
-Day 1～Day 4 的 `v0.1.0-agent-learning-foundation` 能力作为已完成基础保留。Day 10 目标交付 `v0.2.0-sec-disclosure-verifier`，只覆盖 SEC 公开披露事实核验、计算、变更监控和可审计引用，不宣称生产级投研、法定审计、估值预测、投资建议或交易能力。
+身份与工程地基～Memory 与 Evidence 的 `v0.1.0-agent-learning-foundation` 能力作为已完成基础保留。发布验收 目标交付 `v0.2.0-sec-disclosure-verifier`，只覆盖 SEC 公开披露事实核验、计算、变更监控和可审计引用，不宣称生产级投研、法定审计、估值预测、投资建议或交易能力。
 
 这里必须区分“能力广度”和“实现质量”：
 
 - 冻结范围可以预先限制输入种类、Provider 数量、数据规模或高级配置，但范围内必须使用正式数据模型、真实链路、权限、错误语义、恢复机制和自动化测试；
 - `implemented_pending_verification`、`thin_slice`、`contract_only`、`blocked` 和 `planned` 只记录开发过程；只有分支实现、合并 CI、全量 DoD 和项目所有者收口均具备证据后才能改为 `complete`；
-- 任何 Day 1～Day 10 目标都不能因工期被静默删除，也不能通过 Mock、硬编码、LLM 自报正确或第二套临时链路假装完成。
+- 任何 完整工程范围 目标都不能因工期被静默删除，也不能通过 Mock、硬编码、LLM 自报正确或第二套临时链路假装完成。
 
-模块化单体不是“低配版本”，而是在当前阶段同时保证交付速度、边界清晰和质量门禁的正式架构选择。本文定义支撑 Day 1～Day 10 目标所需的架构；是否进入更高成熟度必须由后续真实流量、安全审计和运营证据决定。
+模块化单体不是“低配版本”，而是在当前阶段同时保证交付速度、边界清晰和质量门禁的正式架构选择。本文定义支撑 完整工程范围 目标所需的架构；是否进入更高成熟度必须由后续真实流量、安全审计和运营证据决定。
 
 ### 1.2 质量属性与架构响应
 
 | 质量属性 | 架构保证 | 主要验收证据 |
 |---|---|---|
-| 能力完整性 | `docs/feature-matrix.md` 逐项映射 Day 1～Day 10 目标；每项绑定任务、测试和门禁 | 已完成历史不回退；SEC 目标全部达到冻结验收深度并通过全局 Definition of Done |
+| 能力完整性 | `docs/feature-matrix.md` 逐项映射 完整工程范围 目标；每项绑定任务、测试和门禁 | 已完成历史不回退；SEC 目标全部达到冻结验收深度并通过全局 Definition of Done |
 | 正确性与一致性 | PostgreSQL 单一事实源；Outbox、幂等、补偿、对账和可重建索引 | 约束/并发测试、重复投递测试、部分故障与索引重建演练 |
 | 安全与隐私 | WorkspaceScope、服务端 membership 授权、私有对象、短期凭据、不可信输入边界 | 跨租户泄漏为 0；威胁建模、负向测试、密钥与依赖扫描 |
 | 可靠性与恢复 | 持久 Job/Checkpoint、阶段状态、重试上限、取消、备份与回滚 | Worker/存储/Provider 故障演练；备份—删除—恢复和上一镜像回退 |
@@ -59,7 +59,7 @@ Day 1～Day 4 的 `v0.1.0-agent-learning-foundation` 能力作为已完成基础
 | 可部署与可操作 | 锁文件、可复现构建、fresh migration、healthcheck、资源限制和优雅关闭 | 干净环境启动、本地/预发布 Compose、CI 全绿、Runbook 演练、漏洞和镜像扫描 |
 | 可使用性 | 统一 loading/empty/error/forbidden/retry/cancelled/partial 状态和语义化交互 | 关键组件测试、键盘操作检查和真实浏览器 E2E |
 
-主计划没有可以支撑生产级容量承诺的真实流量数据，因此本文不伪造可用性或吞吐数字。Day 10 前必须建立可重复基线，记录 p50/p95/p99、错误率、吞吐、积压、SEC 限流/退避、Token 和费用，并验证预算与限制真实生效。未经测量的“性能很好”不能作为验收结论。
+主计划没有可以支撑生产级容量承诺的真实流量数据，因此本文不伪造可用性或吞吐数字。发布验收 前必须建立可重复基线，记录 p50/p95/p99、错误率、吞吐、积压、SEC 限流/退避、Token 和费用，并验证预算与限制真实生效。未经测量的“性能很好”不能作为验收结论。
 
 ## 2. 总体架构
 
@@ -187,7 +187,7 @@ infra/compose/                本地/预发布 Compose
 infra/docker/                 镜像与入口脚本
 infra/observability/          Collector、Prometheus 和可选可视化 profile
 docs/adr/                     已接受架构决策
-docs/learning-log/            学习者自己的复盘
+docs/engineering-records/     按领域组织的实现与验证记录
 docs/runbooks/                启动、故障、恢复和回滚步骤
 scripts/                      生成、检查、对账和运维命令入口
 ```
@@ -286,15 +286,15 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 文件与知识库 | `file_objects`、`knowledge_bases`、`documents`、`document_versions` | 文件对象私有；Document 指向唯一 current version；每个版本固定 parser/chunker 配置与状态 |
 | 解析资产 | `chunks`、`assets`、`chunk_asset_links`、`search_index_records` | Chunk 保留页码、标题路径、token、bbox 和内容哈希；资产保留图/表/page 类型与私有文件关系；索引外部 ID 唯一 |
 | 任务与投递 | `schedules`、`schedule_occurrences`、`jobs`、`job_events`、`outbox_events` | occurrence `(schedule_id, scheduled_for)` 唯一；Job 保存 dispatch/start、lease、fencing token、heartbeat 并是业务状态真相；事件序列单调；Outbox 具有抢占、尝试、下次投递与 dead-letter 状态 |
-| 会话 | `conversations`、`conversation_turns`、`conversation_messages`、`message_attachments` | Turn 绑定幂等提交与 `none/web/local/both` 模式快照；附件引用同 Workspace 的 READY FileObject；Day 2 的显式“重新提问”创建新 Turn/Run，不篡改旧 Run |
-| Agent 执行 | `agent_runs`、`agent_steps`、`agent_events`、`agent_checkpoints`、`run_artifacts`、`context_manifests`；Day 3 再增加 Tool 执行事实 | 普通回答、未来 Tool Use 与 Research 共用 Run/Step/Event/Checkpoint；sequence 单调、终态唯一、Budget/stop reason/version 完整；Context manifest 记录实际注入与裁剪决定 |
+| 会话 | `conversations`、`conversation_turns`、`conversation_messages`、`message_attachments` | Turn 绑定幂等提交与 `none/web/local/both` 模式快照；附件引用同 Workspace 的 READY FileObject；Agent Runtime 的显式“重新提问”创建新 Turn/Run，不篡改旧 Run |
+| Agent 执行 | `agent_runs`、`agent_steps`、`agent_events`、`agent_checkpoints`、`run_artifacts`、`context_manifests`；工具执行 再增加 Tool 执行事实 | 普通回答、未来 Tool Use 与 Research 共用 Run/Step/Event/Checkpoint；sequence 单调、终态唯一、Budget/stop reason/version 完整；Context manifest 记录实际注入与裁剪决定 |
 | 证据与引用 | `evidence`、`message_citations` | locator 是版本化判别联合；Citation 必须指向真实 Evidence；读取底层资源时再次授权 |
 | 记忆 | `thread_memory_states`、`memories`、`memory_revisions` | Short-term 保存 Thread 消息引用、摘要、compaction revision 与 freshness；Long-term 当前投影和版本修订保存 provenance、scope、confidence、写入原因、策略/用户决定、停用、过期和删除 |
 | Research | `research_runs`、`research_plans`、`research_reports`、`research_claims`、`claim_evidence` | `research_runs.agent_run_id` 是统一执行事实的领域扩展；计划显式版本化；关键 Claim 关联 Evidence；不得再建立 research_steps/research_checkpoints 第二套执行历史 |
 | 证据图与图表 | `graph_nodes`、`graph_edges`、`chart_specs` | 图绑定 Research Run 并引用 Claim/Evidence/Entity；Chart 绑定 Query Run 或 Research Run，option 必须通过版本化 Schema |
 | SEC 披露 | `sec_filers`、`sec_filer_aliases`、`sec_filings`、`sec_filing_documents`、`sec_source_snapshots`、`workspace_sec_imports`、`sec_xbrl_facts`、`sec_xbrl_contexts` | canonical identity/current projection 与 Workspace import 分层；CIK、accession、form、filed/accepted/public-available time、period、amendment、source URL/response 可追溯；snapshot/history append-only 且带 `source_version_available_at`/有效区间/依据、`retrieved_at`/hash/Adapter version；官方 correction/deletion 以新版本推进 projection，不覆盖旧字节 |
 | 财务核验与监控 | `financial_calculations`、`verification_cases`、`filing_monitors`、`monitor_occurrences` | 输入事实、单位/scale、公式 AST/版本、舍入和输出可重放；Case 保存 `verified/partial/conflict/insufficient_evidence`；同一监控到期或 filing 只产生一次副作用 |
-| 历史行业数据 | `industries`、`user_industry_preferences`、`data_sources`、`collection_runs`、`collection_cursors`、`source_items`、`collection_run_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots` | Day 3 已完成的通用行业切片保留用于回归，不再扩展为后续主产品或接入市场预测/交易链路 |
+| 历史行业数据 | `industries`、`user_industry_preferences`、`data_sources`、`collection_runs`、`collection_cursors`、`source_items`、`collection_run_items`、`news_items`、`policy_items`、`bidding_items`、`market_snapshots` | 工具执行 已完成的通用行业切片保留用于回归，不再扩展为后续主产品或接入市场预测/交易链路 |
 | 数据库与 SQL | `data_connections`、`schema_snapshots`、`query_runs` | 凭据只存 Secret 引用；allowlisted schema/table/column；同时保存 generated 与 validated SQL、预算、状态、行数和错误 |
 | 工具 | `tool_calls`、`tool_runs` | 两者是归属于 AgentRun 的 operational audit projection：`tool_calls` 保存统一 AgentStep 下的请求/执行事实，`tool_runs` 提供可授权查询的脱敏审计视图；它们按唯一 ID 一对一关联，不各自推进第二套状态；保存调用者、权限、Schema 版本、脱敏输入/输出摘要、预算、耗时、来源、状态、错误码与 trace |
 | Agent 评测 | `evaluation_cases`、`evaluation_results` | Case 固定 dataset/runtime/harness/model/prompt/context/toolset version、预算和夹具；Result 关联真实 AgentRun，并分别保存 trajectory/result/evidence/recovery、Token、费用和延迟评分 |
@@ -309,10 +309,10 @@ Milvus 和 Elasticsearch 都是可重建索引，使用类似 `chunk_id:index_ve
 | 会话 / 消息 / 附件 | 会话先进入删除状态；关联生成取消；仅在无其他引用时清理私有附件；消息不得只在前端隐藏 | 列表和详情不可见、流停止、刷新后仍删除、孤儿附件可被对账发现 |
 | 知识库 / 文档 / 版本 | 先标记 `deleting`，再清理 Milvus、Elasticsearch、MinIO 和缓存，最后进入 `deleted` | 任一外部删除失败可重试；旧索引不再召回；历史状态可解释 |
 | Memory | 删除立即从在线检索中过滤并失效缓存，再清理向量和持久内容 | 下一次回答不再使用；重复删除幂等；其他 Workspace 不受影响 |
-| Agent Run / ToolCall / ToolRun / Research / Checkpoint / Report | 先取消 AgentRun；ToolCall/ToolRun 是 Run-owned operational audit projection，外键以 `RESTRICT` 阻止普通资源删除隐式级联清空。Day 3 的 Conversation 删除是逻辑删除并保留运行审计，真实 PostgreSQL 已验证；对外发布物理擦除前必须新增显式、授权、幂等的 Run purge，按依赖顺序删除运行事实，并按冻结策略提取最小 security audit 记录；共享 Evidence 按引用计数/所有权处理 | 普通删除 fail-closed；purge 后不能恢复该 Run；最小安全审计仍可追踪；共享来源不被误删；外部副作用不重复；备份恢复后关联与留存策略仍成立 |
+| Agent Run / ToolCall / ToolRun / Research / Checkpoint / Report | 先取消 AgentRun；ToolCall/ToolRun 是 Run-owned operational audit projection，外键以 `RESTRICT` 阻止普通资源删除隐式级联清空。工具执行 的 Conversation 删除是逻辑删除并保留运行审计，真实 PostgreSQL 已验证；对外发布物理擦除前必须新增显式、授权、幂等的 Run purge，按依赖顺序删除运行事实，并按冻结策略提取最小 security audit 记录；共享 Evidence 按引用计数/所有权处理 | 普通删除 fail-closed；purge 后不能恢复该 Run；最小安全审计仍可追踪；共享来源不被误删；外部副作用不重复；备份恢复后关联与留存策略仍成立 |
 | Evidence / Citation | Evidence 失效时 Citation 保留最小关系和原因，但不得继续暴露 excerpt、私有对象或签名 URL | 历史回答显示“来源已失效”，而不是伪造仍可访问引用 |
 | SEC filing / snapshot / XBRL | 删除 Workspace import 时清理该 Workspace 的 Knowledge/索引/缓存和在线召回；canonical snapshot 仅在无其他 Workspace、Run/Evidence 或固定评测引用且满足版本化来源保留策略时清理；删除不能改写历史 accession 或把修订当原件 | 当前 Workspace 不再召回；其他合法 import 不受影响；固定评测夹具由独立、许可明确的数据集合同管理；来源身份、引用计数和审计关系可解释 |
-| 审计 | security audit 与 Run-owned operational projection 分层；前者只保存脱敏、最小化事件并按冻结期限留存，不能由普通资源删除接口级联清空。Day 3 已冻结逻辑删除/保留策略和备份恢复步骤；显式 Run purge、最小安全审计物理留存与隔离恢复演练在 Day 10 对外发布前关闭 | 安全事件仍可追踪，且不保留密码、Token、Cookie 或全文原文；删除、恢复和备份测试证明留存边界 |
+| 审计 | security audit 与 Run-owned operational projection 分层；前者只保存脱敏、最小化事件并按冻结期限留存，不能由普通资源删除接口级联清空。工具执行 已冻结逻辑删除/保留策略和备份恢复步骤；显式 Run purge、最小安全审计物理留存与隔离恢复演练在 发布验收 对外发布前关闭 | 安全事件仍可追踪，且不保留密码、Token、Cookie 或全文原文；删除、恢复和备份测试证明留存边界 |
 | Redis / Milvus / Elasticsearch | 它们是缓存或派生层；删除/版本变化必须主动失效，并由定时对账兜底 | 清空后可从 PostgreSQL/MinIO 重建，旧 Workspace 数据不再命中 |
 
 每类资源必须在实现时冻结保留期限、可恢复窗口和隐私擦除规则；在这些配置没有明确前，不允许以“永久保留”作为默认捷径。
@@ -347,14 +347,14 @@ Repository 查询必须显式接收 WorkspaceScope，不能依赖调用者自行
 | 私有文件 | `/workspaces/{workspace_id}/files/presign`、`/workspaces/{workspace_id}/files/{id}/complete`、`download-url` 与删除 |
 | 知识库与文档 | `/knowledge-bases`、`/knowledge-bases/{id}/documents`、`/documents/{id}/chunks`、`assets`、`retry`、`reindex` |
 | 会话与附件 | `/workspaces/{workspace_id}/conversations`、`/conversations/{id}`、`/conversations/{id}/messages`；创建接口原子写 Turn、Message、附件关系、AgentRun、Job 与 Outbox |
-| Agent Run 与 SSE | `/workspaces/{workspace_id}/agent-runs/{id}/events`、`cancel`、`trace`；Day 2 重试创建新 Turn/Run，Day 5 才增加 Checkpoint resume |
+| Agent Run 与 SSE | `/workspaces/{workspace_id}/agent-runs/{id}/events`、`cancel`、`trace`；Agent Runtime 重试创建新 Turn/Run，Knowledge 才增加 Checkpoint resume |
 | 检索 | `/search/hybrid`、`/search/web`；调试响应区分 Dense、BM25、RRF 与 Rerank 排名和分数 |
 | 记忆 | `/memories`、`/memories/search`、`/memories/from-session`、`confirm`、`disable`；删除走正式资源接口 |
 | Research | `/research-runs`、`/research-runs/{id}/report`、`graph`、`charts`；其 events/cancel/resume/checkpoints 若保留，只能是对应 `/agent-runs/{agent_run_id}` 的授权兼容视图 |
 | SEC 发行人与申报 | `/workspaces/{workspace_id}/sec/filers/resolve`、`filers/{cik}/filings`、`filing-imports`、`filings/{accession}/documents|sections|facts`；导入使用 `Idempotency-Key` 返回 `202`，查询显式携带截止时点并经 Workspace import 授权后返回来源身份 |
 | 财务核验 | `/financial-verifications`、`/financial-verifications/{id}`、`trace`、`evidence`；创建接口原子写 Case、AgentRun、Job 与 Outbox |
 | 披露监控 | `/filing-monitors`、`/filing-monitors/{id}`、`occurrences`、`approve`、`cancel`；写操作必须授权、审批和幂等 |
-| 历史行业情报 | 当前 `/workspaces/{workspace_id}/industry-sources/items`、`industry-collections/runs`、`industry-collections/schedules` 及手动触发；作为 Day 3 已完成回归面保留，不继续扩展为主产品 |
+| 历史行业情报 | 当前 `/workspaces/{workspace_id}/industry-sources/items`、`industry-collections/runs`、`industry-collections/schedules` 及手动触发；作为 工具执行 已完成回归面保留，不继续扩展为主产品 |
 | 数据源状态 | 当前 `/workspaces/{workspace_id}/industry-sources/readiness`；未配置返回 `provider_not_configured`，用途未批准返回 `provider_terms_approval_required` |
 | 数据库浏览 | `/data-connections`、`/data-connections/{id}/test`、`tables`、`tables/{name}/schema`、`rows` |
 | Text2SQL 与图表 | `/query-runs`、`/query-runs/{id}`、`/query-runs/{id}/chart` |
@@ -418,15 +418,15 @@ stream.snapshot | stream.reset_required
 
 1. 浏览器断开或 `AbortController.abort()` 只关闭本次订阅，不自动取消 AgentRun 或 Ingestion；Research 的执行状态属于其关联 AgentRun。
 2. 取消必须显式调用对应 `cancel` API；服务端写入 `cancel_requested_at`，Worker 在安全点协作式取消，并最终发出唯一 `cancelled` 终态。
-3. 客户端重连发送 `Last-Event-ID`。它必须是当前资源端点内已经观察到的非负十进制 sequence；`0` 表示从可用起点开始。语法非法返回 HTTP 400 与 `INVALID_STREAM_CURSOR`，大于当前已提交 sequence 返回 HTTP 409 与 `STREAM_CURSOR_AHEAD`。Day 2 从 PostgreSQL 的下一条已提交 Event 继续；客户端按 `(stream_id, sequence)` 去重。
+3. 客户端重连发送 `Last-Event-ID`。它必须是当前资源端点内已经观察到的非负十进制 sequence；`0` 表示从可用起点开始。语法非法返回 HTTP 400 与 `INVALID_STREAM_CURSOR`，大于当前已提交 sequence 返回 HTTP 409 与 `STREAM_CURSOR_AHEAD`。Agent Runtime 从 PostgreSQL 的下一条已提交 Event 继续；客户端按 `(stream_id, sequence)` 去重。
 4. 客户端发现 sequence 缺口时停止拼接 delta，并请求恢复，不能猜测缺失文本。
-5. Day 2 以 PostgreSQL AgentEvent 和 Message 为恢复事实源，并对每次查询采用有界窗口。以后若增加 Redis Stream，只能作为带 TTL/最大长度的加速层，不能取代 PostgreSQL 的 partial/final、Citation、sequence 和终态。
+5. Agent Runtime 以 PostgreSQL AgentEvent 和 Message 为恢复事实源，并对每次查询采用有界窗口。以后若增加 Redis Stream，只能作为带 TTL/最大长度的加速层，不能取代 PostgreSQL 的 partial/final、Citation、sequence 和终态。
 6. 如果请求序号已经过期，但 PostgreSQL 有权威快照，服务端先发送 `stream.snapshot`，客户端替换而不是追加现有内容，再订阅仍可用的新事件。
 7. 如果未来的 Redis 加速层丢失，服务端先从 PostgreSQL 已提交 Event/snapshot 恢复。只有 PostgreSQL 事实本身无法证明连续性时才稳定失败；禁止从 1 重新编号后继续旧 stream。
 8. 已终止的流重连时，从 PostgreSQL 返回权威 snapshot、Citation 和同一唯一终态；客户端不会永久等待已经结束的流。
 9. 每次连接、重连和 snapshot 读取都重新执行用户与 Workspace 授权，不能因为知道 stream ID 就访问事件。游标只在 URL 已指定的 stream 内解释；把另一个 stream 的数字游标带到当前端点既不能读取另一个 stream，也不能绕过当前 stream 的授权，仍按本节的超前、可恢复或过期规则处理。
 
-慢客户端必须使用有界分页拉取或有界缓冲。Day 2 的 ASGI 生成器只有在上一批 Event 已交给 socket 后才查询下一批，单批最多 256 条，因此慢发送不会形成无限应用内队列，也不会丢编号事件；未来若改成独立 producer/queue，超过缓冲预算时必须关闭订阅并要求按 `Last-Event-ID` 重连。事件顺序、重复、缺口、过期游标、加速层丢失、用户取消和单纯断开必须分别具有契约测试。
+慢客户端必须使用有界分页拉取或有界缓冲。Agent Runtime 的 ASGI 生成器只有在上一批 Event 已交给 socket 后才查询下一批，单批最多 256 条，因此慢发送不会形成无限应用内队列，也不会丢编号事件；未来若改成独立 producer/queue，超过缓冲预算时必须关闭订阅并要求按 `Last-Event-ID` 重连。事件顺序、重复、缺口、过期游标、加速层丢失、用户取消和单纯断开必须分别具有契约测试。
 
 ## 10. 异步任务与一致性
 
@@ -488,13 +488,13 @@ cron 按 IANA timezone 解释，`scheduled_for` 一律保存 UTC。夏令时不�
 → 独立幂等步骤生成或更新会话自动标题
 ```
 
-`ModelProvider` 固定提供 `stream` 和 `complete`，统一模型标识、超时、重试分类、Token、费用和 Provider request ID。`EmbeddingProvider` 是独立 Port，固定 provider/model、dimension、normalization、batch/timeout 与 index version；它在 Day 5 随 Agent Knowledge/Dense baseline 实现，不前置到 Day 2。两类确定性 Fake 只用于测试；正式配置缺失返回稳定的未配置错误。
+`ModelProvider` 固定提供 `stream` 和 `complete`，统一模型标识、超时、重试分类、Token、费用和 Provider request ID。`EmbeddingProvider` 是独立 Port，固定 provider/model、dimension、normalization、batch/timeout 与 index version；它在 Knowledge 随 Agent Knowledge/Dense baseline 实现，不前置到 Agent Runtime。两类确定性 Fake 只用于测试；正式配置缺失返回稳定的未配置错误。
 
 Message、Turn、AgentRun 和 Job 分工如下：Message 是用户可见内容，Turn 是一次用户输入及其响应关系，AgentRun 是可重试的正式模型/工具执行，Job 是后台投递、lease 与进程执行状态。同一 Turn 可以有多个可关联的 AgentRun attempt，但只能有一个被选为当前回答；重试创建新 Run，不复制用户 Message，也不篡改旧 Run。
 
 模型或 Tool 失败时保留用户输入、已生成部分内容、已确认 Citation、错误码和可重试状态。附件使用统一 FileObject 和 message attachment 关系；删除附件必须检查它是否仍被 Message、Document 或 Evidence 引用。搜索模式、当前行业、KB 与 Harness profile 必须写入 Turn/AgentRun 快照，确保刷新后能解释当时使用了什么上下文。
 
-Day 2 只启用 `none` 的 L0 正式链路；Day 3 在同一 Runtime 上启用 `web` Tool profile；Day 5 Step 4 在冻结 SEC filing 夹具上启用 `local` Dense 查询、Evidence locator 和确定性计算。Day 6 接入官方 SEC 来源与结构化 XBRL；Day 7 Step 1 已让 filing BM25/RRF/rerank 与 XBRL+原文双通道进入 `local`，Step 2 再让该模式选择 `financial-context-v1`。任何未就绪模式都返回稳定 readiness 错误，不能静默回退到 Mock 或通用 Web 搜索。
+Agent Runtime 只启用 `none` 的 L0 正式链路；工具执行 在同一 Runtime 上启用 `web` Tool profile；Knowledge Step 4 在冻结 SEC filing 夹具上启用 `local` Dense 查询、Evidence locator 和确定性计算。SEC 数据源 接入官方 SEC 来源与结构化 XBRL；财务检索与计算 Step 1 已让 filing BM25/RRF/rerank 与 XBRL+原文双通道进入 `local`，Step 2 再让该模式选择 `financial-context-v1`。任何未就绪模式都返回稳定 readiness 错误，不能静默回退到 Mock 或通用 Web 搜索。
 
 ### 10.3 Agent Runtime、Harness 与恢复语义
 
@@ -519,7 +519,7 @@ Runtime、Harness、Checkpoint、Trace 与 Job 不得混用：
 - Trace 是 Event、Context manifest、usage、Evidence 与脱敏决策摘要形成的可观测投影，不用于恢复；
 - Short/Long-term Memory 是可选择的 Context source，不是 Run Checkpoint。
 
-Day 2 冻结通用 Checkpoint envelope、schema version、CAS 与不兼容版本拒绝；Day 5 才把 LangGraph state 映射到统一 Agent Checkpoint，完成 interrupt/resume、ApprovalRequest/Decision、Worker hard stop 恢复和副作用账本。保存外部副作用时遵循“持久化意图与幂等键 → 执行 → 持久化结果”，resume 必须先检查既有结果。
+Agent Runtime 冻结通用 Checkpoint envelope、schema version、CAS 与不兼容版本拒绝；Knowledge 才把 LangGraph state 映射到统一 Agent Checkpoint，完成 interrupt/resume、ApprovalRequest/Decision、Worker hard stop 恢复和副作用账本。保存外部副作用时遵循“持久化意图与幂等键 → 执行 → 持久化结果”，resume 必须先检查既有结果。
 
 关键 Port 的方向固定为：
 
@@ -544,7 +544,7 @@ uploaded → queued → validating → parsing → extracting_assets
                                       ↘ retrying / failed / cancelled
 ```
 
-文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Day 5 的 Embedding、双索引写入、冻结 SEC filing 夹具上的 Dense 查询与正式 `knowledge_search` 已随 PR #9 合入 `main`；ready fixture 的端到端浏览器 Evidence 反查仍待关闭。Day 6 复用同一链路导入锁定 accession 的官方快照并保持 `dense-v1`；Day 7 Step 1 已通过显式 retrieval profile 启用 filing BM25、RRF 和 rerank 的 `hybrid-v1`，ranking 正式评测仍待关闭。
+文档只有在 Milvus 和 Elasticsearch 两个索引都成功后才能进入 ready。Knowledge 的 Embedding、双索引写入、冻结 SEC filing 夹具上的 Dense 查询与正式 `knowledge_search` 已随 PR #9 合入 `main`；ready fixture 的端到端浏览器 Evidence 反查仍待关闭。SEC 数据源 复用同一链路导入锁定 accession 的官方快照并保持 `dense-v1`；财务检索与计算 Step 1 已通过显式 retrieval profile 启用 filing BM25、RRF 和 rerank 的 `hybrid-v1`，ranking 正式评测仍待关闭。
 
 删除时先进入 deleting，由 Worker 清理索引和对象，最后进入 deleted。
 
@@ -564,7 +564,7 @@ uploaded → queued → validating → parsing → extracting_assets
 
 ## 12. SEC 双通道检索、Evidence 与 Citation
 
-财务核验不能只依赖向量 RAG。Day 6 先用版本化 `FilingSelectionScope v1` 冻结 `as_of`、CIK 候选、allowed forms、报告期和修订策略，解析成明确 accession 后再物化 accession-bound `FinancialScope`；现有 Day 5 `FinancialScope v1` 保持 replay 兼容。`sec.list_filings@v1` 必须计算查询区间的 coverage，并跟随 SEC submissions 响应中与该区间相交的 `filings.files` supplemental JSON，保存覆盖清单且按 accession 去重。bulk snapshot 另存 `bulk_published_at`/`coverage_through`；`as_of` 晚于水位时必须由版本化官方增量快照补齐。只有 current、所需 supplemental 文件和截至 `as_of` 的时间覆盖均完整后才能返回 `no_result`，缺失、损坏或时间缺口必须返回 typed dependency/incomplete/partial error。Day 7 才由同一 Harness 编排两条只读通道：
+财务核验不能只依赖向量 RAG。SEC 数据源 先用版本化 `FilingSelectionScope v1` 冻结 `as_of`、CIK 候选、allowed forms、报告期和修订策略，解析成明确 accession 后再物化 accession-bound `FinancialScope`；现有 Knowledge `FinancialScope v1` 保持 replay 兼容。`sec.list_filings@v1` 必须计算查询区间的 coverage，并跟随 SEC submissions 响应中与该区间相交的 `filings.files` supplemental JSON，保存覆盖清单且按 accession 去重。bulk snapshot 另存 `bulk_published_at`/`coverage_through`；`as_of` 晚于水位时必须由版本化官方增量快照补齐。只有 current、所需 supplemental 文件和截至 `as_of` 的时间覆盖均完整后才能返回 `no_result`，缺失、损坏或时间缺口必须返回 typed dependency/incomplete/partial error。财务检索与计算 才由同一 Harness 编排两条只读通道：
 
 ```text
 问题规范化与 scope freeze
@@ -580,7 +580,7 @@ uploaded → queued → validating → parsing → extracting_assets
 
 XBRL 适合标准化数值筛选和确定性计算，但 Company Facts 等聚合接口不能替代具体 filing、custom tag、footnote 和修订上下文。aggregate fact 使用 endpoint response snapshot + accession + concept + unit + period locator，原始 context ID、dimensions、decimals/scale 按来源能力可空；只有 raw iXBRL 或独立 XBRL instance XML 才承诺反查 document、原始 element/context/dimensions。Frames 只用于候选对齐，不能单独作为精确财期判定权威。
 
-Dense Top K、BM25 Top K、RRF 参数、Rerank 数量、concept fallback 和最终 Context 数量都只是版本化实验参数，不能成为未经评测的永久常量。Day 7 Step 2 已在现有 Context Compiler 中加入 `financial-context-v1`，以可信 Scope、来源 identity、cutoff、unit 和 Token 预算筛选 XBRL/filing/Knowledge/Calculation Observation，并继续复用既有 Memory 与 Tool Observation 顺序；独立 Evidence/Citation 仍由正式 Evidence ledger 负责，不能由 Context source 冒充。
+Dense Top K、BM25 Top K、RRF 参数、Rerank 数量、concept fallback 和最终 Context 数量都只是版本化实验参数，不能成为未经评测的永久常量。财务检索与计算 Step 2 已在现有 Context Compiler 中加入 `financial-context-v1`，以可信 Scope、来源 identity、cutoff、unit 和 Token 预算筛选 XBRL/filing/Knowledge/Calculation Observation，并继续复用既有 Memory 与 Tool Observation 顺序；独立 Evidence/Citation 仍由正式 Evidence ledger 负责，不能由 Context source 冒充。
 
 Point-in-time 先用 filing identity 的 `public_available_at`、`visibility_basis` 和 `visibility_policy_version` 过滤候选，再用每个 source snapshot/version 的 `source_version_available_at`、依据和有效区间过滤实际字节/响应；两层都必须在 `as_of` 前可证明存在。`report_date`、`filed_date`、`accepted_at` 保留各自业务语义，`retrieved_at` 只表示本地抓取时间：它不能自动排除事后取得的已存在版本，也不能把 correction 后首次抓取的字节追溯成更早版本。精确历史日内或 source version 可见性无法证明时 fail closed，不能用 UTC 零点或当前 submissions/companyfacts 猜测。amendment policy 必须显式记录，未来 canonical 行/版本即使已同步也不能进入 Tool output、Context 或 Calculation。
 
@@ -658,9 +658,9 @@ Memory 分为两层，且都不同于当前 LLM Context、Run State 与 Checkpoi
 
 每次 Tool 请求以 Event batch 和对应投影在同一 PostgreSQL 事务中原子创建 `ToolCall`；只有静态 allow 且真正开始执行后，才绑定 Tool execution Step 并创建一对一的 `ToolRun` operational audit projection。系统持续校验 call/run/workspace、请求/执行 Step 与 trace 的关联；deny 或 approval_required 不伪造 ToolRun。投影记录调用者、Schema/策略快照、脱敏输入/输出摘要、来源、状态、耗时、实际预算消耗和稳定错误码，不独立推进第二套状态机。Tool 完成、取消与硬超时竞争时只能有一个结算结果，迟到结果不能覆盖已提交状态；不一致 batch、error code、locator、digest、幂等键 hash 或 Trace correlation 一律 fail-closed。非零实际 Tool 成本必须不超过声明上限，并在 Event、Tool Step、Run state 与 Tool 投影之间只计一次且数值守恒。模型看到的 Tool 结果仍是不可信输入。知识检索、SEC、计算、监控、Web、历史行业、数据库 Schema、Text2SQL 和图表都复用这一条正式链路。
 
-写 Tool 的原始副作用幂等键只在受控内存合同中保留、从 `repr` 隐藏并传给 Adapter；Event 和 PostgreSQL 只保存服务端完整性摘要，普通 Trace 不暴露参数或幂等键 digest。来源 locator 拒绝 userinfo、query、fragment 和控制字符，完整 model-visible Observation envelope digest 同时约束正文与 provenance。Day 3 的真实 Web/行业 Adapter 已固定 host、字段、响应预算和 public canonical locator，并复用 SSRF/DNS pinning/跳转拒绝 egress 合同；World Bank News 与 Alpha Vantage 在用途条款未显式批准时发网前 fail-closed。SEC Adapter 额外执行身份化 User-Agent、全局速率预算、缓存、指数退避、内容哈希和截止时点快照。`ToolCall/ToolRun` 由 `RESTRICT` 保护，普通逻辑删除保留审计；显式物理 Run purge、最小 security audit 物理留存和隔离备份恢复演练继续作为 Day 10 发布门禁。
+写 Tool 的原始副作用幂等键只在受控内存合同中保留、从 `repr` 隐藏并传给 Adapter；Event 和 PostgreSQL 只保存服务端完整性摘要，普通 Trace 不暴露参数或幂等键 digest。来源 locator 拒绝 userinfo、query、fragment 和控制字符，完整 model-visible Observation envelope digest 同时约束正文与 provenance。工具执行 的真实 Web/行业 Adapter 已固定 host、字段、响应预算和 public canonical locator，并复用 SSRF/DNS pinning/跳转拒绝 egress 合同；World Bank News 与 Alpha Vantage 在用途条款未显式批准时发网前 fail-closed。SEC Adapter 额外执行身份化 User-Agent、全局速率预算、缓存、指数退避、内容哈希和截止时点快照。`ToolCall/ToolRun` 由 `RESTRICT` 保护，普通逻辑删除保留审计；显式物理 Run purge、最小 security audit 物理留存和隔离备份恢复演练继续作为 发布验收 发布门禁。
 
-Day 3 完成 L1 单工具与 L2 有界循环，停止条件至少包括 final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error 和 no_progress。Day 3 的 Approval 只执行基于可信 policy context 的静态 allow/deny，或发出 `approval_required` 并停止；Day 5 才持久化 ApprovalRequest/Decision，执行 interrupt/resume、allow/deny/timeout 和重复 decision 幂等。
+工具执行 完成 L1 单工具与 L2 有界循环，停止条件至少包括 final、max_steps、deadline、token/cost budget、cancelled、tool_denied、tool_error 和 no_progress。工具执行 的 Approval 只执行基于可信 policy context 的静态 allow/deny，或发出 `approval_required` 并停止；Knowledge 才持久化 ApprovalRequest/Decision，执行 interrupt/resume、allow/deny/timeout 和重复 decision 幂等。
 
 Tool Result 首先归一化为带来源、时间、locator 和 content hash 的 Observation/EvidenceCandidate。它只有在授权、规范化、去重和 locator 校验后才能提升为 Evidence；不可信 Tool/文档内容不能改变 Instructions、Tool allowlist、WorkspaceScope、Budget 或 Approval 结果。
 
@@ -671,17 +671,17 @@ SEC 主产品冻结以下类型化 Tool：
 | `sec.resolve_filer@v1` | 无 | 在认证 Workspace 预算下读取公共 discovery catalog，将 ticker/name 解析为带证据的 CIK 候选，歧义时拒绝自动选择 |
 | `sec.list_filings@v1` | 无 | 在认证 Workspace 预算下按 CIK、form、filing/source-version visibility 和 `as_of` 返回 public filing identity，不暴露其他 Workspace import 状态 |
 | `sec.get_xbrl_facts@v1` | 无 | 经当前 Workspace import 返回 source-typed fact；aggregate/raw locator 分型，raw 才承诺原始 context/dimensions |
-| `sec.search_filing@v1` | 无 | 对锁定 filing snapshot 返回带 `retrieval_profile_version` 的候选；Day 6 为 `dense-v1`，Day 7 为 `hybrid-v1` |
+| `sec.search_filing@v1` | 无 | 对锁定 filing snapshot 返回带 `retrieval_profile_version` 的候选；SEC 数据源 为 `dense-v1`，财务检索与计算 为 `hybrid-v1` |
 | `sec.read_filing_section@v1` | 无 | 读取指定 filing/section 范围并生成 Evidence locator |
 | `finance.calculate@v1` | 无 | 对正式 SEC Evidence 或历史 fixture 的 typed Decimal 输入执行 allowlisted 公式、scale propagation、单位核对和舍入 |
 | `sec.diff_filings@v1` | 无 | 对两个明确 filing 版本执行事实与章节差异核对 |
 | `monitor.subscribe@v1` | 有 | 创建/更新披露监控；必须授权、Approval、幂等和可审计 |
 
-Day 6 的正式 profile 只暴露前五个 SEC 只读 Tool。`finance.calculate@v1` 虽已有 Day 5 fixture 合同，但正式 SEC 计算/核对在 Day 7 验收；`sec.diff_filings@v1` 与 `monitor.subscribe@v1` 分别留在 Day 7、Day 8。Tool schema 不因检索算法切换而静默改变，Dense/Hybrid 通过返回中的 `retrieval_profile_version` 和 Trace 区分。
+SEC 数据源 的正式 profile 只暴露前五个 SEC 只读 Tool。`finance.calculate@v1` 虽已有 Knowledge fixture 合同，但正式 SEC 计算/核对在 财务检索与计算 验收；`sec.diff_filings@v1` 与 `monitor.subscribe@v1` 分别留在 财务检索与计算、核验与监控。Tool schema 不因检索算法切换而静默改变，Dense/Hybrid 通过返回中的 `retrieval_profile_version` 和 Trace 区分。
 
 ### 15.3 历史行业上下文与 SEC 来源
 
-Day 3 已实现的智慧交通、金融科技、医疗健康和能源电力四行业上下文、来源采集与页面作为历史能力和回归面保留，但从 Day 5 Step 4 起不再扩展，也不进入 SEC 主产品的默认 Tool surface。行业选择仍不能扩大 Workspace 权限。
+工具执行 已实现的智慧交通、金融科技、医疗健康和能源电力四行业上下文、来源采集与页面作为历史能力和回归面保留，但从 Knowledge Step 4 起不再扩展，也不进入 SEC 主产品的默认 Tool surface。行业选择仍不能扩大 Workspace 权限。
 
 聊天与 Research 每次运行显式保存 `none/web/local/both` 搜索模式、当前行业和选中知识库，刷新或恢复后不依赖浏览器猜测旧状态。
 
@@ -697,14 +697,14 @@ Beat 计算到期 occurrence，或授权用户手动触发
 → Adapter 拉取并规范化 Source Item
 → external ID + content hash 幂等去重
 → 保存来源、原链接、发布时间、采集时间和使用约束
-→ 写领域明细和 EvidenceCandidate；Day 4 才提升为 Evidence
+→ 写领域明细和 EvidenceCandidate；Memory 与 Evidence 才提升为 Evidence
 → 更新 cursor、last success、统计和终态
 → 瞬时失败退避重试；超过上限进入持久 dead-letter
 ```
 
 资讯支持分类、统计、分页、原始来源和手动采集结果；招投标支持公告类型、地区、分页和手动采集结果；股票 Tool 在聊天中返回专用行情卡片。调度状态、最后成功时间和失败原因对授权用户可见。
 
-Day 3 已实现四个固定 Provider contract、领域表、来源/游标/去重、手动和定时调度后端，以及 `industry.web_search:v1` 的 Registry/Executor/Observation 合同；真实 PostgreSQL 验证 ScheduleOccurrence、Job、Outbox 与 CollectionRun 同事务提交。行业页提供四类来源/readiness、卡片、分页、手动采集和 Schedule/Run 状态；Conversation/Job 已物化行业限定的 Web L2 command，并由 Playwright 从页面验证到安全 Trace。Observation→Evidence ledger 仍按计划属于 Day 4，不影响 Day 3 已复核为 `complete` 的结论。
+工具执行 已实现四个固定 Provider contract、领域表、来源/游标/去重、手动和定时调度后端，以及 `industry.web_search:v1` 的 Registry/Executor/Observation 合同；真实 PostgreSQL 验证 ScheduleOccurrence、Job、Outbox 与 CollectionRun 同事务提交。行业页提供四类来源/readiness、卡片、分页、手动采集和 Schedule/Run 状态；Conversation/Job 已物化行业限定的 Web L2 command，并由 Playwright 从页面验证到安全 Trace。Observation→Evidence ledger 仍按计划属于 Memory 与 Evidence，不影响 工具执行 已复核为 `complete` 的结论。
 
 ### 15.4 Deep Research、报告与证据图
 
@@ -721,7 +721,7 @@ L5：L4 + outline/draft → verify → bounded revise → finalize
     → verified / partial / conflict / insufficient_evidence Report
 ```
 
-执行顺序固定为：Day 4 已完成通用 L3；Day 5 Step 5 已合并冻结 SEC fixture 上的 L4 durable Checkpoint/HITL，待同一 fixture 浏览器 DoD 后关闭；Day 7 完成 SEC 双通道 Research 图；Day 8 增加 L5 Verifier、最多一次 bounded revise 与 durable monitor/HITL。L6 specialist/handoff 不是硬指标，只有统一 Evaluation Harness 相对单图基线证明质量收益显著高于延迟、Token 和调试成本时才进入后续实验。
+执行顺序固定为：Memory 与 Evidence 已完成通用 L3；Knowledge Step 5 已合并冻结 SEC fixture 上的 L4 durable Checkpoint/HITL，待同一 fixture 浏览器 DoD 后关闭；财务检索与计算 完成 SEC 双通道 Research 图；核验与监控 增加 L5 Verifier、最多一次 bounded revise 与 durable monitor/HITL。L6 specialist/handoff 不是硬指标，只有统一 Evaluation Harness 相对单图基线证明质量收益显著高于延迟、Token 和调试成本时才进入后续实验。
 
 `ResearchBrief` 显式保存原始问题、确认范围、排除项、完成标准和预算，Planner 不能静默改题。L3 的每个 Claim 标注 support/refute/uncertain、coverage 与 conflict，并关联真实 Evidence locator；Observation 不经规范化不能冒充 Evidence。
 
@@ -735,7 +735,7 @@ schema/run/scope/ResearchBrief/plan/current node/pending actions
 
 从 L4 起，LangGraph state 映射到统一 `AgentRun/Event/Checkpoint`，不创建 research_steps/research_checkpoints 第二套执行事实。每个安全节点结束后持久化 revision、输入/输出摘要、Evidence、Token、费用和耗时；恢复从最后成功 Checkpoint 继续。Research 必须限制最大步骤、并发、Token、费用、运行时间、revise 次数和 Tool allowlist。副作用在节点重试和 resume 时必须保持幂等。
 
-当前 Day 4 L3 只实现前半句的统一 Run/Event 与 typed state 审计映射，不创建或声称 durable Checkpoint；Worker hard stop 由现有 Terminalizer 收敛，不能从普通 state 行恢复。Checkpoint、interrupt/resume、持久审批和副作用恢复从 Day 5 L4 才开始。L3 的实际节点、状态、失败和回滚合同见 [Research L3 状态机](research-state-machine.md)。
+当前 Memory 与 Evidence L3 只实现前半句的统一 Run/Event 与 typed state 审计映射，不创建或声称 durable Checkpoint；Worker hard stop 由现有 Terminalizer 收敛，不能从普通 state 行恢复。Checkpoint、interrupt/resume、持久审批和副作用恢复从 Knowledge L4 才开始。L3 的实际节点、状态、失败和回滚合同见 [Research L3 状态机](research-state-machine.md)。
 
 Verifier 按 filing identity、Claim 支持度、数值/单位/期间、公式、Citation 可解析性、coverage、conflict 和未决问题执行可判定评分；revise 最多一次并受 Budget 与 deadline 限制。最终业务状态只使用 `verified`、`partial`、`conflict`、`insufficient_evidence`；支持不足、冲突未解决或依赖失败不能由 finalizer 或 UI 伪装为 `verified`。
 
@@ -751,23 +751,23 @@ SQL 必须经过 sqlglot 完整 AST 校验，只允许受控 SELECT 或 CTE；�
 
 Query Run 同时保存原始问题、generated SQL、validated SQL、schema snapshot、状态、行数、结果对象引用和稳定错误。数据库故障或校验失败必须明确失败，禁止回退模拟数据。图表只接受通过版本化 JSON Schema 和 allowlist 的 ECharts 配置，不执行模型代码。
 
-`database.text2sql:v1` 以固定合成样例表落地这条边界：独立只读 DSN 访问，连接元数据只保存 Secret 引用；SQLGlot PostgreSQL AST、不可变 SchemaSnapshot、递归计划行预算和数据库只读事务共同校验一次查询。QueryRun/QueryResult/ChartSpec 以 Workspace 复合外键持久化，小型结果限制为 200 行/64 列/512 KiB；列表只返回摘要，详情才返回 Artifact。line/bar/pie/scatter 的 ECharts option 只能由服务端 typed encoding 构造，前端还会执行第二次精确 allowlist 并延迟加载 SVG renderer。数据库/图表页面、Tool Inspector、陈旧 QueryRun 对账和生产 Web L2 command 均已实现；任意生产数据库连接管理不在 Day 3 冻结范围内。
+`database.text2sql:v1` 以固定合成样例表落地这条边界：独立只读 DSN 访问，连接元数据只保存 Secret 引用；SQLGlot PostgreSQL AST、不可变 SchemaSnapshot、递归计划行预算和数据库只读事务共同校验一次查询。QueryRun/QueryResult/ChartSpec 以 Workspace 复合外键持久化，小型结果限制为 200 行/64 列/512 KiB；列表只返回摘要，详情才返回 Artifact。line/bar/pie/scatter 的 ECharts option 只能由服务端 typed encoding 构造，前端还会执行第二次精确 allowlist 并延迟加载 SVG renderer。数据库/图表页面、Tool Inspector、陈旧 QueryRun 对账和生产 Web L2 command 均已实现；任意生产数据库连接管理不在 工具执行 冻结范围内。
 
 ### 15.6 Evaluation Harness 与 Agent Learning Workbench
 
 Evaluation Harness 与生产流量调用同一个 Agent Runtime/Harness；测试只替换 Provider/Tool 等外部边界、注入故障和运行 Scorer，不建立测试专用 loop。`Scenario/EvalCase` 固定 input、runtime/harness/model/prompt/context/toolset version、available tools、Budget、expected stop reason、deterministic fixture refs、Scorer 和人工备注。Replay 只重放冻结的外部响应，不宣称真实模型确定。
 
-Day 2～Day 4 已有 50 条通用 Scenario 继续作为 Runtime/Memory/Evidence/L3 回归集，但不能证明金融能力。Day 5 建立 `sec-fixture-v1`，Day 6 建立 `sec-source-v1`；Day 9 汇总并冻结这些已有数据集，新增不少于 60 条的 `sec-temporal-v1`、不少于 30 组成对中英案例和公开 benchmark manifests。FinQA、TAT-QA、FinanceBench、FinSearchComp 只按各自公开范围补充能力证据。评分分为 source/identity、retrieval、calculation/result、evidence/citation、trajectory/tool、runtime recovery/security 与成本延迟层；LLM judge 只能作为辅助。
+Agent Runtime～Memory 与 Evidence 已有 50 条通用 Scenario 继续作为 Runtime/Memory/Evidence/L3 回归集，但不能证明金融能力。Knowledge 建立 `sec-fixture-v1`，SEC 数据源 建立 `sec-source-v1`；系统评测 汇总并冻结这些已有数据集，新增不少于 60 条的 `sec-temporal-v1`、不少于 30 组成对中英案例和公开 benchmark manifests。FinQA、TAT-QA、FinanceBench、FinSearchComp 只按各自公开范围补充能力证据。评分分为 source/identity、retrieval、calculation/result、evidence/citation、trajectory/tool、runtime recovery/security 与成本延迟层；LLM judge 只能作为辅助。
 
-Day 9 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context 建立唯一 release 治理入口：严格 Dataset Registry 负责 upstream revision、artifact byte size/SHA-256、split、数据/代码许可、允许用途和 release eligibility；Release Eval manifest 通过 registry canonical hash 固定 Runtime/Harness/model/Prompt/Tool/Context/Retrieval/Graph/Verifier/Scorer version、Budget、trajectory、SEC point-in-time gold 与 Run/Trace/Evidence/Calculation identity。Git 只保存 registry、manifest、JSON Schema 和小型派生产物，外部 payload 由后续 Adapter 按 registry 下载校验，不因登记元数据进入产品 RAG。四个公开数据集在 Adapter、artifact 校验和权利复核完成前均为 `registered_only` 且 fail closed，不能进入 release claim。
+系统评测 Step 1 已在现有 `industry_platform.modules.evaluation` bounded context 建立唯一 release 治理入口：严格 Dataset Registry 负责 upstream revision、artifact byte size/SHA-256、split、数据/代码许可、允许用途和 release eligibility；Release Eval manifest 通过 registry canonical hash 固定 Runtime/Harness/model/Prompt/Tool/Context/Retrieval/Graph/Verifier/Scorer version、Budget、trajectory、SEC point-in-time gold 与 Run/Trace/Evidence/Calculation identity。Git 只保存 registry、manifest、JSON Schema 和小型派生产物，外部 payload 由后续 Adapter 按 registry 下载校验，不因登记元数据进入产品 RAG。四个公开数据集在 Adapter、artifact 校验和权利复核完成前均为 `registered_only` 且 fail closed，不能进入 release claim。
 
-Day 10 Step 1 继续复用该 bounded context：`release_readiness` 只读取正式能力矩阵、受检评测报告和仓库证据，不参与线上回答，也不重算各 benchmark scorer。readiness manifest 固定 requirement digest、owner、依赖、验证命令、artifact 和 blocker/external-gate 映射；生成器验证十张正式能力表、taxonomy 双向覆盖、非完成目标与 open blocker、pending gate 与 open blocker 完全一致，并为每个 artifact 计算 byte size/SHA-256。checked JSON/Markdown 与 manifest/report Schema 是发布审计投影，不是新的运行时事实源。
+发布验收 Step 1 继续复用该 bounded context：`release_readiness` 只读取正式能力矩阵、受检评测报告和仓库证据，不参与线上回答，也不重算各 benchmark scorer。readiness manifest 固定 requirement digest、owner、依赖、验证命令、artifact 和 blocker/external-gate 映射；生成器验证十张正式能力表、taxonomy 双向覆盖、非完成目标与 open blocker、pending gate 与 open blocker 完全一致，并为每个 artifact 计算 byte size/SHA-256。checked JSON/Markdown 与 manifest/report Schema 是发布审计投影，不是新的运行时事实源。
 
-Day 10 Step 2 的页面协调只传递已锁定 Filing 的 `FinancialScope` 输入，不持久化新的业务副本。Research API 仍拥有 Run/Brief/Draft、Verifier 拥有四态报告、Evidence API 拥有 Citation/Calculation 反查、Durability API 拥有 Checkpoint/Approval、Disclosure API 拥有 Monitor/Case。Web 每次刷新从这些正式 owner 重建视图；没有报告就显示未生成，amendment 不会被静默转换，active/paused 状态不会由浏览器计时器直接推进。这样保持单一事实源，同时把无拦截真实依赖 Playwright 留作独立发布证据门。
+发布验收 Step 2 的页面协调只传递已锁定 Filing 的 `FinancialScope` 输入，不持久化新的业务副本。Research API 仍拥有 Run/Brief/Draft、Verifier 拥有四态报告、Evidence API 拥有 Citation/Calculation 反查、Durability API 拥有 Checkpoint/Approval、Disclosure API 拥有 Monitor/Case。Web 每次刷新从这些正式 owner 重建视图；没有报告就显示未生成，amendment 不会被静默转换，active/paused 状态不会由浏览器计时器直接推进。这样保持单一事实源，同时把无拦截真实依赖 Playwright 留作独立发布证据门。
 
-Day 10 Step 3 的 `release_evidence` 只消费版本化 common-case manifest 与经脱敏导出的生产 Run evidence。它引用 `sec-tool-v1` 的 10 个 case/gold identity，不复制或修改 gold；A0～A4 固定同一 case、Scope 和预算，offline 期望 50 个 Run，live 期望每格 3 次共 150 个 Run。每条 observation 必须带 Run/Trace/Workspace、Evidence/Calculation、final-state hash、ranked candidate、Token/成本/延迟及安全/恢复计数，scorer 才计算 Recall@5、Citation、runtime binding、freshness、跨 Workspace、未授权写、重复副作用、注入和恢复指标。空 observation 只生成 `not_measured`/`unknown` 和 blocker；这些报告是 evaluation 投影，不写回生产表，也不替代 OpenTelemetry/Prometheus 的真实运行采集。
+发布验收 Step 3 的 `release_evidence` 只消费版本化 common-case manifest 与经脱敏导出的生产 Run evidence。它引用 `sec-tool-v1` 的 10 个 case/gold identity，不复制或修改 gold；A0～A4 固定同一 case、Scope 和预算，offline 期望 50 个 Run，live 期望每格 3 次共 150 个 Run。每条 observation 必须带 Run/Trace/Workspace、Evidence/Calculation、final-state hash、ranked candidate、Token/成本/延迟及安全/恢复计数，scorer 才计算 Recall@5、Citation、runtime binding、freshness、跨 Workspace、未授权写、重复副作用、注入和恢复指标。空 observation 只生成 `not_measured`/`unknown` 和 blocker；这些报告是 evaluation 投影，不写回生产表，也不替代 OpenTelemetry/Prometheus 的真实运行采集。
 
-Day 10 Step 4 的 `release_recovery` 同样是只读 evaluation 投影。manifest 固定 12 个 fresh migration、备份恢复、索引重建、依赖/Worker 故障、SEC 429、dead-letter、通知不确定性和上一镜像回滚场景；executed observation 必须全覆盖并绑定 evidence SHA-256、时间、恢复命令/终态 hash、Run/Workspace（适用时）、数据损失、越权写和重复副作用。当前 checked 输入为 0/12，四个指标保持 `not_measured`，因此不会因合同或 Runbook 存在而关闭恢复门。CI 在既有真实依赖 Job 强制冻结核心 90%/后端 80%，并以锁定 Semgrep、许可证和 NOTICE 检查补齐供应链层；工具通过仍不替代远端 CI、实际演练或 owner review。
+发布验收 Step 4 的 `release_recovery` 同样是只读 evaluation 投影。manifest 固定 12 个 fresh migration、备份恢复、索引重建、依赖/Worker 故障、SEC 429、dead-letter、通知不确定性和上一镜像回滚场景；executed observation 必须全覆盖并绑定 evidence SHA-256、时间、恢复命令/终态 hash、Run/Workspace（适用时）、数据损失、越权写和重复副作用。当前 checked 输入为 0/12，四个指标保持 `not_measured`，因此不会因合同或 Runbook 存在而关闭恢复门。CI 在既有真实依赖 Job 强制冻结核心 90%/后端 80%，并以锁定 Semgrep、许可证和 NOTICE 检查补齐供应链层；工具通过仍不替代远端 CI、实际演练或 owner review。
 
 Agent Learning Workbench 使用 OpenAPI、统一 `agent.*` Event、Trace、Context manifest 和 Artifact API，完整提供八组可关联面板：
 
@@ -806,7 +806,7 @@ API、Dispatcher、Worker 和 Beat 通过 OTLP 把脱敏 Trace 与指标发送�
 
 结构化日志至少包含 `timestamp`、level、service、environment、event name、`request_id`、`trace_id`，并在适用时包含 `workspace_id` 的不可逆摘要、`job_id`、`stream_id`、`run_id`、错误码和耗时。禁止记录 Authorization、Cookie、Token、密码、Secret、完整 Prompt、全文文档、SQL 结果全集、原图或未消毒 Provider 响应。
 
-Day 10 仪表盘和基线至少覆盖：
+发布验收 仪表盘和基线至少覆盖：
 
 - API 请求量、错误率、p50/p95/p99、限流和数据库池；
 - Outbox pending/dead-letter、队列深度、Job 排队/阶段耗时、重试、取消和 Worker heartbeat；
@@ -820,15 +820,15 @@ Day 10 仪表盘和基线至少覆盖：
 
 审计日志与运行日志分离。登录、Refresh 重放、membership 变化、签名 URL、Tool Run、Text2SQL、手动采集、删除、恢复和管理操作进入 PostgreSQL 审计表，并记录 actor、action、resource、结果、trace 和脱敏 metadata。
 
-日志、指标和 Trace 的保留时间、采样率与敏感字段清单写入配置和 Runbook。Day 10 必须演练至少一个 API 失败、一个 Worker/队列问题、一个 SEC/Provider 问题和一个跨存储不一致，证明可以从 UI/告警定位到对应 trace、Job、filing identity 和审计事件。
+日志、指标和 Trace 的保留时间、采样率与敏感字段清单写入配置和 Runbook。发布验收 必须演练至少一个 API 失败、一个 Worker/队列问题、一个 SEC/Provider 问题和一个跨存储不一致，证明可以从 UI/告警定位到对应 trace、Job、filing identity 和审计事件。
 
 ## 17. 本地部署边界
 
 当前版本使用 Docker Compose 单机学习和预发布环境，不宣称生产级集群。
 
-PostgreSQL、Redis 和 MinIO 默认启动。Milvus、Elasticsearch 和观测栈使用 Compose profile，并在 Day 1 验证可以启动且具有 healthcheck。
+PostgreSQL、Redis 和 MinIO 默认启动。Milvus、Elasticsearch 和观测栈使用 Compose profile，并在 身份与工程地基 验证可以启动且具有 healthcheck。
 
-Day 10 完整 Compose 包含反向代理、Web、API、Outbox Dispatcher、Worker、Beat、PostgreSQL、Redis、MinIO，以及按 profile 启动的 Milvus、Elasticsearch、OpenTelemetry Collector、Prometheus、Grafana、Tempo 和 Loki。
+发布验收 完整 Compose 包含反向代理、Web、API、Outbox Dispatcher、Worker、Beat、PostgreSQL、Redis、MinIO，以及按 profile 启动的 Milvus、Elasticsearch、OpenTelemetry Collector、Prometheus、Grafana、Tempo 和 Loki。
 
 数据库迁移使用独立一次性命令/容器执行 `alembic upgrade head`，成功后才启动接受流量的 API；应用进程不得运行 `create_all()` 或在启动时自动改表。迁移失败必须停止发布，并保留明确回滚步骤。
 
@@ -836,7 +836,7 @@ Day 10 完整 Compose 包含反向代理、Web、API、Outbox Dispatcher、Worke
 
 所有中间件只绑定本机或内部 Compose 网络，只有反向代理暴露必要入口。MinIO Bucket 默认私有，PostgreSQL、Redis、Milvus、Elasticsearch 和观测后端不直接暴露公网。Secret 通过未提交的环境配置加载，`.env.example` 只能提供占位名称。
 
-Day 10 演练包含：新环境启动、空库 migration、正常停止与重启、LLM/SEC/Worker/Elasticsearch/MinIO 故障、重复任务、迁移失败、PostgreSQL/MinIO 备份—删除测试数据—恢复、从 PostgreSQL/MinIO 重建 Milvus/Elasticsearch，以及切换回上一可用应用镜像。命令、预期状态和故障判断写入 Runbook。
+发布验收 演练包含：新环境启动、空库 migration、正常停止与重启、LLM/SEC/Worker/Elasticsearch/MinIO 故障、重复任务、迁移失败、PostgreSQL/MinIO 备份—删除测试数据—恢复、从 PostgreSQL/MinIO 重建 Milvus/Elasticsearch，以及切换回上一可用应用镜像。命令、预期状态和故障判断写入 Runbook。
 
 当前计划不引入 Kubernetes。
 
@@ -848,7 +848,7 @@ Day 10 演练包含：新环境启动、空库 migration、正常停止与重启
 
 数据库必须能在全新空库上执行 `alembic upgrade head`。禁止使用 `Base.metadata.create_all()` 创建正式表结构。
 
-Day 10 最低覆盖率为：核心 domain/application 不低于 90%，后端总体不低于 80%，前端关键 Hook/状态不低于 75%。覆盖率只是发现遗漏的信号，不能替代断言质量、权限负向测试和真实依赖测试。
+发布验收 最低覆盖率为：核心 domain/application 不低于 90%，后端总体不低于 80%，前端关键 Hook/状态不低于 75%。覆盖率只是发现遗漏的信号，不能替代断言质量、权限负向测试和真实依赖测试。
 
 测试分层如下：
 
@@ -865,11 +865,11 @@ PR 不调用真实付费 API；确定性 Fake Adapter 必须实现同一合同�
 
 CI 必须执行 format、lint、类型检查、单元/组件/集成/契约测试、前端 build、后端 build、fresh migration、OpenAPI diff、Gitleaks 当前树与完整历史、Semgrep、Python/Node 依赖扫描、第三方许可证/NOTICE/来源归属核对和镜像扫描。来源不明、许可证不兼容、缺少强制归属或修改说明属于阻断项。依赖安装使用锁文件，不在 CI 中自动修复或更新锁文件。
 
-Day 10 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 覆盖率不低于 90%、Run 唯一终态、Tool schema/allowlist/Budget 不可绕过、重复副作用为 0、Memory 删除残留为 0、恢复场景成功率 100%、Citation/source identity 可解析率 100%、fabricated source/accession/number/formula 为 0、future leakage 为 0、错误 company/period/accession 为 0、跨租户泄漏为 0、未授权写操作为 0、高危 SQL 拒绝 100%、无答案拒答率不低于 0.90、SEC Retrieval Recall@5 不低于 0.80、相对已接受基线下降不超过 2 个百分点，以及备份恢复和镜像回退演练成功。
+发布验收 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 覆盖率不低于 90%、Run 唯一终态、Tool schema/allowlist/Budget 不可绕过、重复副作用为 0、Memory 删除残留为 0、恢复场景成功率 100%、Citation/source identity 可解析率 100%、fabricated source/accession/number/formula 为 0、future leakage 为 0、错误 company/period/accession 为 0、跨租户泄漏为 0、未授权写操作为 0、高危 SQL 拒绝 100%、无答案拒答率不低于 0.90、SEC Retrieval Recall@5 不低于 0.80、相对已接受基线下降不超过 2 个百分点，以及备份恢复和镜像回退演练成功。
 
 ## 19. 架构决策记录
 
-- [Day 1～Day 10 目标能力矩阵](feature-matrix.md)
+- [完整工程范围 目标能力矩阵](feature-matrix.md)
 - [ADR 0001：采用模块化单体、独立 Dispatcher、Worker 与 Beat](adr/0001-modular-monolith.md)
 - [ADR 0002：PostgreSQL 是唯一业务事实源](adr/0002-postgresql-source-of-truth.md)
 - [ADR 0003：采用统一 Evidence 与 Citation 模型](adr/0003-unified-evidence-model.md)
@@ -883,29 +883,29 @@ Day 10 固定硬门禁还包括 Agent Runtime/Harness 核心 domain/application 
 
 ## 20. 当前实现状态
 
-Day 1 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
+身份与工程地基 目标架构已经落入一条正式实现链路：FastAPI/Pydantic Settings、PostgreSQL/Redis 健康检查、Alembic、身份与 Workspace、OpenAPI 契约、React 身份旅程，以及 PostgreSQL Job/Outbox/Schedule、独立 Dispatcher、Celery Worker、数据库驱动 Beat 和 Reconciler。对应代码分别位于 `core/`、`modules/identity/`、`modules/workspaces/`、`modules/jobs/`、`workers/`、`apps/web/` 与 `packages/api-contract/`；运行入口和依赖关系见根 README。
 
 本地 Compose 已定义 PostgreSQL、Redis、私有 MinIO 默认服务，以及 tools、vector、search、observability 可选 profiles。当前工作树定义 18 份线性 Alembic migration；PostgreSQL 是身份、Workspace、Conversation、File/Knowledge/DocumentVersion/Chunk/IndexRecord 元数据、AgentRun/Step/Event/Checkpoint/manifest、Research Approval/Decision/side-effect ledger、ToolCall/ToolRun、SEC filer/filing/source observation/coverage、行业偏好/来源/采集、DataConnection/SchemaSnapshot/QueryRun/QueryResult/ChartSpec、Job、Outbox、Schedule 和 occurrence 的唯一系统业务事实源，Redis 只承担 broker、限流和短期状态，MinIO 保存私有文件与不可变 SEC source response 字节。
 
-Day 1 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-01～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
+身份与工程地基 新增实现已经通过统一 formatter、全量本地门禁和提交 `2c4e6e9` 的干净 CI；D1-01～D1-08、D1-10～D1-12 均已复核为 `complete`。这组证据覆盖当前正式链路，不再沿用早期较小基线代替现状。
 
-新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 Day 10 发布标签；该外部治理尾项不否定已通过的 Day 1 新仓工程门禁，也不阻断后续 Agent 学习。
+新仓历史基线曾通过脱敏扫描，但两个参考仓仍有 6 组 `open` 凭据候选，详见[参考仓凭据暴露审计](security/credential-exposure-audit.md)。在 Provider 侧吊销/轮换和复扫完成前，D1-09 保持 `thin_slice`，不能把参考仓 Provider 配置接入新项目，也不能打 发布验收 发布标签；该外部治理尾项不否定已通过的 身份与工程地基 新仓工程门禁，也不阻断后续 Agent 学习。
 
-Day 2 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。Day 3 的五个切片现已完成仓库内实现与本地收口：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Context Compiler v1、Tool Registry/Executor、Event/Trace/ToolCall/ToolRun 原子审计、四个行业与来源/采集链、安全 Text2SQL、受校验 Artifact、陈旧 QueryRun 对账、Tool Inspector、正式行业/数据库/图表页面、24 条累计 Scenario 和 trajectory report 均落地。真实依赖全量 pytest、Web、Playwright、migration、build、audit 与 Secret 扫描通过；普通 Conversation 逻辑删除保留 Tool audit。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job；D3-01～D3-11 已复核为 `complete`。显式物理 Run purge 与隔离备份恢复演练保留为 Day 10 发布门禁。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
+Agent Runtime 的 Agent Runtime/Harness、L0 聊天、附件、SSE、Learning Workbench、不可恢复执行终态收敛、生产 snapshot/有界背压、结构化终态日志和版本化 Eval 已完成仓库内实现，并通过全量本地门禁、提交 `bf4feaff` 的干净 GitHub CI 和学习者职责复盘；D2-01～D2-09 已复核为 `complete`。工具执行 的五个切片现已完成仓库内实现与本地收口：生产 L0、生产 Web L2 与 Harness L1/L2 由同一 `UnifiedAgentRuntime` dispatch；Context Compiler v1、Tool Registry/Executor、Event/Trace/ToolCall/ToolRun 原子审计、四个行业与来源/采集链、安全 Text2SQL、受校验 Artifact、陈旧 QueryRun 对账、Tool Inspector、正式行业/数据库/图表页面、24 条累计 Scenario 和 trajectory report 均落地。真实依赖全量 pytest、Web、Playwright、migration、build、audit 与 Secret 扫描通过；普通 Conversation 逻辑删除保留 Tool audit。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job；D3-01～D3-11 已复核为 `complete`。显式物理 Run purge 与隔离备份恢复演练保留为 发布验收 发布门禁。本文件同时记录目标架构与当前真实落地边界，不能被理解为图中的所有后续组件都已完成。
 
-Day 4 步骤 1～5、Trace/Eval/DoD 与授权收口已经完成，D4-01～D4-07 为 `complete`。Memory、Evidence/Claim、唯一 Research L3 graph 与正式 Workbench 共用 PostgreSQL、OpenAPI、Event/Trace、Context manifest、`UnifiedAgentRuntime` 和既有 Tool loop；独立 Scorer 保留 24 条 Day 2/3 基线并把累计 Scenario 扩为 50 条。没有第二 Research/Tool/Provider 链，也没有前端事实缓存。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 通过全部 7 个适用 Job。具体证据和 85% 核心覆盖率债务见 [Day 4 五步执行计划](learning-log/day-4.md)；该债务须在 Day 10 前达到 90%。Day 4 只完成可治理 Memory、Observation→Evidence→Claim 与唯一 Research L3 graph，不提前把普通状态持久化写成 durable Checkpoint，也不提前实现 Day 5 L4 或 Day 8 Verifier/bounded revise。
+Memory 与 Evidence 步骤 1～5、Trace/Eval/DoD 与授权收口已经完成，D4-01～D4-07 为 `complete`。Memory、Evidence/Claim、唯一 Research L3 graph 与正式 Workbench 共用 PostgreSQL、OpenAPI、Event/Trace、Context manifest、`UnifiedAgentRuntime` 和既有 Tool loop；独立 Scorer 保留 24 条 Agent Runtime/3 基线并把累计 Scenario 扩为 50 条。没有第二 Research/Tool/Provider 链，也没有前端事实缓存。[PR #7](https://github.com/hrw991009/industry-intelligence-platform/pull/7) 已合入 `main`，合并提交 [`c0b854e`](https://github.com/hrw991009/industry-intelligence-platform/commit/c0b854e64ef1966b76cdcc38c41a507959c836cb) 的 [CI 32549438592](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32549438592) 通过全部 7 个适用 Job。具体证据和 85% 核心覆盖率债务见 [Memory 与 Evidence 五步执行计划](engineering-records/memory-evidence.md)；该债务须在 发布验收 前达到 90%。Memory 与 Evidence 只完成可治理 Memory、Observation→Evidence→Claim 与唯一 Research L3 graph，不提前把普通状态持久化写成 durable Checkpoint，也不提前实现 Knowledge L4 或 核验与监控 Verifier/bounded revise。
 
-Day 5 已合并私有上传、版本化解析资产、Embedding/双索引、冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 已合入 `main`，功能 head `cff25c1` 的 push/PR CI `32920879147`、`32924323618` 和合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均成功。D5-01～D5-07 为 `complete`；因为缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，D5-08/D5-09 保持 `implemented_pending_verification`。
+Knowledge 已合并私有上传、版本化解析资产、Embedding/双索引、冻结 SEC fixture Dense Tool/calculator/Evidence、成功节点 Checkpoint/CAS、FinancialScope 恢复校验、持久 HITL、同 Run resume、副作用账本、Workbench 与 L4 recovery eval。[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 已合入 `main`，功能 head `cff25c1` 的 push/PR CI `32920879147`、`32924323618` 和合并提交 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34) 的 main CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均成功。D5-01～D5-07 为 `complete`；因为缺 ready SEC fixture 的 Dense/calculation Evidence 与暂停/审批/resume/刷新浏览器全链，D5-08/D5-09 保持 `implemented_pending_verification`。
 
-Day 6 已实现 filer/filing point-in-time、不可变 filing/XBRL/bulk source snapshot、Workspace Knowledge import、`dense-v1` content read、typed XBRL facts、五个 SEC read Tool、Workbench 和 `sec-source-v1`，并由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；原功能 head、PR 和合并提交 CI 均成功。2026-09-01 后续收口增加流式 bulk archive、published/coverage watermark、CIK entry 与 post-watermark gap 账本，两条 closeout case 通过，确定性报告为 24/24；合法 SEC identity 的独立 live smoke 同日通过。D6-01～D6-08 当前均为 `implemented_pending_verification`，仍缺真实大体积 bulk、适用浏览器、外部权利/所有者复核和本轮远端 CI。Day 7 Step 1 的 `hybrid-v1`、Retrieval Trace 与 filing text/XBRL fact locator 已实现，D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`。Step 2 的 `financial-context-v1`、可信 Scope 注入、稳定排除原因、identity manifest 与生产 LOCAL 装配已提交；其远端 PostgreSQL CI 暴露的冻结 identity 深拷贝失败已在当前工作树改为浅层 JSON 投影并补回归测试，尚待新 CI，D7-03 保持 `implemented_pending_verification`。Step 3 复用既有 calculator/Evidence 边界，新增正式 XBRL operand 的 PostgreSQL 授权重载、scale/percentage、typed reconciliation 和 Calculation Evidence 重算；D7-04/D7-05 为 `implemented_pending_verification`。当前状态不关闭 Step 1 ranking/table/Citation、Step 2/3 真实 PostgreSQL 与远端 CI、D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 Day 8 跨刷新/Worker 重启组合门也不能视为当前能力。
+SEC 数据源 已实现 filer/filing point-in-time、不可变 filing/XBRL/bulk source snapshot、Workspace Knowledge import、`dense-v1` content read、typed XBRL facts、五个 SEC read Tool、Workbench 和 `sec-source-v1`，并由 [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 合入 `main`；原功能 head、PR 和合并提交 CI 均成功。2026-09-01 后续收口增加流式 bulk archive、published/coverage watermark、CIK entry 与 post-watermark gap 账本，两条 closeout case 通过，确定性报告为 24/24；合法 SEC identity 的独立 live smoke 同日通过。D6-01～D6-08 当前均为 `implemented_pending_verification`，仍缺真实大体积 bulk、适用浏览器、外部权利/所有者复核和本轮远端 CI。财务检索与计算 Step 1 的 `hybrid-v1`、Retrieval Trace 与 filing text/XBRL fact locator 已实现，D7-01 为 `implemented_pending_verification`、D7-02 为 `thin_slice`。Step 2 的 `financial-context-v1`、可信 Scope 注入、稳定排除原因、identity manifest 与生产 LOCAL 装配已提交；其远端 PostgreSQL CI 暴露的冻结 identity 深拷贝失败已在当前工作树改为浅层 JSON 投影并补回归测试，尚待新 CI，D7-03 保持 `implemented_pending_verification`。Step 3 复用既有 calculator/Evidence 边界，新增正式 XBRL operand 的 PostgreSQL 授权重载、scale/percentage、typed reconciliation 和 Calculation Evidence 重算；D7-04/D7-05 为 `implemented_pending_verification`。当前状态不关闭 Step 1 ranking/table/Citation、Step 2/3 真实 PostgreSQL 与远端 CI、D5 浏览器 DoD，L5、Monitor、后台审批超时扫描和 核验与监控 跨刷新/Worker 重启组合门也不能视为当前能力。
 
-Day 7 五步代码随后由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。该合并没有关闭 Day 7 的 ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 与 owner review 门禁；D7-01/D7-03～D7-08 仍为 `implemented_pending_verification`，D7-02 仍为 `thin_slice`。项目所有者允许继续后续实现、Day 10 统一查漏补缺，因此 Day 8 先冻结五步计划和 Verifier/Monitor/恢复设计；当前没有 Day 8 migration、domain model、graph node、Tool、API 或 UI，D8-01～D8-08 全部为 `planned`。
+财务检索与计算 五步代码随后由 [PR #11](https://github.com/hrw991009/industry-intelligence-platform/pull/11) 合入 `main`，功能 head `6a25ab2` 的两组 PR 检查均通过；合并提交 [`ae33b98`](https://github.com/hrw991009/industry-intelligence-platform/commit/ae33b98784b92e88fff6c3f9f808678ea7a70743) 的 [main CI `33156337673`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33156337673) 最终为 6/7 Job 通过、Browser E2E 失败。该合并没有关闭 财务检索与计算 的 ranking/table/Citation、真实依赖、正式浏览器、中英 paired、main CI 与 owner review 门禁；D7-01/D7-03～D7-08 仍为 `implemented_pending_verification`，D7-02 仍为 `thin_slice`。项目所有者允许继续后续实现、发布验收 统一查漏补缺，因此 核验与监控 先冻结五步计划和 Verifier/Monitor/恢复设计；当前没有 核验与监控 migration、domain model、graph node、Tool、API 或 UI，D8-01～D8-08 全部为 `planned`。
 
-Day 8 Step 1～2 随后在同一 `research`/`agent_runtime`/`evidence` 边界内实现 Verifier 与 L5 graph。`research-l5-graph-v1` 只在 typed repairable issue、剩余预算/期限/取消允许且原 Tool allowlist 可满足时进入一次 revise；Tool 名称、版本和参数 digest 由服务端固定，模型偏离即在执行前 `TOOL_DENIED`。成功节点保存 verification report/action/observation digest，Draft revision append-only，Claim 稳定 ID 使 hard-stop 重试不产生第二条业务事实。Step 3 在既有 `disclosures`、Schedule/Job/Outbox、SEC sync、filing diff 与 Evidence ledger 边界内增加版本化 Monitor/rule、append-only watermark、run、幂等 Case 和双侧 Case Evidence；Beat 只投递 occurrence，Worker 在同一 PostgreSQL 事务内提交 Case/Evidence/watermark/run，已完成 Job 重投不会再次分析或推进 watermark。远端 CI `33232061055` 暴露的根因是 Elasticsearch 新索引上的 `refresh=wait_for` 无法自行触发 refresh；当前工作树已将正式写入和 CI readiness 改为显式 `refresh=true` 并补回归测试，而不是继续放宽超时。本地真实依赖主门为 `1186 passed`，其中因本机端口配置失败的 3 个索引集成用实际 Compose endpoint 重跑后全部通过；总体分支覆盖率 `80.15%`、核心合集 `85%`，迁移往返/drift、Web 质量与构建均通过。D8-01～D8-05 为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵、A2/A3/A4、远端 CI 和 owner review 仍待后续步骤关闭。
+核验与监控 Step 1～2 随后在同一 `research`/`agent_runtime`/`evidence` 边界内实现 Verifier 与 L5 graph。`research-l5-graph-v1` 只在 typed repairable issue、剩余预算/期限/取消允许且原 Tool allowlist 可满足时进入一次 revise；Tool 名称、版本和参数 digest 由服务端固定，模型偏离即在执行前 `TOOL_DENIED`。成功节点保存 verification report/action/observation digest，Draft revision append-only，Claim 稳定 ID 使 hard-stop 重试不产生第二条业务事实。Step 3 在既有 `disclosures`、Schedule/Job/Outbox、SEC sync、filing diff 与 Evidence ledger 边界内增加版本化 Monitor/rule、append-only watermark、run、幂等 Case 和双侧 Case Evidence；Beat 只投递 occurrence，Worker 在同一 PostgreSQL 事务内提交 Case/Evidence/watermark/run，已完成 Job 重投不会再次分析或推进 watermark。远端 CI `33232061055` 暴露的根因是 Elasticsearch 新索引上的 `refresh=wait_for` 无法自行触发 refresh；当前工作树已将正式写入和 CI readiness 改为显式 `refresh=true` 并补回归测试，而不是继续放宽超时。本地真实依赖主门为 `1186 passed`，其中因本机端口配置失败的 3 个索引集成用实际 Compose endpoint 重跑后全部通过；总体分支覆盖率 `80.15%`、核心合集 `85%`，迁移往返/drift、Web 质量与构建均通过。D8-01～D8-05 为 `implemented_pending_verification`；持久订阅 HITL、Workbench、完整故障矩阵、A2/A3/A4、远端 CI 和 owner review 仍待后续步骤关闭。
 
-Day 8 Step 4 没有原地改写 Day 7 已冻结的 `sec-l4-v1` 六工具面，而是新增 `sec-l5-v1`/`sec-l5-toolset-v1` 七工具 Profile 承载唯一写 Tool `sec.monitor.subscribe@v1`。Tool Runtime 在审批边界提交 `TOOL_APPROVAL_REQUIRED` 并保存 call/tool/arguments digest；Research graph 以同节点 Checkpoint 暂停。认证 API 的 allow 事务同时写 Approval Decision、Monitor/rule/watermark、Schedule、completed side-effect ledger、resume Job/Outbox，deny/timeout 不产生业务行；重复决定返回既有事实，冲突、旧 revision、取消或非 paused Run fail closed。Worker 重启后从 Approval 与 ledger 重建已批准 Observation 并继续同一 Research Run，Monitor write 结果不进入 Evidence normalizer。Monitor/Case API 与 Workbench 都从 PostgreSQL 正式事实恢复，不依赖浏览器内存或 Trace。D8-06/D8-07 当前为 `implemented_pending_verification`、D8-08 为 `thin_slice`；完整 fault/security、正式浏览器和 A2/A3/A4 仍属于后续门禁。
+核验与监控 Step 4 没有原地改写 财务检索与计算 已冻结的 `sec-l4-v1` 六工具面，而是新增 `sec-l5-v1`/`sec-l5-toolset-v1` 七工具 Profile 承载唯一写 Tool `sec.monitor.subscribe@v1`。Tool Runtime 在审批边界提交 `TOOL_APPROVAL_REQUIRED` 并保存 call/tool/arguments digest；Research graph 以同节点 Checkpoint 暂停。认证 API 的 allow 事务同时写 Approval Decision、Monitor/rule/watermark、Schedule、completed side-effect ledger、resume Job/Outbox，deny/timeout 不产生业务行；重复决定返回既有事实，冲突、旧 revision、取消或非 paused Run fail closed。Worker 重启后从 Approval 与 ledger 重建已批准 Observation 并继续同一 Research Run，Monitor write 结果不进入 Evidence normalizer。Monitor/Case API 与 Workbench 都从 PostgreSQL 正式事实恢复，不依赖浏览器内存或 Trace。D8-06/D8-07 当前为 `implemented_pending_verification`、D8-08 为 `thin_slice`；完整 fault/security、正式浏览器和 A2/A3/A4 仍属于后续门禁。
 
-Day 8 Step 5 复用 Day 7 的 manifest/observation/scorer 模式，但不改写 `sec-tool-v1`。新的 `sec-verification-v1` 在同一 source fixture hash、Scope 和预算下比较 A2（L4 六只读 Tool）、A3（同 Tool surface + mandatory verifier/one-revise）和 A4（A3 + Monitor HITL），并由独立规则重新比较 Evidence/Citation、answer/program、point-in-time identity、trajectory、stop reason 与最终数据库计数。14 case/42 run 的 frozen deterministic/security/fault 报告通过，A3 复杂题净增益 `0.714286`、简单题退化 `0`；A4 的 ordinary question、operational 和 recovery 分开报告，避免 Monitor 能力抬高普通问答分数。该报告是 frozen replay，不是 live/model 或专用浏览器证据；D8-01～D8-08 因远端 CI、完整 fault injection、Monitor 浏览器旅程和 owner review 保持 `implemented_pending_verification`。
+核验与监控 Step 5 复用 财务检索与计算 的 manifest/observation/scorer 模式，但不改写 `sec-tool-v1`。新的 `sec-verification-v1` 在同一 source fixture hash、Scope 和预算下比较 A2（L4 六只读 Tool）、A3（同 Tool surface + mandatory verifier/one-revise）和 A4（A3 + Monitor HITL），并由独立规则重新比较 Evidence/Citation、answer/program、point-in-time identity、trajectory、stop reason 与最终数据库计数。14 case/42 run 的 frozen deterministic/security/fault 报告通过，A3 复杂题净增益 `0.714286`、简单题退化 `0`；A4 的 ordinary question、operational 和 recovery 分开报告，避免 Monitor 能力抬高普通问答分数。该报告是 frozen replay，不是 live/model 或专用浏览器证据；D8-01～D8-08 因远端 CI、完整 fault injection、Monitor 浏览器旅程和 owner review 保持 `implemented_pending_verification`。
 
 ## 21. 初学者术语表
 

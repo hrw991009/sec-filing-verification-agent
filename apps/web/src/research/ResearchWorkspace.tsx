@@ -634,7 +634,7 @@ export function ResearchWorkspace({
     <section className="research-workspace" aria-label="Research L4 工作台">
       <header className="workspace-page-header">
         <div>
-          <span className="eyebrow">Day 7 · sec-l4-v1</span>
+          <span className="eyebrow">Financial Research · sec-l4-v1</span>
           <h1>Research Workbench</h1>
           <p>
             显式确认 Brief，经唯一 Runtime/Tool loop 生成可解释草稿，并以持久 Checkpoint、HITL
@@ -713,6 +713,7 @@ export function ResearchWorkspace({
                 <label>
                   研究任务
                   <select
+                    aria-label="研究任务"
                     value={selectedTask}
                     disabled={!canManage || submitting || preparingData}
                     onChange={(event) => {
@@ -741,6 +742,7 @@ export function ResearchWorkspace({
                     <label>
                       分析年数
                       <select
+                        aria-label="分析年数"
                         value={analysisYears}
                         disabled={!canManage || submitting || preparingData}
                         onChange={(event) => {

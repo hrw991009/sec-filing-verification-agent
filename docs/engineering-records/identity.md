@@ -1,10 +1,10 @@
-# Day 1 学习日志
+# 身份与工程地基：工程实现与验证记录
 
 > 更新日期：2026-08-12
 >
-> 计划基线：`docs/master-plan.md` 1.7.0
+> 计划基线：`docs/engineering-baseline.md` 1.7.0
 >
-> 当前结论：Day 1 正式实现、全量本地门禁和提交 `2c4e6e9` 的干净 CI 已通过；D1-02～D1-08、D1-10～D1-12 已复核为 `complete`。D1-09 的参考仓外部凭据处置仍为独立尾项。
+> 当前结论：身份与工程地基 正式实现、全量本地门禁和提交 `2c4e6e9` 的干净 CI 已通过；D1-02～D1-08、D1-10～D1-12 已复核为 `complete`。D1-09 的参考仓外部凭据处置仍为独立尾项。
 
 ## 1. 工程与验证
 
@@ -52,7 +52,7 @@ FastAPI OpenAPI 是唯一 API schema 来源，`packages/api-contract/openapi.jso
 - D1-01 保留已有可复现工程基线的 `complete` 证据；
 - D1-02～D1-08、D1-10～D1-12 的正式实现、formatter、全量本地验证和新 CI 已通过，状态为 `complete`；
 - D1-09 仍为 `thin_slice`：参考仓 6 组凭据候选全部保持 `open`，只有 Provider 侧吊销/轮换、非敏感证据记录和复扫完成后才能关闭；
-- Day 2～Day 7 尚未实现，后续严格按 `docs/master-plan.md` 1.7.0 的依赖顺序推进：Day 2 Agent Runtime/Harness v0，Day 3 Tool loop，Day 4 Memory/Evidence 与 Research L3，Day 5 Agent Knowledge 与 Durable Research L4，Day 6 Hybrid RAG 与 Research L5，Day 7 综合 Agent Eval 与 Learning Workbench。
+- Agent Runtime～财务检索与计算 尚未实现，后续严格按 `docs/engineering-baseline.md` 1.7.0 的依赖顺序推进：Agent Runtime Agent Runtime/Harness v0，工具执行 Tool loop，Memory 与 Evidence Memory/Evidence 与 Research L3，Knowledge Agent Knowledge 与 Durable Research L4，SEC 数据源 Hybrid RAG 与 Research L5，财务检索与计算 综合 Agent Eval 与 Learning Workbench。
 
 统一安装、密钥生成、Compose、Alembic、运行入口、OpenAPI 和验证命令见根 [README](../../README.md)。
 
@@ -63,4 +63,4 @@ FastAPI OpenAPI 是唯一 API schema 来源，`packages/api-contract/openapi.jso
 3. 为什么最后 owner 保护与 Refresh rotation 都必须考虑数据库并发？
 4. 为什么 Outbox published 不等于 Job 已经 started？
 5. 为什么 Beat、Dispatcher、Worker 和 Reconciler 必须复用同一套 Job/Application Service？
-6. 为什么 6 组参考仓凭据未处置不否定已完成的 Day 1 新仓工程门禁，却仍不能关闭 D1-09 或创建 Day 7 发布标签？
+6. 为什么 6 组参考仓凭据未处置不否定已完成的 身份与工程地基 新仓工程门禁，却仍不能关闭 D1-09 或创建 财务检索与计算 发布标签？

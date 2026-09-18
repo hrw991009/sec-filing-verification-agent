@@ -39,11 +39,13 @@ class MinioPrivateFileObjectStore:
         client: Minio,
         public_endpoint: str,
         secure: bool,
+        presign_client: Minio | None = None,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         if "://" in public_endpoint or "/" in public_endpoint:
             raise ValueError("MinIO public endpoint must be a host and port")
         self._client = client
+        self._presign_client = presign_client if presign_client is not None else client
         self._origin = f"{'https' if secure else 'http'}://{public_endpoint}"
         self._clock = clock
 
@@ -212,7 +214,7 @@ class MinioPrivateFileObjectStore:
             raise ValueError("Download expiry must be in the future")
         return await self._call(
             partial(
-                self._client.presigned_get_object,
+                self._presign_client.presigned_get_object,
                 bucket,
                 object_key,
                 expires=duration,

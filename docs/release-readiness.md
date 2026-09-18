@@ -8,13 +8,13 @@
 >
 > 修订日期：2026-09-01
 >
-> 权威范围：[主计划](master-plan.md) v2.2.15 Day 10、[能力矩阵](feature-matrix.md) D10-01～D10-08
+> 权威范围：[主计划](engineering-baseline.md) v2.2.15 发布验收、[能力矩阵](feature-matrix.md) D10-01～D10-08
 >
 > 当前状态：Step 1～Step 5 已由 PR #16 合入 `main`，三层 CI 全绿；D10-03 为 `complete`，D10-01/D10-02 为 `implemented_pending_verification`，D10-04～D10-08 为 `thin_slice`，当前判定仍为 `NO_GO`
 
 ## 1. 目标与真值来源
 
-Day 10 不再扩张产品范围，而是证明现有 SEC 披露与财务事实核验 Agent 在冻结范围内可用、可评、可恢复、可审计。发布结论必须从正式事实生成，不能由页面截图、人工改库、Mock、文档勾选或一次成功运行代替。
+发布验收 不再扩张产品范围，而是证明现有 SEC 披露与财务事实核验 Agent 在冻结范围内可用、可评、可恢复、可审计。发布结论必须从正式事实生成，不能由页面截图、人工改库、Mock、文档勾选或一次成功运行代替。
 
 证据优先级固定为：
 
@@ -40,24 +40,24 @@ Day 10 不再扩张产品范围，而是证明现有 SEC 披露与财务事实�
 | 阻断族 | 当前事实 | 关闭证据 | 负责步骤 |
 |---|---|---|---|
 | D1-09 凭据处置 | 参考仓 6 组候选仍需 Provider 侧吊销/轮换与复扫 | Provider 处置记录、仓库与历史复扫、所有者确认 | Step 5 |
-| Day 4 覆盖率债务 | 已于 Day 10 main CI 关闭：冻结核心 90%、后端总体 80.72% | [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 在五个真实依赖下 `1347 passed`，未降低冻结模块分母 | Step 4 |
-| Day 5 浏览器链 | 页面已连接 Filing→Research→Verification→Evidence，但尚无无拦截真实依赖浏览器证据 | Playwright 真实 API/数据库旅程与失败制品 | Step 2 |
-| Day 6 来源收口 | 技术债已关闭：`sec-source-v1` 为 24/24，bulk watermark/post-gap 与独立 live SEC identity smoke 已通过；真实大体积 bulk、外部权利/所有者、浏览器和本轮 CI 仍缺 | 24 分母重算报告、合法 SEC identity、snapshot/watermark/gap 执行证据；剩余验证由独立 blocker 跟踪 | Step 3 |
-| Day 7 Retrieval/Citation | Recall@5 未测，ranking/table locator/Citation 与真实链仍缺 | ranked candidates、Recall@5≥0.80、Citation 100% 可解析、正式 Run 绑定 | Step 3 |
-| Day 8 Monitor/恢复 | 专用审批浏览器旅程和真实 hard-stop/lease/通知不确定性仍缺 | 组合故障演练、恢复率 100%、重复副作用 0、正式 Workbench 反查 | Step 2、Step 4 |
-| Day 9 可比评测 | common-case A0～A4 合同已冻结，但 50 个 offline Run、Runtime binding、公开集 prediction 与默认策略仍缺 | 同 manifest/data/Scope/budget 的分层报告与可复算决策 | Step 3 |
-| Day 9 外部治理 | FinanceBench 文档权利、中文抽样、live 依赖/≥3 次和 owner review 仍缺 | 明确纳入或排除决定、签字清单、受控 live 报告；不得伪造 N/A | Step 3、Step 5 |
+| Memory 与 Evidence 覆盖率债务 | 已于 发布验收 main CI 关闭：冻结核心 90%、后端总体 80.72% | [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 在五个真实依赖下 `1347 passed`，未降低冻结模块分母 | Step 4 |
+| Knowledge 浏览器链 | 页面已连接 Filing→Research→Verification→Evidence，但尚无无拦截真实依赖浏览器证据 | Playwright 真实 API/数据库旅程与失败制品 | Step 2 |
+| SEC 数据源 来源收口 | 技术债已关闭：`sec-source-v1` 为 24/24，bulk watermark/post-gap 与独立 live SEC identity smoke 已通过；真实大体积 bulk、外部权利/所有者、浏览器和本轮 CI 仍缺 | 24 分母重算报告、合法 SEC identity、snapshot/watermark/gap 执行证据；剩余验证由独立 blocker 跟踪 | Step 3 |
+| 财务检索与计算 Retrieval/Citation | Recall@5 未测，ranking/table locator/Citation 与真实链仍缺 | ranked candidates、Recall@5≥0.80、Citation 100% 可解析、正式 Run 绑定 | Step 3 |
+| 核验与监控 Monitor/恢复 | 专用审批浏览器旅程和真实 hard-stop/lease/通知不确定性仍缺 | 组合故障演练、恢复率 100%、重复副作用 0、正式 Workbench 反查 | Step 2、Step 4 |
+| 系统评测 可比评测 | common-case A0～A4 合同已冻结，但 50 个 offline Run、Runtime binding、公开集 prediction 与默认策略仍缺 | 同 manifest/data/Scope/budget 的分层报告与可复算决策 | Step 3 |
+| 系统评测 外部治理 | FinanceBench 文档权利、中文抽样、live 依赖/≥3 次和 owner review 仍缺 | 明确纳入或排除决定、签字清单、受控 live 报告；不得伪造 N/A | Step 3、Step 5 |
 | 产品与运维发布门 | 中文路径已有本地实现；真实浏览器、可观测、安全、fresh start、备份恢复、索引重建和上一镜像回滚尚未统一验收 | 浏览器、Trace/指标、安全集、Runbook 演练和 main CI | Step 2～Step 5 |
 
-外部凭据、数据权利、模型凭据或人工签字若在 Day 10 结束时仍缺，状态保持 `NO_GO`。可以提交代码和文档，但不能删除目标、改写为 `N/A`、降低分母或创建发布标签。
+外部凭据、数据权利、模型凭据或人工签字若在 发布验收 结束时仍缺，状态保持 `NO_GO`。可以提交代码和文档，但不能删除目标、改写为 `N/A`、降低分母或创建发布标签。
 
 ## 4. 五步证据链
 
 | 步骤 | 入口 | 产物 | 退出门 |
 |---|---|---|---|
-| 1. 发布台账与双向审计 | 当前 `main`、能力矩阵、DoD、机器 failure taxonomy、Day 1～9 日志 | 单一 release manifest/ledger、每项 owner、命令、artifact、状态和依赖图 | 每个冻结目标与 blocker 均可双向追踪；未知项为阻断，不是通过 |
+| 1. 发布台账与双向审计 | 当前 `main`、能力矩阵、DoD、机器 failure taxonomy、身份与工程地基～9 日志 | 单一 release manifest/ledger、每项 owner、命令、artifact、状态和依赖图 | 每个冻结目标与 blocker 均可双向追踪；未知项为阻断，不是通过 |
 | 2. 真实中文闭环与工作台 | 已有 SEC/Research/Monitor API、Runtime 与 Workbench | 唯一路由、统一状态、正式数据驱动的中文 E2E、Evidence/Calculation/Approval/Case 反查 | 无人工改库/Mock；正常、拒答、冲突、审批、刷新和恢复路径均有浏览器证据 |
-| 3. Release Eval、可观测与安全 | Day 6～9 manifests/scorers、生产 Runtime、Trace/Evidence | common-case A0～A4、Recall@5、offline/live 分报、Run binding、指标/告警与安全报告 | 硬阈值通过；不同证据层不平均；许可/人工/live 缺口仍阻断发布 |
+| 3. Release Eval、可观测与安全 | SEC 数据源～9 manifests/scorers、生产 Runtime、Trace/Evidence | common-case A0～A4、Recall@5、offline/live 分报、Run binding、指标/告警与安全报告 | 硬阈值通过；不同证据层不平均；许可/人工/live 缺口仍阻断发布 |
 | 4. 工程质量、故障恢复与回滚 | Compose/CI、迁移、存储、Worker 与发布镜像 | 覆盖率、全量真实依赖门、fresh start、备份恢复、索引重建、依赖故障和上一镜像演练 | 核心≥90%、后端≥80%、关键前端≥75%；恢复 100%、重复副作用 0 |
 | 5. 完整性审计与候选发布 | 前四步不可变 artifacts、branch/PR/main CI | README/ADR/架构/评测/Runbook/限制、owner acceptance、RC 决策 | D10-01～D10-08 全部 `complete` 且 blocker=0 后才可进入 `RC_READY` |
 
@@ -76,7 +76,7 @@ pnpm run eval:release-readiness
 - `evals/schemas/release-readiness-manifest-v1.schema.json`；
 - `evals/schemas/release-readiness-report-v1.schema.json`。
 
-当前报告绑定 88 个正式目标和 68 个 repository artifacts：46 个目标为 `complete`，42 个仍未完成；当前状态分布为 34 个 `implemented_pending_verification`、8 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 仍 open；8 个跨 Day blocker 中 Day 4 覆盖率与 Day 6 source closeout 已关闭，其余 6 个 open，合计 15 个 open blocker。Day 9 与 Day 10 三层 CI 已验证；最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live model Provider 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
+当前报告绑定 88 个正式目标和 68 个 repository artifacts：46 个目标为 `complete`，42 个仍未完成；当前状态分布为 34 个 `implemented_pending_verification`、8 个 `thin_slice` 和 0 个 `planned`。9 个 evaluation taxonomy blocker 仍 open；8 个跨 Day blocker 中 Memory 与 Evidence 覆盖率与 SEC 数据源 source closeout 已关闭，其余 6 个 open，合计 15 个 open blocker。系统评测 与 发布验收 三层 CI 已验证；最终 owner acceptance、历史凭据处置、外部许可、中文抽样和 live model Provider 共 5 个 external gate 仍 pending。因此 `release_decision=no_go`、`rc_ready=false`。
 
 生成器要求矩阵十张正式能力表、目标 ID/digest/状态计数、taxonomy 映射、非完成目标↔开放 blocker、pending gate↔开放 blocker 双向一致。所有登记 artifact 必须存在于仓库内、非空并生成 SHA-256；缺失、越界、状态冲突、无证据却标记 verified、taxonomy blocker 伪关闭或 checked report 未重生成都会失败。
 
@@ -86,7 +86,7 @@ Step 1 本地证据为聚焦 `8 passed`、evaluation `65 passed`、readiness bra
 
 SEC Workbench 只从已锁定、状态为 `ready` 的 Filing import 生成 typed `FinancialScope` 草稿，Research Workbench 消费后仍调用正式 `StartResearch` API。最新 Verification Report、Trace、Claim、Durability、Approval、Monitor、Case 和 Evidence 均从各自正式 owner API 读取；页面不保存第二套业务状态，也不把 amendment 静默转成原始 form。服务端没有报告时明确显示未生成，不以旧结果或 Draft 推断四态。
 
-组件与 API 回归证明 scope 交付、四态报告、Evidence drilldown、Monitor/Case 重建和刷新逻辑；它们不是完整用户旅程。只有 Playwright 在不拦截业务 API、不人工改库的条件下，使用真实认证及 PostgreSQL/Redis/MinIO/Elasticsearch/Milvus、受控 SEC source 和 Worker 完成中文问题→核验→引用→审批→Case，并覆盖拒答/冲突/forbidden/cancel/retry/refresh，才能关闭 Step 2 浏览器门。当前该证据缺失，所以 Day 5/8 相关 blocker 继续 open。
+组件与 API 回归证明 scope 交付、四态报告、Evidence drilldown、Monitor/Case 重建和刷新逻辑；它们不是完整用户旅程。只有 Playwright 在不拦截业务 API、不人工改库的条件下，使用真实认证及 PostgreSQL/Redis/MinIO/Elasticsearch/Milvus、受控 SEC source 和 Worker 完成中文问题→核验→引用→审批→Case，并覆盖拒答/冲突/forbidden/cancel/retry/refresh，才能关闭 Step 2 浏览器门。当前该证据缺失，所以 Knowledge/8 相关 blocker 继续 open。
 
 ## 7. Step 3 评测、观测与安全边界
 
@@ -102,14 +102,14 @@ Step 3 本地证据为聚焦 `22 passed`、evaluation `72 passed`、后端 `1191
 
 `pnpm run eval:release-recovery` 消费冻结的 12 场景 manifest 和 observation，校验 evidence hash、环境/commit、时间/时长、Run/Workspace 绑定、恢复命令/终态以及重复副作用、数据损失和越权写。当前 observation 显式为 `not_executed`，报告为 0/12，恢复成功、零重复副作用、零数据损失和零越权写四项均 `not_measured`，所以 `recovery_gate_passed=false`。Runbook、单测和既有集成测试只是执行前提，不能关闭实际演练、上一镜像或远端 CI blocker。
 
-Day 10 功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job。main 真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`，所以 D10-03 与 Day 4 核心覆盖率债务关闭。该证据不代表 12 场景恢复已执行，也不关闭无拦截浏览器、生产评测或 owner 门。
+发布验收 功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33459436380) 与 [PR CI 33461560633](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33461560633)，以及合并提交 `778a196` 的 [main CI 33463386752](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33463386752) 均通过 7 个适用 Job。main 真实依赖后端门为 `1347 passed`，总体/冻结核心 branch coverage 为 `80.72%`/`90%`，所以 D10-03 与 Memory 与 Evidence 核心覆盖率债务关闭。该证据不代表 12 场景恢复已执行，也不关闭无拦截浏览器、生产评测或 owner 门。
 
 ## 9. CI 与运行分层
 
 - PR/push CI 只运行确定性、无公网、无付费模型的 quick suite 和工程门禁；不能因外部 SEC/provider 波动阻塞普通 PR。
 - release job 运行真实依赖、公开 benchmark prediction、受控 live suite、恢复演练和完整 artifact 归档；失败必须分类，不能回填 deterministic 成绩。
 - main CI 验证合并提交本身。PR CI 全绿不等于 main CI 全绿，两者都不能替代 owner acceptance。
-- GitHub Actions 的 Linux runner 只是可复现 CI 环境，不是 Day 10 新增的 Linux 客户端或产品版本；本版本不建设桌面发行版。
+- GitHub Actions 的 Linux runner 只是可复现 CI 环境，不是 发布验收 新增的 Linux 客户端或产品版本；本版本不建设桌面发行版。
 
 ## 10. 发布声明边界
 
@@ -121,6 +121,6 @@ Day 10 功能 head `e1a6dcc` 的 [push CI 33459436380](https://github.com/hrw991
 
 最终审计继续由 `sec-release-readiness-v1` 消费矩阵、failure taxonomy、release evidence、recovery 和前四步 artifact。README、产品范围、ADR 0007、架构、评测、Runbook、NOTICE 与[候选说明草案](release-notes/v0.2.0-sec-disclosure-verifier.md)已同步并进入 hash/链接门；本步未创建平行的发布状态或手工修改 scorer 结果。
 
-候选说明草案固定标记 `NO_GO`。Day 10 branch/PR/main CI 已有可核验 URL 与 commit，D10-03 已为 `complete`；生产 Run observation 仍为 0/50、恢复 observation 仍为 0/12，外部 Provider/SEC identity、数据和 source document 权利、中文签字、凭据处置与 owner acceptance 仍缺。D10-08 因文档包和机器门已实现为 `thin_slice`，但不可提升为 `complete` 或创建标签。
+候选说明草案固定标记 `NO_GO`。发布验收 branch/PR/main CI 已有可核验 URL 与 commit，D10-03 已为 `complete`；生产 Run observation 仍为 0/50、恢复 observation 仍为 0/12，外部 Provider/SEC identity、数据和 source document 权利、中文签字、凭据处置与 owner acceptance 仍缺。D10-08 因文档包和机器门已实现为 `thin_slice`，但不可提升为 `complete` 或创建标签。
 
 后续只有在原机器报告自然重算为 `rc_ready` 后，项目所有者才能将草案提升为候选发布说明。任何人都不得通过删 blocker、删 case、缩分母、把 pending gate 标成 verified、把本地测试写成远端 CI 或把空 observation 写成 100% 成功来改变结论。

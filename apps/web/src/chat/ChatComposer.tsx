@@ -136,10 +136,10 @@ export function ChatComposer({
               <option value="none">直接回答</option>
               <option value="web">轻量助手 · Skills / Web · L2</option>
               <option disabled value="local">
-                知识库 · Day 5
+                知识库
               </option>
               <option disabled value="both">
-                混合检索 · Day 5
+                混合检索
               </option>
             </select>
           </div>

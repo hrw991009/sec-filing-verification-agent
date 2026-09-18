@@ -1,27 +1,27 @@
-# Day 9 执行计划：公开 Benchmark、SEC Temporal Eval 与中文验证链
+# 系统评测：工程实现与验证记录
 
 > 制定日期：2026-08-29
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.3 Day 9
+> 计划基线：[完整工程范围 主计划](../engineering-baseline.md) 2.2.3 系统评测
 >
-> 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D9-01～D9-08
+> 能力边界：[完整工程范围 目标能力矩阵](../feature-matrix.md) D9-01～D9-08
 >
 > 权威评测合同：[SEC 披露与财务事实核验 Agent 评测计划](../sec-agent-evaluation.md)
 >
 > 当前状态：Step 1～Step 5 已由 PR #15 合入 `main`，push/PR/main 三层 CI 均通过；D9-01～D9-07 仍为 `implemented_pending_verification`，D9-08 仍为 `thin_slice`
 
-## 1. 进入基线与本日边界
+## 1. 进入基线与范围边界
 
-Day 8 已由 [PR #14](https://github.com/hrw991009/industry-intelligence-platform/pull/14) 合入 `main`，功能 head 为 `227eeb4`，合并提交为 `ae1f50b`。push/PR CI `33247902191`、`33247948314` 和合并提交 CI `33248397107` 的 7 个适用 Job 均通过。该证据证明 Day 8 代码已合并并通过仓库工程门禁，但 `sec-verification-v1` 仍是 frozen replay，不是 live SEC/model 质量结果；Day 4～8 的发布债务继续留在 Day 10。
+核验与监控 已由 [PR #14](https://github.com/hrw991009/industry-intelligence-platform/pull/14) 合入 `main`，功能 head 为 `227eeb4`，合并提交为 `ae1f50b`。push/PR CI `33247902191`、`33247948314` 和合并提交 CI `33248397107` 的 7 个适用 Job 均通过。该证据证明 核验与监控 代码已合并并通过仓库工程门禁，但 `sec-verification-v1` 仍是 frozen replay，不是 live SEC/model 质量结果；Memory 与 Evidence～8 的发布债务继续留在 发布验收。
 
-Day 9 只建设可审计评测链：固定公开 benchmark、构造 SEC point-in-time release set、建立中英事实链对照，并在相同数据/Scope/预算下比较 A0～A4。它不训练模型，不把 benchmark 数据接入生产 RAG，不把公开 gold 放入产品 Context，也不将动态 LLM judge 变成 PR 硬门。
+系统评测 只建设可审计评测链：固定公开 benchmark、构造 SEC point-in-time release set、建立中英事实链对照，并在相同数据/Scope/预算下比较 A0～A4。它不训练模型，不把 benchmark 数据接入生产 RAG，不把公开 gold 放入产品 Context，也不将动态 LLM judge 变成 PR 硬门。
 
 ## 2. 复用边界与不变量
 
-| 现有正式能力 | Day 9 复用方式 | 禁止做法 |
+| 现有正式能力 | 系统评测 复用方式 | 禁止做法 |
 |---|---|---|
 | `UnifiedAgentRuntime`、Harness、Trace、Evidence、Calculation、Verifier | Eval 只替换冻结输入/外部 Adapter，并通过正式 Run/Trace/Evidence identity 评分 | 新建 benchmark 专用 Agent loop，或直接评分模型自报标签 |
-| Day 6～8 的 `sec-source-v1`、`sec-tool-v1`、`sec-verification-v1` | 作为 deterministic contract 层保留原分母；release manifest 只引用，不改写旧 observation | 用 Day 9 新题覆盖旧失败、改分母或回填高分 |
+| SEC 数据源～8 的 `sec-source-v1`、`sec-tool-v1`、`sec-verification-v1` | 作为 deterministic contract 层保留原分母；release manifest 只引用，不改写旧 observation | 用 系统评测 新题覆盖旧失败、改分母或回填高分 |
 | `sec-l4-v1`/`sec-l5-v1`、`financial-context-v1`、A0～A4 | 每个 run 固定 runtime/harness/model/prompt/tool/context/retrieval/scorer 与预算 | 给不同策略不同 gold、额外 Evidence 或更宽 Scope |
 | Git 管理的小型 manifest/report、对象存储的大数据产物 | Git 保存 registry、schema、checksum、dataset card 和小型派生报告；大 payload 本地下载并校验 | 未复核许可就提交原始 benchmark/PDF，或从浮动 `main` 下载 |
 
@@ -83,22 +83,22 @@ FinSearchComp 的 full/AkShare artifact 固定为 635/594 case。historical 报�
 
 ## 8. Step 5 实现记录
 
-Step 5 新增严格 `release-suite-v1` 聚合器，先校验 registry canonical hash、空的 `sec-agent-release-v1` contract manifest 和九份上游受检报告的模型身份，再以报告文件 SHA-256 绑定输入。它不复制 Day 7/8 scorer，也不把不同 denominator 平均成总分：`sec-tool-v1` 的 10-case A1→A2、`sec-verification-v1` 的 14-case A2→A3 和同集 A3→A4 operational extension 分别保留为合法 pairwise segment；前两段的复杂题净增益为 `0.833333`/`0.714286`、简单题退化均为 `0`，A4 operational gain 为 `1.0`。这些决定只表示保留到下一证据层，不能选择生产默认策略。
+Step 5 新增严格 `release-suite-v1` 聚合器，先校验 registry canonical hash、空的 `sec-agent-release-v1` contract manifest 和九份上游受检报告的模型身份，再以报告文件 SHA-256 绑定输入。它不复制 财务检索与计算/8 scorer，也不把不同 denominator 平均成总分：`sec-tool-v1` 的 10-case A1→A2、`sec-verification-v1` 的 14-case A2→A3 和同集 A3→A4 operational extension 分别保留为合法 pairwise segment；前两段的复杂题净增益为 `0.833333`/`0.714286`、简单题退化均为 `0`，A4 operational gain 为 `1.0`。这些决定只表示保留到下一证据层，不能选择生产默认策略。
 
 生成的 deterministic 报告分列 answer/program、Evidence/Citation、trajectory、recovery、point-in-time、security 及每个 source-suite/strategy 的 Token、成本和延迟。由于现有 A0/A1/A2 与 A2/A3/A4 不是同一 case manifest，报告强制 `global_a0_a4_comparable=false`、全局分数和生产默认策略为 `null`；现有报告也没有 ranked candidate，故 `retrieval_recall_at_5` 为 `not_measured`，不能用复杂题准确率代替 Retrieval Recall@5。
 
 offline、live 和 failure-taxonomy 另行生成 JSON+Markdown。offline 只登记 FinQA test 1147、TAT-QA test 1663、FinanceBench 150 与 FinSearchComp historical 391 的 eligible denominator，prediction/model/official scores 均为 `0/false/null`；live 固定 FinSearchComp dynamic 244、SEC temporal 60 和 Agent security 6 个 target，要求每项至少 3 次，但当前 provider/model/version、完成次数、均值/方差、`pass^k`、成本和延迟均为空。taxonomy 将缺失的 common-case manifest、Recall@5、Runtime binding、offline prediction、live dependency/repetition、许可/中文复核和三层 CI 分类为 9 个 release blocker，并明确 observed runtime failure 为 0，因为根本没有执行 live runtime。
 
-因此本步完成了可重算的分层报告、决策和阻断合同，但没有完成计划要求的统一 A0～A4 common-case run、offline/live capability 或发布选择。D9-08 只能从 `planned` 更新为 `thin_slice`；D9-01～D9-07 也不因聚合器存在而升级。完整收口仍需 Day 10 按 blocker 逐项补证。
+因此本步完成了可重算的分层报告、决策和阻断合同，但没有完成计划要求的统一 A0～A4 common-case run、offline/live capability 或发布选择。D9-08 只能从 `planned` 更新为 `thin_slice`；D9-01～D9-07 也不因聚合器存在而升级。完整收口仍需 发布验收 按 blocker 逐项补证。
 
 本步本地验证为 release-suite 聚焦测试 `7 passed`、evaluation 全集 `57 passed`、新增模块 branch coverage `91%`、无强制外部服务全量 pytest `1176 passed, 88 skipped`；Ruff format/check、mypy `509` 个源文件、Prettier、ESLint、TypeScript、Vitest `89 passed`、生产构建、OpenAPI 确定性和 Chromium E2E `8 passed` 均通过。Python/Node 依赖审计无已知漏洞，完整 96-commit Gitleaks 无泄漏。PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 强制集成路径、后端总体 80% coverage 和远端 CI 未在本步执行，继续保留 blocker。
 
 ## 9. 完成定义
 
-Day 9 只有同时满足以下条件才可关闭：
+系统评测 只有同时满足以下条件才可关闭：
 
 - D9-01～D9-08 均达到矩阵 `complete`，四个外部 benchmark 有固定 revision/hash、dataset card、转换/scorer 测试和许可边界；
 - `sec-temporal-v1` 至少 60 case，中英配对至少 30 组，按 accession/document group 隔离 split 且 future leakage 为 0；
 - 公开 benchmark 使用各自官方指标单独报告，产品门禁与 A0～A4 报告不伪装官方 leaderboard；
 - deterministic/offline/live 分报，live 固定 provider/model/tool/prompt 且每 case 至少重复 3 次；
-- branch、PR、合并提交 CI 和 owner review 通过，Day 4～8 遗留债务仍在 Day 10 台账中可见。
+- branch、PR、合并提交 CI 和 owner review 通过，Memory 与 Evidence～8 遗留债务仍在 发布验收 台账中可见。

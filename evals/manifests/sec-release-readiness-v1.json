@@ -8,7 +8,7 @@
     {
       "artifact_id": "master-plan",
       "description": "Accepted Day 1 through Day 10 execution baseline.",
-      "relative_path": "docs/master-plan.md"
+      "relative_path": "docs/engineering-baseline.md"
     },
     {
       "artifact_id": "architecture",
@@ -323,52 +323,52 @@
     {
       "artifact_id": "day-1-log",
       "description": "Day 1 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-1.md"
+      "relative_path": "docs/engineering-records/identity.md"
     },
     {
       "artifact_id": "day-2-log",
       "description": "Day 2 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-2.md"
+      "relative_path": "docs/engineering-records/agent-runtime.md"
     },
     {
       "artifact_id": "day-3-log",
       "description": "Day 3 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-3.md"
+      "relative_path": "docs/engineering-records/tool-runtime.md"
     },
     {
       "artifact_id": "day-4-log",
       "description": "Day 4 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-4.md"
+      "relative_path": "docs/engineering-records/memory-evidence.md"
     },
     {
       "artifact_id": "day-5-log",
       "description": "Day 5 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-5.md"
+      "relative_path": "docs/engineering-records/knowledge.md"
     },
     {
       "artifact_id": "day-6-log",
       "description": "Day 6 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-6.md"
+      "relative_path": "docs/engineering-records/sec-sources.md"
     },
     {
       "artifact_id": "day-7-log",
       "description": "Day 7 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-7.md"
+      "relative_path": "docs/engineering-records/financial-retrieval.md"
     },
     {
       "artifact_id": "day-8-log",
       "description": "Day 8 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-8.md"
+      "relative_path": "docs/engineering-records/verification-monitor.md"
     },
     {
       "artifact_id": "day-9-log",
       "description": "Day 9 implementation and acceptance record.",
-      "relative_path": "docs/learning-log/day-9.md"
+      "relative_path": "docs/engineering-records/evaluation.md"
     },
     {
       "artifact_id": "day-10-log",
       "description": "Day 10 execution and acceptance record.",
-      "relative_path": "docs/learning-log/day-10.md"
+      "relative_path": "docs/engineering-records/release-validation.md"
     },
     {
       "artifact_id": "day-4-report",

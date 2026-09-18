@@ -1,26 +1,26 @@
-# Day 6 执行计划：SEC 官方披露数据与 Point-in-Time
+# SEC 数据源：工程实现与验证记录
 
 > 制定日期：2026-08-26
 >
-> 计划基线：[Day 1～Day 10 主计划](../master-plan.md) 2.2.15 Day 6
+> 计划基线：[完整工程范围 主计划](../engineering-baseline.md) 2.2.15 SEC 数据源
 >
-> 能力边界：[Day 1～Day 10 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
+> 能力边界：[完整工程范围 目标能力矩阵](../feature-matrix.md) D6-01～D6-08
 >
 > 架构决策：[ADR 0007](../adr/0007-sec-disclosure-financial-fact-verification.md)
 >
-> 当前状态（2026-09-01）：Day 6 原分支与三层 CI 历史证据不变；后续技术债收口已实现 bulk snapshot/published/coverage watermark/post-watermark gap，并完成独立 live SEC identity smoke。`sec-source-v1` 当前为 contract `18/18`、closeout `6/6`、总计 `24/24`，deterministic gate 通过；D6-01～D6-08 均为 `implemented_pending_verification`，仍等待真实大体积 bulk、外部权利/所有者、适用浏览器和本轮远端 CI 证据，不能统一写成 `complete`。
+> 当前状态（2026-09-01）：SEC 数据源 原分支与三层 CI 历史证据不变；后续技术债收口已实现 bulk snapshot/published/coverage watermark/post-watermark gap，并完成独立 live SEC identity smoke。`sec-source-v1` 当前为 contract `18/18`、closeout `6/6`、总计 `24/24`，deterministic gate 通过；D6-01～D6-08 均为 `implemented_pending_verification`，仍等待真实大体积 bulk、外部权利/所有者、适用浏览器和本轮远端 CI 证据，不能统一写成 `complete`。
 
-## 1. 进入条件与今日边界
+## 1. 进入条件与范围边界
 
-Day 5 已完成合并验证：[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，合并提交为 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)。分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和合并提交 CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过 7 个适用 Job，D5-01～D5-07 已关闭为 `complete`。
+Knowledge 已完成合并验证：[PR #9](https://github.com/hrw991009/industry-intelligence-platform/pull/9) 合入 `main`，合并提交为 [`a38d0ae`](https://github.com/hrw991009/industry-intelligence-platform/commit/a38d0aee101b66d9c6601a01b426ffd1ec0dcb34)。分支 push CI [`32920879147`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32920879147)、PR CI [`32924323618`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924323618) 和合并提交 CI [`32924732755`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32924732755) 均通过 7 个适用 Job，D5-01～D5-07 已关闭为 `complete`。
 
-Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 先授权 Day 6 文档规划，随后明确要求开始 Day 6 Step 1；按主计划的“用户最新明确指令优先”执行 Step 1 代码。该指令只调整 Step 1 的开始顺序，不构成 D5-08/D5-09 豁免，两项及 Day 5 总门禁继续保持 `implemented_pending_verification`。
+Knowledge 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Research 和 durability 读取，没有 ready SEC fixture 的 Dense/calculation Evidence 全链，也没有同一 fixture 的暂停/审批/resume/刷新旅程。项目所有者于 2026-08-26 先授权 SEC 数据源 文档规划，随后明确要求开始 SEC 数据源 Step 1；按主计划的“用户最新明确指令优先”执行 Step 1 代码。该指令只调整 Step 1 的开始顺序，不构成 D5-08/D5-09 豁免，两项及 Knowledge 总门禁继续保持 `implemented_pending_verification`。
 
-本轮只实现 Day 6 Step 5：复用现有 `ToolL2Runtime`/Harness 冻结五 SEC Tool profile，交付 `sec-source-v1` manifest、scorer、确定性 report 与 closeout blocker。不进入 Day 7 的计算、reconciliation、Hybrid Retrieval 与 filing diff，也不伪造 live SEC。D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地；对应两条 closeout case 保留成功黄金期望并记录当前 `capability_missing`，不能从分母删除。
+本轮只实现 SEC 数据源 Step 5：复用现有 `ToolL2Runtime`/Harness 冻结五 SEC Tool profile，交付 `sec-source-v1` manifest、scorer、确定性 report 与 closeout blocker。不进入 财务检索与计算 的计算、reconciliation、Hybrid Retrieval 与 filing diff，也不伪造 live SEC。D6-02/D6-06 的 bulk snapshot、published/coverage watermark 与 post-watermark 补齐仍未落地；对应两条 closeout case 保留成功黄金期望并记录当前 `capability_missing`，不能从分母删除。
 
 ### 1.1 官方来源合同复核
 
-截至 2026-08-26，Day 6 采用以下官方合同：
+截至 2026-08-26，SEC 数据源 采用以下官方合同：
 
 - [EDGAR API](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) 的 `data.sec.gov` submissions 与 XBRL API 无需 API key，并随披露实时更新；`submissions.zip`/`companyfacts.zip` bulk 约在每日美东时间 03:00 重编。浏览器不能依赖其 CORS，正式访问必须经服务端 Adapter。
 - 聚合 XBRL API 主要覆盖标准、非自定义 taxonomy 且针对整个主体；`companyfacts/companyconcept` 不能代替锁定 accession 的原始 iXBRL、custom tag、脚注或叙述文本。
@@ -31,9 +31,9 @@ Day 5 日志同时明确记录：现有 Chromium 只覆盖通用 Knowledge/Resea
 
 ## 2. 复用、所有权与时点合同
 
-Day 6 必须复用现有正式链路：
+SEC 数据源 必须复用现有正式链路：
 
-| 现有能力 | Day 6 复用方式 | 禁止做法 |
+| 现有能力 | SEC 数据源 复用方式 | 禁止做法 |
 |---|---|---|
 | `UnifiedAgentRuntime`、Harness、Tool Registry/Executor | 五个 SEC 只读 Tool 进入同一版本化 profile、Trace 和预算合同 | 新建 finance Runtime、第二套 Tool loop 或 SEC 专用聊天入口 |
 | File/Knowledge/Ingestion、Job/Outbox | Workspace 导入锁定快照后创建既有 DocumentVersion 和异步入库任务 | Adapter 直接写 Chunk、索引或 ready 状态 |
@@ -46,7 +46,7 @@ Day 6 必须复用现有正式链路：
 - `workspace_sec_imports` 保存 Workspace 对 canonical filing/snapshot 的授权绑定、导入状态和 Knowledge DocumentVersion。认证 Workspace 内的 `resolve_filer/list_filings` 可以读取公共 discovery catalog，但不能读取其他 Workspace 的 import 状态；`get_xbrl_facts/search_filing/read_filing_section` 读取内容前必须从 import 绑定重新授权。
 - 删除 Workspace 导入会清理该 Workspace 的派生 Knowledge/索引，但不会删除仍被其他 Workspace import、Run/Evidence 或固定评测引用的 canonical snapshot；公共快照按独立来源保留策略和显式引用计数对账。
 
-现有 `FinancialScope v1` 表示 accession 已选定后的 Day 5 replay，不原地扩坏。Day 6 新增版本化 `FilingSelectionScope v1` pre-selection contract，至少包含 CIK 候选、allowed forms、report period、`as_of` 和 amendment policy；选定后才物化 selected accession scope。
+现有 `FinancialScope v1` 表示 accession 已选定后的 Knowledge replay，不原地扩坏。SEC 数据源 新增版本化 `FilingSelectionScope v1` pre-selection contract，至少包含 CIK 候选、allowed forms、report period、`as_of` 和 amendment policy；选定后才物化 selected accession scope。
 
 Point-in-time 必须区分：
 
@@ -84,7 +84,7 @@ Point-in-time 必须区分：
 - 新增 `disclosures` bounded context、`SecEdgarPort`、Frozen/Live/Unavailable Adapter、canonical `sec_filers`/`sec_filer_aliases`/`sec_catalog_syncs` migration 与 PostgreSQL repository。来源版本按官方响应 hash 幂等，旧 alias 保留有效区间，较旧 catalog 不能回退 current projection。
 - Live Adapter 固定访问 `https://www.sec.gov/files/company_tickers.json`，服务端 User-Agent 必须同时配置应用标识和联系邮箱；API/Worker 共用 Redis server-time 滑动窗口，默认 8 req/s、最大 9 req/s。缓存保留 ETag/Last-Modified，拒绝跳转、错误类型、超大/空/重复键响应，并对 429/5xx/timeout 返回稳定 typed error。
 - 新增认证 Workspace API `GET /api/v1/workspaces/{workspace_id}/disclosures/filers/resolve` 与 `sec.resolve_filer@v1`。输入只允许 `query`/`limit`；CIK 规范化为 10 位，精确 CIK/ticker/name 优先，同一最高置信层多候选才返回 `ambiguous`，低置信名称候选不稀释精确身份命中。
-- Tool 复用现有 `PydanticToolAdapter`、Registry/Executor、Workspace capability、Trace Observation 和 attributed `ToolSource`；它尚未加入普通 Conversation 的生产 profile，Day 6 五 Tool 专用 profile 仍按 Step 5 交付。
+- Tool 复用现有 `PydanticToolAdapter`、Registry/Executor、Workspace capability、Trace Observation 和 attributed `ToolSource`；它尚未加入普通 Conversation 的生产 profile，SEC 数据源 五 Tool 专用 profile 仍按 Step 5 交付。
 - 本地证据：`disclosures` 模块 17 条测试通过；真实 PostgreSQL catalog/历史 alias/精确 ticker 优先与 migration smoke 3 条通过；真实 Redis 跨进程预算 1 条通过；普通全量回归为 977 passed/79 skipped。强制 PostgreSQL/Redis/MinIO 后为 1054 passed/2 个显式索引依赖场景 skipped；补齐健康 Milvus/Elasticsearch endpoint 后这 2 条分别通过，当前树累计覆盖率为 81%。OpenAPI 生成前后 hash 一致。
 
 未关闭项：当前环境未配置真实 SEC 联系身份，因此没有运行 live SEC smoke；bulk snapshot bytes、`bulk_published_at`/`coverage_through`、post-watermark 增量补齐、分支/main CI、D5 浏览器 DoD 和项目所有者最终复核均未完成。D6-01 因此只能是 `implemented_pending_verification`，D6-06 只能是 `thin_slice`。
@@ -108,7 +108,7 @@ Point-in-time 必须区分：
 - `OfficialSecJsonClient` 统一承载 allowlist、全局 Redis request budget、缓存/条件请求、大小/类型/跳转限制、429/5xx 重试和 Last-Modified availability；`LiveSecSubmissionsAdapter` 固定读取 `CIK##########.json`，并跟随与查询区间相交的 `filings.files` supplemental JSON。列长、重复 JSON key、CIK、日期、accession、primary document 和 current/supplemental coverage 均严格校验，支持的 form 按 accession 去重，依赖/覆盖错误不转成 `no_result`。
 - MinIO 保存内容寻址、私有、回读 hash 验证后的官方 submissions response bytes；PostgreSQL 新增 append-only `sec_submission_sources`/`sec_filing_observations`、canonical `sec_filings` current projection 及精确绑定 source version 的 coverage manifest/link。相同 source/version/scope 幂等；base/amendment 关系无法唯一解析时返回 `incomplete`。
 - point-in-time 过滤同时检查 `accepted_at`、`public_available_at` 与 `source_available_at`。`latest` 解析为明确 accession；coverage source version 晚于 `as_of`、amendment relation 未解析或候选超限均为 typed `incomplete`。只有 current + 所需 supplemental source set 已完整持久化且过滤结果确为空时才返回 `no_result`。
-- 新增认证 API `GET /api/v1/workspaces/{workspace_id}/disclosures/filings`、严格 query model、no-store response，以及带完整 SEC source URL/version/hash/observed time 的 Tool Observation。它尚未加入 Day 6 专用生产 Harness profile，五 Tool profile 仍留 Step 5。
+- 新增认证 API `GET /api/v1/workspaces/{workspace_id}/disclosures/filings`、严格 query model、no-store response，以及带完整 SEC source URL/version/hash/observed time 的 Tool Observation。它尚未加入 SEC 数据源 专用生产 Harness profile，五 Tool profile 仍留 Step 5。
 - 当前直接证据：`disclosures` 模块 33 条测试通过；真实 PostgreSQL migration 全历史往返与 filing source/observation/coverage 幂等重建 2 条通过；真实 MinIO submissions snapshot 1 条通过；OpenAPI 与 TypeScript DTO 连续生成 hash 一致。
 - 统一门禁证据：强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量套件为 `1074 passed`，分支覆盖率 `80.95%`；Python format、Ruff、mypy、wheel/sdist build，Web Prettier/ESLint/typecheck/`83 passed`/production build 和 Playwright `7 passed` 均通过。Python/Node audit 无已知漏洞；受控路径和 67 个可达提交的 Gitleaks 扫描无发现。上述均为当前工作树本地证据，不替代远端 CI。
 
@@ -121,7 +121,7 @@ Point-in-time 必须区分：
 实现边界：
 
 - `workspace_sec_imports` 通过既有 File/Knowledge/Ingestion Application Service 创建 DocumentVersion、Job 与 Outbox；不得旁路写 ready、Chunk 或索引。
-- 实现 `sec.search_filing@v1` 与 `sec.read_filing_section@v1`；Day 6 只启用锁定 accession 的 `dense-v1`，输出携带 `retrieval_profile_version`，Day 7 才启用 `hybrid-v1`。
+- 实现 `sec.search_filing@v1` 与 `sec.read_filing_section@v1`；SEC 数据源 只启用锁定 accession 的 `dense-v1`，输出携带 `retrieval_profile_version`，财务检索与计算 才启用 `hybrid-v1`。
 - Workbench 沿 CIK → accession → document/snapshot → DocumentVersion/Chunk/section 导航；浏览器不直连 SEC。
 
 验收证据：同 accession/document/hash 幂等；相同来源身份字节变化进入 anomaly/quarantine，不覆盖旧快照。损坏、partial、Worker hard stop 不进入 ready；重复 filing/snapshot/chunk/index 为 0；未锁 accession、hash 不匹配和跨 Workspace 均拒绝。真实 PostgreSQL/MinIO/Milvus/Elasticsearch 集成和浏览器旅程通过。
@@ -162,7 +162,7 @@ Point-in-time 必须区分：
 
 ### 步骤 5：五 Tool 同 Runtime 与 `sec-source-v1` 收口
 
-建立 Day 6 专用 Harness profile，只暴露 `sec.resolve_filer@v1`、`sec.list_filings@v1`、`sec.get_xbrl_facts@v1`、`sec.search_filing@v1` 和 `sec.read_filing_section@v1`。Day 5 calculator 代码保留，但不把 calculator、diff、Hybrid、Verifier 或 Monitor 计入 Day 6 完成声明。
+建立 SEC 数据源 专用 Harness profile，只暴露 `sec.resolve_filer@v1`、`sec.list_filings@v1`、`sec.get_xbrl_facts@v1`、`sec.search_filing@v1` 和 `sec.read_filing_section@v1`。Knowledge calculator 代码保留，但不把 calculator、diff、Hybrid、Verifier 或 Monitor 计入 SEC 数据源 完成声明。
 
 `sec-source-v1` 至少 24 个确定性 case，分为 18 个 contract cases 与 6 个 closeout regression cases；后者不支持“未见数据泛化”声明。覆盖 identity/ambiguity、form/amendment/visibility/supplemental history、snapshot/idempotency/anomaly、XBRL context/unit/custom、Tool readiness/trajectory、429/5xx/timeout、损坏/partial 和跨 Workspace。每个 case 固定 `execution_kind=tool|sync`；sync case 另固定 `sync_kind=canonical_source|workspace_import`。manifest 还固定 dataset/split/checksum、可选 source snapshot/version、`expected_snapshot_presence`、`expected_import_presence`、bulk/增量 coverage、CIK/accession/`as_of`、visibility policy、allowed/forbidden tools、期望里程碑、结果/错误、eligible metrics 和 scorer version。
 
@@ -184,13 +184,13 @@ Point-in-time 必须区分：
 - 当前确定性结果：contract `18/18`、closeout `4/6`、总计 `22/24`；Tool surface `15/15`、import presence `24/24`，future/scope/Workspace leakage、duplicate commit 与 dependency-as-no-result 均为 0。source locator 为 `20/22`、snapshot presence 为 `22/24`、bulk readiness 为 `0/2`，失败均来自 `submissions-bulk-watermark` 与 `companyfacts-bulk-watermark`。
 - 当前直接证据：profile/materializer/Adapter composition、manifest/scorer/report 10 条测试通过；`disclosures` 模块及真实 PostgreSQL/MinIO/Milvus/Elasticsearch 关联证据 70 条通过。强制 PostgreSQL/Redis/MinIO/Milvus/Elasticsearch 的 Python 全量测试为 `1112 passed`，总分支覆盖率 `80.83%`、核心合集 `86%`，mypy 检查 `466 source files` 通过；Web Prettier/ESLint/typecheck、Vitest `85 passed`、critical state coverage 100%、production build 与 Playwright `8 passed` 均通过。上述均为当前工作树本地证据，不替代分支/main CI。
 
-未关闭项：`submissions.zip`/`companyfacts.zip` 不可变 bytes、`bulk_published_at`/`coverage_through` 与 post-watermark 官方增量补齐尚未实现，因此两条黄金 closeout case 记录 `capability_missing`，Day 6 release gate 必须失败。当前环境也没有合法 SEC 联系身份，未运行 live SEC smoke；D5-08/D5-09 浏览器 DoD 仍未完成。D6-05/D6-08 只能是 `implemented_pending_verification`，D6-02/D6-06 保持 `thin_slice`，D6-01～D6-08 不能统一标为 `complete`。
+未关闭项：`submissions.zip`/`companyfacts.zip` 不可变 bytes、`bulk_published_at`/`coverage_through` 与 post-watermark 官方增量补齐尚未实现，因此两条黄金 closeout case 记录 `capability_missing`，SEC 数据源 release gate 必须失败。当前环境也没有合法 SEC 联系身份，未运行 live SEC smoke；D5-08/D5-09 浏览器 DoD 仍未完成。D6-05/D6-08 只能是 `implemented_pending_verification`，D6-02/D6-06 保持 `thin_slice`，D6-01～D6-08 不能统一标为 `complete`。
 
 #### 远端合并复核（2026-08-27）
 
 - [PR #10](https://github.com/hrw991009/industry-intelligence-platform/pull/10) 已合入 `main`；功能 head [`7a4766b`](https://github.com/hrw991009/industry-intelligence-platform/commit/7a4766b6d4c4ad764b9e095b2d0f03d8ec96c143)，合并提交 [`84a7945`](https://github.com/hrw991009/industry-intelligence-platform/commit/84a7945ed769d63974602b5c20984e2f4ebf0e93)。
 - push CI [`33053621106`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053621106)、PR CI [`33053623731`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33053623731) 和 main CI [`33054136204`](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/33054136204) 均通过 7 个适用 Job。
-- 本地 `main` 与 `origin/main` 一致且工作树干净；项目所有者已明确要求核对 Day 6 并先编写 Day 7 文档。这些证据关闭提交、合并、CI 和本轮复核条件，但不会把两个缺失能力改写成成功。
+- 本地 `main` 与 `origin/main` 一致且工作树干净；项目所有者已明确要求核对 SEC 数据源 并先编写 财务检索与计算 文档。这些证据关闭提交、合并、CI 和本轮复核条件，但不会把两个缺失能力改写成成功。
 
 #### 技术债收口（2026-09-01）
 
@@ -202,18 +202,10 @@ Point-in-time 必须区分：
 
 本轮尚未实际下载两个实时大体积 ZIP，也没有新的分支/PR/main CI、外部来源权利/所有者复核或适用浏览器证据。因此 D6-02/D6-06 从 `thin_slice` 升为 `implemented_pending_verification`，D6-01～D6-08 仍不能统一改为 `complete`。
 
-## 4. 明确不进入 Day 6
+## 4. 明确不进入 SEC 数据源
 
-- BM25 查询、RRF、rerank、Recall@5/MRR 和结构化+叙述双通道核对属于 Day 7。
-- 正式财务计算、period/unit reconciliation、filing diff 和中文 SEC L4 profile 属于 Day 7。
-- Evidence-aware Verifier、bounded revise、Monitor/HITL 和间接 Prompt Injection suite 属于 Day 8。
-- `sec-temporal-v1` 60-case、公开 benchmark release suite 和中英配对属于 Day 9。
+- BM25 查询、RRF、rerank、Recall@5/MRR 和结构化+叙述双通道核对属于 财务检索与计算。
+- 正式财务计算、period/unit reconciliation、filing diff 和中文 SEC L4 profile 属于 财务检索与计算。
+- Evidence-aware Verifier、bounded revise、Monitor/HITL 和间接 Prompt Injection suite 属于 核验与监控。
+- `sec-temporal-v1` 60-case、公开 benchmark release suite 和中英配对属于 系统评测。
 - 行情、预测、估值、荐股、交易、SEC filing 提交、`20-F/6-K`、任意 Web fallback 和第二套 Runtime/RAG 均不在范围内。
-
-## 5. 复盘问题
-
-1. 为什么 CIK 是身份而 ticker/name 只能是带版本的候选？
-2. 为什么 `accepted_at`、`public_available_at` 与 `retrieved_at` 不能合并成一个时间字段？
-3. 为什么全局公开 SEC 快照仍需要 Workspace import 绑定和返回前授权？
-4. 为什么 aggregate XBRL API 不能替代锁定 accession 的 raw iXBRL？
-5. `sec-source-v1` 能证明哪些数据合同，又为什么不能证明 Day 7 检索质量或最终金融判断？

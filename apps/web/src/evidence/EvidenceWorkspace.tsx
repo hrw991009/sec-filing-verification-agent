@@ -212,7 +212,7 @@ export function EvidenceWorkspace({
     <section className="evidence-workspace" aria-label="Evidence Inspector">
       <header className="workspace-page-header">
         <div>
-          <span className="eyebrow">Day 4 · Evidence / Claim Ledger</span>
+          <span className="eyebrow">Evidence / Claim Ledger</span>
           <h1>Evidence Inspector</h1>
           <p>检查 Observation 提升结果、来源版本、授权快照和 Claim 反向链路。</p>
         </div>

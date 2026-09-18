@@ -260,7 +260,7 @@ export function MemoryWorkspace({
     <section className="memory-workspace" aria-label="Memory 管理">
       <header className="workspace-page-header">
         <div>
-          <span className="eyebrow">Day 4 · User-controlled Memory</span>
+          <span className="eyebrow">User-controlled Memory</span>
           <h1>Memory 管理</h1>
           <p>搜索、检查 revision，并让修改、停用、过期或删除在下一次 Run 立即生效。</p>
         </div>

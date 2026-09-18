@@ -1,10 +1,10 @@
-# Day 3 学习日志：有界 Tool Use、真实能力与正式 Workbench
+# 工具执行：工程实现与验证记录
 
 > 更新日期：2026-08-20
 >
-> 计划基线：`docs/master-plan.md` 1.7.0 Day 3
+> 计划基线：`docs/engineering-baseline.md` 1.7.0 工具执行
 >
-> 当前结论：五步、全量本地验收、PR 合并与 `main` 合并提交的干净 CI 均已通过；D3-01～D3-11 已复核为 `complete`，Day 3 门禁关闭。
+> 当前结论：五步、全量本地验收、PR 合并与 `main` 合并提交的干净 CI 均已通过；D3-01～D3-11 已复核为 `complete`，工具执行 门禁关闭。
 
 ## 1. Tool、Skill、Application Service 和 Harness 各自负责什么
 
@@ -22,7 +22,7 @@ Tool 是一次 typed capability：它必须声明输入输出、所需 capabilit
 
 Observation 是 Tool 返回值的有界、可追溯、归一化表示；它带来源版本、时间、locator、content hash 和 normalizer version。这只能回答“Tool 当时返回了什么”，不能证明来源许可有效、locator 可访问、授权仍成立、内容已去重或 Claim 得到支持。
 
-所以 Context Compiler v1 仍把 Observation 当不可信 USER data。它可以包含 prompt injection，但不能修改 system instructions、权限或 Tool surface。真正的 Evidence 还需 Day 4 的授权、规范化、去重、locator 校验与 Evidence ledger。
+所以 Context Compiler v1 仍把 Observation 当不可信 USER data。它可以包含 prompt injection，但不能修改 system instructions、权限或 Tool surface。真正的 Evidence 还需 Memory 与 Evidence 的授权、规范化、去重、locator 校验与 Evidence ledger。
 
 ## 4. 什么时候继续，什么时候停止
 
@@ -45,8 +45,8 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 - ToolCall/ToolRun 使用 Workspace/run 复合外键，ToolRun actor 还必须匹配 AgentRun 的 workspace/user，执行 Step 可空且唯一；Event batch 与 Tool/Step/Run 投影在同一事务原子提交，并校验 call/run/workspace/actor/Step/trace/Observation correlation；
 - Observation 有硬大小、来源数量、时间、scope 和 digest 校验；locator 拒绝 userinfo、query、fragment 和控制字符，放不进 Context budget 时 fail-closed；
 - Tool 完成/取消/硬超时竞态、非零成本守恒、稳定 error code、Observation envelope digest 与幂等键 hash 都有 fail-closed 合同；
-- ToolCall/ToolRun 是 Run-owned operational audit projection，`RESTRICT` 阻止普通删除隐式清空；真实 PostgreSQL 已证明 Conversation 逻辑删除后 audit 仍保留，旧 terminalizer revision 与陈旧 QueryRun 对账也已关闭；显式物理 purge、最小 security audit 物理留存和隔离备份恢复演练留作 Day 7 发布门禁；
-- approval_required 只停止并记录请求；持久 interrupt/resume 与重复审批幂等属于 Day 5；
+- ToolCall/ToolRun 是 Run-owned operational audit projection，`RESTRICT` 阻止普通删除隐式清空；真实 PostgreSQL 已证明 Conversation 逻辑删除后 audit 仍保留，旧 terminalizer revision 与陈旧 QueryRun 对账也已关闭；显式物理 purge、最小 security audit 物理留存和隔离备份恢复演练留作 财务检索与计算 发布门禁；
+- approval_required 只停止并记录请求；持久 interrupt/resume 与重复审批幂等属于 Knowledge；
 - Fake Tool 无网络、Shell、数据库和 Secret 能力，不会伪装真实来源；真实 Adapter 只接受固定 host/字段和服务端 terms approval，不接受模型提供 URL、key 或许可开关。
 
 ## 7. 验收记录
@@ -60,11 +60,11 @@ L2 把继续权留在 Runtime，而不是交给模型自由自省：每轮模型
 - Playwright 的身份、L0 成功、Web Tool/Inspector 和取消/附件/删除四条真实浏览器旅程为 `4 passed`；
 - disposable PostgreSQL 证明同一事务物化 ScheduleOccurrence、Job、Outbox 与 CollectionRun，并验证并发手动触发收敛、Workspace 权限、游标、external ID/hash 去重和领域投影；完整 migration upgrade/check/downgrade/upgrade 无漂移；
 - disposable PostgreSQL 还证明独立只读账号的连接测试、Schema/主键/索引/分页、安全聚合、QueryRun/Artifact 持久化和 Workspace 隔离；危险 SQL 留下稳定失败事实，账号绕过应用直接 DELETE 仍被数据库拒绝；
-- 受控工作树路径与完整 44-commit 历史的 Gitleaks 扫描均无泄漏；`sqlglot==28.5.0` 为 MIT，`echarts==6.1.0` 为 Apache-2.0，来源、威胁模型与负向清单见三份 Day 3 安全复核。
+- 受控工作树路径与完整 44-commit 历史的 Gitleaks 扫描均无泄漏；`sqlglot==28.5.0` 为 MIT，`echarts==6.1.0` 为 Apache-2.0，来源、威胁模型与负向清单见三份 工具执行 安全复核。
 
 失败修复没有靠删测试、放宽 Schema 或把适用项写成 `N/A` 绕过。实际关闭了执行中取消/deadline/硬超时竞态、已知 Model/Tool 成本守恒、确定转移的 Event batch 原子性、PostgreSQL `CHECK` 的三值逻辑绕过、Tool/Step/Run 投影关联、Observation→Context→Trace 关联，以及写副作用结果未知时的保守终态。
 
-残余边界也不隐藏：World Bank/Alpha Vantage 的实际部署用途批准仍须由部署方提供；Day 4 才做 Observation→Evidence；Day 5 才做持久 approval interrupt/resume；显式物理 Run purge与隔离备份恢复演练是 Day 7 发布门禁。它们不再是 Day 3 冻结范围的代码缺口，也不能由 Day 3 的 `complete` 状态冒充已完成。
+残余边界也不隐藏：World Bank/Alpha Vantage 的实际部署用途批准仍须由部署方提供；Memory 与 Evidence 才做 Observation→Evidence；Knowledge 才做持久 approval interrupt/resume；显式物理 Run purge与隔离备份恢复演练是 财务检索与计算 发布门禁。它们不再是 工具执行 冻结范围的代码缺口，也不能由 工具执行 的 `complete` 状态冒充已完成。
 
 ## 8. 第三步的知识突破
 
@@ -94,6 +94,6 @@ Artifact 也不是把模型给的 ECharts JSON 原样透传。表格先做行/�
 
 第五步把“后端有合同”变成了真实用户闭环：用户切换行业并提交 Web Turn，正式 Job/Loader/Runtime 调用真实行业 Tool Adapter；刷新后 Inspector 从 Trace 重建 Action、策略、预算、Observation digest 与 stop reason。数据库页同样消费正式 Connection/Schema/QueryRun/Artifact API，ECharts 只渲染客户端二次 allowlist 通过的服务端 option。
 
-Definition of Done 逐项结论：真实用户旅程、正常/边界/失败/权限/恢复、migration/OpenAPI/SSE 兼容、结构化终态/Trace/稳定错误、逻辑删除与备份策略、威胁/隐私、第三方许可证/来源条款、可重复 Eval、README/Runbook、无静默 Mock/重复 loop，以及本地真实依赖环境均通过。持久审批 resume 按主计划属于 Day 5，物理 purge 与隔离备份恢复演练属于 Day 7；两项均写明归属，不作为逃避 Day 3 实现的 `N/A`。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已于 2026-08-18 合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job。
+Definition of Done 逐项结论：真实用户旅程、正常/边界/失败/权限/恢复、migration/OpenAPI/SSE 兼容、结构化终态/Trace/稳定错误、逻辑删除与备份策略、威胁/隐私、第三方许可证/来源条款、可重复 Eval、README/Runbook、无静默 Mock/重复 loop，以及本地真实依赖环境均通过。持久审批 resume 按主计划属于 Knowledge，物理 purge 与隔离备份恢复演练属于 财务检索与计算；两项均写明归属，不作为逃避 工具执行 实现的 `N/A`。[PR #5](https://github.com/hrw991009/industry-intelligence-platform/pull/5) 已于 2026-08-18 合并，合并提交 [`6968c63f`](https://github.com/hrw991009/industry-intelligence-platform/commit/6968c63f3330f3079e3e1cc2db0b29488d7502a2) 的 [CI 32112639811](https://github.com/hrw991009/industry-intelligence-platform/actions/runs/32112639811) 在 `main` 的干净环境通过全部 7 个适用 Job。
 
-当前阶段结论：Day 3 五步实现、本地门禁、合并与干净 CI 已全部收口；D3-01～D3-11 于 2026-08-20 复核为 `complete`，可以按主计划进入 Day 4。
+当前阶段结论：工具执行 五步实现、本地门禁、合并与干净 CI 已全部收口；D3-01～D3-11 于 2026-08-20 复核为 `complete`，可以按主计划进入 Memory 与 Evidence。

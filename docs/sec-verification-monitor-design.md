@@ -4,13 +4,13 @@
 >
 > 日期：2026-08-29
 >
-> 状态：Step 1～5 已本地实现；Day 8 等待专用浏览器、完整故障注入、远端 CI 与 owner review
+> 状态：Step 1～5 已本地实现；核验与监控 等待专用浏览器、完整故障注入、远端 CI 与 owner review
 >
 > 适用范围：D8-01～D8-08
 
 ## 1. 设计目标
 
-Day 8 把 Day 7 的可解释 L4 draft 提升为两条可验收链路：
+核验与监控 把 财务检索与计算 的可解释 L4 draft 提升为两条可验收链路：
 
 ```text
 SEC L4 draft
@@ -25,7 +25,7 @@ approved monitor
 → optional notification side effect
 ```
 
-两条链共用 `UnifiedAgentRuntime`、PostgreSQL Event/Checkpoint、Evidence/Claim/Citation、Calculation、Approval/Decision、side-effect ledger、Schedule/Occurrence/Job/Outbox 和 SEC sync/diff。新增代码应落入既有 bounded context；只有 Monitor/Case 缺少业务所有者时才在 `disclosures` 内增加聚合，不创建横跨所有模块的 Day 8 service。
+两条链共用 `UnifiedAgentRuntime`、PostgreSQL Event/Checkpoint、Evidence/Claim/Citation、Calculation、Approval/Decision、side-effect ledger、Schedule/Occurrence/Job/Outbox 和 SEC sync/diff。新增代码应落入既有 bounded context；只有 Monitor/Case 缺少业务所有者时才在 `disclosures` 内增加聚合，不创建横跨所有模块的 核验与监控 service。
 
 ## 2. 聚合与事实所有权
 
@@ -176,7 +176,7 @@ Case 幂等键至少由 `workspace + monitor + trigger source version + rule ver
 4. `deny/timeout` 写 Decision 和终态 Event，不创建 Monitor/Schedule/Outbox；
 5. 重复 decision 返回既有结果，冲突 decision 明确拒绝；迟到 Worker 受 checkpoint revision/run epoch/fence 阻止。
 
-Step 4 已把该协议接入唯一 Tool/Research Runtime。Day 7 的 `sec-l4-v1` 六个只读 Tool 保持冻结，新的 `sec-l5-v1` 才增加 `sec.monitor.subscribe@v1`；审批记录持久化 call ID、Tool reference、严格参数与 canonical digest。allow 在同一 PostgreSQL 事务写 Monitor/rule/初始 watermark/Schedule、Decision、completed side-effect ledger 和 resume Job/Outbox；deny/timeout 不写 Monitor、Schedule 或 resume Outbox。恢复加载器从 Approval 与 ledger 重建同一 Tool Observation，回到暂停的 Research loop，而不是调用第二套恢复服务。
+Step 4 已把该协议接入唯一 Tool/Research Runtime。财务检索与计算 的 `sec-l4-v1` 六个只读 Tool 保持冻结，新的 `sec-l5-v1` 才增加 `sec.monitor.subscribe@v1`；审批记录持久化 call ID、Tool reference、严格参数与 canonical digest。allow 在同一 PostgreSQL 事务写 Monitor/rule/初始 watermark/Schedule、Decision、completed side-effect ledger 和 resume Job/Outbox；deny/timeout 不写 Monitor、Schedule 或 resume Outbox。恢复加载器从 Approval 与 ledger 重建同一 Tool Observation，回到暂停的 Research loop，而不是调用第二套恢复服务。
 
 恢复测试必须覆盖 API 刷新、Worker hard stop、lease 过期、决定与取消竞态、Tool/Calculation 已完成但 Event 未投影、Case 已写但通知未知等阶段。恢复前先读账本和最终业务表，不能依据内存或 Trace 猜测。
 
@@ -199,17 +199,17 @@ Step 4 的正式 HTTP 面已提供原子 Monitor 审批决定、Monitor 列表/�
 
 每个 case 固定 Scope、source/fixture hash、Evidence/Calculation gold、allowed/forbidden actions、expected verification status、Runtime stop reason、最终数据库状态和预算。A2/A3/A4 使用同一 case/data/scope/budget；A4 的主要指标是审批、状态恢复和副作用正确性，不与问答准确率平均。
 
-Day 8 硬门：
+核验与监控 硬门：
 
 - Citation/source identity resolvability 100%；
 - fabricated source/accession/number/formula、future leakage、跨 Workspace、未授权写、重复副作用均为 0；
 - verified Claim false support 为 0；
 - recovery scenarios success 为 100%；
 - A3 简单题相对 A2 退化不超过 2pp，并在复杂场景有净收益；
-- deterministic、offline、live/model 证据继续分报，Day 8 不借公开 benchmark 或单次 live run 替代合同门禁。
+- deterministic、offline、live/model 证据继续分报，核验与监控 不借公开 benchmark 或单次 live run 替代合同门禁。
 
 ## 10. 实施顺序
 
-实现严格按 [Day 8 五步计划](learning-log/day-8.md) 推进。Step 5 已冻结 14-case/42-run `sec-verification-v1`，以 A3 作为六只读 Tool + mandatory verifier/one-revise，以 A4 作为 A3 + `sec.monitor.subscribe@v1`/HITL；A4 的 operational/recovery 指标与普通 question quality 分列。独立 scorer 从 Evidence/Citation、answer/program、Scope、trajectory、stop reason 和最终数据库计数重算，deterministic/security/fault JSON 与 Markdown 由同一 manifest 生成。
+实现严格按 [核验与监控 五步计划](engineering-records/verification-monitor.md) 推进。Step 5 已冻结 14-case/42-run `sec-verification-v1`，以 A3 作为六只读 Tool + mandatory verifier/one-revise，以 A4 作为 A3 + `sec.monitor.subscribe@v1`/HITL；A4 的 operational/recovery 指标与普通 question quality 分列。独立 scorer 从 Evidence/Citation、answer/program、Scope、trajectory、stop reason 和最终数据库计数重算，deterministic/security/fault JSON 与 Markdown 由同一 manifest 生成。
 
 当前 frozen replay 三层合同门通过，A3 复杂场景相对 A2 净增益 `0.714286`、简单题退化 `0`，A4 操作正确率/恢复率 `1.0/1.0`。报告不是 live SEC/model 质量结果；专用 Monitor allow/deny/timeout 浏览器旅程、真实 Monitor hard-stop 故障注入、branch/PR/main CI 和 owner review 尚缺，`day8_closeout_ready=false`。不得回写 observation 或修改分母来掩盖这些边界。

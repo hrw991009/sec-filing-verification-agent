@@ -379,6 +379,8 @@ class Settings(BaseSettings):
     text2sql_query_stale_seconds: Annotated[int, Field(ge=30, le=86_400)] = 300
 
     minio_endpoint: str | None = None
+    minio_public_endpoint: str | None = None
+    minio_public_secure: bool | None = None
     minio_access_key: str | None = None
     minio_secret_key: SecretStr | None = None
     minio_bucket: str | None = None
@@ -520,6 +522,13 @@ class Settings(BaseSettings):
                 r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.minio_bucket
             ):
                 raise ValueError("MinIO bucket name is invalid")
+        if self.minio_public_endpoint is not None:
+            if self.minio_endpoint is None:
+                raise ValueError("MinIO public endpoint requires a configured store")
+            if not re.fullmatch(r"[A-Za-z0-9.\[\]:-]+", self.minio_public_endpoint):
+                raise ValueError("MinIO public endpoint must be a host and port")
+        if self.minio_public_secure is not None and self.minio_public_endpoint is None:
+            raise ValueError("MinIO public TLS setting requires a public endpoint")
         return self
 
     @model_validator(mode="after")

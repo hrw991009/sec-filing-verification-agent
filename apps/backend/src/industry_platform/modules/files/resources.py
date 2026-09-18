@@ -46,6 +46,12 @@ def create_private_file_object_store(
         secret_key = settings.minio_secret_key
         if endpoint is None or access_key is None or secret_key is None:
             raise RuntimeError("Validated MinIO settings are incomplete")
+        public_endpoint = settings.minio_public_endpoint or endpoint
+        public_secure = (
+            settings.minio_secure
+            if settings.minio_public_secure is None
+            else settings.minio_public_secure
+        )
         object_store = MinioPrivateFileObjectStore(
             client=Minio(
                 endpoint,
@@ -54,8 +60,15 @@ def create_private_file_object_store(
                 secure=settings.minio_secure,
                 region=settings.minio_region,
             ),
-            public_endpoint=endpoint,
-            secure=settings.minio_secure,
+            public_endpoint=public_endpoint,
+            secure=public_secure,
+            presign_client=Minio(
+                public_endpoint,
+                access_key=access_key,
+                secret_key=secret_key.get_secret_value(),
+                secure=public_secure,
+                region=settings.minio_region,
+            ),
         )
     return object_store
 
